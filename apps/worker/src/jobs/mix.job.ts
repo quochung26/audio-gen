@@ -46,8 +46,8 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
   try {
     await setProgress(10);
 
-    // Driver local trả URL dạng file://; driver R2 trả URL http nên phải tải về
-    // trước khi ffmpeg đọc.
+    // Trong DB là khoá trong kho; `storage.resolve` đổi thành đường dẫn cục bộ
+    // (driver local) hoặc URL http (driver R2, phải tải về trước khi ffmpeg đọc).
     const blockPaths = await Promise.all(
       episode.blocks.map(async (b, i) => ({
         path: await localPath(b.audioAsset!.url, workDir, `block-${String(i).padStart(4, "0")}.wav`),
@@ -123,7 +123,7 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
         episodeId_type_part: { episodeId, type: ExportType.AUDIO_MP3, part: 1 },
       },
       update: {
-        url: stored.url,
+        url: stored.key,
         sizeBytes: mp3.sizeBytes,
         durationMs: mp3.durationMs,
         bitrateKbps: 160,
@@ -136,7 +136,7 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
         type: ExportType.AUDIO_MP3,
         part: 1,
         partTotal: 1,
-        url: stored.url,
+        url: stored.key,
         sizeBytes: mp3.sizeBytes,
         durationMs: mp3.durationMs,
         bitrateKbps: 160,
@@ -159,6 +159,7 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
 
     return {
       episodeId,
+      // Người gọi cần đường dẫn mở được ngay, khác với thứ đem lưu.
       url: stored.url,
       durationMs: mp3.durationMs,
       sizeBytes: mp3.sizeBytes,
@@ -176,8 +177,8 @@ function extensionOf(url: string): string {
 }
 
 /** Trả về đường dẫn cục bộ cho ffmpeg đọc, tải về nếu là URL http. */
-async function localPath(url: string, workDir: string, filename: string): Promise<string> {
-  if (url.startsWith("file://")) return url.slice("file://".length);
+async function localPath(ref: string, workDir: string, filename: string): Promise<string> {
+  const url = getStorage().resolve(ref);
   if (!url.startsWith("http")) return url;
 
   const res = await fetch(url);

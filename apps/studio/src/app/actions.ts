@@ -13,7 +13,8 @@ import {
 import { ffprobe } from "@audio/audio";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { enqueue } from "@/lib/queue";
-import { putLocal, safeFileName } from "@/lib/storage";
+import { join } from "node:path";
+import { putLocal, safeFileName, storageRoot } from "@/lib/storage";
 
 export async function createStory(formData: FormData) {
   const idea = String(formData.get("idea") ?? "").trim();
@@ -402,22 +403,23 @@ export async function createTrack(formData: FormData) {
   if (!Object.values(AudioTrackKind).includes(kind)) throw new Error("Loại track không hợp lệ");
   if (!Object.values(LicenseType).includes(licenseType)) throw new Error("Giấy phép không hợp lệ");
 
+  // Cột `url` giữ KHOÁ trong kho khi tự tải lên, hoặc URL công khai khi dán —
+  // hai dạng phân biệt được vì khoá không bao giờ bắt đầu bằng "http".
   let url: string;
+  let localFile: string | null = null;
   if (file instanceof File && file.size > 0) {
     const bytes = Buffer.from(await file.arrayBuffer());
     url = await putLocal(`library/${kind.toLowerCase()}/${safeFileName(file.name)}`, bytes);
+    localFile = join(storageRoot(), url);
   } else if (pastedUrl) {
     url = pastedUrl;
   } else {
     throw new Error("Chọn file để tải lên, hoặc dán URL");
   }
 
-  // Độ dài là cột bắt buộc, và cần thật: mix job dựa vào nó để biết nhạc có phải
-  // lặp không. ffprobe chỉ đọc được file cục bộ nên URL từ xa đành để 0.
-  let durationMs = 0;
-  if (url.startsWith("file://")) {
-    durationMs = (await ffprobe(url.slice("file://".length))).durationMs;
-  }
+  // Độ dài là cột bắt buộc, và cần thật: Studio dựa vào nó để báo nhạc sẽ lặp
+  // mấy vòng. ffprobe chỉ đọc được file cục bộ nên URL từ xa đành để 0.
+  const durationMs = localFile ? (await ffprobe(localFile)).durationMs : 0;
 
   await prisma.audioTrack.create({
     data: {

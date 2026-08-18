@@ -2,6 +2,7 @@ import { AudioTrackKind, LicenseType, prisma } from "@audio/database";
 import { loadEnv } from "@audio/config";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, Section } from "@/components/ui";
+import { mediaUrl } from "@/lib/storage";
 import { createTrack, deleteTrack } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +102,7 @@ export default async function TracksPage() {
                   </form>
                 </div>
                 {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                <audio controls preload="none" className="h-8 w-full max-w-md" src={proxy(t.url)} />
+                <audio controls preload="none" className="h-8 w-full max-w-md" src={mediaUrl(t.url)} />
               </div>
             ))}
           </div>
@@ -226,10 +227,3 @@ export default async function TracksPage() {
   );
 }
 
-/** file:// không phát được trong trình duyệt — đi qua route phục vụ file. */
-function proxy(url: string): string {
-  if (url.startsWith("file://")) {
-    return `/api/audio?path=${encodeURIComponent(url.slice("file://".length))}`;
-  }
-  return url;
-}

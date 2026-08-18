@@ -14,8 +14,10 @@ export function storageRoot(): string {
 }
 
 /**
- * Ghi file vào kho local, trả về URL dạng `file://` — đúng định dạng mà worker
- * sinh ra, nên hai bên đọc URL giống nhau.
+ * Ghi file vào kho local, trả về KHOÁ trong kho (không phải đường dẫn tuyệt đối).
+ *
+ * Khoá là thứ đem lưu vào DB: đổi tên thư mục dự án hay chuyển sang máy khác thì
+ * khoá vẫn đúng, còn `file:///Users/...` thì hỏng sạch.
  *
  * Chỉ dùng được với `STORAGE_DRIVER=local`. Với R2 thì Studio không có credential
  * (và cũng không nên có) — chỗ đó người dùng dán URL công khai vào thay vì tải lên.
@@ -25,16 +27,33 @@ export async function putLocal(key: string, data: Buffer): Promise<string> {
     throw new Error("Chỉ tải file lên được khi STORAGE_DRIVER=local. Với R2 hãy dán URL công khai.");
   }
 
-  const path = join(storageRoot(), key);
+  const root = storageRoot();
+  const path = join(root, key);
   // Chốt chặn: `key` do người dùng gián tiếp quyết định (tên file), nên phải
   // chắc chắn không thoát ra ngoài thư mục kho.
-  if (path !== storageRoot() && !path.startsWith(storageRoot() + "/")) {
+  if (path !== root && !path.startsWith(root + "/")) {
     throw new Error("Khoá lưu trữ không hợp lệ");
   }
 
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, data);
-  return `file://${path}`;
+  return key;
+}
+
+/**
+ * Đổi thứ đọc từ DB thành URL phát được trong trình duyệt.
+ *
+ * - `http(s)://…` → nguồn ngoài (R2, hoặc URL người dùng dán), dùng thẳng
+ * - `file:///…`   → dữ liệu cũ trước khi chuyển sang lưu khoá; đi qua route bằng
+ *                   tham số `path`. Chạy `pnpm fix:storage-refs` để dọn.
+ * - còn lại       → khoá trong kho, đi qua route bằng tham số `key`
+ */
+export function mediaUrl(ref: string): string {
+  if (ref.startsWith("http://") || ref.startsWith("https://")) return ref;
+  const param = ref.startsWith("file://")
+    ? `path=${encodeURIComponent(ref.slice("file://".length))}`
+    : `key=${encodeURIComponent(ref)}`;
+  return `/api/audio?${param}`;
 }
 
 /** Bỏ dấu và ký tự lạ khỏi tên file — ffmpeg và đường dẫn đỡ phải quote. */

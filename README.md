@@ -224,6 +224,32 @@ Với `STORAGE_DRIVER=local` thì tải file thẳng lên Studio. Với `r2` th�
 
 ---
 
+## File audio lưu ở đâu
+
+Trong DB lưu **khoá trong kho**, không phải đường dẫn tuyệt đối:
+
+```
+series/<seriesId>/blocks/<cacheKey>.wav      ← block đã đọc
+series/<seriesId>/episodes/<slug>.mp3        ← bản xuất
+library/bgm/<tên-file>                       ← nhạc nền tải lên
+```
+
+Gốc kho là `STORAGE_LOCAL_DIR` giải theo `apps/worker` (mặc định `apps/worker/data/storage`). Studio và Player trỏ ngược lại đúng gốc đó.
+
+Vì sao không lưu đường dẫn tuyệt đối: bản đầu lưu `file:///Users/.../audio/...`, và chỉ cần đổi tên thư mục dự án là **toàn bộ audio đã sinh mất tham chiếu** — file vẫn nằm trên đĩa nhưng không tra ra được. Chuyển từ macOS sang WSL2 cũng hỏng y hệt. Lưu khoá thì đổi tên, chuyển máy, đổi `STORAGE_LOCAL_DIR` đều không ảnh hưởng.
+
+Cột `url` giữ hai dạng, phân biệt bằng tiền tố:
+
+| Giá trị | Nghĩa |
+|---|---|
+| `series/...` | khoá trong kho — giải theo gốc hiện tại |
+| `https://...` | nguồn ngoài: R2, hoặc URL nhạc nền người dùng dán |
+| `file:///...` | **dạng cũ**, còn đọc được nhưng nên chạy `pnpm fix:storage-refs --apply` để dọn |
+
+Trình duyệt không mở được file trên đĩa nên hai app phục vụ qua `/api/audio?key=...`, có chặn path traversal.
+
+---
+
 ## Nghe thử
 
 Player chạy ở `localhost:3001`, bind `0.0.0.0` nên **mở được từ điện thoại cùng mạng LAN** — cách nhanh nhất để nghe thử trên loa/tai nghe thật:
@@ -308,3 +334,4 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | `pnpm story "<ý tưởng>"` | Chạy trọn chuỗi viết truyện |
 | `pnpm inspect [seriesId]` | Xem chi tiết truyện đã sinh + telemetry |
 | `pnpm db:seed` | Nạp prompt, giọng giả lập, từ điển phát âm |
+| `pnpm fix:storage-refs` | Dọn tham chiếu `file://` cũ thành khoá (`--apply` để ghi thật) |

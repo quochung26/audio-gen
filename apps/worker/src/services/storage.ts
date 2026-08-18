@@ -4,9 +4,13 @@ import { loadEnv } from "@audio/config";
 import { logger } from "../lib/logger";
 
 export interface StoredFile {
-  /** Khoá trong kho, ví dụ "episodes/abc/blocks/003.wav" */
+  /**
+   * Khoá trong kho, ví dụ "series/abc/blocks/003.wav".
+   *
+   * ĐÂY là thứ đem lưu vào DB, không phải `url`. Xem `StorageDriver.resolve`.
+   */
   key: string;
-  /** URL đọc được — file local là đường dẫn, R2 là URL công khai */
+  /** URL đọc được ngay — chỉ để log và trả về cho người gọi, đừng lưu. */
   url: string;
   sizeBytes: number;
 }
@@ -15,6 +19,20 @@ export interface StorageDriver {
   readonly name: string;
   put(key: string, data: Buffer, contentType: string): Promise<StoredFile>;
   publicUrl(key: string): string;
+  /**
+   * Đổi thứ đọc từ DB thành đường dẫn/URL đọc được ngay.
+   *
+   * Nhận ba dạng:
+   * - khoá trong kho → giải theo gốc lưu trữ hiện tại
+   * - `http(s)://…` → nguồn ngoài, trả nguyên (nhạc nền dán URL, hoặc R2)
+   * - `file:///…` → dữ liệu cũ trước khi chuyển sang lưu khoá, trả nguyên đường dẫn
+   */
+  resolve(ref: string): string;
+}
+
+/** Nguồn ngoài thì giữ nguyên; chỉ khoá mới cần giải theo gốc kho. */
+function isAbsoluteRef(ref: string): boolean {
+  return ref.startsWith("http://") || ref.startsWith("https://") || ref.startsWith("file://");
 }
 
 /**
@@ -39,6 +57,12 @@ class LocalDriver implements StorageDriver {
   publicUrl(key: string): string {
     return `file://${join(this.#root, key)}`;
   }
+
+  resolve(ref: string): string {
+    if (ref.startsWith("file://")) return ref.slice("file://".length);
+    if (isAbsoluteRef(ref)) return ref;
+    return join(this.#root, ref);
+  }
 }
 
 /**
@@ -62,6 +86,12 @@ class R2Driver implements StorageDriver {
 
   publicUrl(key: string): string {
     return `${this.#publicUrl}/${key}`;
+  }
+
+  resolve(ref: string): string {
+    if (ref.startsWith("file://")) return ref.slice("file://".length);
+    if (isAbsoluteRef(ref)) return ref;
+    return this.publicUrl(ref);
   }
 }
 

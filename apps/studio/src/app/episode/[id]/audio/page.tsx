@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AudioTrackKind, LicenseType, prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, STATUS_TONE, Section } from "@/components/ui";
+import { mediaUrl } from "@/lib/storage";
 import {
   approveBlock,
   exportEpisode,
@@ -196,7 +197,7 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
               </span>
             </div>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <audio controls preload="none" className="w-full" src={proxy(mp3.url)} />
+            <audio controls preload="none" className="w-full" src={mediaUrl(mp3.url)} />
 
             <div className="flex items-center gap-3 border-t border-neutral-900 pt-3">
               {episode.status === "PUBLISHED" ? (
@@ -263,7 +264,7 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
                       controls
                       preload="none"
                       className="mt-2 h-8 w-full max-w-md"
-                      src={proxy(b.audioAsset.url)}
+                      src={mediaUrl(b.audioAsset.url)}
                     />
                   )}
                 </div>
@@ -288,10 +289,3 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
   );
 }
 
-/** file:// không phát được trong trình duyệt — đi qua route phục vụ file. */
-function proxy(url: string): string {
-  if (url.startsWith("file://")) {
-    return `/api/audio?path=${encodeURIComponent(url.slice("file://".length))}`;
-  }
-  return url;
-}

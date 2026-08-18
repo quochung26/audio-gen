@@ -1,29 +1,31 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { resolve } from "node:path";
-import { loadEnv } from "@audio/config";
+import { join, resolve } from "node:path";
+import { storageRoot } from "@/lib/audio-url";
 import type { NextRequest } from "next/server";
 import type { ReadableOptions } from "node:stream";
 
 /**
  * Phục vụ file audio từ đĩa cho trình duyệt.
  *
- * Cần vì driver lưu trữ local trả URL `file://`, trình duyệt không phát được.
- * Chỉ dùng khi Studio chạy tại chỗ; với driver R2 thì URL công khai dùng trực
- * tiếp, không qua route này.
+ * Cần vì driver lưu trữ local không có URL http. Với driver R2 thì URL công
+ * khai dùng trực tiếp, không qua route này.
  *
- * ⚠️ Route này đọc file theo đường dẫn từ query — nên PHẢI chặn path traversal.
- * Chỉ cho phép đọc trong đúng thư mục lưu trữ đã cấu hình.
+ * Hai tham số:
+ * - `key`  — khoá trong kho ("series/abc/episodes/x.mp3"). Đây là dạng hiện tại.
+ * - `path` — đường dẫn tuyệt đối. Dạng CŨ, chỉ còn để dữ liệu ghi trước khi
+ *            chuyển sang lưu khoá vẫn nghe được.
+ *
+ * ⚠️ Cả hai đều đọc file theo tham số từ query nên PHẢI chặn path traversal —
+ * chỉ cho phép đọc trong đúng thư mục lưu trữ đã cấu hình.
  */
 export async function GET(req: NextRequest) {
-  const raw = req.nextUrl.searchParams.get("path");
-  if (!raw) return new Response("thiếu tham số path", { status: 400 });
+  const key = req.nextUrl.searchParams.get("key");
+  const legacyPath = req.nextUrl.searchParams.get("path");
+  if (!key && !legacyPath) return new Response("thiếu tham số key", { status: 400 });
 
-  const env = loadEnv();
-  // Cùng gốc mà worker dùng khi ghi file. Worker chạy ở apps/worker nên đường
-  // dẫn tương đối được giải theo đó.
-  const root = resolve(process.cwd(), "..", "worker", env.STORAGE_LOCAL_DIR);
-  const target = resolve(raw);
+  const root = storageRoot();
+  const target = key ? resolve(join(root, key)) : resolve(legacyPath!);
 
   // Chốt chặn: đường dẫn đã giải phải nằm trong thư mục lưu trữ.
   if (target !== root && !target.startsWith(root + "/")) {

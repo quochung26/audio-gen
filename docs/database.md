@@ -550,6 +550,8 @@ model AudioAsset {
   /// sha256(text + ttsEngine + voiceId + speed + pitch)
   cacheKey String @unique
 
+  /// KHOÁ trong kho ("series/abc/blocks/x.wav"), không phải đường dẫn tuyệt đối
+  /// — xem README mục "File audio lưu ở đâu".
   url        String
   durationMs Int
   sizeBytes  Int
@@ -573,6 +575,7 @@ model AudioTrack {
   kind AudioTrackKind
 
   title      String
+  /// Khoá trong kho khi tự tải lên, hoặc URL `https://` khi dán nguồn ngoài.
   url        String
   durationMs Int
   mood       String?
@@ -622,6 +625,7 @@ model Export {
   part      Int @default(1)
   partTotal Int @default(1)
 
+  /// Khoá trong kho, xem AudioAsset.url.
   url        String
   sizeBytes  Int?
   durationMs Int?

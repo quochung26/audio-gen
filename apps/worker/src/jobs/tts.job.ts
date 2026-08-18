@@ -96,7 +96,9 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
       const asset = await prisma.audioAsset.create({
         data: {
           cacheKey,
-          url: stored.url,
+          // Lưu KHOÁ, không phải đường dẫn tuyệt đối: đổi tên thư mục dự án
+          // hoặc chuyển máy sẽ làm hỏng mọi tham chiếu đã ghi.
+          url: stored.key,
           durationMs: result.durationMs,
           sizeBytes: stored.sizeBytes,
           sampleRate: result.sampleRate,

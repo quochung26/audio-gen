@@ -17,7 +17,8 @@
     "job:mock": "pnpm --filter @audio/worker job:mock",
     "queue:status": "pnpm --filter @audio/worker queue:status",
     "story": "pnpm --filter @audio/worker story",
-    "inspect": "pnpm --filter @audio/worker inspect"
+    "inspect": "pnpm --filter @audio/worker inspect",
+    "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

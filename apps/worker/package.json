@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "queue:status": "dotenv -e ../../.env -- tsx src/scripts/status.ts",
     "story": "dotenv -e ../../.env -- tsx src/scripts/write-story.ts",
-    "inspect": "dotenv -e ../../.env -- tsx src/scripts/inspect.ts"
+    "inspect": "dotenv -e ../../.env -- tsx src/scripts/inspect.ts",
+    "fix:storage-refs": "dotenv -e ../../.env -- tsx src/scripts/fix-storage-refs.ts"
   },
   "dependencies": {
     "@audio/config": "workspace:*",
