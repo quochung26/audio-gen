@@ -20,7 +20,10 @@
     "inspect": "pnpm --filter @audio/worker inspect",
     "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs",
     "test": "turbo test",
-    "db:push:player": "pnpm --filter @audio/database db:push:player"
+    "db:push:player": "pnpm --filter @audio/database db:push:player",
+    "api": "pnpm --filter @audio/api dev",
+    "studio": "pnpm --filter @audio/studio dev",
+    "player": "pnpm --filter @audio/player dev"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

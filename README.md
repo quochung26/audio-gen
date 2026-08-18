@@ -35,13 +35,16 @@ pnpm infra:up                # Postgres + Redis
 pnpm db:push                 # tạo bảng
 ```
 
-Ba terminal:
+Bốn terminal:
 
 ```bash
-pnpm worker                  # tiêu thụ hàng đợi
-pnpm --filter @audio/studio dev    # http://localhost:3000
-pnpm --filter @audio/player dev    # http://localhost:3001 (mở được từ điện thoại cùng mạng)
+pnpm worker    # tiêu thụ hàng đợi — LLM, TTS, ffmpeg
+pnpm api       # API của Studio, cổng 3002
+pnpm studio    # giao diện Studio, http://localhost:3000
+pnpm player    # trang nghe, http://localhost:3001 (mở được từ điện thoại cùng mạng)
 ```
+
+Chạy production thì chỉ cần hai: `pnpm build` rồi `pnpm worker` + `pnpm api` — API phục vụ luôn bản build của Studio ở cổng 3002.
 
 > Cổng mặc định của Postgres/Redis là **5433 / 6380**, không phải 5432 / 6379 — tránh đụng dự án khác đang chạy trên cùng máy.
 
@@ -259,6 +262,28 @@ Với `STORAGE_DRIVER=local` thì tải file thẳng lên Studio. Với `r2` th�
 
 ---
 
+## Studio: SPA + API
+
+```
+apps/studio  — Vite + React (SPA thuần, không có gì chạy phía server)
+apps/api     — Hono. Prisma + BullMQ chỉ nằm ở đây và ở worker.
+apps/player  — Next.js. Render phía server vì cần SEO, thẻ meta và RSS.
+apps/worker  — tiêu thụ hàng đợi: LLM, TTS, ffmpeg.
+```
+
+Studio chỉ mình bạn dùng, trên localhost, nên không cần render phía server. Giao diện gọi `/api/...`; lúc dev Vite proxy sang cổng 3002, lúc chạy production API phục vụ luôn bản build.
+
+**Quy ước lỗi** giữa hai bên (`apps/api/src/lib/http.ts`):
+
+| | |
+|---|---|
+| `400` kèm `{ error }` | Lỗi người dùng gặp trong lúc dùng bình thường và tự xử lý được — chưa duyệt bản thảo, track còn tập đang dùng, prompt sai biến. Giao diện hiện nguyên văn tại chỗ, giữ nguyên thứ đang gõ dở. |
+| `500` | Bug. Thông báo chung, chi tiết nằm ở log API. |
+
+`UserError` là ranh giới: ném nó thì thành 400, ném gì khác thì thành 500.
+
+---
+
 ## Hai cơ sở dữ liệu
 
 ```
@@ -428,7 +453,8 @@ Không ném lỗi cho những trường hợp đó: server action ném lỗi th�
 | `packages/core` | Máy trạng thái Episode và **hai chốt chặn**: bản thảo chưa duyệt không sang được bước audio, asset `UNKNOWN` giấy phép không xuất bản được. Cả slugify tiếng Việt (chữ `đ` mà `normalize("NFD")` không tách được). |
 | `packages/audio` | Ducking, lặp/cắt nhạc nền, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
 | `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. Và bước kế tiếp của chạy hàng loạt — kể cả việc KHÔNG được nhảy qua chốt duyệt. |
-| `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
+| `apps/studio` | **Mọi trang render được** với dữ liệu đúng dạng API (jsdom) — lưới an toàn cho lần chuyển từ Next sang Vite. Và dựng URL phát nhạc. |
+| `apps/api` | Đọc header `Range`, đặt tên file an toàn. |
 | `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
 | `packages/llm` | Thay biến trong prompt, đối chiếu biến prompt dùng với biến bước đó truyền, và luật chọn prompt (biến thể thể loại thắng bản mặc định). |
 | `packages/tts` | Từ điển phát âm: **quy tắc dài áp trước quy tắc ngắn**, term hiểu theo nghĩa đen, regex gõ sai không làm hỏng job. Và chuẩn hoá văn bản cho engine. |
@@ -470,6 +496,7 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | `pnpm db:migrate` | Tạo migration (khi schema đã ổn định) |
 | `pnpm db:studio` | Xem dữ liệu bằng giao diện |
 | `pnpm typecheck` | Kiểm tra kiểu toàn bộ workspace |
+| `pnpm api` / `studio` / `player` | Chạy từng app |
 | `pnpm test` | Chạy test (cần `ffmpeg` — xem mục dưới) |
 | `pnpm queue:status` | Trạng thái hàng đợi + ngân sách VRAM |
 | `pnpm story "<ý tưởng>"` | Chạy trọn chuỗi viết truyện |

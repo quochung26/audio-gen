@@ -1,0 +1,30 @@
+{
+  "name": "@audio/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@audio/audio": "workspace:*",
+    "@audio/config": "workspace:*",
+    "@audio/core": "workspace:*",
+    "@audio/database": "workspace:*",
+    "@audio/llm": "workspace:*",
+    "@hono/node-server": "^1.13.7",
+    "bullmq": "^5.34.5",
+    "hono": "^4.6.14",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "dotenv-cli": "^11.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
