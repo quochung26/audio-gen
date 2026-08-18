@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test của packages/audio chạy ffmpeg THẬT chứ không giả lập: thứ dễ sai
+      # ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập
+      # rồi so chuỗi tham số thì filter hỏng vẫn xanh.
+      - name: Cài ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -hide_banner -filters | grep -qE 'sidechaincompress' || {
+            echo "ffmpeg thiếu sidechaincompress"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `prisma generate` chạy ở postinstall và KHÔNG cần DATABASE_URL.
+      # Ba bước dưới cũng không cần Postgres/Redis — chưa có test tích hợp DB.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

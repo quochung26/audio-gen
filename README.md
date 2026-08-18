@@ -300,6 +300,23 @@ Vì sao cần đến vậy: **tràn VRAM không ném lỗi**. Driver âm thầm 
 
 ---
 
+## Test
+
+`pnpm test` — chạy bằng vitest, không cần Postgres hay Redis.
+
+| Gói | Kiểm gì |
+|---|---|
+| `packages/core` | Máy trạng thái Episode và **hai chốt chặn**: bản thảo chưa duyệt không sang được bước audio, asset `UNKNOWN` giấy phép không xuất bản được. Cả slugify tiếng Việt (chữ `đ` mà `normalize("NFD")` không tách được). |
+| `packages/audio` | Ducking, lặp/cắt nhạc nền, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
+| `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. |
+| `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
+
+**Vì sao test audio không giả lập ffmpeg:** thứ dễ sai ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập rồi so chuỗi tham số chỉ khoá lại đúng cái vừa viết — filter hỏng vẫn xanh. Đổi lại, test này chậm hơn và cần ffmpeg.
+
+CI (`.github/workflows/ci.yml`) chạy typecheck → test → build trên mỗi push và PR, có cài sẵn ffmpeg.
+
+---
+
 ## Cấu trúc
 
 ```
@@ -330,6 +347,7 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | `pnpm db:migrate` | Tạo migration (khi schema đã ổn định) |
 | `pnpm db:studio` | Xem dữ liệu bằng giao diện |
 | `pnpm typecheck` | Kiểm tra kiểu toàn bộ workspace |
+| `pnpm test` | Chạy test (cần `ffmpeg` — xem mục dưới) |
 | `pnpm queue:status` | Trạng thái hàng đợi + ngân sách VRAM |
 | `pnpm story "<ý tưởng>"` | Chạy trọn chuỗi viết truyện |
 | `pnpm inspect [seriesId]` | Xem chi tiết truyện đã sinh + telemetry |

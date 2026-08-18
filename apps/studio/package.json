@@ -6,7 +6,8 @@
     "dev": "dotenv -e ../../.env -- next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@audio/audio": "workspace:*",
@@ -25,6 +26,7 @@
     "@types/react-dom": "^19.0.2",
     "dotenv-cli": "^11.0.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
   }
 }

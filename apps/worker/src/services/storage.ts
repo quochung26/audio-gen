@@ -36,10 +36,13 @@ function isAbsoluteRef(ref: string): boolean {
 }
 
 /**
- * Driver local — ghi ra đĩa. Dùng khi dựng app và khi chạy thử, để không phải
+ * Driver local — ghi ra đĩa.
+ *
+ * Export ra để test dựng thẳng được từng driver: `getStorage()` cache một
+ * instance theo env nên không kiểm được cả hai driver trong một tiến trình. Dùng khi dựng app và khi chạy thử, để không phải
  * có tài khoản R2 mới chạy được pipeline.
  */
-class LocalDriver implements StorageDriver {
+export class LocalDriver implements StorageDriver {
   readonly name = "local";
   #root: string;
 
@@ -69,12 +72,13 @@ class LocalDriver implements StorageDriver {
  * Driver R2. Cài @aws-sdk/client-s3 khi bắt đầu dùng thật (Phase 3) —
  * Phase 1 chỉ cần đúng hình dạng interface.
  */
-class R2Driver implements StorageDriver {
+export class R2Driver implements StorageDriver {
   readonly name = "r2";
   #publicUrl: string;
 
   constructor(publicUrl: string) {
-    this.#publicUrl = publicUrl.replace(/\/$/, "");
+    // `/+` chứ không phải `/`: R2_PUBLIC_URL gõ thừa dấu gạch sẽ ra URL hỏng.
+    this.#publicUrl = publicUrl.replace(/\/+$/, "");
   }
 
   async put(): Promise<StoredFile> {

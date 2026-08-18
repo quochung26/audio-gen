@@ -107,8 +107,10 @@ const DUCK_RELEASE_MS = 400;
  *   để khoảng nghỉ giữa hai đoạn được trả lại nhạc.
  *
  * Ba chỗ dễ sai đã xử lý sẵn trong filter:
- * - `sidechaincompress` đòi hai nguồn CÙNG sample rate và channel layout, khác
- *   là ffmpeg báo lỗi — nên cả hai đi qua `aformat` trước.
+ * - `sidechaincompress` cần hai nguồn cùng sample rate và channel layout. ffmpeg
+ *   tự chèn chuyển đổi được (thử trên 9.0.1: bỏ `aformat` đi vẫn ducking đúng
+ *   với nhạc stereo 48 kHz), nhưng `aformat` ghim rõ định dạng thay vì phó mặc
+ *   cho cơ chế thương lượng có thể khác giữa các bản ffmpeg.
  * - `amix` mặc định chia biên độ cho số input (lời tự nhiên bé đi một nửa) —
  *   phải `normalize=0`. Cần ffmpeg ≥ 4.4.
  * - Nhạc ngắn hơn tập thì `-stream_loop -1` cho lặp; dài hơn thì `atrim` cắt.

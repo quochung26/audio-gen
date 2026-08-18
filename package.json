@@ -18,14 +18,16 @@
     "queue:status": "pnpm --filter @audio/worker queue:status",
     "story": "pnpm --filter @audio/worker story",
     "inspect": "pnpm --filter @audio/worker inspect",
-    "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs"
+    "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs",
+    "test": "turbo test"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "dotenv-cli": "^11.0.0",
     "tsx": "^4.19.2",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20.11"
