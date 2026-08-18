@@ -19,7 +19,8 @@
     "story": "pnpm --filter @audio/worker story",
     "inspect": "pnpm --filter @audio/worker inspect",
     "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs",
-    "test": "turbo test"
+    "test": "turbo test",
+    "db:push:player": "pnpm --filter @audio/database db:push:player"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

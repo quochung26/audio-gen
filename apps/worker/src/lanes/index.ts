@@ -9,6 +9,7 @@ import { arcSummaryJob } from "../jobs/arc-summary.job";
 import { ttsJob } from "../jobs/tts.job";
 import { mixJob } from "../jobs/mix.job";
 import { batchJob } from "../jobs/batch.job";
+import { publishJob } from "../jobs/publish.job";
 
 /**
  * Bốn làn theo tài nguyên (PLAN.md mục 3):
@@ -32,6 +33,12 @@ export function startLanes() {
     // Kokoro chạy CPU nên làn này không đụng VRAM của LLM — chạy song song được.
     createLane("TTS_CPU", { [JobType.TTS]: ttsJob, [JobType.MOCK]: mockJob }),
     createLane("TTS_GPU", { [JobType.MOCK]: mockJob }),
-    createLane("FFMPEG", { [JobType.MIX]: mixJob, [JobType.MOCK]: mockJob }),
+    createLane("FFMPEG", {
+      [JobType.MIX]: mixJob,
+      // Không tốn CPU lẫn GPU, nhưng để cùng làn MIX cho tuần tự: đồng bộ ngay
+      // sau khi ghép xong thì chắc chắn bản xuất đã có trong DB.
+      [JobType.PUBLISH]: publishJob,
+      [JobType.MOCK]: mockJob,
+    }),
   ];
 }

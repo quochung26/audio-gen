@@ -163,6 +163,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // DB hosted mà Player đọc dùng CÙNG schema này, chỉ khác URL
+  // (PLAYER_DATABASE_URL). Xem packages/database/src/client-player.ts.
 }
 
 // ══════════════════════════ ENUM ══════════════════════════

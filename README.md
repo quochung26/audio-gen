@@ -259,6 +259,36 @@ Với `STORAGE_DRIVER=local` thì tải file thẳng lên Studio. Với `r2` th�
 
 ---
 
+## Hai cơ sở dữ liệu
+
+```
+Studio + worker ──► DATABASE_URL         (local, đầy đủ — KHÔNG rời máy)
+                          │
+                          │  job PUBLISH, một chiều
+                          ▼
+Player          ──► PLAYER_DATABASE_URL  (hosted, chỉ nội dung đã xuất bản)
+```
+
+DB local giữ bản thảo, Story Bible, prompt, telemetry, sự kiện truy hồi. Bấm **Xuất bản** ở Studio thì job `PUBLISH` đẩy sang DB hosted đúng những gì `packages/database/src/publish-scope.ts` cho phép. Gỡ xuất bản thì gỡ luôn khỏi hosted.
+
+| | |
+|---|---|
+| Bảng được đồng bộ | `Series` `Episode` `Character` `Export` — mọi bảng khác **mặc định không**, nên thêm bảng mới vào schema không làm nó tự lọt ra ngoài |
+| Cột không bao giờ rời máy | `Series.storyBible` · `Episode.draftText` `outline` `reviewedBy` `reviewedAt` · `Character.description` |
+| Cột bị xoá về null | `defaultVoiceId` `voiceId` `bgmTrackId` `introTrackId` `outroTrackId` — khoá ngoại trỏ sang bảng không đồng bộ, copy nguyên là vi phạm ràng buộc bên hosted |
+
+**Chạy tại chỗ:** để `PLAYER_DATABASE_URL` trống thì Player dùng luôn DB local. Tiện lúc dựng app, nhưng lúc đó **không còn ranh giới nào** — Player nhìn thấy cả bản thảo, chỉ là không truy vấn tới. Trước khi deploy Player ra ngoài phải đặt biến này rồi chạy:
+
+```bash
+pnpm db:push:player     # đẩy schema sang DB hosted + kiểm bảng chỉ-local phải rỗng
+```
+
+Schema đẩy sang là schema **đầy đủ**, nên bảng `Prompt`, `LlmRun`, `Scene`… vẫn tồn tại ở hosted — chỉ là luôn rỗng. Đây là đánh đổi có ý thức: giữ một schema duy nhất thay vì hai bản phải đồng bộ tay. `db:push:player` kiểm và báo lỗi nếu chúng có dòng nào.
+
+**Còn thiếu để deploy thật:** `Export.url` đang là khoá trong kho local, Player trên Vercel không đọc được đĩa của bạn. Cần `STORAGE_DRIVER=r2` để URL là `https://` — driver R2 chưa cài.
+
+---
+
 ## File audio lưu ở đâu
 
 Trong DB lưu **khoá trong kho**, không phải đường dẫn tuyệt đối:
@@ -401,6 +431,8 @@ Không ném lỗi cho những trường hợp đó: server action ném lỗi th�
 | `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
 | `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
 | `packages/llm` | Thay biến trong prompt, đối chiếu biến prompt dùng với biến bước đó truyền, và luật chọn prompt (biến thể thể loại thắng bản mặc định). |
+| `packages/tts` | Từ điển phát âm: **quy tắc dài áp trước quy tắc ngắn**, term hiểu theo nghĩa đen, regex gõ sai không làm hỏng job. Và chuẩn hoá văn bản cho engine. |
+| `packages/database` | **Ranh giới quyền riêng tư**: cột nào được rời máy sang DB hosted, khoá ngoại nào phải xoá. |
 
 **Vì sao test audio không giả lập ffmpeg:** thứ dễ sai ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập rồi so chuỗi tham số chỉ khoá lại đúng cái vừa viết — filter hỏng vẫn xanh. Đổi lại, test này chậm hơn và cần ffmpeg.
 
@@ -444,4 +476,5 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | `pnpm inspect [seriesId]` | Xem chi tiết truyện đã sinh + telemetry |
 | `pnpm db:seed` | Nạp prompt, giọng giả lập, từ điển phát âm |
 | `pnpm fix:storage-refs` | Dọn tham chiếu `file://` cũ thành khoá (`--apply` để ghi thật) |
+| `pnpm db:push:player` | Đẩy schema sang DB hosted + kiểm ranh giới quyền riêng tư |
 | `pnpm story "<ý tưởng>" --episodes=N` | Chạy hàng loạt từ dòng lệnh (bản Studio ở trang bộ truyện) |

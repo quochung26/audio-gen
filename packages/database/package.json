@@ -17,7 +17,9 @@
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "db:vector": "docker compose -f ../../docker-compose.yml exec -T postgres psql -U postgres -d audio_truyen -f - < sql/001-vector.sql",
-    "db:ext": "docker compose -f ../../docker-compose.yml exec -T postgres psql -U postgres -d audio_truyen -f - < sql/000-extension.sql"
+    "db:ext": "docker compose -f ../../docker-compose.yml exec -T postgres psql -U postgres -d audio_truyen -f - < sql/000-extension.sql",
+    "db:push:player": "dotenv -e ../../.env -- tsx scripts/push-player.mts",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,6 +32,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "@types/node": "^22.10.2",
-    "dotenv-cli": "^8.0.0"
+    "dotenv-cli": "^8.0.0",
+    "vitest": "^4.1.10"
   }
 }

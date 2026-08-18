@@ -403,8 +403,13 @@ export async function publishEpisode(episodeId: string, _prev: ActionState): Pro
     }),
   ]);
 
+  // Đẩy sang DB hosted mà Player đọc. Làm bằng job chứ không làm thẳng ở đây:
+  // DB hosted có thể đang không với tới được, mà lỗi mạng thì không được làm
+  // hỏng việc đánh dấu đã xuất bản ở local.
+  await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
+
   revalidatePath(`/episode/${episodeId}/audio`);
-  return { ok: "Đã xuất bản." };
+  return { ok: "Đã xuất bản. Đang đồng bộ sang trang nghe." };
 }
 
 export async function unpublishEpisode(episodeId: string) {
@@ -412,6 +417,9 @@ export async function unpublishEpisode(episodeId: string) {
     where: { id: episodeId },
     data: { status: "READY", publishedAt: null },
   });
+  // Gỡ khỏi DB hosted luôn — để lại thì tập vẫn nghe được ở ngoài dù Studio
+  // đã coi là chưa xuất bản.
+  await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId, remove: true } });
   revalidatePath(`/episode/${episodeId}/audio`);
 }
 
