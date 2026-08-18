@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AudioTrackKind, BatchStatus, EpisodeStatus, LicenseType, prisma } from "@audio/database";
+import {
+  AudioTrackKind,
+  BatchStatus,
+  EpisodeStatus,
+  LicenseType,
+  prisma,
+  type PromptStep,
+} from "@audio/database";
+import { checkPromptVariables } from "@audio/llm";
 import {
   assertTransition,
   parseWorld,
@@ -535,4 +543,120 @@ export async function cancelBatch(runId: string, seriesId: string) {
     data: { status: BatchStatus.CANCELLED, finishedAt: new Date(), currentEpisodeId: null },
   });
   revalidatePath(`/series/${seriesId}`);
+}
+
+/**
+ * Lưu một prompt.
+ *
+ * Chặn ngay lúc lưu nếu prompt dùng biến mà bước đó không truyền vào:
+ * `renderTemplate` sẽ ném lỗi lúc job chạy, và lúc đó thì đang giữa chừng một
+ * lượt viết dài. Báo ở đây rẻ hơn nhiều.
+ */
+export async function savePrompt(id: string, formData: FormData) {
+  const content = String(formData.get("content") ?? "");
+  const model = String(formData.get("model") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  const rawParams = String(formData.get("params") ?? "").trim();
+
+  if (!content.trim()) throw new Error("Prompt rỗng");
+
+  const existing = await prisma.prompt.findUniqueOrThrow({ where: { id } });
+  const check = checkPromptVariables(existing.step, content);
+  if (check.unknown.length > 0) {
+    throw new Error(
+      `Bước ${existing.step} không truyền biến: ${check.unknown.map((v) => `{{${v}}}`).join(", ")}. ` +
+        `Biến dùng được: ${check.used.concat(check.unused).join(", ")}.`,
+    );
+  }
+
+  let params: object = {};
+  if (rawParams) {
+    try {
+      params = JSON.parse(rawParams) as object;
+    } catch {
+      throw new Error("Tham số không phải JSON hợp lệ");
+    }
+  }
+
+  await prisma.prompt.update({
+    where: { id },
+    data: { content, model: model || null, note: note || null, params },
+  });
+
+  revalidatePath("/prompts");
+  revalidatePath(`/prompts/${id}`);
+}
+
+/**
+ * Tạo biến thể prompt cho một thể loại.
+ *
+ * Đây là cách bảo AI viết khác đi theo thể loại mà không đụng vào bản mặc định:
+ * `loadPrompt` ưu tiên biến thể của thể loại, không có mới rơi về `*`.
+ */
+export async function createPromptVariant(step: PromptStep, formData: FormData) {
+  const genre = String(formData.get("genre") ?? "").trim();
+  if (!genre) throw new Error("Thiếu tên thể loại");
+  if (genre === "*") throw new Error('Dùng "*" là sửa thẳng bản mặc định, không phải tạo biến thể');
+
+  const source = await prisma.prompt.findFirstOrThrow({
+    where: { step, genre: "*" },
+    orderBy: { version: "desc" },
+  });
+
+  const existing = await prisma.prompt.findFirst({
+    where: { step, genre },
+    orderBy: { version: "desc" },
+  });
+  if (existing) throw new Error(`Thể loại "${genre}" đã có biến thể cho bước này`);
+
+  const created = await prisma.prompt.create({
+    data: {
+      step,
+      genre,
+      version: 1,
+      // Chép từ bản mặc định để có chỗ bắt đầu — sửa từ bản đang chạy tốt an
+      // toàn hơn viết lại từ trang trắng.
+      content: source.content,
+      model: source.model,
+      params: source.params ?? {},
+      active: true,
+      note: `Biến thể cho thể loại "${genre}", chép từ bản mặc định`,
+    },
+  });
+
+  redirect(`/prompts/${created.id}`);
+}
+
+/**
+ * Bật/tắt một prompt.
+ *
+ * Tắt bản mặc định `*` khi không còn bản nào khác thay thế thì mọi job của bước
+ * đó sẽ chết — chặn luôn ở đây.
+ */
+export async function togglePrompt(id: string) {
+  const p = await prisma.prompt.findUniqueOrThrow({ where: { id } });
+
+  if (p.active) {
+    const others = await prisma.prompt.count({
+      where: { step: p.step, genre: "*", active: true, id: { not: id } },
+    });
+    if (p.genre === "*" && others === 0) {
+      throw new Error(
+        `Đây là bản mặc định duy nhất đang bật cho bước ${p.step}. ` +
+          "Tắt nó thì mọi job của bước này sẽ lỗi.",
+      );
+    }
+  }
+
+  await prisma.prompt.update({ where: { id }, data: { active: !p.active } });
+  revalidatePath("/prompts");
+  revalidatePath(`/prompts/${id}`);
+}
+
+/** Xoá biến thể. Bản mặc định `*` không xoá được — không có gì thay thế. */
+export async function deletePromptVariant(id: string) {
+  const p = await prisma.prompt.findUniqueOrThrow({ where: { id } });
+  if (p.genre === "*") throw new Error("Không xoá được bản mặc định. Sửa nội dung của nó thay vì xoá.");
+  await prisma.prompt.delete({ where: { id } });
+  redirect("/prompts");
 }

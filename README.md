@@ -61,6 +61,18 @@ Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng c�
 
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.
 
+### Ba tầng để AI viết theo ý bạn
+
+Từ hẹp tới rộng — thứ nào cụ thể hơn thì thắng:
+
+| Tầng | Ở đâu | Áp cho | Dùng khi |
+|---|---|---|---|
+| **Story Bible** | `/series/[id]/bible` | một bộ | Bối cảnh, luật thế giới, giọng văn, điều cấm, thuật ngữ. Nạp vào `system` của **mọi** lần viết cảnh. |
+| **Biến thể prompt theo thể loại** | `/prompts` | mọi bộ cùng thể loại | "Truyện kinh dị thì nhịp chậm, không giải thích hiện tượng lạ" — thứ đúng cho cả thể loại chứ không riêng một bộ. |
+| **Prompt mặc định** | `/prompts` | tất cả | Khung chung: số từ, ngôi kể, thì, cách mở đầu. |
+
+Không cần thêm khái niệm mới để "dạy" AI viết khác đi — chọn đúng tầng. Sửa một bộ thì vào Story Bible; sửa cả thể loại thì tạo biến thể prompt.
+
 ### Thiết lập thế giới (quan trọng với truyện dài)
 
 Truyện dài 30 tập trôi khỏi thiết lập ban đầu là chuyện thường. Chỗ chống lại điều đó là **Story Bible** — `/series/[id]/bible`:
@@ -204,6 +216,27 @@ Rồi thêm giọng thật vào bảng `Voice` (`engine=KOKORO`, `externalVoiceI
 **Engine ghi vào block lấy từ bản ghi `Voice`, không từ `.env`** — nên tập cũ render bằng mock vẫn giữ nguyên audio cũ, chỉ tập mới dùng engine mới.
 
 Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRAM với LLM, nên đọc tập N song song với viết tập N+1.
+
+## Prompt
+
+`/prompts` — sáu bước gọi model, mỗi bước một prompt.
+
+Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể loại, và có thể thêm **biến thể theo thể loại**. Biến thể luôn thắng bản mặc định khi bộ đúng thể loại đó; cùng thể loại thì `version` cao thắng. Tạo biến thể là chép từ bản mặc định — sửa từ bản đang chạy tốt an toàn hơn viết lại từ trang trắng.
+
+**Biến trong prompt được kiểm ngay lúc lưu.** Mỗi bước chỉ truyền vào một số biến nhất định; dùng biến ngoài danh sách thì `renderTemplate` ném lỗi, mà lúc đó là đang giữa chừng một lượt viết dài. Studio chặn trước, và trang sửa hiện rõ biến nào đang dùng, biến nào bỏ phí.
+
+| Bước | Biến truyền vào |
+|---|---|
+| `OUTLINE` | `idea` `genre` `episodeCount` `sceneCount` `sceneWords` `world` |
+| `WRITE_SCENE` | `context` — gộp Story Bible, tóm tắt cung truyện, sự kiện truy hồi, cảnh trước, beat, số từ đích |
+| `AUDIO_EDIT` | `characters` `draft` |
+| `SUMMARIZE` | `characters` `text` |
+| `ARC_SUMMARY` | `maxWords` `previousArc` `summaries` |
+| `METADATA` | `text` |
+
+Tham số sinh (`temperature`, `numCtx`…) sửa cùng chỗ. `temperature` cao thì văn biến hoá hơn nhưng dễ lạc — bước biên tập và tóm tắt để thấp. Bản mặc định không tắt và không xoá được: mọi thể loại chưa có biến thể đều rơi về nó.
+
+---
 
 ## Nhạc nền
 
@@ -357,6 +390,7 @@ Vì sao cần đến vậy: **tràn VRAM không ném lỗi**. Driver âm thầm 
 | `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. Và bước kế tiếp của chạy hàng loạt — kể cả việc KHÔNG được nhảy qua chốt duyệt. |
 | `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
 | `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
+| `packages/llm` | Thay biến trong prompt, đối chiếu biến prompt dùng với biến bước đó truyền, và luật chọn prompt (biến thể thể loại thắng bản mặc định). |
 
 **Vì sao test audio không giả lập ffmpeg:** thứ dễ sai ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập rồi so chuỗi tham số chỉ khoá lại đúng cái vừa viết — filter hỏng vẫn xanh. Đổi lại, test này chậm hơn và cần ffmpeg.
 
