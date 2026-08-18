@@ -13,7 +13,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const s = await prisma.series.findUnique({ where: { slug } });
-  return s ? { title: s.title, description: s.description ?? undefined } : {};
+  if (!s) return {};
+  return {
+    title: s.title,
+    description: s.description ?? undefined,
+    // Để trình duyệt và công cụ podcast tự tìm ra feed.
+    alternates: { types: { "application/rss+xml": `/truyen/${s.slug}/rss.xml` } },
+  };
 }
 
 export default async function SeriesPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -44,6 +50,12 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         {series.aiDisclosure && (
           <p className="mt-3 text-xs text-neutral-600">Nội dung có sự hỗ trợ của AI.</p>
         )}
+        <a
+          href={`/truyen/${series.slug}/rss.xml`}
+          className="mt-3 inline-block text-xs text-neutral-500 underline"
+        >
+          Nghe bằng app podcast (RSS)
+        </a>
       </div>
 
       <div className="divide-y divide-neutral-900 rounded border border-neutral-900">

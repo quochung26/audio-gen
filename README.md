@@ -17,7 +17,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | 4 | Player — trang nghe | ✅ |
 | — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
 | 5 | Nhạc nền + ducking | ✅ |
-| 6 | Truyện dài: chạy hàng loạt, RSS podcast | |
+| 6 | Truyện dài: RSS podcast ✅ · chạy hàng loạt | |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
@@ -280,6 +280,25 @@ Nút đó gọi `assertTransition`, chặn hai thứ: chưa duyệt bản thảo
 
 Chưa có: đăng nhập, bình luận, đánh giá, nghe offline. Vị trí nghe lưu trên máy, chưa đồng bộ giữa thiết bị — chưa cần tài khoản.
 
+## Nghe bằng app podcast
+
+Mỗi bộ có một feed RSS: `/truyen/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
+
+Chỉ tập **đã xuất bản và đã có bản MP3** vào feed — cùng chốt chặn với trang nghe.
+
+**Cần đặt `PLAYER_PUBLIC_URL`** khi chạy thật. App podcast tải file từ bên ngoài nên URL trong feed phải tuyệt đối. Để trống thì suy từ header `Host` — đủ khi chạy tại chỗ. Không dùng `req.url` được vì Next trả về địa chỉ đang bind (`http://0.0.0.0:3001`), app podcast không tới được.
+
+`/api/audio` có hỗ trợ `Range`, nên tua giữa tập không phải tải lại từ đầu.
+
+Hai chỗ đã biết là chưa đủ chuẩn Apple Podcasts:
+
+| | |
+|---|---|
+| Ảnh bìa | `Series.coverUrl` trống thì bỏ thẻ `itunes:image`. Apple bắt buộc có ảnh mới nhận feed; app khác vẫn đọc được. |
+| Danh mục | Danh mục iTunes là danh sách tiếng Anh cố định, không map được từ `genre` tiếng Việt tự do. Đang để `Fiction` và đẩy genre thật xuống `itunes:keywords`. |
+
+---
+
 ## Thử khung hàng đợi
 
 ```bash
@@ -310,6 +329,7 @@ Vì sao cần đến vậy: **tràn VRAM không ném lỗi**. Driver âm thầm 
 | `packages/audio` | Ducking, lặp/cắt nhạc nền, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
 | `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. |
 | `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
+| `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
 
 **Vì sao test audio không giả lập ffmpeg:** thứ dễ sai ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập rồi so chuỗi tham số chỉ khoá lại đúng cái vừa viết — filter hỏng vẫn xanh. Đổi lại, test này chậm hơn và cần ffmpeg.
 

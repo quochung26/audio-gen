@@ -9,6 +9,12 @@ const schema = z.object({
 
   DATABASE_URL: z.string().url(),
   PLAYER_DATABASE_URL: z.string().url().or(z.literal("")).default(""),
+  /**
+   * Gốc URL công khai của Player. Cần cho RSS podcast: app podcast tải file từ
+   * bên ngoài nên URL trong feed phải TUYỆT ĐỐI. Để trống thì suy từ request —
+   * đủ dùng khi chạy tại chỗ, nhưng sai khi đứng sau proxy.
+   */
+  PLAYER_PUBLIC_URL: z.string().url().or(z.literal("")).default(""),
   REDIS_URL: z.string().url(),
 
   // "mock" cho phép chạy toàn bộ pipeline mà chưa cần GPU hay model
