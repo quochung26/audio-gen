@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@audio/database";
 import { checkPromptVariables, pickPrompt, PROMPT_VARIABLES } from "@audio/llm";
 import { Badge, Button, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import { deletePromptVariant, savePrompt, togglePrompt } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,7 @@ export default async function PromptPage({ params }: { params: Promise<{ id: str
       </Section>
 
       <Section title="Nội dung">
-        <form action={savePrompt.bind(null, prompt.id)} className="space-y-3">
+        <ActionForm action={savePrompt.bind(null, prompt.id)} className="space-y-3">
           <textarea
             name="content"
             rows={26}
@@ -128,18 +129,18 @@ export default async function PromptPage({ params }: { params: Promise<{ id: str
               Lưu là áp ngay cho các job chạy sau đó. Job đang chạy vẫn dùng bản cũ.
             </span>
           </div>
-        </form>
+        </ActionForm>
       </Section>
 
       <Section title="Khác">
         <div className="flex flex-wrap items-center gap-3 rounded border border-neutral-800 p-4">
-          <form action={togglePrompt.bind(null, prompt.id)}>
+          <ActionForm action={togglePrompt.bind(null, prompt.id)}>
             <Button variant="ghost">{prompt.active ? "tắt bản này" : "bật lại"}</Button>
-          </form>
+          </ActionForm>
           {prompt.genre !== "*" && (
-            <form action={deletePromptVariant.bind(null, prompt.id)}>
+            <ActionForm action={deletePromptVariant.bind(null, prompt.id)}>
               <Button variant="ghost">xoá biến thể</Button>
-            </form>
+            </ActionForm>
           )}
           <span className="text-xs text-neutral-600">
             {prompt.genre === "*"

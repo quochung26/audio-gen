@@ -381,6 +381,14 @@ Vì sao cần đến vậy: **tràn VRAM không ném lỗi**. Driver âm thầm 
 
 ---
 
+## Lỗi hiện ở đâu
+
+Lỗi mà người dùng gặp trong lúc dùng bình thường — chưa duyệt bản thảo, track còn tập đang dùng, prompt sai biến — được trả về **dưới dạng giá trị** và hiện ngay tại form (`components/ActionForm`). Người dùng giữ nguyên thứ đang gõ dở.
+
+Không ném lỗi cho những trường hợp đó: server action ném lỗi thì Next dựng trang lỗi và **giấu nội dung ở production**, người dùng chỉ thấy một mã digest. Ném lỗi vẫn đúng cho thứ không đáng xảy ra (id không tồn tại, mất kết nối DB) — đó là bug, không phải việc người dùng xử lý được; những cái đó rơi vào `app/error.tsx` và hiện mã tra log.
+
+---
+
 ## Test
 
 `pnpm test` — chạy bằng vitest, không cần Postgres hay Redis.

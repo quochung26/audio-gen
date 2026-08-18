@@ -3,6 +3,7 @@ import { BatchStatus, prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
 import { parseWorld, type StoryBibleRecord } from "@audio/core";
 import { Badge, Button, STATUS_TONE, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import { cancelBatch, saveArcSummary, startBatch } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -174,7 +175,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ id: str
             </form>
           </div>
         ) : (
-          <form action={startBatch.bind(null, series.id)} className="space-y-3 rounded border border-neutral-800 p-4">
+          <ActionForm action={startBatch.bind(null, series.id)} className="space-y-3 rounded border border-neutral-800 p-4">
             <p className="text-sm text-neutral-400">
               Đưa từng tập đi hết chuỗi: viết cảnh → duyệt → kịch bản audio → tóm tắt → đọc →
               ghép MP3. Chạy tuần tự từng tập vì tập sau cần tóm tắt và sự kiện của tập trước.
@@ -206,7 +207,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ id: str
             </label>
 
             <Button variant="primary">Bắt đầu</Button>
-          </form>
+          </ActionForm>
         )}
 
         {run && !active && run.status === BatchStatus.FAILED && (

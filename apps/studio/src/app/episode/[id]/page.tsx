@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, STATUS_TONE, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import {
   approveDraft,
   makeAudioScript,
@@ -126,9 +127,9 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
           title={`Kịch bản audio${episode.blocks.length ? ` (${episode.blocks.length} block)` : ""}`}
           action={
             !activeJob ? (
-              <form action={makeAudioScript.bind(null, episode.id)}>
+              <ActionForm action={makeAudioScript.bind(null, episode.id)}>
                 <Button>{episode.blocks.length ? "tạo lại" : "tạo kịch bản"}</Button>
-              </form>
+              </ActionForm>
             ) : null
           }
         >

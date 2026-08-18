@@ -55,7 +55,19 @@ export function assertTransition(
     );
   }
 
-  // Chốt chặn 2: không xuất bản khi còn asset chưa rõ giấy phép.
+  // Chốt chặn 2: không xuất bản tập mà bản thảo chưa được duyệt.
+  //
+  // Không thừa dù chốt 1 đã chặn ở DRAFTED → SCRIPTED: `unapproveDraft` gỡ được
+  // dấu duyệt của một tập ĐÃ dựng xong, nên vẫn có đường
+  // duyệt → dựng → gỡ duyệt → xuất bản. Gỡ duyệt nghĩa là "bản này cần sửa",
+  // mà cần sửa thì không được ra ngoài.
+  if (to === "PUBLISHED" && !ctx.humanReviewed) {
+    throw new TransitionError(
+      "Bản thảo chưa được duyệt. Đọc và đánh dấu đã duyệt trước khi xuất bản.",
+    );
+  }
+
+  // Chốt chặn 3: không xuất bản khi còn asset chưa rõ giấy phép.
   if (to === "PUBLISHED") {
     const unknown = (ctx.assetLicenses ?? []).filter((l) => l === "UNKNOWN");
     if (unknown.length > 0) {

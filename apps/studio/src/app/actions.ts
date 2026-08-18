@@ -10,7 +10,7 @@ import {
   prisma,
   type PromptStep,
 } from "@audio/database";
-import { checkPromptVariables } from "@audio/llm";
+import { checkPromptVariables, PROMPT_VARIABLES } from "@audio/llm";
 import {
   assertTransition,
   parseWorld,
@@ -21,6 +21,7 @@ import {
 import { ffprobe } from "@audio/audio";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { enqueue } from "@/lib/queue";
+import type { ActionState } from "@/components/ActionForm";
 import { join } from "node:path";
 import { putLocal, safeFileName, storageRoot } from "@/lib/storage";
 
@@ -157,11 +158,16 @@ export async function unapproveDraft(episodeId: string) {
   revalidatePath(`/episode/${episodeId}`);
 }
 
-export async function makeAudioScript(episodeId: string) {
+export async function makeAudioScript(episodeId: string, _prev: ActionState): Promise<ActionState> {
   const ep = await prisma.episode.findUniqueOrThrow({ where: { id: episodeId } });
-  assertTransition(ep.status as "DRAFTED", "SCRIPTED", { humanReviewed: ep.humanReviewed });
+  try {
+    assertTransition(ep.status as "DRAFTED", "SCRIPTED", { humanReviewed: ep.humanReviewed });
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
   await enqueue({ type: "AUDIO_EDIT", episodeId, payload: { episodeId } });
   revalidatePath(`/episode/${episodeId}`);
+  return { ok: "Đã đẩy vào hàng đợi." };
 }
 
 export async function summarize(episodeId: string) {
@@ -219,39 +225,50 @@ export async function saveArcSummary(seriesId: string, formData: FormData) {
   revalidatePath(`/series/${seriesId}`);
 }
 
-export async function createCharacter(seriesId: string, formData: FormData) {
+export async function createCharacter(
+  seriesId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const input = characterInput(formData);
-  if (!input.name) return;
+  if (!input.name) return { error: "Thiếu tên nhân vật" };
 
   const existing = await prisma.character.findFirst({
     where: { seriesId, name: input.name },
     select: { id: true },
   });
   // Ràng buộc (seriesId, name) là duy nhất — báo rõ thay vì để lỗi Prisma lộ ra.
-  if (existing) throw new Error(`Đã có nhân vật tên "${input.name}" trong bộ truyện này.`);
+  if (existing) return { error: `Đã có nhân vật tên "${input.name}" trong bộ truyện này.` };
 
   const created = await prisma.character.create({ data: { ...input, seriesId } });
   if (input.isNarrator) await ensureSingleNarrator(seriesId, created.id);
 
   revalidatePath(`/series/${seriesId}/characters`);
   revalidatePath(`/series/${seriesId}`);
+  return { ok: `Đã thêm "${input.name}"` };
 }
 
-export async function updateCharacter(id: string, seriesId: string, formData: FormData) {
+export async function updateCharacter(
+  id: string,
+  seriesId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const input = characterInput(formData);
-  if (!input.name) return;
+  if (!input.name) return { error: "Thiếu tên nhân vật" };
 
   const clash = await prisma.character.findFirst({
     where: { seriesId, name: input.name, id: { not: id } },
     select: { id: true },
   });
-  if (clash) throw new Error(`Đã có nhân vật khác tên "${input.name}".`);
+  if (clash) return { error: `Đã có nhân vật khác tên "${input.name}".` };
 
   await prisma.character.update({ where: { id }, data: input });
   if (input.isNarrator) await ensureSingleNarrator(seriesId, id);
 
   revalidatePath(`/series/${seriesId}/characters`);
   revalidatePath(`/series/${seriesId}`);
+  return { ok: "Đã lưu" };
 }
 
 export async function deleteCharacter(id: string, seriesId: string) {
@@ -344,7 +361,7 @@ export async function exportEpisode(episodeId: string) {
  * `assertTransition` chặn hai thứ: chưa duyệt bản thảo, và còn nhạc nền/hiệu
  * ứng chưa xác minh giấy phép (docs/database.md mục 4).
  */
-export async function publishEpisode(episodeId: string) {
+export async function publishEpisode(episodeId: string, _prev: ActionState): Promise<ActionState> {
   const ep = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
     include: {
@@ -355,7 +372,7 @@ export async function publishEpisode(episodeId: string) {
   });
 
   if (ep.exports.length === 0) {
-    throw new Error("Tập chưa có bản MP3. Ghép và xuất trước khi xuất bản.");
+    return { error: "Tập chưa có bản MP3. Ghép và xuất trước khi xuất bản." };
   }
 
   const licenses: string[] = [
@@ -363,10 +380,17 @@ export async function publishEpisode(episodeId: string) {
     ...ep.blocks.map((b) => b.sfxTrack?.licenseType),
   ].filter((l): l is NonNullable<typeof l> => Boolean(l));
 
-  assertTransition(ep.status as "READY", "PUBLISHED", {
-    humanReviewed: ep.humanReviewed,
-    assetLicenses: licenses,
-  });
+  try {
+    assertTransition(ep.status as "READY", "PUBLISHED", {
+      humanReviewed: ep.humanReviewed,
+      assetLicenses: licenses,
+    });
+  } catch (err) {
+    // Chốt chặn bản thảo chưa duyệt và asset chưa rõ giấy phép. Đây là thứ
+    // người dùng gặp trong lúc dùng bình thường và tự xử lý được — phải hiện
+    // đúng lý do, không phải trang lỗi trắng.
+    return { error: (err as Error).message };
+  }
 
   await prisma.$transaction([
     prisma.episode.update({
@@ -380,6 +404,7 @@ export async function publishEpisode(episodeId: string) {
   ]);
 
   revalidatePath(`/episode/${episodeId}/audio`);
+  return { ok: "Đã xuất bản." };
 }
 
 export async function unpublishEpisode(episodeId: string) {
@@ -411,7 +436,7 @@ export async function setDefaultVoice(seriesId: string, formData: FormData) {
  * đây mà chặn ở `publishEpisode`. Chặn sớm thì không thử nghe thử được trước khi
  * đi tìm giấy phép; chặn muộn thì không có tập nào lọt ra ngoài kèm nhạc mập mờ.
  */
-export async function createTrack(formData: FormData) {
+export async function createTrack(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "BGM") as AudioTrackKind;
   const licenseType = String(formData.get("licenseType") ?? "UNKNOWN") as LicenseType;
@@ -426,9 +451,9 @@ export async function createTrack(formData: FormData) {
   const file = formData.get("file");
   const pastedUrl = String(formData.get("url") ?? "").trim();
 
-  if (!title) throw new Error("Thiếu tên track");
-  if (!Object.values(AudioTrackKind).includes(kind)) throw new Error("Loại track không hợp lệ");
-  if (!Object.values(LicenseType).includes(licenseType)) throw new Error("Giấy phép không hợp lệ");
+  if (!title) return { error: "Thiếu tên track" };
+  if (!Object.values(AudioTrackKind).includes(kind)) return { error: "Loại track không hợp lệ" };
+  if (!Object.values(LicenseType).includes(licenseType)) return { error: "Giấy phép không hợp lệ" };
 
   // Cột `url` giữ KHOÁ trong kho khi tự tải lên, hoặc URL công khai khi dán —
   // hai dạng phân biệt được vì khoá không bao giờ bắt đầu bằng "http".
@@ -436,12 +461,17 @@ export async function createTrack(formData: FormData) {
   let localFile: string | null = null;
   if (file instanceof File && file.size > 0) {
     const bytes = Buffer.from(await file.arrayBuffer());
-    url = await putLocal(`library/${kind.toLowerCase()}/${safeFileName(file.name)}`, bytes);
+    try {
+      url = await putLocal(`library/${kind.toLowerCase()}/${safeFileName(file.name)}`, bytes);
+    } catch (err) {
+      // Driver r2 không tải lên được — đây là cấu hình, người dùng xử lý được.
+      return { error: (err as Error).message };
+    }
     localFile = join(storageRoot(), url);
   } else if (pastedUrl) {
     url = pastedUrl;
   } else {
-    throw new Error("Chọn file để tải lên, hoặc dán URL");
+    return { error: "Chọn file để tải lên, hoặc dán URL" };
   }
 
   // Độ dài là cột bắt buộc, và cần thật: Studio dựa vào nó để báo nhạc sẽ lặp
@@ -463,6 +493,7 @@ export async function createTrack(formData: FormData) {
   });
 
   revalidatePath("/tracks");
+  return { ok: `Đã thêm "${title}"` };
 }
 
 /**
@@ -471,14 +502,15 @@ export async function createTrack(formData: FormData) {
  * File trên đĩa GIỮ NGUYÊN — tập đã xuất bản có thể đang chứa tiếng nhạc này, và
  * xoá bản gốc thì không dựng lại được tập nữa.
  */
-export async function deleteTrack(id: string) {
+export async function deleteTrack(id: string, _prev: ActionState): Promise<ActionState> {
   const used = await prisma.episode.count({ where: { bgmTrackId: id } });
   if (used > 0) {
-    throw new Error(`Còn ${used} tập đang dùng track này. Gỡ khỏi các tập đó trước.`);
+    return { error: `Còn ${used} tập đang dùng track này. Gỡ khỏi các tập đó trước.` };
   }
 
   await prisma.audioTrack.delete({ where: { id } });
   revalidatePath("/tracks");
+  return {};
 }
 
 /**
@@ -487,14 +519,18 @@ export async function deleteTrack(id: string) {
  * KHÔNG tự xuất lại MP3: đổi nhạc mà chạy lại ffmpeg ngay thì mỗi lần kéo thanh
  * âm lượng là một job. Người dùng bấm "Xuất lại MP3" khi đã ưng.
  */
-export async function setEpisodeBgm(episodeId: string, formData: FormData) {
+export async function setEpisodeBgm(
+  episodeId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const trackId = String(formData.get("bgmTrackId") ?? "");
   const raw = Number(formData.get("bgmVolume"));
   const volume = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : DEFAULT_BGM_VOLUME;
 
   if (trackId) {
     const track = await prisma.audioTrack.findUniqueOrThrow({ where: { id: trackId } });
-    if (track.kind !== AudioTrackKind.BGM) throw new Error("Track được chọn không phải nhạc nền");
+    if (track.kind !== AudioTrackKind.BGM) return { error: "Track được chọn không phải nhạc nền" };
   }
 
   await prisma.episode.update({
@@ -503,6 +539,7 @@ export async function setEpisodeBgm(episodeId: string, formData: FormData) {
   });
 
   revalidatePath(`/episode/${episodeId}/audio`);
+  return { ok: trackId ? "Đã lưu. Bấm “Xuất lại MP3” để nghe thấy khác." : "Đã gỡ nhạc nền." };
 }
 
 /**
@@ -514,14 +551,18 @@ export async function setEpisodeBgm(episodeId: string, formData: FormData) {
  * Đóng trình duyệt không làm gián đoạn: mọi thứ chạy trong worker, Studio chỉ
  * đẩy job đầu tiên.
  */
-export async function startBatch(seriesId: string, formData: FormData) {
+export async function startBatch(
+  seriesId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const autoApprove = formData.get("autoApprove") === "on";
   const withAudio = formData.get("withAudio") === "on";
 
   const existing = await prisma.batchRun.findFirst({
     where: { seriesId, status: { in: [BatchStatus.RUNNING, BatchStatus.WAITING_REVIEW] } },
   });
-  if (existing) throw new Error("Bộ này đang có một lượt chạy. Dừng lượt đó trước.");
+  if (existing) return { error: "Bộ này đang có một lượt chạy. Dừng lượt đó trước." };
 
   const run = await prisma.batchRun.create({
     data: { seriesId, autoApprove, withAudio, status: BatchStatus.RUNNING },
@@ -529,6 +570,7 @@ export async function startBatch(seriesId: string, formData: FormData) {
   await enqueue({ type: "BATCH", payload: { runId: run.id } });
 
   revalidatePath(`/series/${seriesId}`);
+  return { ok: "Đã bắt đầu. Tải lại trang để xem tiến độ." };
 }
 
 /**
@@ -552,21 +594,28 @@ export async function cancelBatch(runId: string, seriesId: string) {
  * `renderTemplate` sẽ ném lỗi lúc job chạy, và lúc đó thì đang giữa chừng một
  * lượt viết dài. Báo ở đây rẻ hơn nhiều.
  */
-export async function savePrompt(id: string, formData: FormData) {
+export async function savePrompt(
+  id: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const content = String(formData.get("content") ?? "");
   const model = String(formData.get("model") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
   const rawParams = String(formData.get("params") ?? "").trim();
 
-  if (!content.trim()) throw new Error("Prompt rỗng");
+  if (!content.trim()) return { error: "Prompt rỗng" };
 
   const existing = await prisma.prompt.findUniqueOrThrow({ where: { id } });
   const check = checkPromptVariables(existing.step, content);
   if (check.unknown.length > 0) {
-    throw new Error(
-      `Bước ${existing.step} không truyền biến: ${check.unknown.map((v) => `{{${v}}}`).join(", ")}. ` +
-        `Biến dùng được: ${check.used.concat(check.unused).join(", ")}.`,
-    );
+    return {
+      error:
+        `Bước ${existing.step} không truyền biến: ${check.unknown.map((v) => `{{${v}}}`).join(", ")}. ` +
+        // Lấy từ bảng khai báo, KHÔNG phải từ biến prompt đang dùng — dùng
+        // `used` thì chính cái biến sai lại được liệt kê là dùng được.
+        `Biến dùng được: ${PROMPT_VARIABLES[existing.step].map((v) => `{{${v}}}`).join(", ")}.`,
+    };
   }
 
   let params: object = {};
@@ -574,7 +623,7 @@ export async function savePrompt(id: string, formData: FormData) {
     try {
       params = JSON.parse(rawParams) as object;
     } catch {
-      throw new Error("Tham số không phải JSON hợp lệ");
+      return { error: "Tham số không phải JSON hợp lệ" };
     }
   }
 
@@ -585,6 +634,7 @@ export async function savePrompt(id: string, formData: FormData) {
 
   revalidatePath("/prompts");
   revalidatePath(`/prompts/${id}`);
+  return { ok: "Đã lưu. Job chạy sau đó dùng bản mới; job đang chạy vẫn dùng bản cũ." };
 }
 
 /**
@@ -593,10 +643,14 @@ export async function savePrompt(id: string, formData: FormData) {
  * Đây là cách bảo AI viết khác đi theo thể loại mà không đụng vào bản mặc định:
  * `loadPrompt` ưu tiên biến thể của thể loại, không có mới rơi về `*`.
  */
-export async function createPromptVariant(step: PromptStep, formData: FormData) {
+export async function createPromptVariant(
+  step: PromptStep,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const genre = String(formData.get("genre") ?? "").trim();
-  if (!genre) throw new Error("Thiếu tên thể loại");
-  if (genre === "*") throw new Error('Dùng "*" là sửa thẳng bản mặc định, không phải tạo biến thể');
+  if (!genre) return { error: "Thiếu tên thể loại" };
+  if (genre === "*") return { error: 'Dùng "*" là sửa thẳng bản mặc định, không phải tạo biến thể' };
 
   const source = await prisma.prompt.findFirstOrThrow({
     where: { step, genre: "*" },
@@ -607,7 +661,7 @@ export async function createPromptVariant(step: PromptStep, formData: FormData) 
     where: { step, genre },
     orderBy: { version: "desc" },
   });
-  if (existing) throw new Error(`Thể loại "${genre}" đã có biến thể cho bước này`);
+  if (existing) return { error: `Thể loại "${genre}" đã có biến thể cho bước này` };
 
   const created = await prisma.prompt.create({
     data: {
@@ -633,7 +687,7 @@ export async function createPromptVariant(step: PromptStep, formData: FormData) 
  * Tắt bản mặc định `*` khi không còn bản nào khác thay thế thì mọi job của bước
  * đó sẽ chết — chặn luôn ở đây.
  */
-export async function togglePrompt(id: string) {
+export async function togglePrompt(id: string, _prev: ActionState): Promise<ActionState> {
   const p = await prisma.prompt.findUniqueOrThrow({ where: { id } });
 
   if (p.active) {
@@ -641,22 +695,26 @@ export async function togglePrompt(id: string) {
       where: { step: p.step, genre: "*", active: true, id: { not: id } },
     });
     if (p.genre === "*" && others === 0) {
-      throw new Error(
-        `Đây là bản mặc định duy nhất đang bật cho bước ${p.step}. ` +
+      return {
+        error:
+          `Đây là bản mặc định duy nhất đang bật cho bước ${p.step}. ` +
           "Tắt nó thì mọi job của bước này sẽ lỗi.",
-      );
+      };
     }
   }
 
   await prisma.prompt.update({ where: { id }, data: { active: !p.active } });
   revalidatePath("/prompts");
   revalidatePath(`/prompts/${id}`);
+  return { ok: p.active ? "Đã tắt." : "Đã bật lại." };
 }
 
 /** Xoá biến thể. Bản mặc định `*` không xoá được — không có gì thay thế. */
-export async function deletePromptVariant(id: string) {
+export async function deletePromptVariant(id: string, _prev: ActionState): Promise<ActionState> {
   const p = await prisma.prompt.findUniqueOrThrow({ where: { id } });
-  if (p.genre === "*") throw new Error("Không xoá được bản mặc định. Sửa nội dung của nó thay vì xoá.");
+  if (p.genre === "*") {
+    return { error: "Không xoá được bản mặc định. Sửa nội dung của nó thay vì xoá." };
+  }
   await prisma.prompt.delete({ where: { id } });
   redirect("/prompts");
 }

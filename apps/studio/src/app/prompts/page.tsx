@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma, type PromptStep } from "@audio/database";
 import { pickPrompt, PROMPT_VARIABLES } from "@audio/llm";
 import { Badge, Button, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import { createPromptVariant } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export default async function PromptsPage() {
               </div>
             )}
 
-            <form
+            <ActionForm
               action={createPromptVariant.bind(null, step)}
               className="flex flex-wrap items-end gap-2"
             >
@@ -110,7 +111,7 @@ export default async function PromptsPage() {
                 />
               </label>
               <Button>Tạo, chép từ bản mặc định</Button>
-            </form>
+            </ActionForm>
           </Section>
         );
       })}

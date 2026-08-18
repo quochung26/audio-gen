@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AudioTrackKind, LicenseType, prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, STATUS_TONE, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import { mediaUrl } from "@/lib/storage";
 import {
   approveBlock,
@@ -123,7 +124,7 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
             .
           </p>
         ) : (
-          <form
+          <ActionForm
             action={setEpisodeBgm.bind(null, episode.id)}
             className="space-y-3 rounded border border-neutral-800 p-4"
           >
@@ -181,7 +182,7 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
             )}
 
             <Button>Lưu nhạc nền</Button>
-          </form>
+          </ActionForm>
         )}
       </Section>
 
@@ -220,9 +221,9 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
                 </>
               ) : (
                 <>
-                  <form action={publishEpisode.bind(null, episode.id)}>
+                  <ActionForm action={publishEpisode.bind(null, episode.id)}>
                     <Button variant="primary">Xuất bản</Button>
-                  </form>
+                  </ActionForm>
                   <span className="text-xs text-neutral-600">
                     Xuất bản xong tập mới hiện ở trang nghe.
                   </span>

@@ -88,3 +88,21 @@ describe("canTransition", () => {
     expect(bad.ok === false && bad.reason).toMatch(/chưa được duyệt/);
   });
 });
+
+describe("chốt duyệt áp cả ở bước xuất bản", () => {
+  it("chặn READY → PUBLISHED khi bản thảo đã bị gỡ duyệt", () => {
+    // Đường đi thật: duyệt → dựng audio → gỡ duyệt (thấy cần sửa) → xuất bản.
+    // Chốt ở DRAFTED → SCRIPTED không bắt được vì tập đã qua bước đó từ lâu.
+    expect(() => assertTransition("READY", "PUBLISHED", unreviewed)).toThrow(/chưa được duyệt/);
+  });
+
+  it("cho qua khi đã duyệt", () => {
+    expect(() => assertTransition("READY", "PUBLISHED", reviewed)).not.toThrow();
+  });
+
+  it("chặn kể cả khi giấy phép asset đều sạch", () => {
+    expect(() =>
+      assertTransition("READY", "PUBLISHED", { ...unreviewed, assetLicenses: ["CC0"] }),
+    ).toThrow(/chưa được duyệt/);
+  });
+});

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@audio/database";
 import { Badge, Button, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import {
   assignVoice,
   createCharacter,
@@ -101,7 +102,7 @@ export default async function CharactersPage({ params }: { params: Promise<{ id:
             </summary>
 
             <div className="border-t border-neutral-800 p-4">
-              <form action={updateCharacter.bind(null, c.id, series.id)} className="space-y-3">
+              <ActionForm action={updateCharacter.bind(null, c.id, series.id)} className="space-y-3">
                 <CharacterFields
                   defaults={{
                     name: c.name,
@@ -119,7 +120,7 @@ export default async function CharactersPage({ params }: { params: Promise<{ id:
                     Đổi tên không ảnh hưởng audio đã render — block giữ bản chụp tên người nói.
                   </span>
                 </div>
-              </form>
+              </ActionForm>
 
               <form
                 action={assignVoice.bind(null, c.id, series.id)}
@@ -167,7 +168,7 @@ export default async function CharactersPage({ params }: { params: Promise<{ id:
           + Thêm nhân vật
         </summary>
         <div className="border-t border-neutral-800 p-4">
-          <form action={createCharacter.bind(null, series.id)} className="space-y-3">
+          <ActionForm action={createCharacter.bind(null, series.id)} className="space-y-3">
             <CharacterFields
               defaults={{
                 name: "",
@@ -182,7 +183,7 @@ export default async function CharactersPage({ params }: { params: Promise<{ id:
             <Button type="submit" variant="primary">
               Thêm
             </Button>
-          </form>
+          </ActionForm>
         </div>
       </details>
     </div>

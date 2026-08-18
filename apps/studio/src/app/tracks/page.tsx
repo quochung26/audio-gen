@@ -2,6 +2,7 @@ import { AudioTrackKind, LicenseType, prisma } from "@audio/database";
 import { loadEnv } from "@audio/config";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, Section } from "@/components/ui";
+import { ActionForm } from "@/components/ActionForm";
 import { mediaUrl } from "@/lib/storage";
 import { createTrack, deleteTrack } from "../actions";
 
@@ -97,9 +98,9 @@ export default async function TracksPage() {
                       </p>
                     )}
                   </div>
-                  <form action={deleteTrack.bind(null, t.id)} className="shrink-0">
+                  <ActionForm action={deleteTrack.bind(null, t.id)} className="shrink-0">
                     <Button variant="ghost">xoá</Button>
-                  </form>
+                  </ActionForm>
                 </div>
                 {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                 <audio controls preload="none" className="h-8 w-full max-w-md" src={mediaUrl(t.url)} />
@@ -110,7 +111,7 @@ export default async function TracksPage() {
       </Section>
 
       <Section title="Thêm track">
-        <form action={createTrack} className="space-y-3 rounded border border-neutral-800 p-4">
+        <ActionForm action={createTrack} className="space-y-3 rounded border border-neutral-800 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-xs text-neutral-500">Tên</span>
@@ -221,7 +222,7 @@ export default async function TracksPage() {
           </label>
 
           <Button variant="primary">Thêm vào thư viện</Button>
-        </form>
+        </ActionForm>
       </Section>
     </div>
   );
