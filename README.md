@@ -195,6 +195,8 @@ MP3 xuất ở **−16 LUFS** (chuẩn web/podcast), dùng `loudnorm` hai lượ
 
 Áp **trước** khi vào engine, vì G2P tiếng Việt của các engine local hay sai tên riêng và từ vay mượn. Quy tắc dài áp trước quy tắc ngắn — nếu không thì "Bến Cũ" bị quy tắc "Bến" ăn mất một nửa. Quy tắc riêng của bộ đè lên quy tắc chung.
 
+Hiện chỉ nạp qua `pnpm db:seed` (5 từ vay mượn dùng chung: wifi, email, taxi, internet, video). **Chưa có giao diện** — và chưa cần: TTS giả lập không đọc chữ nên từ điển không đổi được gì bạn nghe thấy. Phần cần giao diện là mục riêng từng bộ (tên nhân vật, địa danh), mà chỉ biết cần thêm gì sau khi nghe engine thật đọc sai.
+
 ### Một giọng cho cả bộ
 
 Hiện dùng **một giọng duy nhất** cho mọi block. Chọn ở trang Nhân vật → *Giọng mặc định*. Casting riêng từng nhân vật vẫn có sẵn nhưng chỉ có tác dụng khi làm đa giọng — hoãn cho tới khi thấy thật sự cần.
