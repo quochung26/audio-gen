@@ -1,0 +1,11 @@
+node_modules/
+.next/
+dist/
+.turbo/
+*.tsbuildinfo
+.env
+.env.local
+.env.player
+.DS_Store
+data/
+*.log

@@ -1,0 +1,31 @@
+{
+  "name": "@audio/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
+    "job:mock": "dotenv -e ../../.env -- tsx src/scripts/enqueue-mock.ts",
+    "typecheck": "tsc --noEmit",
+    "queue:status": "dotenv -e ../../.env -- tsx src/scripts/status.ts",
+    "story": "dotenv -e ../../.env -- tsx src/scripts/write-story.ts",
+    "inspect": "dotenv -e ../../.env -- tsx src/scripts/inspect.ts"
+  },
+  "dependencies": {
+    "@audio/config": "workspace:*",
+    "@audio/database": "workspace:*",
+    "bullmq": "^5.34.5",
+    "ioredis": "^5.4.1",
+    "@audio/core": "workspace:*",
+    "@audio/llm": "workspace:*",
+    "@audio/tts": "workspace:*",
+    "@audio/audio": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "dotenv-cli": "^8.0.0"
+  }
+}

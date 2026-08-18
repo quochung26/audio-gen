@@ -1,0 +1,661 @@
+// Schema đầy đủ + giải thích các quyết định thiết kế: docs/database.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ══════════════════════════ ENUM ══════════════════════════
+
+enum SeriesKind {
+  SHORT
+  LONG
+}
+
+enum SeriesStatus {
+  DRAFT
+  ONGOING
+  COMPLETED
+  ARCHIVED
+}
+
+enum EpisodeStatus {
+  IDEA
+  OUTLINED
+  DRAFTING
+  DRAFTED
+  SCRIPTED
+  RENDERING
+  READY
+  PUBLISHED
+  FAILED
+}
+
+enum TtsEngine {
+  MOCK
+  KOKORO
+  PIPER
+  VIXTTS
+  F5TTS
+}
+
+enum VoiceTier {
+  FAST
+  EXPRESSIVE
+}
+
+enum JobLane {
+  LLM
+  TTS_CPU
+  TTS_GPU
+  FFMPEG
+}
+
+enum JobType {
+  OUTLINE
+  WRITE_SCENE
+  AUDIO_EDIT
+  SUMMARIZE
+  ARC_SUMMARY
+  METADATA
+  TTS
+  MIX
+  VIDEO
+  SUBTITLE
+  PUBLISH
+  MOCK
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum ExportType {
+  /// Bản chính hiện tại — MP3 chuẩn −16 LUFS (podcast/web).
+  AUDIO_MP3
+  /// Xuất cho nền tảng: hoãn. TikTok/YouTube đều yêu cầu VIDEO, không nhận MP3.
+  TIKTOK_MP4
+  YOUTUBE_MP4
+  /// Kịch bản kèm timecode — hữu ích cho mô tả video và phụ đề.
+  SCRIPT_TXT
+}
+
+enum PromptStep {
+  OUTLINE
+  WRITE_SCENE
+  AUDIO_EDIT
+  SUMMARIZE
+  ARC_SUMMARY
+  METADATA
+}
+
+enum AudioTrackKind {
+  BGM
+  SFX
+  INTRO
+  OUTRO
+}
+
+enum LicenseType {
+  ROYALTY_FREE
+  CC0
+  CC_BY
+  PURCHASED
+  SELF_MADE
+  UNKNOWN
+}
+
+/// Loại sự kiện. Quan trọng vì cách truy hồi khác nhau:
+/// OPEN_THREAD được nạp BẤT KỂ độ tương đồng — đó là món nợ truyện phải trả.
+enum FactKind {
+  EVENT        // việc đã xảy ra
+  REVELATION   // điều nhân vật phát hiện ra
+  PROMISE      // lời thề, lời hứa, cam kết
+  RELATION     // quan hệ giữa các nhân vật thay đổi
+  OBJECT       // vật phẩm quan trọng
+  PLACE        // địa điểm có ý nghĩa
+  OPEN_THREAD  // tình tiết bỏ ngỏ, chưa có lời giải
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ══════════════════ NỘI DUNG ══════════════════
+
+model Series {
+  id          String       @id @default(cuid())
+  kind        SeriesKind   @default(LONG)
+  title       String
+  slug        String       @unique
+  description String?
+  coverUrl    String?
+  genre       String
+  tags        String[]     @default([])
+  status      SeriesStatus @default(DRAFT)
+
+  /// Luật thế giới, bối cảnh, giọng văn. Nhân vật KHÔNG để ở đây — xem model Character.
+  storyBible Json?
+
+  aiDisclosure Boolean @default(true)
+
+  /// Giọng mặc định cho cả bộ. Hiện dùng MỘT giọng cho mọi block; casting
+  /// riêng theo nhân vật (Character.voiceId) chỉ dùng khi làm đa giọng.
+  defaultVoiceId String?
+  defaultVoice   Voice?  @relation("SeriesDefaultVoice", fields: [defaultVoiceId], references: [id])
+
+  /// Tóm tắt cung truyện — nén các tập cũ lại thành một khối.
+  /// Không có nó, tóm tắt từng tập tích luỹ tuyến tính và tràn ngữ cảnh
+  /// khoảng tập 35. Xem docs/database.md mục 2.9.
+  arcSummary         String?
+  /// Đã nén tới hết tập số mấy.
+  arcThroughEpisode  Int?
+
+  episodes       Episode[]
+  characters     Character[]
+  pronunciations PronunciationEntry[]
+  facts          StoryFact[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([genre])
+}
+
+model Episode {
+  id       String @id @default(cuid())
+  seriesId String
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  number Int
+  title  String
+  slug   String @unique
+
+  outline Json?
+
+  draftText  String?
+  scriptText String?
+  summary    String?
+  /// Một dòng ~15 từ cho mục lục truyện. Luôn được nạp (rẻ), để hệ thống và
+  /// người viết biết tập nào có gì — kể cả sau khi tóm tắt đã bị nén.
+  gist       String?
+
+  /// Chốt chặn: chưa duyệt thì không được chuyển sang bước tạo audio.
+  humanReviewed Boolean   @default(false)
+  reviewedAt    DateTime?
+  reviewedBy    String?
+
+  status     EpisodeStatus @default(IDEA)
+  durationMs Int?
+  wordCount  Int?
+
+  bgmTrackId   String?
+  bgmTrack     AudioTrack? @relation("EpisodeBgm", fields: [bgmTrackId], references: [id])
+  bgmVolume    Float       @default(0.18)
+  introTrackId String?
+  outroTrackId String?
+
+  publishedAt DateTime?
+
+  scenes     Scene[]
+  blocks     Block[]
+  exports    Export[]
+  facts      StoryFact[]
+  llmRuns    LlmRun[]
+  renderJobs RenderJob[]
+  progress   ListenProgress[]
+  favorites  Favorite[]
+  comments   Comment[]
+  ratings    Rating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([seriesId, number])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([seriesId, publishedAt])
+}
+
+model Character {
+  id       String @id @default(cuid())
+  seriesId String
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  name        String
+  role        String?
+  description String?
+
+  isNarrator Boolean @default(false)
+
+  /// Trạng thái hiện tại: đang ở đâu, biết gì, quan hệ đã đổi thế nào.
+  /// KHÁC `description` (tính cách, cách nói — tĩnh, do người viết đặt):
+  /// `state` thay đổi theo mạch truyện và được cập nhật sau mỗi tập.
+  state          String?
+  /// Trạng thái phản ánh tới hết tập số mấy.
+  stateThroughEpisode Int?
+
+  voiceHint String?
+  voiceId   String?
+  voice     Voice?  @relation(fields: [voiceId], references: [id])
+
+  blocks Block[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([seriesId, name])
+  @@index([seriesId, isNarrator])
+}
+
+model Scene {
+  id        String  @id @default(cuid())
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  order Int
+  beat  String
+  text  String?
+
+  /// Số hiệu các tập cũ mà cảnh này gọi lại.
+  /// Chỉ những tập được liệt kê ở đây mới được nạp tóm tắt ĐẦY ĐỦ — thay vì
+  /// nhồi mọi tóm tắt vào mỗi lần gọi. Hệ thống gợi ý, người viết sửa được.
+  refEpisodes Int[] @default([])
+
+  approved Boolean @default(false)
+
+  llmRuns LlmRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([episodeId, order])
+}
+
+/// Sự kiện truyện — đơn vị truy hồi theo ngữ nghĩa.
+///
+/// Vì sao KHÔNG embed `Episode.summary`: một tóm tắt 200 từ gói 3–4 việc khác
+/// nhau, dồn vào một vector là nhoè hết. Tách thành từng câu một sự kiện thì
+/// mỗi vector sắc nét, và lấy được 5 sự kiện từ 5 tập khác nhau thay vì 3 tóm
+/// tắt nguyên khối.
+///
+/// Quan trọng hơn: sự kiện sống ĐỘC LẬP với việc nén tóm tắt. Job ARC_SUMMARY
+/// nén tóm tắt cũ và mất chi tiết, nhưng sự kiện vẫn nguyên ở đây.
+///
+/// Cột `embedding vector(1024)` không khai báo được trong Prisma — tạo bằng SQL
+/// thô ở migration, truy vấn bằng `$queryRaw`. Xem packages/database/sql/.
+model StoryFact {
+  id       String @id @default(cuid())
+  seriesId String
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  /// Tập sinh ra sự kiện này. Giữ cả số hiệu để truy vấn không cần join.
+  episodeId     String?
+  episode       Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  episodeNumber Int
+
+  kind FactKind
+  /// Một câu, tự đứng được mà không cần ngữ cảnh.
+  /// VD: "Tài thề không bao giờ quay lại Bến Cũ sau đêm mưa."
+  text String
+
+  /// Tình tiết bỏ ngỏ đã có lời giải chưa. Chỉ áp dụng cho OPEN_THREAD.
+  resolved          Boolean @default(false)
+  resolvedInEpisode Int?
+
+  /// Người viết ghim thì luôn được nạp, bất kể độ tương đồng.
+  pinned Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([seriesId, kind])
+  @@index([seriesId, episodeNumber])
+  @@index([seriesId, resolved])
+}
+
+// ══════════════════ AUDIO ══════════════════
+
+model Voice {
+  id     String    @id @default(cuid())
+  engine TtsEngine
+  tier   VoiceTier
+
+  name            String
+  externalVoiceId String
+  refAudioUrl     String?
+
+  gender    String?
+  ageRange  String?
+  accent    String?
+  sampleUrl String?
+
+  licenseType  LicenseType @default(UNKNOWN)
+  commercialOk Boolean     @default(false)
+
+  enabled Boolean @default(true)
+
+  characters     Character[]
+  seriesAsDefault Series[]   @relation("SeriesDefaultVoice")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([engine, externalVoiceId])
+  @@index([tier, enabled])
+}
+
+model Block {
+  id        String  @id @default(cuid())
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  order Int
+  text  String
+
+  characterId  String?
+  character    Character? @relation(fields: [characterId], references: [id])
+  speakerLabel String
+
+  /// Bản chụp cấu hình lúc render — CỐ TÌNH không dùng khoá ngoại.
+  /// Đổi casting thì cacheKey đổi theo, hệ thống tự biết cần render lại.
+  ttsEngine TtsEngine
+  voiceId   String
+  speed     Float     @default(1.0)
+  pitch     Float?
+
+  pauseAfter Int         @default(400)
+  sfxHint    String?
+  sfxTrackId String?
+  sfxTrack   AudioTrack? @relation("BlockSfx", fields: [sfxTrackId], references: [id])
+
+  audioAssetId String?
+  audioAsset   AudioAsset? @relation(fields: [audioAssetId], references: [id])
+
+  approved Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([episodeId, order])
+  @@index([episodeId, approved])
+  @@index([characterId])
+}
+
+/// Cache audio dùng chung mọi tập. Intro/outro cố định chỉ render một lần.
+model AudioAsset {
+  id String @id @default(cuid())
+
+  /// sha256(text + ttsEngine + voiceId + speed + pitch)
+  cacheKey String @unique
+
+  url        String
+  durationMs Int
+  sizeBytes  Int
+  sampleRate Int    @default(24000)
+
+  ttsEngine TtsEngine
+  voiceId   String
+
+  refCount Int @default(0)
+
+  blocks Block[]
+
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([lastUsedAt])
+}
+
+model AudioTrack {
+  id   String         @id @default(cuid())
+  kind AudioTrackKind
+
+  title      String
+  url        String
+  durationMs Int
+  mood       String?
+  tags       String[] @default([])
+
+  /// Bắt buộc — UNKNOWN bị chặn khi xuất bản.
+  licenseType LicenseType @default(UNKNOWN)
+  licenseNote String?
+  attribution String?
+
+  episodesAsBgm Episode[] @relation("EpisodeBgm")
+  blocksAsSfx   Block[]   @relation("BlockSfx")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, licenseType])
+}
+
+model PronunciationEntry {
+  id String @id @default(cuid())
+
+  /// null = từ điển dùng chung mọi truyện
+  seriesId String?
+  series   Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  term        String
+  replacement String
+  isRegex     Boolean @default(false)
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([seriesId, term])
+}
+
+// ══════════════════ XUẤT BẢN ══════════════════
+
+model Export {
+  id        String  @id @default(cuid())
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  type ExportType
+
+  part      Int @default(1)
+  partTotal Int @default(1)
+
+  url        String
+  sizeBytes  Int?
+  durationMs Int?
+
+  sampleRate  Int?
+  bitDepth    Int?
+  bitrateKbps Int?
+  lufs        Float?
+  codec       String?
+
+  platformUrl String?
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([episodeId, type, part])
+  @@index([type, publishedAt])
+}
+
+// ══════════════════ AI & HÀNG ĐỢI ══════════════════
+
+model Prompt {
+  id      String     @id @default(cuid())
+  step    PromptStep
+  /// Biến thể theo thể loại. "*" = áp dụng cho mọi thể loại.
+  /// Dùng "*" thay vì null vì Postgres coi mỗi NULL là khác nhau — ràng buộc
+  /// duy nhất trên cột nullable sẽ không chặn được bản ghi trùng.
+  genre   String     @default("*")
+  version Int        @default(1)
+
+  content String
+  model   String?
+  params  Json?
+
+  active Boolean @default(true)
+  note   String?
+
+  llmRuns LlmRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([step, genre, version])
+  @@index([step, active])
+}
+
+/// Telemetry mỗi lần gọi LLM. Ghi thời gian và tốc độ, không ghi tiền —
+/// với model local, thời gian máy mới là tài nguyên khan hiếm.
+model LlmRun {
+  id String @id @default(cuid())
+
+  episodeId String?
+  episode   Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  sceneId   String?
+  scene     Scene?   @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  promptId  String?
+  prompt    Prompt?  @relation(fields: [promptId], references: [id], onDelete: SetNull)
+
+  step   PromptStep
+  model  String
+  params Json
+
+  inputTokens  Int
+  outputTokens Int
+  durationMs   Int
+  tokensPerSec Float
+
+  /// Điểm bạn tự chấm sau khi đọc — để biết prompt/tham số nào cho văn hay.
+  qualityRating Int?
+  qualityNote   String?
+
+  error String?
+
+  createdAt DateTime @default(now())
+
+  @@index([step, createdAt])
+  @@index([model, qualityRating])
+  @@index([episodeId])
+}
+
+model RenderJob {
+  id        String   @id @default(cuid())
+  episodeId String?
+  episode   Episode? @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  type   JobType
+  lane   JobLane
+  status JobStatus @default(QUEUED)
+
+  /// VRAM job này cần. Job chạy CPU khai báo 0.
+  vramMb Int @default(0)
+
+  progress Int     @default(0)
+  payload  Json?
+  result   Json?
+  error    String?
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(3)
+
+  queuedAt   DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([status, lane, queuedAt])
+  @@index([episodeId, status])
+}
+
+// ══════════════════ NGƯỜI NGHE ══════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+
+  role String @default("listener")
+
+  progress  ListenProgress[]
+  favorites Favorite[]
+  comments  Comment[]
+  ratings   Rating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ListenProgress {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  positionMs Int     @default(0)
+  completed  Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, episodeId])
+  @@index([userId, updatedAt])
+}
+
+model Favorite {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, episodeId])
+}
+
+model Comment {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  body        String
+  timestampMs Int?
+
+  status ModerationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([episodeId, status, createdAt])
+}
+
+model Rating {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  score Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, episodeId])
+  @@index([episodeId])
+}

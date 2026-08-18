@@ -1,0 +1,32 @@
+{
+  "name": "audio-truyen",
+  "private": true,
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:push": "pnpm --filter @audio/database db:push",
+    "db:migrate": "pnpm --filter @audio/database db:migrate",
+    "db:studio": "pnpm --filter @audio/database db:studio",
+    "db:seed": "pnpm --filter @audio/database db:seed",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "worker": "pnpm --filter @audio/worker dev",
+    "job:mock": "pnpm --filter @audio/worker job:mock",
+    "queue:status": "pnpm --filter @audio/worker queue:status",
+    "story": "pnpm --filter @audio/worker story",
+    "inspect": "pnpm --filter @audio/worker inspect"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "dotenv-cli": "^11.0.0",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

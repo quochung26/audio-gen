@@ -1,0 +1,14 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Chỉ những gói này được chạy script cài đặt (biên dịch native).
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - esbuild
+  - msgpackr-extract
+  - "@tailwindcss/oxide"
+  - sharp
+  - unrs-resolver

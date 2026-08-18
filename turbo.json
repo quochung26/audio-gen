@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "DATABASE_URL", "PLAYER_DATABASE_URL", "REDIS_URL",
+    "OLLAMA_URL", "EMBED_PROVIDER", "EMBED_MODEL", "OLLAMA_MODEL_WRITE", "OLLAMA_MODEL_UTILITY",
+    "KOKORO_URL", "VOICE_CLONE_URL", "TTS_EXPRESSIVE_PROVIDER", "PIPER_BINARY", "PIPER_VOICES_DIR",
+    "LLM_PROVIDER", "TTS_PROVIDER",
+    "VRAM_TOTAL_MB", "VRAM_RESERVED_MB", "VRAM_LLM_MB", "VRAM_TTS_CLONE_MB",
+    "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL",
+    "STORAGE_DRIVER", "STORAGE_LOCAL_DIR", "NODE_ENV"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {},
+    "db:generate": {
+      "cache": false
+    }
+  }
+}
