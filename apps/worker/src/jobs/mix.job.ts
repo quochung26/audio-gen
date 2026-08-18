@@ -1,7 +1,7 @@
 import { mkdir, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { concatBlocks, exportMp3, normalizeLoudness } from "@audio/audio";
+import { concatBlocks, exportMp3, mixBgm, normalizeLoudness } from "@audio/audio";
 import { EpisodeStatus, ExportType, prisma } from "@audio/database";
 import type { JobHandler } from "../lanes/create-lane";
 import { getStorage } from "../services/storage";
@@ -13,8 +13,8 @@ import { logger } from "../lib/logger";
  * Chạy ở làn FFMPEG (CPU), `vramMb = 0`, nên chồng lấn được với LLM đang viết
  * tập sau — xem PLAN.md mục 3 điểm 3.
  *
- * Nhạc nền + ducking để Phase 6; bước này lo phần xương sống: từ block rời ra
- * một file nghe được.
+ * Nhạc nền là tuỳ chọn: tập nào chọn track ở Studio thì trộn kèm ducking, tập
+ * nào không thì đi thẳng từ block ghép sang chuẩn hoá.
  */
 export const mixJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
@@ -24,6 +24,7 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
     where: { id: episodeId },
     include: {
       series: { select: { id: true, title: true } },
+      bgmTrack: { select: { id: true, title: true, url: true, licenseType: true } },
       blocks: {
         orderBy: { order: "asc" },
         include: { audioAsset: { select: { url: true, durationMs: true } } },
@@ -64,11 +65,35 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
     });
     logger.info(`[mix] ghép ${blockPaths.length} block → ${(durationMs / 1000).toFixed(1)}s`);
 
-    await setProgress(55);
+    await setProgress(50);
+
+    // Nhạc nền trộn TRƯỚC khi chuẩn hoá, không phải sau: loudnorm phải đo được
+    // bản hoàn chỉnh. Chuẩn hoá lời rồi mới chồng nhạc lên là đẩy tập vượt mức
+    // đã chuẩn hoá, đúng bằng phần nhạc thêm vào.
+    let mixedPath = rawPath;
+    if (episode.bgmTrack) {
+      const bgmPath = await localPath(
+        episode.bgmTrack.url,
+        workDir,
+        `bgm${extensionOf(episode.bgmTrack.url)}`,
+      );
+      mixedPath = join(workDir, "with-bgm.wav");
+      await mixBgm({
+        voicePath: rawPath,
+        bgmPath,
+        outPath: mixedPath,
+        volume: episode.bgmVolume,
+      });
+      logger.info(
+        `[mix] trộn nhạc nền "${episode.bgmTrack.title}" ở ${Math.round(episode.bgmVolume * 100)}%`,
+      );
+    }
+
+    await setProgress(60);
 
     // Chuẩn hoá -16 LUFS cho web. Hai lượt loudnorm nằm trong normalizeLoudness.
     const normPath = join(workDir, "normalized.wav");
-    await normalizeLoudness({ inPath: rawPath, outPath: normPath, target: "web" });
+    await normalizeLoudness({ inPath: mixedPath, outPath: normPath, target: "web" });
 
     await setProgress(75);
 
@@ -143,6 +168,12 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 };
+
+/** Đuôi file lấy từ URL — ffmpeg đoán định dạng tốt hơn khi có đuôi đúng. */
+function extensionOf(url: string): string {
+  const ext = /\.([a-z0-9]{2,4})(?:[?#]|$)/i.exec(url)?.[1];
+  return ext ? `.${ext.toLowerCase()}` : ".mp3";
+}
 
 /** Trả về đường dẫn cục bộ cho ffmpeg đọc, tải về nếu là URL http. */
 async function localPath(url: string, workDir: string, filename: string): Promise<string> {

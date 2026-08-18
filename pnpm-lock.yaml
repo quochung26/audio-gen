@@ -66,6 +66,9 @@ importers:
 
   apps/studio:
     dependencies:
+      '@audio/audio':
+        specifier: workspace:*
+        version: link:../../packages/audio
       '@audio/config':
         specifier: workspace:*
         version: link:../../packages/config

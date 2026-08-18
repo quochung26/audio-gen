@@ -19,6 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/series" className="text-sm text-neutral-400 hover:text-neutral-100">
                 Truyện
               </a>
+              <a href="/tracks" className="text-sm text-neutral-400 hover:text-neutral-100">
+                Thư viện nhạc
+              </a>
             </div>
             <a
               href="/series/new"

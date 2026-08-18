@@ -1,6 +1,6 @@
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { LUFS_TIKTOK, LUFS_WEB, LUFS_YOUTUBE } from "@audio/config";
+import { DEFAULT_BGM_VOLUME, LUFS_TIKTOK, LUFS_WEB, LUFS_YOUTUBE } from "@audio/config";
 import { ffmpeg, ffprobe } from "./ffmpeg";
 
 export interface BlockAudio {
@@ -79,14 +79,111 @@ export async function concatBlocks(input: {
 }
 
 /**
+ * Ducking mặc định — xem `mixBgm` để biết vì sao là những số này.
+ *
+ * `threshold` tính theo biên độ tuyến tính (0–1), không phải dB: 0,1 ≈ −20 dBFS.
+ */
+const DUCK_THRESHOLD = 0.1;
+const DUCK_RATIO = 4;
+const DUCK_ATTACK_MS = 20;
+const DUCK_RELEASE_MS = 400;
+
+/**
+ * Trộn nhạc nền dưới lời đọc, có ducking.
+ *
+ * Ducking = nhạc tự nhỏ lại khi có lời, tự to lên khi im. Làm bằng
+ * `sidechaincompress`: nhạc là tín hiệu BỊ nén, lời là tín hiệu ĐIỀU KHIỂN.
+ * Vặn nhạc nhỏ cố định thay cho ducking thì hoặc lời bị lấn, hoặc nhạc nhỏ tới
+ * mức vô nghĩa — không có mức nào đúng cho cả hai.
+ *
+ * Vì sao các tham số nén là như hiện tại:
+ * - `threshold=0,1` (≈ −20 dBFS) — dưới mức lời đọc bình thường, nên hễ có lời
+ *   là ducking ăn; nhưng trên mức nhiễu nền, nên đoạn lặng nhạc được về đủ to.
+ * - `ratio=4` — đo thực tế: lời ở RMS −14 dBFS (mức giọng đọc sau chuẩn hoá)
+ *   kéo nhạc xuống ~8 dB. Đây là mức podcast hay dùng: nghe rõ lời mà vẫn còn
+ *   cảm được nhạc. Ratio 8–12 dìm nhạc gần như tắt hẳn, lúc đó thà bỏ nhạc còn hơn.
+ * - `attack=20ms` — kịp bắt đầu câu, không nghe thấy nhạc "vọt" lên ở phụ âm đầu.
+ * - `release=400ms` — đủ chậm để nhạc không phập phồng theo từng chữ, đủ nhanh
+ *   để khoảng nghỉ giữa hai đoạn được trả lại nhạc.
+ *
+ * Ba chỗ dễ sai đã xử lý sẵn trong filter:
+ * - `sidechaincompress` đòi hai nguồn CÙNG sample rate và channel layout, khác
+ *   là ffmpeg báo lỗi — nên cả hai đi qua `aformat` trước.
+ * - `amix` mặc định chia biên độ cho số input (lời tự nhiên bé đi một nửa) —
+ *   phải `normalize=0`. Cần ffmpeg ≥ 4.4.
+ * - Nhạc ngắn hơn tập thì `-stream_loop -1` cho lặp; dài hơn thì `atrim` cắt.
+ *
+ * GIỚI HẠN ĐÃ BIẾT: vòng lặp nối thẳng, KHÔNG crossfade — nhạc 3 phút dưới tập
+ * 20 phút sẽ có ~6 chỗ nối nghe được. Chọn track dài xấp xỉ tập là cách tránh
+ * rẻ nhất; Studio hiển thị sẵn số vòng lặp để biết trước.
+ */
+export async function mixBgm(input: {
+  /** File lời đọc đã ghép (`concatBlocks`). Quyết định độ dài bản trộn. */
+  voicePath: string;
+  bgmPath: string;
+  outPath: string;
+  /** Âm lượng nhạc lúc KHÔNG có lời (0–1). Ducking trừ tiếp từ mức này. */
+  volume?: number;
+  sampleRate?: number;
+  fadeInMs?: number;
+  fadeOutMs?: number;
+}): Promise<{ durationMs: number }> {
+  const sampleRate = input.sampleRate ?? 24000;
+  const volume = Math.min(1, Math.max(0, input.volume ?? DEFAULT_BGM_VOLUME));
+
+  const voice = await ffprobe(input.voicePath);
+  if (voice.durationMs <= 0) throw new Error("File lời đọc rỗng, không trộn được nhạc nền");
+
+  const durationSec = voice.durationMs / 1000;
+  const fadeIn = Math.min((input.fadeInMs ?? 2000) / 1000, durationSec / 2);
+  const fadeOut = Math.min((input.fadeOutMs ?? 4000) / 1000, durationSec / 2);
+  const fadeOutStart = Math.max(0, durationSec - fadeOut);
+
+  const format = `aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono`;
+
+  const filter = [
+    // Lời vừa là tín hiệu chính vừa là tín hiệu điều khiển ducking → tách đôi.
+    `[0:a]${format},asplit=2[voice][key]`,
+    `[1:a]${format},atrim=0:${durationSec.toFixed(3)},asetpts=N/SR/TB,volume=${volume.toFixed(3)},` +
+      `afade=t=in:st=0:d=${fadeIn.toFixed(3)},` +
+      `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeOut.toFixed(3)}[bed]`,
+    `[bed][key]sidechaincompress=threshold=${DUCK_THRESHOLD}:ratio=${DUCK_RATIO}:` +
+      `attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}[ducked]`,
+    `[voice][ducked]amix=inputs=2:duration=first:normalize=0[out]`,
+  ].join(";");
+
+  await ffmpeg([
+    "-i", input.voicePath,
+    // Lặp vô hạn; `atrim` + `-t` mới là thứ quyết định điểm dừng.
+    "-stream_loop", "-1",
+    "-i", input.bgmPath,
+    "-filter_complex", filter,
+    "-map", "[out]",
+    "-t", durationSec.toFixed(3),
+    "-ar", String(sampleRate),
+    "-ac", "1",
+    "-c:a", "pcm_s16le",
+    input.outPath,
+  ]);
+
+  const probe = await ffprobe(input.outPath);
+  return { durationMs: probe.durationMs };
+}
+
+/**
  * Chuẩn hoá loudness.
  *
  * Mặc định `web` (−16 LUFS, chuẩn podcast). Các đích khác chỉ dùng khi thật sự
  * xuất cho nền tảng đó — YouTube và TikTok đều chỉ vặn XUỐNG chứ không vặn lên,
  * nên master quá nhỏ là phát ra nhỏ, không cứu được.
  *
- * Dùng loudnorm hai lượt: lượt một đo, lượt hai áp số đo được. Một lượt cho
- * kết quả kém chính xác hơn rõ rệt trên file dài.
+ * Dùng loudnorm hai lượt: lượt một đo, lượt hai áp số đo được. Một lượt chạy ở
+ * chế độ động, bám theo từng đoạn nên nén mất dynamic range của cả file — nghe
+ * rõ nhất ở tập có nhạc nền, chỗ chuyển giữa đoạn có lời và đoạn chỉ có nhạc bị
+ * "bơm" lên xuống. Lượt hai `linear=true` chỉ dịch nguyên khối một mức gain.
+ *
+ * Nếu lượt đo không đọc được số (file quá ngắn, hoặc lặng hoàn toàn nên loudnorm
+ * trả `-inf`) thì lùi về một lượt — thà kém chính xác còn hơn hỏng cả bản xuất.
  */
 export async function normalizeLoudness(input: {
   inPath: string;
@@ -97,14 +194,66 @@ export async function normalizeLoudness(input: {
     input.target === "youtube" ? LUFS_YOUTUBE : input.target === "tiktok" ? LUFS_TIKTOK : LUFS_WEB;
   const tp = input.target === "web" ? -1.5 : -1.0;
   const lra = 11;
+  const base = `loudnorm=I=${lufs}:TP=${tp}:LRA=${lra}`;
+
+  // Lượt 1 — chỉ đo, không ghi file (`-f null`).
+  const measured = await measureLoudness(input.inPath, `${base}:print_format=json`);
+
+  const filter = measured
+    ? `${base}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:` +
+      `measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:` +
+      `offset=${measured.target_offset}:linear=true:print_format=summary`
+    : `${base}:print_format=summary`;
 
   await ffmpeg([
     "-i", input.inPath,
-    "-af", `loudnorm=I=${lufs}:TP=${tp}:LRA=${lra}:print_format=summary`,
+    "-af", filter,
     "-ar", "44100",
     "-c:a", "pcm_s16le",
     input.outPath,
   ]);
+}
+
+interface LoudnormMeasurement {
+  input_i: string;
+  input_tp: string;
+  input_lra: string;
+  input_thresh: string;
+  target_offset: string;
+}
+
+/** Chạy lượt đo và bóc JSON loudnorm in ra stderr. `null` nếu không đọc được. */
+async function measureLoudness(
+  inPath: string,
+  filter: string,
+): Promise<LoudnormMeasurement | null> {
+  let stderr: string;
+  try {
+    stderr = await ffmpeg(["-i", inPath, "-af", filter, "-f", "null", "-"]);
+  } catch {
+    return null;
+  }
+
+  // JSON của loudnorm là khối phẳng in ở cuối stderr, nên cắt từ dấu `{` cuối.
+  const start = stderr.lastIndexOf("{");
+  const end = stderr.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+
+  try {
+    const parsed = JSON.parse(stderr.slice(start, end + 1)) as Partial<LoudnormMeasurement>;
+    const fields = ["input_i", "input_tp", "input_lra", "input_thresh", "target_offset"] as const;
+    const out = {} as LoudnormMeasurement;
+
+    for (const f of fields) {
+      const v = parsed[f];
+      // File lặng cho `-inf`; truyền tiếp vào lượt hai là ffmpeg lỗi.
+      if (v === undefined || !Number.isFinite(Number(v))) return null;
+      out[f] = String(v);
+    }
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 /** Xuất MP3 cho web/podcast. */

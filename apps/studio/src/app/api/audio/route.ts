@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadEnv } from "@audio/config";
+import { storageRoot } from "@/lib/storage";
 import type { NextRequest } from "next/server";
 import type { ReadableOptions } from "node:stream";
 
@@ -19,10 +19,7 @@ export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("path");
   if (!raw) return new Response("thiếu tham số path", { status: 400 });
 
-  const env = loadEnv();
-  // Cùng gốc mà worker dùng khi ghi file. Worker chạy ở apps/worker nên đường
-  // dẫn tương đối được giải theo đó.
-  const root = resolve(process.cwd(), "..", "worker", env.STORAGE_LOCAL_DIR);
+  const root = storageRoot();
   const target = resolve(raw);
 
   // Chốt chặn: đường dẫn đã giải phải nằm trong thư mục lưu trữ.
@@ -38,11 +35,7 @@ export async function GET(req: NextRequest) {
   }
   if (!info.isFile()) return new Response("không phải file", { status: 400 });
 
-  const type = target.endsWith(".mp3")
-    ? "audio/mpeg"
-    : target.endsWith(".wav")
-      ? "audio/wav"
-      : "application/octet-stream";
+  const type = contentType(target);
 
   const stream = createReadStream(target) as unknown as ReadableOptions & AsyncIterable<Uint8Array>;
 
@@ -61,4 +54,19 @@ export async function GET(req: NextRequest) {
       },
     },
   );
+}
+
+/** Nhạc nền người dùng tải lên không chỉ có mp3/wav — trình duyệt cần đúng type. */
+function contentType(path: string): string {
+  const types: Record<string, string> = {
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    m4a: "audio/mp4",
+    aac: "audio/aac",
+    ogg: "audio/ogg",
+    opus: "audio/ogg",
+    flac: "audio/flac",
+  };
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  return types[ext] ?? "application/octet-stream";
 }

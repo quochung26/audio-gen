@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { EpisodeStatus, prisma } from "@audio/database";
+import { AudioTrackKind, EpisodeStatus, LicenseType, prisma } from "@audio/database";
 import {
   assertTransition,
   parseWorld,
@@ -10,7 +10,10 @@ import {
   worldSetupSchema,
   type StoryBibleRecord,
 } from "@audio/core";
+import { ffprobe } from "@audio/audio";
+import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { enqueue } from "@/lib/queue";
+import { putLocal, safeFileName } from "@/lib/storage";
 
 export async function createStory(formData: FormData) {
   const idea = String(formData.get("idea") ?? "").trim();
@@ -368,4 +371,107 @@ export async function setDefaultVoice(seriesId: string, formData: FormData) {
   });
   revalidatePath(`/series/${seriesId}/characters`);
   revalidatePath(`/series/${seriesId}`);
+}
+
+/**
+ * Thêm nhạc nền / hiệu ứng vào thư viện.
+ *
+ * Hai đường vào, vì hai driver lưu trữ khác nhau: `local` thì tải file lên và
+ * Studio tự ghi vào kho; `r2` thì Studio không có credential nên dán URL công khai.
+ *
+ * `licenseType` bắt buộc chọn ở form nhưng vẫn có thể là UNKNOWN — không chặn ở
+ * đây mà chặn ở `publishEpisode`. Chặn sớm thì không thử nghe thử được trước khi
+ * đi tìm giấy phép; chặn muộn thì không có tập nào lọt ra ngoài kèm nhạc mập mờ.
+ */
+export async function createTrack(formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  const kind = String(formData.get("kind") ?? "BGM") as AudioTrackKind;
+  const licenseType = String(formData.get("licenseType") ?? "UNKNOWN") as LicenseType;
+  const licenseNote = String(formData.get("licenseNote") ?? "").trim();
+  const attribution = String(formData.get("attribution") ?? "").trim();
+  const mood = String(formData.get("mood") ?? "").trim();
+  const tags = String(formData.get("tags") ?? "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const file = formData.get("file");
+  const pastedUrl = String(formData.get("url") ?? "").trim();
+
+  if (!title) throw new Error("Thiếu tên track");
+  if (!Object.values(AudioTrackKind).includes(kind)) throw new Error("Loại track không hợp lệ");
+  if (!Object.values(LicenseType).includes(licenseType)) throw new Error("Giấy phép không hợp lệ");
+
+  let url: string;
+  if (file instanceof File && file.size > 0) {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    url = await putLocal(`library/${kind.toLowerCase()}/${safeFileName(file.name)}`, bytes);
+  } else if (pastedUrl) {
+    url = pastedUrl;
+  } else {
+    throw new Error("Chọn file để tải lên, hoặc dán URL");
+  }
+
+  // Độ dài là cột bắt buộc, và cần thật: mix job dựa vào nó để biết nhạc có phải
+  // lặp không. ffprobe chỉ đọc được file cục bộ nên URL từ xa đành để 0.
+  let durationMs = 0;
+  if (url.startsWith("file://")) {
+    durationMs = (await ffprobe(url.slice("file://".length))).durationMs;
+  }
+
+  await prisma.audioTrack.create({
+    data: {
+      title,
+      kind,
+      url,
+      durationMs,
+      mood: mood || null,
+      tags,
+      licenseType,
+      licenseNote: licenseNote || null,
+      attribution: attribution || null,
+    },
+  });
+
+  revalidatePath("/tracks");
+}
+
+/**
+ * Xoá track khỏi thư viện.
+ *
+ * File trên đĩa GIỮ NGUYÊN — tập đã xuất bản có thể đang chứa tiếng nhạc này, và
+ * xoá bản gốc thì không dựng lại được tập nữa.
+ */
+export async function deleteTrack(id: string) {
+  const used = await prisma.episode.count({ where: { bgmTrackId: id } });
+  if (used > 0) {
+    throw new Error(`Còn ${used} tập đang dùng track này. Gỡ khỏi các tập đó trước.`);
+  }
+
+  await prisma.audioTrack.delete({ where: { id } });
+  revalidatePath("/tracks");
+}
+
+/**
+ * Chọn nhạc nền cho một tập, kèm âm lượng nền.
+ *
+ * KHÔNG tự xuất lại MP3: đổi nhạc mà chạy lại ffmpeg ngay thì mỗi lần kéo thanh
+ * âm lượng là một job. Người dùng bấm "Xuất lại MP3" khi đã ưng.
+ */
+export async function setEpisodeBgm(episodeId: string, formData: FormData) {
+  const trackId = String(formData.get("bgmTrackId") ?? "");
+  const raw = Number(formData.get("bgmVolume"));
+  const volume = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : DEFAULT_BGM_VOLUME;
+
+  if (trackId) {
+    const track = await prisma.audioTrack.findUniqueOrThrow({ where: { id: trackId } });
+    if (track.kind !== AudioTrackKind.BGM) throw new Error("Track được chọn không phải nhạc nền");
+  }
+
+  await prisma.episode.update({
+    where: { id: episodeId },
+    data: { bgmTrackId: trackId || null, bgmVolume: volume },
+  });
+
+  revalidatePath(`/episode/${episodeId}/audio`);
 }

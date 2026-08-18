@@ -6,7 +6,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 
 ---
 
-## Trạng thái: Phase 4 xong
+## Trạng thái: Phase 5 xong
 
 | Phase | Nội dung | Trạng thái |
 |---|---|---|
@@ -16,7 +16,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | 3 | TTS + ghép audio → MP3 | ✅ |
 | 4 | Player — trang nghe | ✅ |
 | — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
-| 5 | Nhạc nền + ducking | |
+| 5 | Nhạc nền + ducking | ✅ |
 | 6 | Truyện dài: chạy hàng loạt, RSS podcast | |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
@@ -177,7 +177,7 @@ Khoá là `sha256(text + engine + voice + speed + pitch)`, lưu ở `AudioAsset`
 
 MP3 xuất ở **−16 LUFS** (chuẩn web/podcast), dùng `loudnorm` hai lượt — lượt một đo, lượt hai áp. Một lượt kém chính xác rõ rệt trên file dài.
 
-Đo lại file thật: **−16.5 LUFS**, 160 kbps, 44.1kHz mono.
+Đo lại file thật: **−16.4 LUFS** (tập có nhạc nền), 160 kbps, 44.1kHz mono. Lượt hai chạy `linear=true` nên chỉ dịch nguyên khối một mức gain — không bóp dynamic range, thứ nghe rõ nhất ở chỗ chuyển giữa đoạn có lời và đoạn chỉ có nhạc.
 
 ### Từ điển phát âm
 
@@ -204,6 +204,25 @@ Rồi thêm giọng thật vào bảng `Voice` (`engine=KOKORO`, `externalVoiceI
 **Engine ghi vào block lấy từ bản ghi `Voice`, không từ `.env`** — nên tập cũ render bằng mock vẫn giữ nguyên audio cũ, chỉ tập mới dùng engine mới.
 
 Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRAM với LLM, nên đọc tập N song song với viết tập N+1.
+
+## Nhạc nền
+
+Thư viện nhạc ở `/tracks`. Chọn nhạc cho từng tập ở trang Audio của tập, rồi bấm **Xuất lại MP3** — lưu lựa chọn không tự dựng lại tập.
+
+Nhạc được trộn dưới lời bằng **ducking** (`sidechaincompress`): nhạc tự nhỏ lại khi có lời, tự to lên ở khoảng lặng. Đo thực tế: lời ở RMS −14 dBFS kéo nhạc xuống ~8 dB. Vặn nhạc nhỏ cố định không thay được — hoặc lời bị lấn, hoặc nhạc nhỏ tới mức vô nghĩa.
+
+Trộn xảy ra **trước** khi chuẩn hoá loudness, không phải sau: loudnorm phải đo được bản hoàn chỉnh, chứ chuẩn hoá lời rồi mới chồng nhạc lên là đẩy tập vượt mức đã chuẩn hoá.
+
+| Điều cần biết | |
+|---|---|
+| Âm lượng nền | Mức nhạc ở đoạn KHÔNG có lời. Mặc định 18%. Ducking trừ tiếp từ mức này. |
+| Nhạc ngắn hơn tập | Tự lặp. Chỗ nối **không** crossfade nên nghe thấy được — Studio báo trước số vòng lặp. Track dài xấp xỉ tập là sạch nhất. |
+| Nhạc dài hơn tập | Cắt theo độ dài tập, có fade in 2s / fade out 4s. |
+| Giấy phép | `UNKNOWN` không chặn lúc thêm vào thư viện, nhưng **chặn xuất bản**. Điền trước khi đưa vào tập. |
+
+Với `STORAGE_DRIVER=local` thì tải file thẳng lên Studio. Với `r2` thì Studio không có credential — tải lên R2 rồi dán URL công khai.
+
+---
 
 ## Nghe thử
 

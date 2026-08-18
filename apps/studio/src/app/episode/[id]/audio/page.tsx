@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@audio/database";
+import { AudioTrackKind, LicenseType, prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
 import { Badge, Button, STATUS_TONE, Section } from "@/components/ui";
 import {
@@ -8,6 +8,7 @@ import {
   publishEpisode,
   renderAudio,
   rerenderBlock,
+  setEpisodeBgm,
   unpublishEpisode,
 } from "../../../actions";
 
@@ -26,6 +27,7 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
     where: { id },
     include: {
       series: { select: { id: true, title: true } },
+      bgmTrack: true,
       blocks: {
         orderBy: { order: "asc" },
         include: {
@@ -47,6 +49,19 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
   const allDone = done === episode.blocks.length && episode.blocks.length > 0;
   const active = episode.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
   const mp3 = episode.exports[0];
+
+  const bgmTracks = await prisma.audioTrack.findMany({
+    where: { kind: AudioTrackKind.BGM },
+    orderBy: { title: "asc" },
+  });
+  const bgmBlocksPublish = episode.bgmTrack?.licenseType === LicenseType.UNKNOWN;
+
+  // Vòng lặp nhạc nối thẳng, không crossfade — nhiều vòng là nhiều chỗ nối nghe
+  // được. Cho thấy con số trước để chọn track dài hơn thay vì phát hiện lúc nghe.
+  const bgmLoops =
+    episode.bgmTrack && episode.bgmTrack.durationMs > 0 && episode.durationMs
+      ? episode.durationMs / episode.bgmTrack.durationMs
+      : null;
 
   // Số file audio thật sự phải render, sau khi trừ block dùng chung cache.
   const uniqueAssets = new Set(episode.blocks.map((b) => b.audioAsset?.id).filter(Boolean)).size;
@@ -96,6 +111,78 @@ export default async function AudioPage({ params }: { params: Promise<{ id: stri
           </form>
         </div>
       )}
+
+      <Section title="Nhạc nền">
+        {bgmTracks.length === 0 ? (
+          <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-500">
+            Thư viện chưa có nhạc nền nào.{" "}
+            <Link href="/tracks" className="underline">
+              Thêm ở trang Thư viện nhạc
+            </Link>
+            .
+          </p>
+        ) : (
+          <form
+            action={setEpisodeBgm.bind(null, episode.id)}
+            className="space-y-3 rounded border border-neutral-800 p-4"
+          >
+            <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+              <label className="block">
+                <span className="mb-1 block text-xs text-neutral-500">Track</span>
+                <select
+                  name="bgmTrackId"
+                  defaultValue={episode.bgmTrackId ?? ""}
+                  className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+                >
+                  <option value="">— không có nhạc nền —</option>
+                  {bgmTracks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                      {t.mood ? ` (${t.mood})` : ""}
+                      {t.licenseType === LicenseType.UNKNOWN ? " — chưa rõ giấy phép" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-neutral-500">
+                  Âm lượng nền — {Math.round(episode.bgmVolume * 100)}%
+                </span>
+                <input
+                  type="number"
+                  name="bgmVolume"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  defaultValue={episode.bgmVolume}
+                  className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+                />
+              </label>
+            </div>
+
+            <p className="text-xs text-neutral-600">
+              Đây là mức nhạc ở khoảng KHÔNG có lời. Khi có lời, ducking tự kéo xuống thêm ~8 dB.
+              Đổi xong phải bấm <strong className="text-neutral-400">Xuất lại MP3</strong> mới nghe
+              thấy khác — lưu ở đây không tự dựng lại tập.
+            </p>
+
+            {bgmLoops !== null && bgmLoops > 1.5 && (
+              <p className="rounded border border-amber-900 bg-amber-950/40 p-2 text-xs text-amber-200">
+                Track này ngắn hơn tập nên phải lặp ~{bgmLoops.toFixed(1)} vòng. Chỗ nối vòng lặp
+                không được crossfade nên nghe thấy được — track dài xấp xỉ tập thì sạch hơn.
+              </p>
+            )}
+
+            {bgmBlocksPublish && (
+              <p className="rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-200">
+                Track đang chọn chưa xác minh giấy phép — bước xuất bản sẽ bị chặn.
+              </p>
+            )}
+
+            <Button>Lưu nhạc nền</Button>
+          </form>
+        )}
+      </Section>
 
       {mp3 && (
         <Section title="Bản xuất">

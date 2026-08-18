@@ -16,9 +16,13 @@ export class FfmpegError extends Error {
  * `-nostdin` quan trọng khi chạy trong worker: không có nó, ffmpeg có thể chiếm
  * stdin của tiến trình cha và làm treo cả worker.
  */
-export async function ffmpeg(args: string[], onProgress?: (seconds: number) => void): Promise<void> {
-  const stderr = await run("ffmpeg", ["-nostdin", "-hide_banner", "-y", ...args], onProgress);
-  void stderr;
+export async function ffmpeg(
+  args: string[],
+  onProgress?: (seconds: number) => void,
+): Promise<string> {
+  // Trả về stderr thay vì bỏ đi: loudnorm lượt đo in kết quả ra đây, không có
+  // cách nào khác lấy được số đo. Nơi khác gọi thì cứ bỏ qua giá trị trả về.
+  return run("ffmpeg", ["-nostdin", "-hide_banner", "-y", ...args], onProgress);
 }
 
 /** Chạy ffprobe và trả về JSON đã parse. */
