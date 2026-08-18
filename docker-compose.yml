@@ -1,3 +1,11 @@
+# Tên project ghim cứng, KHÔNG để Docker suy từ tên thư mục.
+#
+# Không có dòng này thì đổi tên thư mục dự án là `docker compose` mất dấu
+# container và volume đang chạy — nó đi tìm project mới rồi dựng DB rỗng, còn
+# dữ liệu cũ nằm lại trong volume của project cũ. Đã dính đúng lỗi này khi
+# thư mục đổi từ `audio` sang `audio-gen`.
+name: audio
+
 services:
   postgres:
     # pgvector thay cho postgres thường: tìm tập cũ liên quan bằng vector

@@ -28,6 +28,7 @@ function queue(lane: string): Queue {
 }
 
 const LANE_OF: Record<string, JobLane> = {
+  BATCH: JobLane.LLM,
   OUTLINE: JobLane.LLM,
   WRITE_SCENE: JobLane.LLM,
   AUDIO_EDIT: JobLane.LLM,

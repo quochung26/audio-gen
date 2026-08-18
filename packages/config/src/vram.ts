@@ -43,6 +43,8 @@ export function getJobVramCost(): Record<string, number> {
 
     // CPU — Kokoro chạy ONNX trên CPU nên tốn 0 VRAM (PLAN.md mục 6.1)
     TTS: 0,
+    // Chỉ đọc DB rồi đẩy hàng đợi.
+    BATCH: 0,
     MIX: 0,
     VIDEO: 0,
     PUBLISH: 0,

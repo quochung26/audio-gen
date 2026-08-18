@@ -707,6 +707,36 @@ model LlmRun {
   @@index([episodeId])
 }
 
+enum BatchStatus {
+  RUNNING
+  WAITING_REVIEW   // đang chờ người đọc duyệt bản thảo — không job nào có trạng thái này
+  DONE
+  FAILED
+  CANCELLED
+}
+
+/// Một lượt chạy hàng loạt cho cả bộ.
+/// Điều phối bằng SỰ KIỆN: mỗi job xong thì worker xét trạng thái tập rồi đẩy
+/// bước kế tiếp. Không dùng vòng lặp chờ vì nó chiếm chỗ trong làn.
+model BatchRun {
+  id       String @id @default(cuid())
+  seriesId String
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  status BatchStatus @default(RUNNING)
+
+  autoApprove Boolean @default(false)  // bỏ qua chốt duyệt — chỉ dùng khi thử
+  withAudio   Boolean @default(true)   // chạy tiếp TTS + MP3, hay dừng sau kịch bản
+
+  currentEpisodeId String?
+  error            String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([seriesId, status])
+}
+
 model RenderJob {
   id        String   @id @default(cuid())
   episodeId String?

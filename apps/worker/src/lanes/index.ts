@@ -8,6 +8,7 @@ import { summarizeJob } from "../jobs/summarize.job";
 import { arcSummaryJob } from "../jobs/arc-summary.job";
 import { ttsJob } from "../jobs/tts.job";
 import { mixJob } from "../jobs/mix.job";
+import { batchJob } from "../jobs/batch.job";
 
 /**
  * Bốn làn theo tài nguyên (PLAN.md mục 3):
@@ -25,6 +26,8 @@ export function startLanes() {
       [JobType.SUMMARIZE]: summarizeJob,
       [JobType.ARC_SUMMARY]: arcSummaryJob,
       [JobType.MOCK]: mockJob,
+      // Chỉ đọc DB rồi đẩy hàng đợi, khai VRAM 0 — không tranh chỗ với LLM.
+      [JobType.BATCH]: batchJob,
     }),
     // Kokoro chạy CPU nên làn này không đụng VRAM của LLM — chạy song song được.
     createLane("TTS_CPU", { [JobType.TTS]: ttsJob, [JobType.MOCK]: mockJob }),

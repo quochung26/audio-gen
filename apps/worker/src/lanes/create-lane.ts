@@ -5,6 +5,7 @@ import { connection } from "../lib/redis";
 import { resolveConcurrency } from "../lib/concurrency";
 import { logger } from "../lib/logger";
 import { vramGuard } from "../services/vram-guard";
+import { advanceBatch } from "../services/batch";
 
 export interface JobPayload {
   /** Khoá bản ghi RenderJob trong Postgres — Redis chỉ giữ hàng đợi. */
@@ -55,6 +56,10 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
 
         await markDone(renderJobId, result);
         logger.info(`[${lane}] ✔ ${job.name} (${renderJobId})`);
+        // SAU khi có kết quả nhưng TRƯỚC khi nhả VRAM cũng được — chỉ ghi DB
+        // và đẩy hàng đợi, không chạy job. Đặt ở đây để job hỏng đi đường
+        // `worker.on("failed")` chứ không lẫn vào đây.
+        await advanceBatch(renderJobId);
         return result;
       } finally {
         // finally, không phải sau markDone: job lỗi cũng phải nhả VRAM,
@@ -66,8 +71,28 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
   );
 
   worker.on("failed", async (job, err) => {
-    logger.error(`[${lane}] ✖ ${job?.name} — ${err.message}`);
-    if (job?.data.renderJobId) await markFailed(job.data.renderJobId, err.message);
+    if (!job?.data.renderJobId) {
+      logger.error(`[${lane}] ✖ ${job?.name} — ${err.message}`);
+      return;
+    }
+
+    // BullMQ bắn "failed" sau MỖI lần thử, không phải chỉ lần cuối. Chỉ lần
+    // cuối mới là hỏng thật — báo hỏng sớm sẽ giết lượt chạy hàng loạt trong
+    // khi job vẫn còn cơ hội chạy lại.
+    const maxAttempts = job.opts.attempts ?? 1;
+    const isFinal = job.attemptsMade >= maxAttempts;
+
+    if (!isFinal) {
+      logger.warn(
+        `[${lane}] ⟳ ${job.name} lần ${job.attemptsMade}/${maxAttempts} hỏng, sẽ thử lại — ${err.message}`,
+      );
+      return;
+    }
+
+    logger.error(`[${lane}] ✖ ${job.name} — ${err.message}`);
+    await markFailed(job.data.renderJobId, err.message);
+    // Hỏng hẳn thì dừng cả lượt chạy hàng loạt đang chờ nó.
+    await advanceBatch(job.data.renderJobId);
   });
 
   logger.info(`[${lane}] sẵn sàng — concurrency ${concurrency}`);

@@ -6,7 +6,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 
 ---
 
-## Trạng thái: Phase 5 xong
+## Trạng thái: Phase 6 xong
 
 | Phase | Nội dung | Trạng thái |
 |---|---|---|
@@ -17,7 +17,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | 4 | Player — trang nghe | ✅ |
 | — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
 | 5 | Nhạc nền + ducking | ✅ |
-| 6 | Truyện dài: RSS podcast ✅ · chạy hàng loạt | |
+| 6 | Truyện dài: chạy hàng loạt, RSS podcast | ✅ |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
@@ -280,6 +280,33 @@ Nút đó gọi `assertTransition`, chặn hai thứ: chưa duyệt bản thảo
 
 Chưa có: đăng nhập, bình luận, đánh giá, nghe offline. Vị trí nghe lưu trên máy, chưa đồng bộ giữa thiết bị — chưa cần tài khoản.
 
+## Chạy hàng loạt
+
+Trang bộ truyện trong Studio có mục **Chạy hàng loạt**: đưa từng tập đi hết chuỗi
+
+```
+viết cảnh → [duyệt] → kịch bản audio → tóm tắt → đọc → ghép MP3
+```
+
+Chạy **tuần tự** từng tập, vì tập sau cần tóm tắt và sự kiện của tập trước. Tập nào đã xong bước nào thì bỏ qua bước đó — bật lại lượt chạy là tiếp tục từ chỗ đang dở.
+
+Chạy trong worker chứ không trong trình duyệt, nên đóng tab không làm gián đoạn.
+
+| Lựa chọn | |
+|---|---|
+| Chạy cả TTS và ghép MP3 | Bỏ chọn để dừng sau khi có kịch bản audio — đọc lại toàn bộ bản thảo trước rồi mới tốn thời gian đọc. |
+| Tự duyệt bản thảo | Bỏ qua chốt chặn. **Chỉ dùng khi đang thử.** |
+
+Không bật tự duyệt thì lượt chạy dừng ở tập đầu tiên chưa duyệt và chuyển sang trạng thái *chờ duyệt*. Duyệt tập đó trong Studio là nó tự đi tiếp — không phải bấm chạy lại.
+
+**Điều phối bằng sự kiện, không bằng vòng lặp chờ.** Mỗi job xong thì worker xét trạng thái tập rồi đẩy bước kế tiếp. Một job ngồi chờ job khác sẽ chiếm chỗ trong làn suốt thời gian đó, mà làn LLM chỉ có một chỗ — hai tập cùng chờ nhau là treo cả hàng đợi. Studio không mang logic điều phối: nó chỉ đẩy job `BATCH`, worker mới biết chuỗi bước.
+
+Bước kế tiếp xét theo **dữ liệu đã có** (`draftText` có chưa, bao nhiêu block, block nào đã có audio) chứ không theo `Episode.status` — status lệch được khi bấm tay giữa chừng.
+
+Một job hỏng hẳn thì dừng cả lượt: tập sau thường cần tóm tắt của tập trước, chạy tiếp chỉ chồng thêm lỗi. Bấm dừng thì job đang chạy vẫn chạy nốt, chỉ là không bước nào được đẩy tiếp.
+
+---
+
 ## Nghe bằng app podcast
 
 Mỗi bộ có một feed RSS: `/truyen/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
@@ -327,7 +354,7 @@ Vì sao cần đến vậy: **tràn VRAM không ném lỗi**. Driver âm thầm 
 |---|---|
 | `packages/core` | Máy trạng thái Episode và **hai chốt chặn**: bản thảo chưa duyệt không sang được bước audio, asset `UNKNOWN` giấy phép không xuất bản được. Cả slugify tiếng Việt (chữ `đ` mà `normalize("NFD")` không tách được). |
 | `packages/audio` | Ducking, lặp/cắt nhạc nền, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
-| `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. |
+| `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. Và bước kế tiếp của chạy hàng loạt — kể cả việc KHÔNG được nhảy qua chốt duyệt. |
 | `apps/studio` | Đặt tên file an toàn, dựng URL phát nhạc. |
 | `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
 
@@ -373,3 +400,4 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | `pnpm inspect [seriesId]` | Xem chi tiết truyện đã sinh + telemetry |
 | `pnpm db:seed` | Nạp prompt, giọng giả lập, từ điển phát âm |
 | `pnpm fix:storage-refs` | Dọn tham chiếu `file://` cũ thành khoá (`--apply` để ghi thật) |
+| `pnpm story "<ý tưởng>" --episodes=N` | Chạy hàng loạt từ dòng lệnh (bản Studio ở trang bộ truyện) |

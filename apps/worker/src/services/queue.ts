@@ -16,6 +16,7 @@ export function getQueue(lane: Lane): Queue {
 
 /** Job nào chạy ở làn nào. */
 const LANE_OF: Record<JobType, Lane> = {
+  BATCH: "LLM",
   OUTLINE: "LLM",
   WRITE_SCENE: "LLM",
   AUDIO_EDIT: "LLM",

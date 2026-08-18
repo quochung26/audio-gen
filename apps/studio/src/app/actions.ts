@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AudioTrackKind, EpisodeStatus, LicenseType, prisma } from "@audio/database";
+import { AudioTrackKind, BatchStatus, EpisodeStatus, LicenseType, prisma } from "@audio/database";
 import {
   assertTransition,
   parseWorld,
@@ -115,11 +115,30 @@ export async function rewriteScene(sceneId: string, episodeId: string) {
  * `assertTransition` sẽ chặn nếu chưa duyệt.
  */
 export async function approveDraft(episodeId: string) {
-  await prisma.episode.update({
+  const ep = await prisma.episode.update({
     where: { id: episodeId },
     data: { humanReviewed: true, reviewedAt: new Date(), reviewedBy: "studio" },
   });
+
+  // Duyệt xong là gỡ chốt cho lượt chạy hàng loạt đang đứng chờ đúng tập này.
+  await nudgeBatch(ep.seriesId);
+
   revalidatePath(`/episode/${episodeId}`);
+  revalidatePath(`/series/${ep.seriesId}`);
+}
+
+/**
+ * Đánh thức lượt chạy hàng loạt của một bộ.
+ *
+ * Studio KHÔNG tự quyết bước kế tiếp — nó chỉ đẩy job `BATCH`, worker mới là
+ * nơi biết chuỗi bước. Nhờ vậy logic điều phối chỉ nằm một chỗ.
+ */
+async function nudgeBatch(seriesId: string): Promise<void> {
+  const run = await prisma.batchRun.findFirst({
+    where: { seriesId, status: { in: [BatchStatus.RUNNING, BatchStatus.WAITING_REVIEW] } },
+    orderBy: { startedAt: "desc" },
+  });
+  if (run) await enqueue({ type: "BATCH", payload: { runId: run.id } });
 }
 
 export async function unapproveDraft(episodeId: string) {
@@ -476,4 +495,44 @@ export async function setEpisodeBgm(episodeId: string, formData: FormData) {
   });
 
   revalidatePath(`/episode/${episodeId}/audio`);
+}
+
+/**
+ * Bắt đầu chạy hàng loạt cho cả bộ.
+ *
+ * Mỗi tập đi qua: viết cảnh → (duyệt) → kịch bản audio → tóm tắt → TTS → MP3.
+ * Chạy TUẦN TỰ từng tập, vì tập sau cần tóm tắt và sự kiện của tập trước.
+ *
+ * Đóng trình duyệt không làm gián đoạn: mọi thứ chạy trong worker, Studio chỉ
+ * đẩy job đầu tiên.
+ */
+export async function startBatch(seriesId: string, formData: FormData) {
+  const autoApprove = formData.get("autoApprove") === "on";
+  const withAudio = formData.get("withAudio") === "on";
+
+  const existing = await prisma.batchRun.findFirst({
+    where: { seriesId, status: { in: [BatchStatus.RUNNING, BatchStatus.WAITING_REVIEW] } },
+  });
+  if (existing) throw new Error("Bộ này đang có một lượt chạy. Dừng lượt đó trước.");
+
+  const run = await prisma.batchRun.create({
+    data: { seriesId, autoApprove, withAudio, status: BatchStatus.RUNNING },
+  });
+  await enqueue({ type: "BATCH", payload: { runId: run.id } });
+
+  revalidatePath(`/series/${seriesId}`);
+}
+
+/**
+ * Dừng lượt chạy.
+ *
+ * Job ĐANG chạy vẫn chạy nốt — cắt ngang giữa chừng để lại dữ liệu dở dang.
+ * Chỉ là sau khi nó xong thì không có bước nào được đẩy tiếp.
+ */
+export async function cancelBatch(runId: string, seriesId: string) {
+  await prisma.batchRun.update({
+    where: { id: runId },
+    data: { status: BatchStatus.CANCELLED, finishedAt: new Date(), currentEpisodeId: null },
+  });
+  revalidatePath(`/series/${seriesId}`);
 }

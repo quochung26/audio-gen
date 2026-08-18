@@ -511,7 +511,7 @@ Phụ đề burn-in lấy từ faster-whisper. Cắt "Phần 1/3" nếu dài qu�
 | **4 — Player** (1 tuần) | Trang chủ, trang truyện, player + nhớ vị trí + sleep timer. | Nghe được trên điện thoại, tắt màn hình vẫn chạy. |
 | **5 — Đa giọng nhân vật** (1 tuần) | TTS tầng 2, casting trong Story Bible, router theo `speaker`. | Một tập có ≥3 giọng phân biệt rõ. |
 | **6 — Mixing & TikTok** (1–2 tuần) | Nhạc nền + ducking + normalize + video 9:16 NVENC + phụ đề. **Phần audio đã xong** (README đánh số phần này là Phase 5): thư viện track ở `/tracks`, ducking bằng `sidechaincompress`, loudnorm hai lượt. Còn lại là phần video. | Xuất MP4 đăng thẳng lên TikTok. |
-| **7 — Truyện dài & series** (1 tuần) | Quản lý bộ/tập, tóm tắt tự động, chạy hàng loạt, RSS podcast. | Đặt lệnh 10 tập → ~40 phút có bản thảo giữ đúng nhân vật. |
+| **7 — Truyện dài & series** (1 tuần) | Quản lý bộ/tập, tóm tắt tự động, chạy hàng loạt, RSS podcast. **Xong** (README đánh số là Phase 6): chạy hàng loạt điều phối bằng sự kiện ở worker, RSS podcast `/truyen/<slug>/rss.xml`. | Đặt lệnh 10 tập → ~40 phút có bản thảo giữ đúng nhân vật. |
 | **8 — Nâng cao** | Thư viện SFX, phân tích lượt nghe, PWA offline, tự động đăng TikTok. | |
 
 > **Đa giọng nhân vật lên Phase 5** (bản M1 để tận cuối) — vì GPU làm được sớm, và đây là thứ tạo khác biệt rõ nhất so với các kênh truyện audio một giọng đang có trên thị trường.

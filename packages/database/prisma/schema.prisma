@@ -56,6 +56,10 @@ enum JobLane {
 }
 
 enum JobType {
+  /// Đẩy lượt chạy hàng loạt sang bước kế tiếp. Không gắn với tập nào và
+  /// không tốn VRAM — chỉ đọc trạng thái rồi đẩy job thật vào hàng đợi.
+  /// Nhờ có nó, Studio chỉ cần enqueue chứ không phải mang theo logic điều phối.
+  BATCH
   OUTLINE
   WRITE_SCENE
   AUDIO_EDIT
@@ -165,6 +169,7 @@ model Series {
   characters     Character[]
   pronunciations PronunciationEntry[]
   facts          StoryFact[]
+  batchRuns      BatchRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -293,8 +298,10 @@ model Scene {
 /// Quan trọng hơn: sự kiện sống ĐỘC LẬP với việc nén tóm tắt. Job ARC_SUMMARY
 /// nén tóm tắt cũ và mất chi tiết, nhưng sự kiện vẫn nguyên ở đây.
 ///
-/// Cột `embedding vector(1024)` không khai báo được trong Prisma — tạo bằng SQL
-/// thô ở migration, truy vấn bằng `$queryRaw`. Xem packages/database/sql/.
+/// Cột `embedding` khai bằng `Unsupported` — Prisma không sinh được kiểu cho nó
+/// nên vẫn phải đọc/ghi bằng `$queryRaw`/`$executeRaw` (xem services/fact-store).
+/// Nhưng KHAI BÁO là bắt buộc: bỏ trống thì `prisma db push` coi cột này là thừa
+/// và xoá đi cùng toàn bộ vector đã nhúng. Xem packages/database/sql/.
 model StoryFact {
   id       String @id @default(cuid())
   seriesId String
@@ -316,6 +323,9 @@ model StoryFact {
 
   /// Người viết ghim thì luôn được nạp, bất kể độ tương đồng.
   pinned Boolean @default(false)
+
+  /// bge-m3 trả 1024 chiều. Đổi model thì phải đổi số này và nhúng lại tất cả.
+  embedding Unsupported("vector(1024)")?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -556,6 +566,46 @@ model LlmRun {
   @@index([step, createdAt])
   @@index([model, qualityRating])
   @@index([episodeId])
+}
+
+/// Trạng thái một lượt chạy hàng loạt.
+/// Tách khỏi JobStatus vì có thêm WAITING_REVIEW — trạng thái không job nào có:
+/// lượt chạy đang sống nhưng phải chờ người đọc duyệt bản thảo.
+enum BatchStatus {
+  RUNNING
+  WAITING_REVIEW
+  DONE
+  FAILED
+  CANCELLED
+}
+
+/// Một lượt chạy hàng loạt: đưa từng tập của bộ đi hết chuỗi
+/// viết cảnh → (duyệt) → kịch bản audio → tóm tắt → TTS → ghép MP3.
+///
+/// Điều phối bằng SỰ KIỆN chứ không phải vòng lặp chờ: mỗi job xong thì
+/// `advanceBatch` xét trạng thái tập rồi đẩy bước kế tiếp. Vòng lặp chờ sẽ
+/// chiếm một chỗ trong làn suốt thời gian chạy, mà làn LLM chỉ có vài chỗ.
+model BatchRun {
+  id       String @id @default(cuid())
+  seriesId String
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  status BatchStatus @default(RUNNING)
+
+  /// Bỏ qua chốt duyệt bản thảo. CHỈ dùng khi thử — xem docs/database.md mục 4.
+  autoApprove Boolean @default(false)
+  /// Chạy tiếp TTS + ghép MP3, hay dừng sau khi có kịch bản audio.
+  withAudio   Boolean @default(true)
+
+  /// Tập đang xử lý — cũng là tập đang chờ duyệt khi status = WAITING_REVIEW.
+  currentEpisodeId String?
+
+  error String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([seriesId, status])
 }
 
 model RenderJob {
