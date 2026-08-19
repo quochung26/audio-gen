@@ -7,13 +7,18 @@ const prisma = new PrismaClient();
 /** Thư mục prompts/ ở gốc repo, so với packages/database/prisma/ */
 const PROMPTS_DIR = join(import.meta.dirname, "../../../prompts");
 
+/**
+ * `model` để trống nghĩa là dùng model theo cấu hình cho bước đó. Trước đây ba
+ * bước phụ ghi "utility" — đó KHÔNG phải tên model nào cả, và giờ job đọc
+ * `Prompt.model` thật nên để vậy là gọi Ollama với model tên "utility".
+ */
 const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = [
   { step: "OUTLINE", file: "outline.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
-  { step: "SUMMARIZE", file: "summarize.md", model: "utility" },
-  { step: "ARC_SUMMARY", file: "arc-summary.md", model: "utility" },
-  { step: "METADATA", file: "metadata.md", model: "utility" },
+  { step: "SUMMARIZE", file: "summarize.md" },
+  { step: "ARC_SUMMARY", file: "arc-summary.md" },
+  { step: "METADATA", file: "metadata.md" },
 ];
 
 /** Tham số sinh theo từng bước — văn sáng tạo cần temperature cao hơn việc phụ. */

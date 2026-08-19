@@ -11,6 +11,7 @@ import { audio } from "./routes/audio";
 import { comments } from "./routes/comments";
 import { episodes } from "./routes/episodes";
 import { jobs } from "./routes/jobs";
+import { models } from "./routes/models";
 import { prompts } from "./routes/prompts";
 import { series } from "./routes/series";
 import { tracks } from "./routes/tracks";
@@ -41,6 +42,7 @@ app.route("/api/episodes", episodes);
 app.route("/api/prompts", prompts);
 app.route("/api/tracks", tracks);
 app.route("/api/jobs", jobs);
+app.route("/api/models", models);
 app.route("/api/audio", audio);
 app.route("/api/comments", comments);
 

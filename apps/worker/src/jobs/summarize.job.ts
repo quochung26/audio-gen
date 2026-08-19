@@ -50,7 +50,9 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
         characters: episode.series.characters.map((c) => `- ${c.name}: ${c.role ?? ""}`).join("\n"),
         text,
       }),
-      model: getUtilityModel(),
+      // Prompt đè được model cho riêng bước này (sửa ở trang Prompt);
+      // không đặt thì dùng model việc-phụ theo cấu hình.
+      model: prompt.model ?? getUtilityModel(),
       ...(prompt.params as object),
     });
   } catch (err) {

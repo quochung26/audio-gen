@@ -6,6 +6,7 @@ const NAV = [
   ["/prompts", "Prompt"],
   ["/tracks", "Thư viện nhạc"],
   ["/binh-luan", "Bình luận"],
+  ["/model", "Model"],
 ] as const;
 
 export function Layout({ children }: { children: ReactNode }) {

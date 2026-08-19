@@ -227,6 +227,31 @@ Rồi thêm giọng thật vào bảng `Voice` (`engine=KOKORO`, `externalVoiceI
 
 Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRAM với LLM, nên đọc tập N song song với viết tập N+1.
 
+## Model
+
+`/model` trong Studio: kết nối Ollama, tải model về, xem model nào hệ thống đang dùng.
+
+**Tải model** — chọn model và mức lượng tử hoá, trang hiện sẵn lệnh `ollama pull` tương ứng để đối chiếu trước khi bấm.
+
+| Mức | |
+|---|---|
+| `q4_K_M` | Cân bằng, phổ biến nhất — nhẹ nhất còn dùng tốt |
+| `q5_K_M` | Nặng hơn ~12% |
+| `q6_K` | Văn mượt hơn rõ, nặng hơn ~35% so với Q4 |
+| `q8_0` | Gần như bản gốc, nặng gấp đôi Q4 |
+
+**Thanh tiến độ cộng theo từng lớp ảnh.** Ollama trả tiến độ theo lớp, mỗi lớp có `digest` riêng và `completed` đếm lại từ 0 — cộng dồn thẳng thì thanh tiến độ **nhảy lùi** mỗi khi sang lớp mới, nhìn như đang tải hỏng.
+
+Tiến độ giữ trong bộ nhớ tiến trình API, không lưu DB: nó là trạng thái nhất thời. API khởi động lại thì Ollama **vẫn tải tiếp** (việc tải chạy bên phía Ollama), chỉ mất thanh tiến độ — bấm tải lại cùng model là Ollama nối tiếp phần đã có.
+
+Dung lượng hiển thị bằng **GB thập phân** cho khớp con số trên ollama.com và trong `ollama list`; dùng GiB thì cùng một model hiện 2,8 ở đây và 3,0 ở kia.
+
+**Cảnh báo model đã cấu hình mà chưa tải.** Không cảnh báo thì job chạy tới bước đó mới lỗi, lúc đó đang giữa chừng một lượt viết dài.
+
+Ollama chưa chạy thì trang nói rõ *"Không có gì đang lắng nghe ở địa chỉ này"* — `fetch` của Node trả đúng một chuỗi "fetch failed" cho mọi lỗi mạng và giấu nguyên nhân trong `cause`.
+
+---
+
 ## Prompt
 
 `/prompts` — sáu bước gọi model, mỗi bước một prompt.
@@ -244,7 +269,7 @@ Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể 
 | `ARC_SUMMARY` | `maxWords` `previousArc` `summaries` |
 | `METADATA` | `text` |
 
-Tham số sinh (`temperature`, `numCtx`…) sửa cùng chỗ. `temperature` cao thì văn biến hoá hơn nhưng dễ lạc — bước biên tập và tóm tắt để thấp. Bản mặc định không tắt và không xoá được: mọi thể loại chưa có biến thể đều rơi về nó.
+Tham số sinh (`temperature`, `numCtx`…) và **model riêng cho bước đó** sửa cùng chỗ — để trống thì dùng model theo cấu hình. `temperature` cao thì văn biến hoá hơn nhưng dễ lạc — bước biên tập và tóm tắt để thấp. Bản mặc định không tắt và không xoá được: mọi thể loại chưa có biến thể đều rơi về nó.
 
 ---
 

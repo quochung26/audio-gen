@@ -12,6 +12,7 @@ import { Episode } from "@/pages/Episode";
 import { EpisodeAudio } from "@/pages/EpisodeAudio";
 import { Facts } from "@/pages/Facts";
 import { Job } from "@/pages/Job";
+import { Models } from "@/pages/Models";
 import { NotFound } from "@/pages/NotFound";
 import { Prompt } from "@/pages/Prompt";
 import { Prompts } from "@/pages/Prompts";
@@ -50,6 +51,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/job/:id" element={<Job />} />
             <Route path="/tracks" element={<Tracks />} />
             <Route path="/binh-luan" element={<Comments />} />
+            <Route path="/model" element={<Models />} />
             <Route path="/prompts" element={<Prompts />} />
             <Route path="/prompts/:id" element={<Prompt />} />
             <Route path="*" element={<NotFound />} />

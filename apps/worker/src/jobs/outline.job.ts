@@ -42,6 +42,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   let result;
   try {
     result = await llm.generateJson({
+      // Prompt đè được model cho riêng bước này; không đặt thì dùng mặc định
+      // của provider (OLLAMA_MODEL_WRITE).
+      model: prompt.model ?? undefined,
       schema: outlineSchema,
       prompt: renderTemplate(prompt.content, {
         idea,

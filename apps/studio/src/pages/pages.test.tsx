@@ -11,6 +11,7 @@ import { Episode } from "./Episode";
 import { EpisodeAudio } from "./EpisodeAudio";
 import { Facts } from "./Facts";
 import { Job } from "./Job";
+import { Models } from "./Models";
 import { Prompt } from "./Prompt";
 import { Prompts } from "./Prompts";
 import { Series } from "./Series";
@@ -209,6 +210,36 @@ const FIXTURES: Record<string, unknown> = {
     ],
     storageDriver: "local",
   },
+  "/api/models": {
+    reachable: true,
+    reason: null,
+    version: "0.5.0",
+    url: "http://localhost:11434",
+    llmProvider: "mock",
+    embedProvider: "mock",
+    installed: [
+      {
+        name: "qwen3:8b",
+        sizeBytes: 5_200_000_000,
+        parameterSize: "8.2B",
+        quantization: "Q4_K_M",
+        modifiedAt: "2026-08-01T00:00:00Z",
+      },
+    ],
+    configured: [
+      { label: "Viết truyện (OLLAMA_MODEL_WRITE)", model: "qwen3:14b", installed: false },
+      { label: "Việc phụ (OLLAMA_MODEL_UTILITY)", model: "qwen3:8b", installed: true },
+    ],
+    pull: {
+      model: "qwen3:14b-q4_K_M",
+      status: "downloading",
+      completedBytes: 3_000_000_000,
+      totalBytes: 9_000_000_000,
+      done: false,
+      error: null,
+      elapsedMs: 45_000,
+    },
+  },
   "/api/prompts": {
     prompts: [
       {
@@ -289,6 +320,7 @@ const PAGES: Array<[string, string, string, ReactElement, string]> = [
   ["Thư viện nhạc", "/tracks", "/tracks", <Tracks />, "Thư viện nhạc"],
   ["Prompt (danh sách)", "/prompts", "/prompts", <Prompts />, "Viết cảnh"],
   ["Prompt (sửa)", "/prompts/p1", "/prompts/:id", <Prompt />, "Biến dùng được"],
+  ["Model", "/model", "/model", <Models />, "Mức lượng tử hoá"],
 ];
 
 describe("mọi trang render được", () => {
@@ -318,5 +350,44 @@ describe("trang hiện đúng cảnh báo quan trọng", () => {
     expect(screen.getAllByText("đang dùng").length).toBeGreaterThan(0);
     expect(screen.queryByText(/xoá biến thể/)).toBeNull();
     expect(screen.getByText(/Bản mặc định không xoá được/)).toBeDefined();
+  });
+});
+
+describe("trang Model", () => {
+  /**
+   * Kiểm trên toàn bộ text của trang chứ không dùng getByText: React tách
+   * `{pct}%` thành hai text node, và tên model xuất hiện ở cả thanh tiến độ
+   * lẫn ô xem trước lệnh — getByText báo "nhiều phần tử khớp" trong khi trang
+   * không hề sai.
+   */
+  async function pageText(): Promise<string> {
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Mức lượng tử hoá"));
+    return container.textContent ?? "";
+  }
+
+  it("hiện tiến độ tải và phần trăm đúng", async () => {
+    const t = await pageText();
+    expect(t).toContain("qwen3:14b-q4_K_M");
+    expect(t).toContain("33%"); // 3 GB / 9 GB
+    expect(t).toContain("3.0 GB");
+    expect(t).toContain("9.0 GB");
+    expect(t).toContain("đã 45 giây");
+  });
+
+  it("cảnh báo model đã cấu hình nhưng CHƯA tải", async () => {
+    // Không cảnh báo thì job chạy tới bước đó mới lỗi, lúc đó đang giữa chừng.
+    const t = await pageText();
+    expect(t).toContain("chưa tải");
+    expect(t).toContain("sẽ làm job lỗi khi chạy tới bước đó");
+  });
+
+  it("nhắc còn đang chạy provider giả lập", async () => {
+    expect(await pageText()).toContain("nhớ đặt LLM_PROVIDER=ollama");
+  });
+
+  it("xem trước đúng lệnh ollama sẽ chạy", async () => {
+    // Người dùng đối chiếu được với tài liệu Ollama trước khi bấm.
+    expect(await pageText()).toContain("ollama pull qwen3:14b-q4_K_M");
   });
 });

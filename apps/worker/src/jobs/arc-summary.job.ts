@@ -64,7 +64,8 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
           .map((e) => `### Tập ${e.number}: ${e.title}\n${e.summary}`)
           .join("\n\n"),
       }),
-      model: getUtilityModel(),
+      // Xem chú thích ở summarize.job.
+      model: prompt.model ?? getUtilityModel(),
       ...(prompt.params as object),
     });
   } catch (err) {
