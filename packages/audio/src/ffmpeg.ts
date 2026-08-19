@@ -25,24 +25,38 @@ export async function ffmpeg(
   return run("ffmpeg", ["-nostdin", "-hide_banner", "-y", ...args], onProgress);
 }
 
-/** Chạy ffprobe và trả về JSON đã parse. */
+/**
+ * Chạy ffprobe và trả về JSON đã parse.
+ *
+ * Đọc được cả ẢNH: ffprobe coi ảnh là video một khung hình, nên `width`/`height`
+ * có giá trị còn `sampleRate`/`channels` bằng 0. Nhờ vậy không phải thêm thư
+ * viện đọc ảnh chỉ để kiểm kích thước bìa.
+ */
 export async function ffprobe(file: string): Promise<{
   durationMs: number;
   sampleRate: number;
   channels: number;
   codec: string;
   sizeBytes: number;
+  width: number;
+  height: number;
 }> {
   const out = await run("ffprobe", [
     "-v", "error",
-    "-show_entries", "format=duration,size:stream=sample_rate,channels,codec_name",
+    "-show_entries", "format=duration,size:stream=sample_rate,channels,codec_name,width,height",
     "-of", "json",
     file,
   ]);
 
   const json = JSON.parse(out) as {
     format?: { duration?: string; size?: string };
-    streams?: Array<{ sample_rate?: string; channels?: number; codec_name?: string }>;
+    streams?: Array<{
+      sample_rate?: string;
+      channels?: number;
+      codec_name?: string;
+      width?: number;
+      height?: number;
+    }>;
   };
   const s = json.streams?.[0];
 
@@ -52,6 +66,8 @@ export async function ffprobe(file: string): Promise<{
     channels: s?.channels ?? 0,
     codec: s?.codec_name ?? "",
     sizeBytes: Number(json.format?.size ?? 0),
+    width: s?.width ?? 0,
+    height: s?.height ?? 0,
   };
 }
 

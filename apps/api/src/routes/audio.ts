@@ -99,6 +99,11 @@ function contentType(path: string): string {
     ogg: "audio/ogg",
     opus: "audio/ogg",
     flac: "audio/flac",
+    // Ảnh bìa cũng nằm trong kho và đi qua đúng route này.
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
   };
   const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
   return types[ext] ?? "application/octet-stream";

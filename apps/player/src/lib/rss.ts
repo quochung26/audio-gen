@@ -123,10 +123,10 @@ function renderCategory(series: FeedSeries): string {
  */
 function renderImage(series: FeedSeries, base: string): string {
   if (!series.coverUrl) return "";
-  const href = series.coverUrl.startsWith("http")
-    ? series.coverUrl
-    : new URL(series.coverUrl, base).toString();
-  return `    <itunes:image href="${escapeXml(href)}"/>\n`;
+  // Qua `absoluteAudioUrl` chứ KHÔNG ghép thẳng vào base: `coverUrl` là khoá
+  // trong kho, phải đi qua route phục vụ file. Ghép thẳng ra URL 404 — mà app
+  // podcast không báo gì, chỉ lặng lẽ không hiện bìa.
+  return `    <itunes:image href="${escapeXml(absoluteAudioUrl(series.coverUrl, base))}"/>\n`;
 }
 
 function renderItem(ep: FeedEpisode, series: FeedSeries, base: string, author: string): string {

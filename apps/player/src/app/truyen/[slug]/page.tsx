@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma, PUBLISHED } from "@/lib/db";
 import { formatDuration } from "@audio/core";
+import { Cover } from "@/components/Cover";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,9 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-start gap-4">
+        <Cover src={series.coverUrl} size={128} />
+        <div className="min-w-60 flex-1">
         <h1 className="text-xl font-semibold">{series.title}</h1>
         <p className="mt-1 text-xs text-neutral-500">
           {series.genre} · {series.episodes.length} tập · {formatDuration(total)}
@@ -56,6 +59,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         >
           Nghe bằng app podcast (RSS)
         </a>
+        </div>
       </div>
 
       <div className="divide-y divide-neutral-900 rounded border border-neutral-900">

@@ -43,6 +43,9 @@ export function Form({
   }
 
   const ok = action.data && typeof (action.data as { ok?: unknown }).ok === "string";
+  const warnings = ((action.data as { warnings?: string[] } | undefined)?.warnings ?? []).filter(
+    (w): w is string => typeof w === "string",
+  );
 
   return (
     <form ref={ref} onSubmit={handle} className={className}>
@@ -57,6 +60,14 @@ export function Form({
           </span>
         )}
       </div>
+      {/* Cảnh báo KHÁC lỗi: việc đã làm xong, nhưng có điều cần biết. */}
+      {warnings.length > 0 && (
+        <ul className="mt-2 space-y-1 rounded border border-amber-900 bg-amber-950/30 p-3 text-sm text-amber-200">
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      )}
       <ErrorNote error={action.error} />
     </form>
   );

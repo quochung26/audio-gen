@@ -18,7 +18,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
 | 5 | Nhạc nền + ducking | ✅ |
 | 6 | Truyện dài: chạy hàng loạt, RSS podcast | ✅ |
-| 8 | Nâng cao: hiệu ứng âm thanh, nghe offline | ✅ một phần — xem dưới |
+| 8 | Nâng cao: hiệu ứng âm thanh, nghe offline, ảnh bìa | ✅ một phần — xem dưới |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
@@ -396,6 +396,25 @@ Không bật tự duyệt thì lượt chạy dừng ở tập đầu tiên chư
 Bước kế tiếp xét theo **dữ liệu đã có** (`draftText` có chưa, bao nhiêu block, block nào đã có audio) chứ không theo `Episode.status` — status lệch được khi bấm tay giữa chừng.
 
 Một job hỏng hẳn thì dừng cả lượt: tập sau thường cần tóm tắt của tập trước, chạy tiếp chỉ chồng thêm lỗi. Bấm dừng thì job đang chạy vẫn chạy nốt, chỉ là không bước nào được đẩy tiếp.
+
+---
+
+## Ảnh bìa
+
+Đặt ở trang bộ truyện trong Studio. Hiện ở trang chủ, trang bộ, màn hình khoá điện thoại (Media Session) và trong feed podcast.
+
+Kiểm chuẩn Apple Podcasts **ngay lúc tải** — Apple từ chối feed sau khi nộp, chờ vài ngày rồi bị trả về thì đắt hơn nhiều so với báo ngay:
+
+| | |
+|---|---|
+| **Chặn** | File không đọc được, hoặc nặng quá 5 MB |
+| **Chỉ cảnh báo** | Không vuông · nhỏ hơn 1400×1400 · lớn hơn 3000×3000 · không phải JPEG/PNG |
+
+Cảnh báo chứ không chặn, để đặt được bìa tạm trong lúc chờ ảnh thật — trang nghe vẫn dùng được, chỉ Apple mới từ chối.
+
+Ảnh ghi ra tên tạm rồi mới kiểm, đạt mới `rename` vào chỗ thật. Ghi thẳng thì một file `.jpg` hỏng sẽ đè lên bìa `.jpg` đang dùng rồi bị bước dọn rác xoá mất — mất bìa cũ mà DB vẫn trỏ tới nó.
+
+Kích thước ảnh đọc bằng `ffprobe` (nó coi ảnh là video một khung hình) nên không phải thêm thư viện xử lý ảnh.
 
 ---
 

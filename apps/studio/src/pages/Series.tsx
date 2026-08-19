@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router";
-import { useApi } from "@/lib/api";
+import { mediaUrl, useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 
@@ -43,6 +43,7 @@ interface Data {
   kind: string;
   arcSummary: string | null;
   arcThroughEpisode: number | null;
+  coverUrl: string | null;
   world: World;
   characters: Char[];
   episodes: Ep[];
@@ -82,6 +83,43 @@ export function Series() {
         </div>
         {s.description && <p className="mt-2 text-sm text-neutral-400">{s.description}</p>}
       </div>
+
+      <Section title="Ảnh bìa">
+        <div className="flex flex-wrap items-start gap-4 rounded border border-neutral-800 p-4">
+          {s.coverUrl ? (
+            <img
+              src={mediaUrl(s.coverUrl)}
+              alt=""
+              className="size-32 shrink-0 rounded object-cover"
+            />
+          ) : (
+            <div className="flex size-32 shrink-0 items-center justify-center rounded border border-dashed border-neutral-700 text-xs text-neutral-600">
+              chưa có
+            </div>
+          )}
+
+          <div className="min-w-60 flex-1 space-y-3">
+            <p className="text-xs text-neutral-500">
+              Hiện ở trang nghe và trong feed podcast. Apple Podcasts đòi ảnh{" "}
+              <strong className="text-neutral-400">vuông, JPEG/PNG, ít nhất 1400×1400</strong> —
+              không đạt thì vẫn đặt được nhưng feed sẽ bị từ chối.
+            </p>
+            <Form path={`/api/series/${s.id}/cover`} method="PUT" submit="Tải ảnh lên">
+              <input
+                type="file"
+                name="file"
+                accept="image/*"
+                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-2 file:py-1 file:text-neutral-200"
+              />
+            </Form>
+            {s.coverUrl && (
+              <ActionButton path={`/api/series/${s.id}/cover`} method="DELETE">
+                gỡ ảnh bìa
+              </ActionButton>
+            )}
+          </div>
+        </div>
+      </Section>
 
       <Section
         title="Thiết lập thế giới"

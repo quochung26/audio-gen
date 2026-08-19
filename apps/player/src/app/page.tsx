@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma, PUBLISHED } from "@/lib/db";
 import { formatDuration } from "@audio/core";
+import { playableUrl } from "@/lib/audio-url";
+import { Cover } from "@/components/Cover";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,7 @@ export default async function HomePage() {
       where: PUBLISHED,
       orderBy: { publishedAt: "desc" },
       take: 12,
-      include: { series: { select: { title: true, slug: true, genre: true } } },
+      include: { series: { select: { title: true, slug: true, genre: true, coverUrl: true } } },
     }),
     prisma.series.findMany({
       where: { episodes: { some: PUBLISHED } },
@@ -48,7 +50,8 @@ export default async function HomePage() {
               href={`/nghe/${ep.id}`}
               className="flex items-center justify-between gap-3 px-4 py-3 active:bg-neutral-900"
             >
-              <div className="min-w-0">
+              <Cover src={ep.series.coverUrl} size={44} />
+              <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">{ep.title}</div>
                 <div className="truncate text-xs text-neutral-500">
                   {ep.series.title} · {ep.series.genre}

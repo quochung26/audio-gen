@@ -1,7 +1,12 @@
 import { Hono } from "hono";
 import { BatchStatus, prisma } from "@audio/database";
 import { parseWorld, renderBible, worldSetupSchema, type StoryBibleRecord } from "@audio/core";
+import { rename, unlink } from "node:fs/promises";
+import { extname, join } from "node:path";
+import { checkCover, ffprobe } from "@audio/audio";
+import { loadEnv } from "@audio/config";
 import { enqueue } from "../lib/queue";
+import { putLocal, safeFileName, storageRoot } from "../lib/storage";
 import { field, splitLines, UserError } from "../lib/http";
 
 export const series = new Hono();
@@ -125,6 +130,66 @@ series.put("/:id/world", async (c) => {
     },
   });
   return c.json({ ok: true });
+});
+
+/**
+ * Đặt ảnh bìa cho bộ truyện.
+ *
+ * Kiểm chuẩn Apple Podcasts NGAY lúc tải: Apple từ chối feed sau khi nộp, chờ
+ * vài ngày rồi bị trả về thì đắt hơn nhiều so với báo ngay ở đây. Nhưng chỉ
+ * CHẶN khi file hỏng hoặc quá nặng — ảnh nhỏ vẫn cho đặt, kèm cảnh báo, để đặt
+ * được bìa tạm trong lúc chờ ảnh thật.
+ */
+series.put("/:id/cover", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.parseBody();
+  const file = body.file;
+
+  if (!(file instanceof File) || file.size === 0) throw new UserError("Chưa chọn ảnh");
+  if (loadEnv().STORAGE_DRIVER !== "local") {
+    throw new UserError("Chỉ tải ảnh lên được khi STORAGE_DRIVER=local.");
+  }
+
+  // Giữ đuôi gốc: ffprobe đoán được định dạng theo nội dung, nhưng trình duyệt
+  // và Apple đọc theo đuôi file.
+  const ext = extname(safeFileName(file.name)) || ".jpg";
+  const key = `library/covers/${id}${ext}`;
+
+  // Ghi ra tên TẠM rồi mới kiểm, kiểm đạt mới thay vào chỗ thật.
+  //
+  // Ghi thẳng vào `key` là hỏng: tải lên một file .jpg hỏng sẽ ghi đè lên bìa
+  // .jpg đang dùng, rồi bước dọn rác xoá luôn file đó — kết quả là mất bìa cũ
+  // mà DB vẫn trỏ tới nó. Đã dính đúng lỗi này khi thử.
+  const tmpKey = `library/covers/.tmp-${id}${ext}`;
+  const tmpPath = join(storageRoot(), tmpKey);
+  await putLocal(tmpKey, Buffer.from(await file.arrayBuffer()));
+
+  const probe = await ffprobe(tmpPath).catch(() => null);
+  const check = probe
+    ? checkCover(probe)
+    : { ok: false, errors: ["Không đọc được file — có phải ảnh không?"], warnings: [] };
+
+  if (!check.ok) {
+    await unlink(tmpPath).catch(() => {});
+    throw new UserError(check.errors.join(" "));
+  }
+
+  // `rename` trong cùng ổ đĩa là thao tác nguyên tử — không có khoảnh khắc nào
+  // `key` tồn tại mà nội dung dở dang.
+  await rename(tmpPath, join(storageRoot(), key));
+  await prisma.series.update({ where: { id }, data: { coverUrl: key } });
+  return c.json({
+    ok: check.warnings.length === 0 ? "Đã đặt ảnh bìa." : "Đã đặt ảnh bìa, nhưng:",
+    warnings: check.warnings,
+    width: probe?.width,
+    height: probe?.height,
+  });
+});
+
+series.delete("/:id/cover", async (c) => {
+  // File trên đĩa GIỮ NGUYÊN — tập đã xuất bản có thể đang trỏ tới nó qua RSS.
+  await prisma.series.update({ where: { id: c.req.param("id") }, data: { coverUrl: null } });
+  return c.json({ ok: "Đã gỡ ảnh bìa." });
 });
 
 series.put("/:id/arc-summary", async (c) => {

@@ -17,6 +17,8 @@ export interface Track {
   seriesSlug: string;
   src: string;
   durationMs: number;
+  /** URL ảnh bìa, để hiện trên màn hình khoá. */
+  coverUrl?: string;
   /** Tập kế tiếp, để tự phát tiếp. */
   nextEpisodeId?: string;
 }
@@ -142,6 +144,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         title: t.title,
         artist: t.seriesTitle,
         album: "Audio Truyện",
+        // Ảnh hiện trên màn hình khoá và tai nghe. Không có bìa thì bỏ hẳn —
+        // đưa mảng rỗng thì một số máy hiện ô xám thay vì icon app.
+        ...(t.coverUrl ? { artwork: [{ src: t.coverUrl }] } : {}),
       });
       navigator.mediaSession.setActionHandler("play", () => void el.play());
       navigator.mediaSession.setActionHandler("pause", () => el.pause());

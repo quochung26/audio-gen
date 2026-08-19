@@ -148,8 +148,19 @@ describe("buildRssFeed", () => {
 
   it("thiếu ảnh bìa thì bỏ thẻ, không sinh href rỗng", () => {
     expect(buildRssFeed(series(), opts)).not.toContain("itunes:image");
-    expect(buildRssFeed(series({ coverUrl: "/cover.jpg" }), opts)).toContain(
-      '<itunes:image href="https://truyen.example.com/cover.jpg"/>',
+  });
+
+  it("ảnh bìa đi QUA route phục vụ file, không ghép thẳng vào base", () => {
+    // `coverUrl` là khoá trong kho. Ghép thẳng ra URL 404, mà app podcast
+    // không báo gì — chỉ lặng lẽ không hiện bìa. Đã dính đúng lỗi này.
+    expect(buildRssFeed(series({ coverUrl: "library/covers/s1.jpg" }), opts)).toContain(
+      '<itunes:image href="https://truyen.example.com/api/audio?key=library%2Fcovers%2Fs1.jpg"/>',
+    );
+  });
+
+  it("bìa lưu ở R2 thì dùng URL đó thẳng", () => {
+    expect(buildRssFeed(series({ coverUrl: "https://cdn.example.com/bia.jpg" }), opts)).toContain(
+      '<itunes:image href="https://cdn.example.com/bia.jpg"/>',
     );
   });
 

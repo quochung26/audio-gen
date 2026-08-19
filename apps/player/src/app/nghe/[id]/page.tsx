@@ -34,7 +34,7 @@ export default async function ListenPage({
   const episode = await prisma.episode.findUnique({
     where: { id },
     include: {
-      series: { select: { title: true, slug: true } },
+      series: { select: { title: true, slug: true, coverUrl: true } },
       exports: { where: { type: "AUDIO_MP3" }, orderBy: { part: "asc" }, take: 1 },
       blocks: { orderBy: { order: "asc" }, select: { text: true, speakerLabel: true } },
     },
@@ -54,6 +54,7 @@ export default async function ListenPage({
     seriesSlug: episode.series.slug,
     src: playableUrl(episode.exports[0].url),
     durationMs: episode.durationMs ?? 0,
+    coverUrl: episode.series.coverUrl ? playableUrl(episode.series.coverUrl) : undefined,
     nextEpisodeId: next?.id,
   };
 
