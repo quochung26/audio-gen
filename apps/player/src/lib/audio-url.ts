@@ -1,16 +1,3 @@
-import { resolve } from "node:path";
-import { loadEnv } from "@audio/config";
-
-/**
- * Thư mục lưu trữ của driver local — CÙNG gốc mà worker ghi ra.
- *
- * Worker chạy ở `apps/worker` nên `STORAGE_LOCAL_DIR` được giải theo đó;
- * Player chạy ở `apps/player` nên phải trỏ ngược lại cho khớp.
- */
-export function storageRoot(): string {
-  return resolve(process.cwd(), "..", "worker", loadEnv().STORAGE_LOCAL_DIR);
-}
-
 /**
  * URL phát được trong trình duyệt.
  *
@@ -21,6 +8,9 @@ export function storageRoot(): string {
  * - `file:///…`   → dữ liệu cũ; đi qua route bằng tham số `path`.
  *                   Chạy `pnpm fix:storage-refs` để dọn.
  * - còn lại       → khoá trong kho, đi qua route bằng tham số `key`
+ *
+ * Hàm THUẦN, không import gì của Node — client component gọi được.
+ * Gốc thư mục lưu trữ nằm ở `storage-root.ts`, chỉ dùng phía máy chủ.
  */
 export function playableUrl(ref: string): string {
   if (ref.startsWith("http://") || ref.startsWith("https://")) return ref;

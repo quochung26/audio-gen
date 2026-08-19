@@ -15,7 +15,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | 2b | pgvector: truy hồi sự kiện theo ngữ nghĩa | ✅ |
 | 3 | TTS + ghép audio → MP3 | ✅ |
 | 4 | Player — trang nghe | ✅ |
-| — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
+| — | Đa giọng nhân vật | ✅ định tuyến giọng · clone giọng (tầng 2) cần GPU |
 | 5 | Nhạc nền + ducking | ✅ |
 | 6 | Truyện dài: chạy hàng loạt, RSS podcast | ✅ |
 | 8 | Nâng cao: hiệu ứng âm thanh, nghe offline, ảnh bìa | ✅ một phần — xem dưới |
@@ -201,9 +201,13 @@ MP3 xuất ở **−16 LUFS** (chuẩn web/podcast), dùng `loudnorm` hai lượ
 
 Hiện chỉ nạp qua `pnpm db:seed` (5 từ vay mượn dùng chung: wifi, email, taxi, internet, video). **Chưa có giao diện** — và chưa cần: TTS giả lập không đọc chữ nên từ điển không đổi được gì bạn nghe thấy. Phần cần giao diện là mục riêng từng bộ (tên nhân vật, địa danh), mà chỉ biết cần thêm gì sau khi nghe engine thật đọc sai.
 
-### Một giọng cho cả bộ
+### Giọng theo nhân vật
 
-Hiện dùng **một giọng duy nhất** cho mọi block. Chọn ở trang Nhân vật → *Giọng mặc định*. Casting riêng từng nhân vật vẫn có sẵn nhưng chỉ có tác dụng khi làm đa giọng — hoãn cho tới khi thấy thật sự cần.
+Casting riêng từng nhân vật **có tác dụng ngay**. `resolveVoice` chọn theo thứ tự: giọng của nhân vật → giọng mặc định của bộ → giọng đầu tiên khớp engine đang cấu hình. Bước biên tập audio giải giọng cho **từng block** và ghi `voiceId` thật vào block đó, nên một tập có nhiều giọng là chuyện bình thường.
+
+Chưa nghe thấy khác biệt chỉ vì bảng `Voice` mới có bốn giọng giả lập và mock TTS đọc giọng nào cũng ra một kiểu. Cắm Kokoro vào là có nhiều giọng thật, phần định tuyến đã sẵn.
+
+Thứ còn thiếu của "đa giọng" theo PLAN Phase 5 chỉ là **TTS tầng 2 — clone giọng**, và cái đó cần GPU.
 
 Việc này bỏ được kha khá phức tạp: **không cần TTS trên GPU**, nên làn `TTS_GPU` nằm không, và mâu thuẫn VRAM giữa LLM Q6 (12GB) với engine clone giọng (4GB) biến mất — chạy Qwen3 14B Q6 thoải mái.
 
@@ -427,6 +431,22 @@ Hiệu ứng phát ở **đầu block**, và được chèn **trước** khi tr�
 Mốc thời gian tính đúng bằng cách `concatBlocks` xếp: tổng độ dài các block trước cộng tổng khoảng lặng trước đó. Lệch một khoảng lặng là mọi hiệu ứng sau đó rơi sai chỗ, nên phần này có test riêng.
 
 Hiệu ứng **không** kéo dài tập: tràn quá đuôi thì bị cắt.
+
+---
+
+## Trang chủ
+
+| Mục | |
+|---|---|
+| Banner | Bộ có cập nhật gần nhất |
+| **Tiếp tục nghe** | Đọc vị trí từ `localStorage`, **không cần tài khoản**. Bỏ tập mới bấm vào rồi thoát (<30 giây) và tập nghe gần hết (còn <1 phút). |
+| Tập mới nhất | 12 tập, kèm bìa |
+| Truyện dài đang ra · Truyện ngắn | Hàng ngang cuộn được — trên điện thoại xếp lưới thì mỗi mục chiếm cả màn hình |
+| Lọc thể loại | Qua query string `?the-loai=` nên gửi link được và nút Back hoạt động đúng |
+
+**Chưa có "đang hot"** — cần số liệu lượt nghe, mà chưa có người nghe nào. Xếp theo lượt nghe của chính mình thì vô nghĩa.
+
+"Tiếp tục nghe" render ở phía trình duyệt vì vị trí nằm trong `localStorage`, máy chủ không biết. Trang gửi xuống 200 tập gần nhất để lọc — nghe dở một tập cũ hơn thế là chuyện hiếm, và trần này giữ trang không phình khi bộ sưu tập lớn dần.
 
 ---
 

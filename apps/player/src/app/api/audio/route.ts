@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { storageRoot } from "@/lib/audio-url";
+import { storageRoot } from "@/lib/storage-root";
 import { parseRange } from "@/lib/range";
 import type { NextRequest } from "next/server";
 
