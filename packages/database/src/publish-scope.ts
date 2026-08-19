@@ -42,6 +42,12 @@ export const LOCAL_ONLY_TABLES = [
 /** Bảng chỉ tồn tại phía Player (do người nghe sinh ra). */
 export const PLAYER_ONLY_TABLES = [
   "User",
+  // Auth.js quản lý ba bảng này. Chúng chứa token của nhà cung cấp ngoài nên
+  // TUYỆT ĐỐI không được đồng bộ đi đâu — và cũng không có gì để đồng bộ, vì
+  // chúng chỉ sinh ra ở phía người nghe.
+  "Account",
+  "Session",
+  "VerificationToken",
   "ListenProgress",
   "Favorite",
   "Comment",

@@ -5,3 +5,4 @@ export * from "./scene-planner";
 export * from "./episode-state";
 export * from "./story-context";
 export * from "./world";
+export * from "./password";

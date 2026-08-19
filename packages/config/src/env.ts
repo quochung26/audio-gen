@@ -43,6 +43,15 @@ const schema = z.object({
   VRAM_LLM_MB: z.coerce.number().int().positive().default(12288),
   VRAM_TTS_CLONE_MB: z.coerce.number().int().positive().default(4096),
 
+  /**
+   * Khoá ký phiên đăng nhập của Player. BẮT BUỘC khi chạy thật — đổi khoá là
+   * mọi người bị đăng xuất. Sinh bằng `openssl rand -base64 32`.
+   */
+  AUTH_SECRET: z.string().default(""),
+  /** Google OAuth. Để trống thì nút "Đăng nhập bằng Google" tự ẩn. */
+  AUTH_GOOGLE_ID: z.string().default(""),
+  AUTH_GOOGLE_SECRET: z.string().default(""),
+
   STORAGE_DRIVER: z.enum(["local", "r2"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("./data/storage"),
   R2_ACCOUNT_ID: z.string().default(""),

@@ -645,8 +645,15 @@ model User {
   image         String?
   emailVerified DateTime?
 
+  /// Băm scrypt, chỉ có khi đăng ký bằng mật khẩu. Đăng nhập bằng Google thì
+  /// null — và KHÔNG bao giờ được đặt, nếu không có đường dò mật khẩu vào một
+  /// tài khoản vốn không dùng mật khẩu.
+  passwordHash String?
+
   role String @default("listener")
 
+  accounts  Account[]
+  sessions  Session[]
   progress  ListenProgress[]
   favorites Favorite[]
   comments  Comment[]
@@ -654,6 +661,51 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Tài khoản ở nhà cung cấp ngoài (Google…). Auth.js quản lý bảng này.
+/// Một User có thể gắn nhiều Account — đăng nhập Google rồi đặt thêm mật khẩu.
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
 }
 
 model ListenProgress {

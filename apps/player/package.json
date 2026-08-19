@@ -13,7 +13,10 @@
     "@audio/config": "workspace:*",
     "@audio/core": "workspace:*",
     "@audio/database": "workspace:*",
+    "@auth/core": "^0.41.3",
+    "@auth/prisma-adapter": "^2.11.3",
     "next": "^15.1.3",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

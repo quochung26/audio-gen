@@ -467,6 +467,41 @@ Khoá cache bỏ mọi tham số trừ `key`/`path` — trình duyệt gửi kè
 
 ---
 
+## Đăng nhập
+
+**Tuỳ chọn, không phải cổng vào.** Không đăng nhập vẫn nghe được đầy đủ — vị trí nghe lưu trong `localStorage` của máy đó.
+
+Hai đường vào, dùng Auth.js:
+
+| | |
+|---|---|
+| **Google** | Không giữ mật khẩu nào. Cần `AUTH_GOOGLE_ID` và `AUTH_GOOGLE_SECRET`; để trống thì nút tự ẩn chứ không báo lỗi khó hiểu. |
+| **Email + mật khẩu** | Tự chứa, chạy được ngay không cần dịch vụ ngoài. |
+
+Bảng `User`/`Account`/`Session` **chỉ có ở DB hosted** — chúng nằm trong `PLAYER_ONLY_TABLES`, job đồng bộ không bao giờ đụng tới, và cũng không có gì để đồng bộ vì chúng chỉ sinh ra ở phía người nghe.
+
+### Mật khẩu
+
+Băm bằng `scrypt` có sẵn trong Node — không thêm dependency nào vào đường xác thực. Đo trên máy dựng (Apple M1):
+
+| | Thời gian | Bộ nhớ mỗi lần |
+|---|---|---|
+| N=2^17 | 534 ms | ~128 MB |
+| **N=2^16** ← đang dùng | **273 ms** | **~64 MB** |
+| N=2^15 | 138 ms | ~32 MB |
+
+Chọn 2^16 vì **bộ nhớ mới là ràng buộc thật**: scrypt tốn ~128·N·r byte cho mỗi lần băm đang chạy, nên ở 2^17 chỉ cần 10 người đăng nhập cùng lúc là ngốn 1,3 GB.
+
+Tham số nhúng trong chuỗi lưu (`scrypt$N$r$p$salt$hash`) để sau này tăng N mà mật khẩu cũ vẫn kiểm được — không có thì đổi tham số là mọi người mất tài khoản cùng lúc.
+
+**Giới hạn 10 lần thử / 15 phút / mỗi email.** Không phải chỉ để chặn dò mật khẩu: mỗi lần kiểm tốn 273 ms và 64 MB, gửi liên tục là làm sập máy chủ dù chẳng đoán đúng gì. Đếm trong bộ nhớ tiến trình — đủ cho một máy chủ, chạy nhiều tiến trình thì ngưỡng thực tế nhân lên theo số tiến trình.
+
+Hai chỗ **cố tình không tiết lộ**: đăng nhập sai không phân biệt "không có email này" với "sai mật khẩu", và đăng ký trùng email báo chung chung. Phân biệt là cho người ngoài dò danh sách người dùng.
+
+⚠️ `next-auth` v5 còn mang nhãn **beta** — đây là bản duy nhất hỗ trợ App Router.
+
+---
+
 ## Nghe bằng app podcast
 
 Mỗi bộ có một feed RSS: `/truyen/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
