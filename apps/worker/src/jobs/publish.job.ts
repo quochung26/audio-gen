@@ -31,6 +31,7 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
     where: { id: episodeId },
     include: {
       series: { include: { characters: true } },
+      blocks: { orderBy: { order: "asc" } },
       exports: true,
     },
   });
@@ -64,12 +65,29 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(60);
 
-  const { series: _s, exports, ...ep } = episode;
+  const { series: _s, exports, blocks, ...ep } = episode;
   const epRow = forPublish("Episode", ep);
   await prismaPlayer.episode.upsert({
     where: { id: episodeId },
     create: epRow as never,
     update: epRow as never,
+  });
+
+  // Lời truyện — Block phải đi SAU Episode vì trỏ về nó. Đây là thứ trang nghe
+  // dùng cho mục "Đọc lời truyện".
+  for (const b of blocks) {
+    const row = forPublish("Block", b);
+    await prismaPlayer.block.upsert({
+      where: { id: b.id },
+      create: row as never,
+      update: row as never,
+    });
+  }
+  // Kịch bản dựng lại thì block cũ phải biến mất, nếu không trang nghe hiện
+  // lẫn lời cũ với lời mới.
+  const keptBlocks = blocks.map((b) => b.id);
+  await prismaPlayer.block.deleteMany({
+    where: { episodeId, id: { notIn: keptBlocks.length > 0 ? keptBlocks : ["-"] } },
   });
 
   await setProgress(80);
@@ -93,10 +111,16 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(100);
   logger.info(
     `[publish] tập ${episode.number} → DB hosted: ${characters.length} nhân vật, ` +
-      `${exports.length} bản xuất${stale.count > 0 ? `, xoá ${stale.count} bản cũ` : ""}`,
+      `${blocks.length} block lời, ${exports.length} bản xuất` +
+      `${stale.count > 0 ? `, xoá ${stale.count} bản cũ` : ""}`,
   );
 
-  return { episodeId, characters: characters.length, exports: exports.length };
+  return {
+    episodeId,
+    characters: characters.length,
+    blocks: blocks.length,
+    exports: exports.length,
+  };
 };
 
 /**
@@ -113,6 +137,7 @@ async function unpublish(episodeId: string): Promise<unknown> {
   if (!existing) return { episodeId, removed: false };
 
   await prismaPlayer.export.deleteMany({ where: { episodeId } });
+  await prismaPlayer.block.deleteMany({ where: { episodeId } });
   await prismaPlayer.episode.delete({ where: { id: episodeId } });
 
   const left = await prismaPlayer.episode.count({ where: { seriesId: existing.seriesId } });

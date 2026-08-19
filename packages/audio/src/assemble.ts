@@ -78,6 +78,73 @@ export async function concatBlocks(input: {
   }
 }
 
+export interface SfxCue {
+  /** File hiệu ứng. */
+  path: string;
+  /** Chèn vào mốc nào của bản lời, tính từ đầu tập. */
+  atMs: number;
+  /** 0–1. Mặc định 0,6 — nghe rõ mà không lấn lời. */
+  volume?: number;
+}
+
+/**
+ * Chèn hiệu ứng âm thanh vào bản lời đã ghép.
+ *
+ * Chèn TRƯỚC khi trộn nhạc nền, có chủ đích: ducking lấy bản lời làm tín hiệu
+ * điều khiển, nên hiệu ứng nằm trong bản lời thì tiếng cửa đập cũng kéo nhạc
+ * xuống — đúng như một cảnh audio drama thật. Chèn sau thì nhạc dửng dưng với
+ * mọi thứ trừ giọng nói.
+ *
+ * Hiệu ứng KHÔNG kéo dài tập: `duration=first` giữ độ dài theo bản lời, hiệu
+ * ứng nào tràn quá đuôi thì bị cắt. Tập dài thêm vì một tiếng gió là sai.
+ */
+export async function mixSfx(input: {
+  voicePath: string;
+  cues: SfxCue[];
+  outPath: string;
+  sampleRate?: number;
+}): Promise<{ durationMs: number }> {
+  if (input.cues.length === 0) throw new Error("Không có hiệu ứng nào để chèn");
+
+  const sampleRate = input.sampleRate ?? 24000;
+  const format = `aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono`;
+
+  const parts = [`[0:a]${format}[voice]`];
+  const labels = ["[voice]"];
+
+  for (const [i, cue] of input.cues.entries()) {
+    const volume = Math.min(1, Math.max(0, cue.volume ?? 0.6));
+    const label = `[sfx${i}]`;
+    // `all=1` vì adelay mặc định chỉ trễ kênh đầu — với nguồn stereo thì kênh
+    // phải phát ngay, nghe như hai tiếng lệch nhau.
+    parts.push(
+      `[${i + 1}:a]${format},volume=${volume.toFixed(3)},` +
+        `adelay=${Math.max(0, Math.round(cue.atMs))}:all=1${label}`,
+    );
+    labels.push(label);
+  }
+
+  // normalize=0 vì amix mặc định chia biên độ cho số input — lời sẽ bé đi theo
+  // số hiệu ứng, tức là tập nào nhiều sfx thì lời nhỏ hơn.
+  parts.push(`${labels.join("")}amix=inputs=${labels.length}:duration=first:normalize=0[out]`);
+
+  const args = ["-i", input.voicePath];
+  for (const cue of input.cues) args.push("-i", cue.path);
+
+  await ffmpeg([
+    ...args,
+    "-filter_complex", parts.join(";"),
+    "-map", "[out]",
+    "-ar", String(sampleRate),
+    "-ac", "1",
+    "-c:a", "pcm_s16le",
+    input.outPath,
+  ]);
+
+  const probe = await ffprobe(input.outPath);
+  return { durationMs: probe.durationMs };
+}
+
 /**
  * Ducking mặc định — xem `mixBgm` để biết vì sao là những số này.
  *

@@ -9,7 +9,7 @@
  */
 
 /** Chỉ những bảng này mới được đồng bộ ra DB hosted. */
-export const PUBLIC_TABLES = ["Series", "Episode", "Character", "Export"] as const;
+export const PUBLIC_TABLES = ["Series", "Episode", "Character", "Block", "Export"] as const;
 export type PublicTable = (typeof PUBLIC_TABLES)[number];
 
 /** Cột KHÔNG BAO GIỜ rời máy, kể cả khi tập đã xuất bản. */
@@ -17,6 +17,15 @@ export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
   Series: ["storyBible"],
   Episode: ["draftText", "outline", "reviewedBy", "reviewedAt"],
   Character: ["description"],
+  // `text` ĐƯỢC đi: đó là lời đã duyệt, đúng những gì phát ra trong MP3 —
+  // đăng kèm audio là chuyện bình thường và giúp người khiếm thính đọc được.
+  // Khác hẳn `Episode.draftText` là bản thảo thô, không bao giờ rời máy.
+  //
+  // Chỉ bỏ được cột NULLABLE hoặc có `@default`. `ttsEngine` và `voiceId` là
+  // NOT NULL nên buộc phải đi theo — hai DB dùng chung một schema (xem README
+  // mục "Hai cơ sở dữ liệu"), bỏ cột bắt buộc là `create` bên hosted lỗi ngay.
+  // Chúng cũng không phải bí mật gì: engine nào đọc và giọng số mấy.
+  Block: ["speed", "pitch", "approved", "sfxHint"],
   Export: [],
 };
 
@@ -50,6 +59,7 @@ export const DANGLING_FK_COLUMNS: Record<PublicTable, string[]> = {
   Series: ["defaultVoiceId"],
   Episode: ["bgmTrackId", "introTrackId", "outroTrackId"],
   Character: ["voiceId"],
+  Block: ["sfxTrackId", "audioAssetId"],
   Export: [],
 };
 

@@ -1,7 +1,7 @@
 import { mkdir, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { concatBlocks, exportMp3, mixBgm, normalizeLoudness } from "@audio/audio";
+import { concatBlocks, exportMp3, mixBgm, mixSfx, normalizeLoudness, type SfxCue } from "@audio/audio";
 import { EpisodeStatus, ExportType, prisma } from "@audio/database";
 import type { JobHandler } from "../lanes/create-lane";
 import { getStorage } from "../services/storage";
@@ -27,7 +27,10 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       bgmTrack: { select: { id: true, title: true, url: true, licenseType: true } },
       blocks: {
         orderBy: { order: "asc" },
-        include: { audioAsset: { select: { url: true, durationMs: true } } },
+        include: {
+          audioAsset: { select: { url: true, durationMs: true } },
+          sfxTrack: { select: { id: true, title: true, url: true } },
+        },
       },
     },
   });
@@ -65,12 +68,24 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
     });
     logger.info(`[mix] ghép ${blockPaths.length} block → ${(durationMs / 1000).toFixed(1)}s`);
 
+    await setProgress(45);
+
+    // Hiệu ứng chèn TRƯỚC nhạc nền: ducking lấy bản lời làm tín hiệu điều
+    // khiển, nên hiệu ứng nằm trong bản lời thì tiếng động cũng kéo nhạc xuống.
+    let voicePath = rawPath;
+    const cues = await sfxCues(episode.blocks, workDir);
+    if (cues.length > 0) {
+      voicePath = join(workDir, "with-sfx.wav");
+      await mixSfx({ voicePath: rawPath, cues, outPath: voicePath });
+      logger.info(`[mix] chèn ${cues.length} hiệu ứng`);
+    }
+
     await setProgress(50);
 
     // Nhạc nền trộn TRƯỚC khi chuẩn hoá, không phải sau: loudnorm phải đo được
     // bản hoàn chỉnh. Chuẩn hoá lời rồi mới chồng nhạc lên là đẩy tập vượt mức
     // đã chuẩn hoá, đúng bằng phần nhạc thêm vào.
-    let mixedPath = rawPath;
+    let mixedPath = voicePath;
     if (episode.bgmTrack) {
       const bgmPath = await localPath(
         episode.bgmTrack.url,
@@ -79,7 +94,7 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       );
       mixedPath = join(workDir, "with-bgm.wav");
       await mixBgm({
-        voicePath: rawPath,
+        voicePath,
         bgmPath,
         outPath: mixedPath,
         volume: episode.bgmVolume,
@@ -169,6 +184,46 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 };
+
+/**
+ * Mốc thời gian để chèn từng hiệu ứng, tính từ đầu tập.
+ *
+ * `concatBlocks` xếp: block[0], lặng(pauseAfter[0]), block[1], … nên mốc bắt
+ * đầu của block i là tổng độ dài các block trước cộng tổng khoảng lặng trước
+ * đó. Phải khớp CHÍNH XÁC cách ghép, lệch một khoảng lặng là mọi hiệu ứng sau
+ * đó rơi sai chỗ.
+ *
+ * Hiệu ứng chèn ở ĐẦU block — `sfxHint` trong kịch bản mô tả tiếng động đi kèm
+ * đoạn đó, không phải tiếng động sau khi đoạn đó đọc xong.
+ */
+async function sfxCues(
+  blocks: Array<{
+    audioAsset: { durationMs: number } | null;
+    pauseAfter: number;
+    sfxTrack: { id: string; title: string; url: string } | null;
+  }>,
+  workDir: string,
+): Promise<SfxCue[]> {
+  const cues: SfxCue[] = [];
+  let atMs = 0;
+
+  for (const [i, b] of blocks.entries()) {
+    if (b.sfxTrack) {
+      cues.push({
+        path: await localPath(
+          b.sfxTrack.url,
+          workDir,
+          `sfx-${b.sfxTrack.id}${extensionOf(b.sfxTrack.url)}`,
+        ),
+        atMs,
+      });
+    }
+    atMs += b.audioAsset?.durationMs ?? 0;
+    // Khoảng lặng sau block CUỐI không được chèn — xem concatBlocks.
+    if (b.pauseAfter > 0 && i < blocks.length - 1) atMs += b.pauseAfter;
+  }
+  return cues;
+}
 
 /** Đuôi file lấy từ URL — ffmpeg đoán định dạng tốt hơn khi có đuôi đúng. */
 function extensionOf(url: string): string {

@@ -23,7 +23,7 @@ episodes.get("/:id", async (c) => {
 /** Dữ liệu cho trang audio: block, bản xuất, thư viện nhạc nền. */
 episodes.get("/:id/audio", async (c) => {
   const id = c.req.param("id");
-  const [episode, bgmTracks] = await Promise.all([
+  const [episode, bgmTracks, sfxTracks] = await Promise.all([
     prisma.episode.findUniqueOrThrow({
       where: { id },
       include: {
@@ -34,6 +34,7 @@ episodes.get("/:id/audio", async (c) => {
           include: {
             audioAsset: { select: { id: true, url: true, durationMs: true, refCount: true } },
             character: { select: { name: true, voice: { select: { name: true } } } },
+            sfxTrack: { select: { id: true, title: true, licenseType: true } },
           },
         },
         exports: { where: { type: "AUDIO_MP3" }, orderBy: { part: "asc" } },
@@ -41,8 +42,9 @@ episodes.get("/:id/audio", async (c) => {
       },
     }),
     prisma.audioTrack.findMany({ where: { kind: AudioTrackKind.BGM }, orderBy: { title: "asc" } }),
+    prisma.audioTrack.findMany({ where: { kind: AudioTrackKind.SFX }, orderBy: { title: "asc" } }),
   ]);
-  return c.json({ episode, bgmTracks });
+  return c.json({ episode, bgmTracks, sfxTracks });
 });
 
 // ═══════════════════ Viết ═══════════════════
@@ -148,6 +150,28 @@ episodes.put("/:id/blocks/:blockId/approve", async (c) => {
   const b = await prisma.block.findUniqueOrThrow({ where: { id: blockId } });
   await prisma.block.update({ where: { id: blockId }, data: { approved: !b.approved } });
   return c.json({ ok: true });
+});
+
+/**
+ * Gán hiệu ứng cho một block.
+ *
+ * Hiệu ứng phát ở ĐẦU block khi ghép. Lưu lựa chọn KHÔNG tự dựng lại tập —
+ * người dùng bấm "Xuất lại MP3" khi đã ưng.
+ */
+episodes.put("/:id/blocks/:blockId/sfx", async (c) => {
+  const body = await c.req.parseBody();
+  const trackId = field(body, "sfxTrackId");
+
+  if (trackId) {
+    const track = await prisma.audioTrack.findUniqueOrThrow({ where: { id: trackId } });
+    if (track.kind !== AudioTrackKind.SFX) throw new UserError("Track được chọn không phải hiệu ứng");
+  }
+
+  await prisma.block.update({
+    where: { id: c.req.param("blockId") },
+    data: { sfxTrackId: trackId || null },
+  });
+  return c.json({ ok: trackId ? "Đã gán hiệu ứng. Bấm “Xuất lại MP3” để nghe." : "Đã gỡ hiệu ứng." });
 });
 
 episodes.post("/:id/export", async (c) => {

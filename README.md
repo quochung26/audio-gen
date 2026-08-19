@@ -18,6 +18,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | — | ~~Đa giọng nhân vật~~ | hoãn — xem có cần không |
 | 5 | Nhạc nền + ducking | ✅ |
 | 6 | Truyện dài: chạy hàng loạt, RSS podcast | ✅ |
+| 8 | Nâng cao: hiệu ứng âm thanh, nghe offline | ✅ một phần — xem dưới |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
@@ -298,8 +299,9 @@ DB local giữ bản thảo, Story Bible, prompt, telemetry, sự kiện truy h�
 
 | | |
 |---|---|
-| Bảng được đồng bộ | `Series` `Episode` `Character` `Export` — mọi bảng khác **mặc định không**, nên thêm bảng mới vào schema không làm nó tự lọt ra ngoài |
-| Cột không bao giờ rời máy | `Series.storyBible` · `Episode.draftText` `outline` `reviewedBy` `reviewedAt` · `Character.description` |
+| Bảng được đồng bộ | `Series` `Episode` `Character` `Block` `Export` — mọi bảng khác **mặc định không**, nên thêm bảng mới vào schema không làm nó tự lọt ra ngoài |
+| Cột không bao giờ rời máy | `Series.storyBible` · `Episode.draftText` `outline` `reviewedBy` `reviewedAt` · `Character.description` · `Block.speed` `pitch` `approved` `sfxHint` |
+| `Block.text` **được** đi | Đó là lời đã duyệt, đúng những gì phát ra trong MP3 — trang nghe dùng cho mục "Đọc lời truyện". Khác hẳn `draftText` là bản thảo thô. |
 | Cột bị xoá về null | `defaultVoiceId` `voiceId` `bgmTrackId` `introTrackId` `outroTrackId` — khoá ngoại trỏ sang bảng không đồng bộ, copy nguyên là vi phạm ràng buộc bên hosted |
 
 **Chạy tại chỗ:** để `PLAYER_DATABASE_URL` trống thì Player dùng luôn DB local. Tiện lúc dựng app, nhưng lúc đó **không còn ranh giới nào** — Player nhìn thấy cả bản thảo, chỉ là không truy vấn tới. Trước khi deploy Player ra ngoài phải đặt biến này rồi chạy:
@@ -397,6 +399,35 @@ Một job hỏng hẳn thì dừng cả lượt: tập sau thường cần tóm 
 
 ---
 
+## Hiệu ứng âm thanh
+
+Bước biên tập audio đã tự sinh gợi ý (`Block.sfxHint`) — ví dụ *"tiếng phanh gấp"*. Thêm file vào Thư viện nhạc với loại **hiệu ứng**, rồi gán cho từng block ở trang Audio của tập.
+
+Hiệu ứng phát ở **đầu block**, và được chèn **trước** khi trộn nhạc nền — nên tiếng cửa đập cũng kéo nhạc xuống như một cảnh audio drama thật. Chèn sau thì nhạc dửng dưng với mọi thứ trừ giọng nói.
+
+Mốc thời gian tính đúng bằng cách `concatBlocks` xếp: tổng độ dài các block trước cộng tổng khoảng lặng trước đó. Lệch một khoảng lặng là mọi hiệu ứng sau đó rơi sai chỗ, nên phần này có test riêng.
+
+Hiệu ứng **không** kéo dài tập: tràn quá đuôi thì bị cắt.
+
+---
+
+## Nghe offline
+
+Trang nghe có nút **Tải về nghe offline**. Service worker (`apps/player/public/sw.js`) giữ file trong cache riêng.
+
+| | |
+|---|---|
+| Kho `shell` | Vỏ app. Xoá được thoải mái, tải lại là có. Chiến lược: ưu tiên mạng, mất mạng rơi về cache. |
+| Kho `audio` | File người dùng **chủ động** tải. Không bao giờ tự dọn — người ta tải trước chuyến xe đêm, mất là mất chuyến đó. |
+
+**Không tự cache khi phát.** Một tập 20 phút là ~25 MB; cache lén cả bộ là ăn hết dung lượng máy mà người dùng không biết.
+
+Khoá cache bỏ mọi tham số trừ `key`/`path` — trình duyệt gửi kèm `Range` khi tua, lấy nguyên URL làm khoá thì lần tua thứ hai coi như chưa tải. Quy tắc này có **hai bản sao** (service worker không import được module của app) nên có test đọc `sw.js` để bắt lúc hai bên trôi khỏi nhau.
+
+**Chưa làm trong Phase 8:** phân tích lượt nghe (chưa có người nghe nào) và tự động đăng TikTok (cần video 9:16 NVENC — nửa còn lại của Phase 6, cần GPU).
+
+---
+
 ## Nghe bằng app podcast
 
 Mỗi bộ có một feed RSS: `/truyen/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
@@ -451,11 +482,11 @@ Không ném lỗi cho những trường hợp đó: server action ném lỗi th�
 | Gói | Kiểm gì |
 |---|---|
 | `packages/core` | Máy trạng thái Episode và **hai chốt chặn**: bản thảo chưa duyệt không sang được bước audio, asset `UNKNOWN` giấy phép không xuất bản được. Cả slugify tiếng Việt (chữ `đ` mà `normalize("NFD")` không tách được). |
-| `packages/audio` | Ducking, lặp/cắt nhạc nền, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
+| `packages/audio` | Ducking, lặp/cắt nhạc nền, **mốc thời gian hiệu ứng**, loudnorm hai lượt. **Chạy ffmpeg thật** — cần `ffmpeg` trên máy. |
 | `apps/worker` | `StorageDriver.resolve` đọc đúng cả ba dạng tham chiếu: khoá, `https://`, `file://` cũ. Và bước kế tiếp của chạy hàng loạt — kể cả việc KHÔNG được nhảy qua chốt duyệt. |
 | `apps/studio` | **Mọi trang render được** với dữ liệu đúng dạng API (jsdom) — lưới an toàn cho lần chuyển từ Next sang Vite. Và dựng URL phát nhạc. |
 | `apps/api` | Đọc header `Range`, đặt tên file an toàn. |
-| `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822) và đọc header `Range`. |
+| `apps/player` | Dựng RSS podcast (escape XML, URL tuyệt đối, RFC 822), đọc header `Range`, khoá cache offline, và máy trạng thái tải-về-nghe-offline. |
 | `packages/llm` | Thay biến trong prompt, đối chiếu biến prompt dùng với biến bước đó truyền, và luật chọn prompt (biến thể thể loại thắng bản mặc định). |
 | `packages/tts` | Từ điển phát âm: **quy tắc dài áp trước quy tắc ngắn**, term hiểu theo nghĩa đen, regex gõ sai không làm hỏng job. Và chuẩn hoá văn bản cho engine. |
 | `packages/database` | **Ranh giới quyền riêng tư**: cột nào được rời máy sang DB hosted, khoá ngoại nào phải xoá. |

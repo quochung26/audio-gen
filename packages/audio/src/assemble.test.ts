@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { concatBlocks, mixBgm, normalizeLoudness } from "./assemble";
+import { concatBlocks, mixBgm, mixSfx, normalizeLoudness } from "./assemble";
 import { checkFfmpeg, ffmpeg, ffprobe } from "./ffmpeg";
 
 /**
@@ -235,4 +235,85 @@ describe("normalizeLoudness", () => {
     ).resolves.toBeUndefined();
     expect((await ffprobe(out)).durationMs).toBeGreaterThan(2_500);
   }, 120_000);
+});
+
+describe("mixSfx", () => {
+  it("chèn hiệu ứng ĐÚNG mốc thời gian", async () => {
+    // Lời lặng 10s, một tiếng bíp 440 Hz chèn ở giây thứ 5. Nếu tính sai mốc
+    // thì tiếng động rơi vào cảnh khác — kiểu lỗi nghe ra ngay nhưng không ai
+    // phát hiện bằng cách đọc code.
+    const voice = await silence("sfx-voice.wav", 10);
+    const beep = await tone("sfx-beep.wav", 440, 1);
+    const out = join(dir, "sfx.wav");
+
+    await mixSfx({ voicePath: voice, cues: [{ path: beep, atMs: 5000 }], outPath: out });
+
+    expect(await bandDb(out, 440, 0.5, 4.5)).toBeLessThan(-60); // trước: im
+    expect(await bandDb(out, 440, 5.2, 5.8)).toBeGreaterThan(-30); // trong: kêu
+    expect(await bandDb(out, 440, 6.5, 9.5)).toBeLessThan(-60); // sau: im lại
+  }, 120_000);
+
+  it("chèn được nhiều hiệu ứng ở các mốc khác nhau", async () => {
+    const voice = await silence("sfx-multi-voice.wav", 12);
+    const a = await tone("sfx-a.wav", 440, 1);
+    const b = await tone("sfx-b.wav", 880, 1);
+    const out = join(dir, "sfx-multi.wav");
+
+    await mixSfx({
+      voicePath: voice,
+      cues: [
+        { path: a, atMs: 2000 },
+        { path: b, atMs: 8000 },
+      ],
+      outPath: out,
+    });
+
+    // So SÁNH TƯƠNG ĐỐI chứ không đặt ngưỡng tuyệt đối: 880 là hoạ âm bậc hai
+    // của 440 nên rìa bộ lọc bandpass luôn rò một ít. Điều cần khẳng định là
+    // mốc nào vang tiếng nào, không phải sàn nhiễu của phép đo.
+    const at2 = { a: await bandDb(out, 440, 2.2, 2.8), b: await bandDb(out, 880, 2.2, 2.8) };
+    const at8 = { a: await bandDb(out, 440, 8.2, 8.8), b: await bandDb(out, 880, 8.2, 8.8) };
+
+    expect(at2.a).toBeGreaterThan(-30);
+    expect(at8.b).toBeGreaterThan(-30);
+    expect(at2.a - at2.b).toBeGreaterThan(20); // giây 2: chỉ có 440
+    expect(at8.b - at8.a).toBeGreaterThan(20); // giây 8: chỉ có 880
+  }, 120_000);
+
+  it("KHÔNG kéo dài tập khi hiệu ứng tràn quá đuôi", async () => {
+    // Tập dài thêm vì một tiếng gió là sai — `duration=first` cắt phần thừa.
+    const voice = await silence("sfx-short.wav", 3);
+    const long = await tone("sfx-long.wav", 440, 10);
+    const out = join(dir, "sfx-trim.wav");
+
+    const { durationMs } = await mixSfx({
+      voicePath: voice,
+      cues: [{ path: long, atMs: 2000 }],
+      outPath: out,
+    });
+    expect(Math.abs(durationMs - 3_000)).toBeLessThan(100);
+  }, 120_000);
+
+  it("volume=0 thì không nghe thấy hiệu ứng", async () => {
+    const voice = await silence("sfx-zero-voice.wav", 4);
+    const beep = await tone("sfx-zero-beep.wav", 440, 1);
+    const out = join(dir, "sfx-zero.wav");
+
+    await mixSfx({ voicePath: voice, cues: [{ path: beep, atMs: 1000 }], outPath: out });
+    const on = await bandDb(out, 440, 1.2, 1.8);
+
+    const out0 = join(dir, "sfx-zero0.wav");
+    await mixSfx({
+      voicePath: voice,
+      cues: [{ path: beep, atMs: 1000, volume: 0 }],
+      outPath: out0,
+    });
+    expect(await bandDb(out0, 440, 1.2, 1.8)).toBeLessThan(on - 40);
+  }, 120_000);
+
+  it("từ chối khi không có hiệu ứng nào", async () => {
+    await expect(
+      mixSfx({ voicePath: await silence("sfx-none.wav", 1), cues: [], outPath: join(dir, "n.wav") }),
+    ).rejects.toThrow(/Không có hiệu ứng nào/);
+  }, 60_000);
 });

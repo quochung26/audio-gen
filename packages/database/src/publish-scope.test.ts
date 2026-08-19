@@ -110,3 +110,103 @@ describe("khai báo phạm vi", () => {
     expect(LOCAL_ONLY_TABLES).toContain("LlmRun");
   });
 });
+
+describe("Block — lời truyện", () => {
+  const row = {
+    id: "b1",
+    episodeId: "e1",
+    order: 1,
+    text: "Trời tối, xe chạy chậm lại.",
+    speakerLabel: "narrator",
+    characterId: "c1",
+    pauseAfter: 400,
+    ttsEngine: "KOKORO",
+    voiceId: "vn-male-1",
+    speed: 1.05,
+    pitch: null,
+    approved: true,
+    sfxHint: "tiếng phanh",
+    sfxTrackId: "t1",
+    audioAssetId: "a1",
+  };
+
+  it("LỜI ĐƯỢC đi — đó là thứ phát ra trong MP3", () => {
+    // Khác `Episode.draftText` là bản thảo thô. Lời đã duyệt thì đăng kèm audio
+    // là bình thường, và trang nghe dùng nó cho mục "Đọc lời truyện".
+    const out = forPublish("Block", row);
+    expect(out.text).toBe("Trời tối, xe chạy chậm lại.");
+    expect(out.speakerLabel).toBe("narrator");
+    expect(out.order).toBe(1);
+  });
+
+  it("bỏ chi tiết sản xuất bỏ được", () => {
+    const out = forPublish("Block", row);
+    for (const col of ["speed", "pitch", "approved", "sfxHint"]) {
+      expect(out, `${col} không cần rời máy`).not.toHaveProperty(col);
+    }
+  });
+
+  it("GIỮ ttsEngine và voiceId vì chúng NOT NULL bên hosted", () => {
+    // Không phải vì chúng đáng công khai, mà vì hai DB dùng chung một schema:
+    // bỏ cột bắt buộc là `create` bên hosted lỗi "Argument is missing".
+    const out = forPublish("Block", row);
+    expect(out.ttsEngine).toBe("KOKORO");
+    expect(out.voiceId).toBe("vn-male-1");
+  });
+
+  it("xoá khoá ngoại trỏ sang bảng không đồng bộ", () => {
+    const out = forPublish("Block", row);
+    expect(out.sfxTrackId).toBeNull();
+    expect(out.audioAssetId).toBeNull();
+    // characterId GIỮ: Character có trong danh sách đồng bộ.
+    expect(out.characterId).toBe("c1");
+  });
+});
+
+describe("mọi bảng công khai đều được job PUBLISH đụng tới", () => {
+  it("không bảng nào lọt khe", async () => {
+    // Bug đã gặp: Block không có trong PUBLIC_TABLES lẫn LOCAL_ONLY_TABLES nên
+    // không ai đồng bộ, và tính năng đọc lời truyện âm thầm biến mất.
+    const { readFile } = await import("node:fs/promises");
+    const job = await readFile(
+      new URL("../../../apps/worker/src/jobs/publish.job.ts", import.meta.url),
+      "utf8",
+    );
+    for (const t of PUBLIC_TABLES) {
+      const model = t[0]!.toLowerCase() + t.slice(1);
+      expect(job, `publish.job không ghi bảng ${t}`).toContain(`prismaPlayer.${model}.upsert`);
+    }
+  });
+});
+
+describe("chỉ bỏ được cột mà DB hosted chấp nhận thiếu", () => {
+  it("mọi cột trong PRIVATE_COLUMNS đều nullable hoặc có @default", async () => {
+    // Bug đã gặp: bỏ `Block.ttsEngine` (NOT NULL) làm job đồng bộ chết với
+    // "Argument `ttsEngine` is missing" — mà chỉ chết lúc chạy thật, không phải
+    // lúc build. Hai DB dùng chung một schema nên cột bắt buộc phải đi theo.
+    const { readFile } = await import("node:fs/promises");
+    const schema = await readFile(
+      new URL("../prisma/schema.prisma", import.meta.url),
+      "utf8",
+    );
+
+    for (const table of PUBLIC_TABLES) {
+      const model = new RegExp(`^model ${table} \\{([\\s\\S]*?)^\\}`, "m").exec(schema)?.[1];
+      expect(model, `không tìm thấy model ${table}`).toBeDefined();
+
+      for (const col of PRIVATE_COLUMNS[table]) {
+        const line = model!
+          .split("\n")
+          .find((l) => new RegExp(`^\\s+${col}\\s`).test(l));
+        expect(line, `${table}.${col} không có trong schema`).toBeDefined();
+
+        const optional = /\?\s*($|\/\/)/.test(line!) || /\?\s/.test(line!);
+        const hasDefault = line!.includes("@default");
+        expect(
+          optional || hasDefault,
+          `${table}.${col} là NOT NULL và không có @default — bỏ nó đi thì job đồng bộ chết`,
+        ).toBe(true);
+      }
+    }
+  });
+});

@@ -5,6 +5,7 @@ import { prisma, PUBLISHED } from "@/lib/db";
 import { formatDuration } from "@audio/core";
 import { playableUrl } from "@/lib/audio-url";
 import { PlayButton } from "@/components/player/PlayButton";
+import { OfflineButton } from "@/components/player/OfflineButton";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,8 @@ export default async function ListenPage({
       </div>
 
       <PlayButton track={track} autoplay={autoplay === "1"} />
+
+      <OfflineButton src={track.src} sizeBytes={episode.exports[0].sizeBytes} />
 
       {next && (
         <p className="text-xs text-neutral-600">

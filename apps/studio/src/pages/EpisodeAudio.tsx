@@ -18,8 +18,11 @@ interface Block {
   ttsEngine: string;
   text: string;
   approved: boolean;
+  sfxHint: string | null;
+  sfxTrackId: string | null;
   audioAsset: { id: string; url: string; durationMs: number; refCount: number } | null;
   character: { name: string; voice: { name: string } | null } | null;
+  sfxTrack: { id: string; title: string; licenseType: string } | null;
 }
 interface Ep {
   id: string;
@@ -51,7 +54,7 @@ function formatDuration(ms: number): string {
 
 export function EpisodeAudio() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{ episode: Ep; bgmTracks: Track[] }>(
+  const { data, isLoading } = useApi<{ episode: Ep; bgmTracks: Track[]; sfxTracks: Track[] }>(
     `/api/episodes/${id}/audio`,
     { refetchMs: 3000 },
   );
@@ -64,6 +67,11 @@ export function EpisodeAudio() {
   const active = ep.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
   const mp3 = ep.exports[0];
   const uniqueAssets = new Set(ep.blocks.map((b) => b.audioAsset?.id).filter(Boolean)).size;
+
+  // Kịch bản audio đã gợi ý tiếng động cho những block này nhưng chưa ai gán
+  // track — dễ quên vì nó nằm rải trong danh sách dài.
+  const sfxPending = ep.blocks.filter((b) => b.sfxHint && !b.sfxTrackId).length;
+  const sfxUsed = ep.blocks.filter((b) => b.sfxTrackId).length;
 
   // Vòng lặp nhạc nối thẳng, không crossfade — nhiều vòng là nhiều chỗ nối
   // nghe được. Cho thấy con số trước để chọn track dài hơn.
@@ -84,6 +92,7 @@ export function EpisodeAudio() {
         </div>
         <p className="mt-1 text-sm text-neutral-500">
           {done}/{ep.blocks.length} block có audio · {approved} đã duyệt
+          {sfxUsed > 0 ? ` · ${sfxUsed} hiệu ứng` : ""}
           {ep.durationMs ? ` · ~${formatDuration(ep.durationMs)}` : ""}
           {uniqueAssets > 0 && uniqueAssets < done
             ? ` · ${done - uniqueAssets} block dùng chung cache`
@@ -114,6 +123,24 @@ export function EpisodeAudio() {
           )}
           <ActionButton path={`/api/episodes/${ep.id}/render?force=1`}>đọc lại toàn bộ</ActionButton>
         </div>
+      )}
+
+      {sfxPending > 0 && (
+        <p className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
+          {sfxPending} block có gợi ý hiệu ứng nhưng chưa gán track.
+          {data.sfxTracks.length === 0 ? (
+            <>
+              {" "}
+              Thư viện chưa có hiệu ứng nào —{" "}
+              <Link to="/tracks" className="underline">
+                thêm ở Thư viện nhạc
+              </Link>
+              .
+            </>
+          ) : (
+            " Gán ở từng block bên dưới."
+          )}
+        </p>
       )}
 
       <Section title="Nhạc nền">
@@ -254,6 +281,10 @@ export function EpisodeAudio() {
                       <Badge tone="amber">chưa có audio</Badge>
                     )}
                     {b.approved && <Badge tone="green">đã duyệt</Badge>}
+                    {b.sfxTrack && <Badge tone="blue">sfx: {b.sfxTrack.title}</Badge>}
+                    {b.sfxHint && !b.sfxTrackId && (
+                      <span className="text-neutral-600">gợi ý sfx: {b.sfxHint}</span>
+                    )}
                   </div>
                   <p className="mt-1 text-sm text-neutral-300">{b.text}</p>
                   {b.audioAsset && (
@@ -263,6 +294,34 @@ export function EpisodeAudio() {
                       className="mt-2 h-8 w-full max-w-md"
                       src={mediaUrl(b.audioAsset.url)}
                     />
+                  )}
+
+                  {(b.sfxHint || b.sfxTrackId) && data.sfxTracks.length > 0 && (
+                    <Form
+                      path={`/api/episodes/${ep.id}/blocks/${b.id}/sfx`}
+                      method="PUT"
+                      submit="Gán"
+                      className="mt-2 max-w-md"
+                    >
+                      <label className="block">
+                        <span className="mb-1 block text-xs text-neutral-500">
+                          Hiệu ứng{b.sfxHint ? ` — kịch bản gợi ý: ${b.sfxHint}` : ""}
+                        </span>
+                        <select
+                          name="sfxTrackId"
+                          defaultValue={b.sfxTrackId ?? ""}
+                          className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+                        >
+                          <option value="">— không có —</option>
+                          {data.sfxTracks.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.title}
+                              {t.licenseType === "UNKNOWN" ? " — chưa rõ giấy phép" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </Form>
                   )}
                 </div>
                 {!active && (

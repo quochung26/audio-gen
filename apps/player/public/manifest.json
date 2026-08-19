@@ -5,5 +5,12 @@
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
-  "icons": []
+  "icons": [],
+  "description": "Nghe truyện ngắn và truyện dài",
+  "lang": "vi",
+  "orientation": "portrait",
+  "categories": [
+    "entertainment",
+    "books"
+  ]
 }
