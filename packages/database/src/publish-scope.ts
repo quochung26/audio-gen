@@ -15,7 +15,7 @@ export type PublicTable = (typeof PUBLIC_TABLES)[number];
 /** Cột KHÔNG BAO GIỜ rời máy, kể cả khi tập đã xuất bản. */
 export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
   Series: ["storyBible"],
-  Episode: ["draftText", "outline", "reviewedBy", "reviewedAt"],
+  Episode: ["draftText", "outline", "reviewedBy", "reviewedAt", "syncedAt"],
   Character: ["description"],
   // `text` ĐƯỢC đi: đó là lời đã duyệt, đúng những gì phát ra trong MP3 —
   // đăng kèm audio là chuyện bình thường và giúp người khiếm thính đọc được.

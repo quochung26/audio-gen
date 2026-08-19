@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { concatBlocks, exportMp3, mixBgm, mixSfx, normalizeLoudness, type SfxCue } from "@audio/audio";
 import { EpisodeStatus, ExportType, prisma } from "@audio/database";
 import type { JobHandler } from "../lanes/create-lane";
+import { enqueue } from "../services/queue";
 import { getStorage } from "../services/storage";
 import { logger } from "../lib/logger";
 
@@ -161,10 +162,22 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       },
     });
 
+    // Tập ĐANG xuất bản thì giữ nguyên trạng thái và đẩy lại sang hosted —
+    // xuất lại MP3 xong mà live vẫn trỏ tới bản cũ là kiểu lệch không ai thấy.
+    const wasPublished = episode.status === EpisodeStatus.PUBLISHED;
+
     await prisma.episode.update({
       where: { id: episodeId },
-      data: { status: EpisodeStatus.READY, durationMs: mp3.durationMs },
+      data: {
+        status: wasPublished ? EpisodeStatus.PUBLISHED : EpisodeStatus.READY,
+        durationMs: mp3.durationMs,
+      },
     });
+
+    if (wasPublished) {
+      await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
+      logger.info(`[mix] tập đang xuất bản — đã đẩy job đồng bộ lại`);
+    }
 
     await setProgress(100);
     logger.info(

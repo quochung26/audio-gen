@@ -17,6 +17,7 @@ import { NotFound } from "@/pages/NotFound";
 import { Prompt } from "@/pages/Prompt";
 import { Prompts } from "@/pages/Prompts";
 import { Series } from "@/pages/Series";
+import { Stats } from "@/pages/Stats";
 import { SeriesList } from "@/pages/SeriesList";
 import { SeriesNew } from "@/pages/SeriesNew";
 import { Tracks } from "@/pages/Tracks";
@@ -52,6 +53,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/tracks" element={<Tracks />} />
             <Route path="/binh-luan" element={<Comments />} />
             <Route path="/model" element={<Models />} />
+            <Route path="/thong-ke" element={<Stats />} />
             <Route path="/prompts" element={<Prompts />} />
             <Route path="/prompts/:id" element={<Prompt />} />
             <Route path="*" element={<NotFound />} />

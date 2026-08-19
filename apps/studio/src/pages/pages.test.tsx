@@ -15,6 +15,7 @@ import { Models } from "./Models";
 import { Prompt } from "./Prompt";
 import { Prompts } from "./Prompts";
 import { Series } from "./Series";
+import { Stats } from "./Stats";
 import { SeriesList } from "./SeriesList";
 import { SeriesNew } from "./SeriesNew";
 import { Tracks } from "./Tracks";
@@ -241,6 +242,44 @@ const FIXTURES: Record<string, unknown> = {
       elapsedMs: 45_000,
     },
   },
+  "/api/stats": {
+    users: 12,
+    totals: { episodes: 2, listeners: 30, finished: 9, favorites: 5, comments: 4, pending: 2 },
+    episodes: [
+      {
+        id: "e1",
+        number: 1,
+        title: "Tập 1",
+        durationMs: 1_200_000,
+        publishedAt: "2026-08-18T07:00:00Z",
+        series: { title: "Đường về", slug: "duong-ve" },
+        listeners: 20,
+        avgCompletion: 82.4,
+        finished: 7,
+        rating: 4.5,
+        ratingCount: 8,
+        favorites: 4,
+        commentsApproved: 2,
+        commentsPending: 2,
+      },
+      {
+        id: "e2",
+        number: 2,
+        title: "Tập 2",
+        durationMs: 1_200_000,
+        publishedAt: "2026-08-18T08:00:00Z",
+        series: { title: "Đường về", slug: "duong-ve" },
+        listeners: 10,
+        avgCompletion: 18.2,
+        finished: 2,
+        rating: null,
+        ratingCount: 0,
+        favorites: 1,
+        commentsApproved: 0,
+        commentsPending: 0,
+      },
+    ],
+  },
   "/api/prompts": {
     prompts: [
       {
@@ -322,6 +361,7 @@ const PAGES: Array<[string, string, string, ReactElement, string]> = [
   ["Prompt (danh sách)", "/prompts", "/prompts", <Prompts />, "Viết cảnh"],
   ["Prompt (sửa)", "/prompts/p1", "/prompts/:id", <Prompt />, "Biến dùng được"],
   ["Model", "/model", "/model", <Models />, "Mức lượng tử hoá"],
+  ["Thống kê", "/thong-ke", "/thong-ke", <Stats />, "Theo tập"],
 ];
 
 describe("mọi trang render được", () => {
@@ -406,5 +446,41 @@ describe("trang Model", () => {
 
   it("nêu rõ thứ tự ưu tiên ba tầng", async () => {
     expect(await pageText()).toContain("model chọn cho lần chạy đó");
+  });
+});
+
+describe("trang Thống kê", () => {
+  async function text(): Promise<string> {
+    const { container } = renderAt("/thong-ke", "/thong-ke", <Stats />);
+    await waitFor(() => expect(container.textContent).toContain("Theo tập"));
+    return container.textContent ?? "";
+  }
+
+  it("nói rõ chỉ đếm được người ĐÃ ĐĂNG NHẬP", async () => {
+    // Không nói thì con số trông như tổng lượt nghe, và mọi quyết định dựa
+    // vào nó đều lệch.
+    const t = await text();
+    expect(t).toContain("đã đăng nhập");
+    expect(t).toContain("sàn dưới");
+  });
+
+  it("xếp tập nhiều người nghe lên trước", async () => {
+    const t = await text();
+    expect(t.indexOf("Tập 1")).toBeLessThan(t.indexOf("Tập 2"));
+  });
+
+  it("hiện phần trăm nghe được và số sao", async () => {
+    const t = await text();
+    expect(t).toContain("82%");
+    expect(t).toContain("4.5 (8)");
+  });
+
+  it("tập chưa ai đánh giá thì để gạch, không hiện 0 sao", async () => {
+    // Hiện "0.0 sao" cho tập chưa ai chấm là nói sai — khác hẳn với bị chấm kém.
+    expect(await text()).toContain("—");
+  });
+
+  it("nhắc số bình luận đang chờ duyệt", async () => {
+    expect(await text()).toContain("2 bình luận đang chờ duyệt");
   });
 });

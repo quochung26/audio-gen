@@ -14,6 +14,7 @@ import { jobs } from "./routes/jobs";
 import { models } from "./routes/models";
 import { prompts } from "./routes/prompts";
 import { series } from "./routes/series";
+import { stats } from "./routes/stats";
 import { tracks } from "./routes/tracks";
 
 /**
@@ -43,6 +44,7 @@ app.route("/api/prompts", prompts);
 app.route("/api/tracks", tracks);
 app.route("/api/jobs", jobs);
 app.route("/api/models", models);
+app.route("/api/stats", stats);
 app.route("/api/audio", audio);
 app.route("/api/comments", comments);
 

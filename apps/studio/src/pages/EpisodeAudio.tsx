@@ -54,7 +54,12 @@ function formatDuration(ms: number): string {
 
 export function EpisodeAudio() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{ episode: Ep; bgmTracks: Track[]; sfxTracks: Track[] }>(
+  const { data, isLoading } = useApi<{
+    episode: Ep;
+    bgmTracks: Track[];
+    sfxTracks: Track[];
+    sync: string;
+  }>(
     `/api/episodes/${id}/audio`,
     { refetchMs: 3000 },
   );
@@ -233,6 +238,12 @@ export function EpisodeAudio() {
                     Đã xuất bản
                     {ep.publishedAt ? ` ${new Date(ep.publishedAt).toLocaleString("vi")}` : ""}
                   </span>
+                  <Badge tone={data.sync === "đã đồng bộ" ? "green" : "amber"}>{data.sync}</Badge>
+                  {data.sync !== "đã đồng bộ" && (
+                    <ActionButton path={`/api/episodes/${ep.id}/resync`} variant="primary">
+                      Đồng bộ lại
+                    </ActionButton>
+                  )}
                   <a
                     href={`http://localhost:3001/nghe/${ep.id}`}
                     target="_blank"
@@ -254,6 +265,11 @@ export function EpisodeAudio() {
                 </>
               )}
             </div>
+            {ep.status === "PUBLISHED" && data.sync === "đã lệch" && (
+              <p className="text-xs text-amber-500">
+                Đã sửa gì đó sau lần đẩy cuối — trang nghe vẫn đang phục vụ bản cũ.
+              </p>
+            )}
           </div>
         </Section>
       )}

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { AudioTrackKind, EpisodeStatus, prisma } from "@audio/database";
-import { assertTransition } from "@audio/core";
+import { assertTransition, syncState } from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { enqueue } from "../lib/queue";
 import { field, UserError } from "../lib/http";
@@ -44,7 +44,23 @@ episodes.get("/:id/audio", async (c) => {
     prisma.audioTrack.findMany({ where: { kind: AudioTrackKind.BGM }, orderBy: { title: "asc" } }),
     prisma.audioTrack.findMany({ where: { kind: AudioTrackKind.SFX }, orderBy: { title: "asc" } }),
   ]);
-  return c.json({ episode, bgmTracks, sfxTracks });
+
+  // Live có đang lệch so với local không — xem packages/core/src/sync-state.ts.
+  const newest = <T extends { updatedAt: Date }>(xs: T[]) =>
+    xs.length === 0 ? null : new Date(Math.max(...xs.map((x) => x.updatedAt.getTime())));
+
+  return c.json({
+    episode,
+    bgmTracks,
+    sfxTracks,
+    sync: syncState({
+      status: episode.status,
+      syncedAt: episode.syncedAt,
+      episodeUpdatedAt: episode.updatedAt,
+      blocksUpdatedAt: newest(episode.blocks),
+      exportsUpdatedAt: newest(episode.exports),
+    }),
+  });
 });
 
 // ═══════════════════ Viết ═══════════════════
@@ -258,6 +274,25 @@ episodes.post("/:id/publish", async (c) => {
   // hỏng việc đánh dấu đã xuất bản ở local.
   await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
   return c.json({ ok: "Đã xuất bản. Đang đồng bộ sang trang nghe." });
+});
+
+/**
+ * Đẩy lại sang DB hosted mà không đổi trạng thái.
+ *
+ * Cần vì job PUBLISH xưa nay chỉ chạy lúc xuất bản và lúc gỡ — sửa tiêu đề hay
+ * tạo lại kịch bản sau khi đã xuất bản thì live giữ bản cũ mà chẳng có gì báo.
+ */
+episodes.post("/:id/resync", async (c) => {
+  const episodeId = c.req.param("id");
+  const ep = await prisma.episode.findUniqueOrThrow({
+    where: { id: episodeId },
+    select: { status: true },
+  });
+  if (ep.status !== "PUBLISHED") {
+    throw new UserError("Tập chưa xuất bản thì không có gì để đồng bộ.");
+  }
+  await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
+  return c.json({ ok: "Đang đồng bộ lại sang trang nghe." });
 });
 
 episodes.post("/:id/unpublish", async (c) => {

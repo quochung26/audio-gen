@@ -332,6 +332,35 @@ Studio chỉ mình bạn dùng, trên localhost, nên không cần render phía 
 
 ---
 
+## Studio là admin: hai DB, hai chiều khác nhau
+
+```
+local  ──► hosted   ĐẨY  — job PUBLISH, chỉ nội dung đã xuất bản
+local  ◄── hosted   ĐỌC  — Studio đọc thẳng, KHÔNG sao chép về
+```
+
+**Không sao chép dữ liệu người nghe về local.** Sao về là tạo hai bản sao của cùng một sự thật: người ta bình luận lúc bạn đang ngủ, bạn duyệt ở bản local, bản hosted không biết — rồi đồng bộ theo hướng nào? Mỗi lần lệch là một lần phải quyết bên nào đúng, và không có câu trả lời chung.
+
+Thay vào đó API của Studio giữ **cả hai kết nối**: `prisma` cho DB local, `prismaPlayer` cho DB hosted. Giao diện Studio không cắm vào DB nào — nó chỉ gọi API.
+
+DB hosted ở xa nên **có lúc không với tới được**. Mọi truy vấn tới nó đi qua `withPlayerDb()`, đổi lỗi kết nối thành câu người đọc hiểu ("Nó đã chạy chưa, địa chỉ có đúng không?") thay vì "Có lỗi không lường trước". Trang đọc DB local không bị ảnh hưởng.
+
+### Live có đang lệch không
+
+Job `PUBLISH` xưa nay chỉ chạy lúc bấm Xuất bản và Gỡ xuất bản. Sửa tiêu đề, tạo lại kịch bản, hay xuất lại MP3 sau khi đã xuất bản thì **live giữ bản cũ mà chẳng có gì báo**.
+
+Nay `Episode.syncedAt` ghi lại lần đẩy cuối, và Studio so nó với `updatedAt` của **tập, block và bản xuất** — thiếu một trong ba là bỏ sót một kiểu lệch. Trang Audio hiện nhãn *đã lệch* kèm nút **Đồng bộ lại**, và job MIX tự đẩy lại nếu tập đang ở trạng thái xuất bản.
+
+Job đóng dấu bằng cách đặt `updatedAt` **bằng đúng** `syncedAt` — chính thao tác ghi đó cũng đụng `updatedAt`, để Prisma tự đặt thì hai mốc lệch vài mili-giây và tập vừa đồng bộ xong lại tự báo lệch. Từng dùng đệm 5 giây để né, nhưng nó che mất đúng thứ cần bắt: sửa ngay sau khi đồng bộ.
+
+### Thống kê
+
+`/thong-ke` — đọc thẳng DB hosted: lượt bắt đầu nghe, nghe hết, **phần trăm nghe được trung bình**, sao, yêu thích, bình luận. Con số thấp ở một tập cụ thể đáng xem lại: người nghe bỏ giữa chừng ở đó.
+
+⚠️ Chỉ đếm được người **đã đăng nhập**. Ai nghe mà không đăng nhập thì vị trí chỉ nằm trong `localStorage` máy họ — đây là con số sàn dưới, không phải tổng lượt nghe.
+
+---
+
 ## Hai cơ sở dữ liệu
 
 ```

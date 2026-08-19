@@ -212,6 +212,10 @@ model Episode {
   outroTrackId String?
 
   publishedAt DateTime?
+  /// Lần cuối đẩy sang DB hosted. So với `updatedAt` của tập, của block và của
+  /// bản xuất để biết live có đang lệch so với local không — sửa tiêu đề hay
+  /// xuất lại MP3 sau khi xuất bản thì live giữ bản cũ mà chẳng có gì báo.
+  syncedAt    DateTime?
 
   scenes     Scene[]
   blocks     Block[]

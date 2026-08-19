@@ -5,6 +5,7 @@ const NAV = [
   ["/series", "Truyện"],
   ["/prompts", "Prompt"],
   ["/tracks", "Thư viện nhạc"],
+  ["/thong-ke", "Thống kê"],
   ["/binh-luan", "Bình luận"],
   ["/model", "Model"],
 ] as const;

@@ -108,6 +108,19 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
     where: { episodeId, id: { notIn: keep.length > 0 ? keep : ["-"] } },
   });
 
+  // Đóng dấu thời điểm đồng bộ. Studio so mốc này với `updatedAt` của tập,
+  // block và bản xuất để biết live có đang lệch không.
+  //
+  // Đặt `updatedAt` BẰNG CHÍNH `syncedAt`: chính thao tác ghi này cũng đụng
+  // `updatedAt`, nên nếu để Prisma tự đặt thì hai mốc lệch nhau vài mili-giây
+  // và tập vừa đồng bộ xong lại tự báo "đã lệch". Ép bằng nhau thì so sánh
+  // dùng được dấu lớn-hơn tuyệt đối, không cần đệm che mất sửa đổi thật.
+  const now = new Date();
+  await prisma.episode.update({
+    where: { id: episodeId },
+    data: { syncedAt: now, updatedAt: now },
+  });
+
   await setProgress(100);
   logger.info(
     `[publish] tập ${episode.number} → DB hosted: ${characters.length} nhân vật, ` +
@@ -145,6 +158,8 @@ async function unpublish(episodeId: string): Promise<unknown> {
     await prismaPlayer.character.deleteMany({ where: { seriesId: existing.seriesId } });
     await prismaPlayer.series.delete({ where: { id: existing.seriesId } });
   }
+
+  await prisma.episode.update({ where: { id: episodeId }, data: { syncedAt: null } });
 
   logger.info(
     `[publish] gỡ tập ${existing.number} khỏi DB hosted` +

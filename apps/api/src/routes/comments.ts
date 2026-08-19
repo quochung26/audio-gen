@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { playerDbIsSeparate, prismaPlayer } from "@audio/database";
 import { UserError } from "../lib/http";
+import { withPlayerDb } from "../lib/player-db";
 
 export const comments = new Hono();
 
@@ -19,7 +20,8 @@ comments.get("/", async (c) => {
     throw new UserError("Trạng thái không hợp lệ");
   }
 
-  const [rows, counts] = await Promise.all([
+  const [rows, counts] = await withPlayerDb(() =>
+    Promise.all([
     prismaPlayer.comment.findMany({
       where: { status: status as "PENDING" },
       orderBy: { createdAt: "asc" },
@@ -30,7 +32,8 @@ comments.get("/", async (c) => {
       },
     }),
     prismaPlayer.comment.groupBy({ by: ["status"], _count: true }),
-  ]);
+    ]),
+  );
 
   return c.json({ comments: rows, counts, separateDb: playerDbIsSeparate });
 });
@@ -41,15 +44,17 @@ comments.put("/:id", async (c) => {
   if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
     throw new UserError("Trạng thái không hợp lệ");
   }
-  await prismaPlayer.comment.update({
-    where: { id: c.req.param("id") },
-    data: { status: status as "APPROVED" },
-  });
+  await withPlayerDb(() =>
+    prismaPlayer.comment.update({
+      where: { id: c.req.param("id") },
+      data: { status: status as "APPROVED" },
+    }),
+  );
   return c.json({ ok: status === "APPROVED" ? "Đã duyệt." : "Đã từ chối." });
 });
 
 /** Xoá hẳn — dùng cho spam rõ ràng, khỏi để chật hàng chờ. */
 comments.delete("/:id", async (c) => {
-  await prismaPlayer.comment.delete({ where: { id: c.req.param("id") } });
+  await withPlayerDb(() => prismaPlayer.comment.delete({ where: { id: c.req.param("id") } }));
   return c.json({ ok: true });
 });
