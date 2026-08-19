@@ -8,6 +8,7 @@ import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import { UserError } from "./lib/http";
 import { audio } from "./routes/audio";
+import { comments } from "./routes/comments";
 import { episodes } from "./routes/episodes";
 import { jobs } from "./routes/jobs";
 import { prompts } from "./routes/prompts";
@@ -41,6 +42,7 @@ app.route("/api/prompts", prompts);
 app.route("/api/tracks", tracks);
 app.route("/api/jobs", jobs);
 app.route("/api/audio", audio);
+app.route("/api/comments", comments);
 
 /**
  * Phục vụ bản build của Studio khi chạy production — một tiến trình, một cổng.

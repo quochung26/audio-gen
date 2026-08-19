@@ -23,7 +23,10 @@ export async function AccountMenu() {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="max-w-32 truncate text-sm text-neutral-400">{label}</span>
+      <Link href="/yeu-thich" className="text-sm text-neutral-400 hover:text-neutral-100">
+        Yêu thích
+      </Link>
+      <span className="max-w-24 truncate text-sm text-neutral-500">{label}</span>
       <form action={logout}>
         <button type="submit" className="text-sm text-neutral-500 hover:text-neutral-200">
           Thoát

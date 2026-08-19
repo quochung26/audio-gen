@@ -6,6 +6,7 @@ import "./globals.css";
 import { Layout } from "@/components/Layout";
 import { Bible } from "@/pages/Bible";
 import { Characters } from "@/pages/Characters";
+import { Comments } from "@/pages/Comments";
 import { Dashboard } from "@/pages/Dashboard";
 import { Episode } from "@/pages/Episode";
 import { EpisodeAudio } from "@/pages/EpisodeAudio";
@@ -48,6 +49,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/episode/:id/audio" element={<EpisodeAudio />} />
             <Route path="/job/:id" element={<Job />} />
             <Route path="/tracks" element={<Tracks />} />
+            <Route path="/binh-luan" element={<Comments />} />
             <Route path="/prompts" element={<Prompts />} />
             <Route path="/prompts/:id" element={<Prompt />} />
             <Route path="*" element={<NotFound />} />

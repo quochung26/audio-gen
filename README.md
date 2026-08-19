@@ -18,7 +18,7 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 | — | Đa giọng nhân vật | ✅ định tuyến giọng · clone giọng (tầng 2) cần GPU |
 | 5 | Nhạc nền + ducking | ✅ |
 | 6 | Truyện dài: chạy hàng loạt, RSS podcast | ✅ |
-| 8 | Nâng cao: hiệu ứng âm thanh, nghe offline, ảnh bìa | ✅ một phần — xem dưới |
+| 8 | Nâng cao: hiệu ứng âm thanh, nghe offline, ảnh bìa, tài khoản + tương tác | ✅ một phần — xem dưới |
 | — | Xuất cho nền tảng (TikTok/YouTube — đều cần video) | hoãn |
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
@@ -499,6 +499,28 @@ Tham số nhúng trong chuỗi lưu (`scrypt$N$r$p$salt$hash`) để sau này t�
 Hai chỗ **cố tình không tiết lộ**: đăng nhập sai không phân biệt "không có email này" với "sai mật khẩu", và đăng ký trùng email báo chung chung. Phân biệt là cho người ngoài dò danh sách người dùng.
 
 ⚠️ `next-auth` v5 còn mang nhãn **beta** — đây là bản duy nhất hỗ trợ App Router.
+
+---
+
+## Yêu thích, đánh giá, bình luận
+
+Cần đăng nhập. Đều gắn theo **tập**, không phải theo bộ.
+
+| | |
+|---|---|
+| Yêu thích | Danh sách ở `/yeu-thich`. Tập bị gỡ xuất bản thì ẩn khỏi danh sách nhưng **giữ** bản ghi — xuất bản lại là thấy ngay. |
+| Đánh giá | 1–5 sao. Chấm lại thì **đè** lên điểm cũ, không cộng thêm phiếu. |
+| Bình luận | Vào **hàng chờ duyệt**, không hiện ngay. Neo được vào một mốc trong tập (`timestampMs`). |
+
+**Vị trí nghe đồng bộ lên máy chủ** khi đã đăng nhập — mỗi 15 giây, thưa hơn nhiều so với 5 giây ghi vào `localStorage`. Lý do: ghi máy là xong, gửi lên máy chủ là một lượt mạng cộng một lượt ghi DB; nghe tập 20 phút mà gửi mỗi 5 giây là 240 lượt cho một người, còn sai lệch 15 giây khi đổi máy thì không ai để ý. Lúc phát lấy vị trí **xa hơn** giữa máy này và máy chủ.
+
+### Kiểm duyệt bình luận
+
+`/binh-luan` trong Studio. Bình luận mặc định `PENDING` và **không hiện ở trang nghe** — kể cả với chính người gửi, vì thấy nó thì tưởng đã công khai rồi.
+
+Đây là lựa chọn có ý thức: trang nghe là trang công khai, mà chưa có ai trực để dọn spam theo giờ. Kèm giới hạn **30 giây giữa hai bình luận của cùng một người** — không có thì một người dán được hàng trăm cái vào hàng chờ và người duyệt phải dọn tay từng cái.
+
+Route kiểm duyệt dùng `prismaPlayer` chứ không phải `prisma` như các route khác của Studio: bình luận nằm ở **DB hosted** vì người nghe sinh ra chúng.
 
 ---
 

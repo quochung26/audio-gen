@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { saveProgress } from "@/app/actions/interactions";
 
 export interface Track {
   episodeId: string;
@@ -19,6 +20,8 @@ export interface Track {
   durationMs: number;
   /** URL ảnh bìa, để hiện trên màn hình khoá. */
   coverUrl?: string;
+  /** Vị trí đã lưu ở máy chủ (chỉ có khi đã đăng nhập). */
+  serverPositionMs?: number;
   /** Tập kế tiếp, để tự phát tiếp. */
   nextEpisodeId?: string;
 }
@@ -112,6 +115,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [track]);
 
+  // Đồng bộ lên máy chủ THƯA hơn nhiều — mỗi 15 giây thay vì 5.
+  //
+  // localStorage ghi là xong; gửi lên máy chủ là một lượt mạng cộng một lượt
+  // ghi DB. Nghe một tập 20 phút mà gửi mỗi 5 giây là 240 lượt cho một người.
+  // Sai lệch 15 giây khi đổi máy không ai để ý.
+  //
+  // Chưa đăng nhập thì `saveProgress` tự bỏ qua, ở đây không cần biết.
+  useEffect(() => {
+    if (!track) return;
+    const id = setInterval(() => {
+      const el = audioRef.current;
+      if (!el || el.paused) return;
+      void saveProgress(track.episodeId, el.currentTime * 1000).catch(() => {});
+    }, 15_000);
+    return () => clearInterval(id);
+  }, [track]);
+
   // Hẹn giờ tắt — thứ quan trọng nhất với truyện nghe trước khi ngủ.
   useEffect(() => {
     if (sleepAt === null) return;
@@ -135,7 +155,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     setTrack(t);
     el.src = t.src;
-    el.currentTime = getSavedPosition(t.episodeId) / 1000;
+    // Lấy vị trí XA HƠN giữa máy này và máy chủ. Nghe tiếp ở điện thoại rồi
+    // quay lại laptop mà lấy vị trí của laptop là bị lùi lại chỗ cũ.
+    el.currentTime = Math.max(getSavedPosition(t.episodeId), t.serverPositionMs ?? 0) / 1000;
     void el.play();
 
     // Điều khiển từ màn hình khoá / tai nghe.
