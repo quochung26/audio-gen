@@ -1,6 +1,6 @@
 import { audioScriptSchema } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
-import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate } from "@audio/llm";
+import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { DEFAULT_PAUSE_AFTER_MS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
@@ -44,10 +44,16 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
 
   let result;
   try {
+    // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+    // Xem packages/llm/src/model-settings.ts.
+    const model = await resolveModel({
+      requested: typeof job.data.model === "string" ? job.data.model : null,
+      prompt: prompt.model,
+      kind: "write",
+    });
+
     result = await getLlm().generateJson({
-      // Prompt đè được model cho riêng bước này; không đặt thì dùng mặc định
-      // của provider (OLLAMA_MODEL_WRITE).
-      model: prompt.model ?? undefined,
+      model,
       schema: audioScriptSchema,
       prompt: renderTemplate(prompt.content, {
         characters: characters

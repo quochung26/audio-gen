@@ -288,6 +288,18 @@ model Scene {
   @@unique([episodeId, order])
 }
 
+/// Cấu hình sửa được từ giao diện.
+///
+/// Vì sao cần bảng này thay vì cứ để trong `.env`: đổi model mặc định là việc
+/// làm thường xuyên khi đang thử model nào viết hay hơn, mà sửa `.env` thì phải
+/// khởi động lại worker. Env vẫn là giá trị lùi về khi chưa ai đặt gì.
+model Setting {
+  key   String @id
+  value String
+
+  updatedAt DateTime @updatedAt
+}
+
 /// Sự kiện truyện — đơn vị truy hồi theo ngữ nghĩa.
 ///
 /// Vì sao KHÔNG embed `Episode.summary`: một tóm tắt 200 từ gói 3–4 việc khác

@@ -44,7 +44,15 @@ interface Data {
   llmProvider: string;
   embedProvider: string;
   installed: Model[];
-  configured: Array<{ label: string; model: string; installed: boolean }>;
+  configured: Array<{
+    label: string;
+    kind: string;
+    value: string;
+    fromEnv: boolean;
+    model: string;
+    installed: boolean;
+  }>;
+  promptOverrides: Array<{ label: string; model: string; installed: boolean }>;
   pull: Pull | null;
 }
 
@@ -77,9 +85,9 @@ export function Models() {
       <div>
         <h1 className="text-xl font-semibold">Model</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Tải model về Ollama và xem model nào hệ thống đang dùng. Đổi model cho từng bước ở trang{" "}
-          <strong className="text-neutral-200">Prompt</strong>; đổi model mặc định thì sửa{" "}
-          <code>OLLAMA_MODEL_WRITE</code> trong <code>.env</code>.
+          Tải model về Ollama và đặt model mặc định. Thứ tự ưu tiên khi chạy:{" "}
+          <strong className="text-neutral-200">model chọn cho lần chạy đó</strong> → model của
+          prompt → mặc định ở đây.
         </p>
       </div>
 
@@ -238,29 +246,67 @@ export function Models() {
         )}
       </Section>
 
-      <Section title="Hệ thống đang cấu hình dùng">
-        <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
-          {data.configured.map((cfg, i) => (
-            <div key={`${cfg.label}-${i}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
-              <span className="text-sm text-neutral-400">{cfg.label}</span>
-              <span className="flex items-center gap-2">
-                <code className="text-xs text-neutral-300">{cfg.model}</code>
+      <Section title="Model mặc định">
+        <p className="-mt-1 text-xs text-neutral-500">
+          Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
+          nó quay về giá trị trong <code>.env</code>.
+        </p>
+        <div className="space-y-3">
+          {data.configured.map((cfg) => (
+            <Form
+              key={cfg.kind}
+              path={`/api/models/default/${cfg.kind}`}
+              method="PUT"
+              submit="Lưu"
+              className="rounded border border-neutral-800 p-4"
+            >
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-neutral-300">{cfg.label}</span>
+                {cfg.fromEnv && <Badge>từ .env</Badge>}
                 {data.reachable &&
-                  (cfg.installed ? (
-                    <Badge tone="green">đã có</Badge>
-                  ) : (
-                    <Badge tone="red">chưa tải</Badge>
-                  ))}
-              </span>
-            </div>
+                  (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
+              </div>
+              <input
+                name="model"
+                defaultValue={cfg.fromEnv ? "" : cfg.value}
+                placeholder={cfg.value}
+                list="model-installed"
+                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 font-mono text-sm"
+              />
+            </Form>
           ))}
         </div>
+        <datalist id="model-installed">
+          {data.installed.map((m) => (
+            <option key={m.name} value={m.name} />
+          ))}
+        </datalist>
         {data.reachable && data.configured.some((c) => !c.installed) && (
           <p className="text-xs text-amber-500">
             Model đánh dấu “chưa tải” sẽ làm job lỗi khi chạy tới bước đó.
           </p>
         )}
       </Section>
+
+      {data.promptOverrides.length > 0 && (
+        <Section title="Prompt đặt model riêng">
+          <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
+            {data.promptOverrides.map((o, i) => (
+              <div key={`${o.label}-${i}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+                <span className="text-sm text-neutral-400">{o.label}</span>
+                <span className="flex items-center gap-2">
+                  <code className="text-xs text-neutral-300">{o.model}</code>
+                  {data.reachable &&
+                    (o.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-600">
+            Những bước này bỏ qua model mặc định. Sửa ở trang Prompt.
+          </p>
+        </Section>
+      )}
     </div>
   );
 }

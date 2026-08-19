@@ -227,9 +227,10 @@ const FIXTURES: Record<string, unknown> = {
       },
     ],
     configured: [
-      { label: "Viết truyện (OLLAMA_MODEL_WRITE)", model: "qwen3:14b", installed: false },
-      { label: "Việc phụ (OLLAMA_MODEL_UTILITY)", model: "qwen3:8b", installed: true },
+      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", installed: false },
+      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", fromEnv: false, model: "qwen3:8b", installed: true },
     ],
+    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
     pull: {
       model: "qwen3:14b-q4_K_M",
       status: "downloading",
@@ -389,5 +390,21 @@ describe("trang Model", () => {
   it("xem trước đúng lệnh ollama sẽ chạy", async () => {
     // Người dùng đối chiếu được với tài liệu Ollama trước khi bấm.
     expect(await pageText()).toContain("ollama pull qwen3:14b-q4_K_M");
+  });
+
+  it("nói rõ mặc định nào đến từ .env, nào đặt tay", async () => {
+    // Khác nhau ở chỗ: sửa .env cần khởi động lại worker, đặt tay thì không.
+    const t = await pageText();
+    expect(t).toContain("từ .env");
+  });
+
+  it("liệt kê prompt có model riêng — chúng BỎ QUA mặc định", async () => {
+    const t = await pageText();
+    expect(t).toContain("Prompt WRITE_SCENE");
+    expect(t).toContain("Những bước này bỏ qua model mặc định");
+  });
+
+  it("nêu rõ thứ tự ưu tiên ba tầng", async () => {
+    expect(await pageText()).toContain("model chọn cho lần chạy đó");
   });
 });

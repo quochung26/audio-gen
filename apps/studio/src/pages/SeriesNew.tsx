@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import { Form } from "@/components/Form";
 import { Field } from "@/components/Field";
+import { ModelPicker } from "@/components/ModelPicker";
 
 const GENRES = ["kinh dị", "tình cảm", "trinh thám", "đời thường", "kỳ ảo"];
 
@@ -59,6 +60,8 @@ export function SeriesNew() {
             />
           </label>
         </div>
+
+        <ModelPicker />
 
         <details className="rounded border border-neutral-800">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">

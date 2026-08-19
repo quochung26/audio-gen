@@ -8,10 +8,17 @@ export * from "./prompt";
 export * from "./telemetry";
 export { zodToJsonSchema } from "./json-schema";
 export * from "./embedding";
+export * from "./model-settings";
 
 let cached: LlmProvider | undefined;
 
-/** Chọn provider theo LLM_PROVIDER trong .env. Đổi một biến là đổi cả pipeline. */
+/**
+ * Chọn provider theo LLM_PROVIDER trong .env. Đổi một biến là đổi cả pipeline.
+ *
+ * `OLLAMA_MODEL_WRITE` truyền vào đây chỉ còn là lưới cuối: mọi job đều gọi
+ * `resolveModel` rồi truyền model tường minh, nên nhánh này chỉ chạm tới khi
+ * có ai gọi `generate` mà quên truyền model.
+ */
 export function getLlm(): LlmProvider {
   if (cached) return cached;
   const env = loadEnv();
@@ -20,10 +27,4 @@ export function getLlm(): LlmProvider {
       ? new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL_WRITE)
       : new MockProvider();
   return cached;
-}
-
-/** Model dùng cho việc phụ (tóm tắt, metadata) — nhỏ hơn, nhanh hơn. */
-export function getUtilityModel(): string | undefined {
-  const env = loadEnv();
-  return env.LLM_PROVIDER === "ollama" ? env.OLLAMA_MODEL_UTILITY : undefined;
 }

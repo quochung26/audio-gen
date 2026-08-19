@@ -1,7 +1,8 @@
 import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
-import { ActionButton, Loading } from "@/components/Form";
+import { ActionButton, Form, Loading } from "@/components/Form";
+import { ModelPicker } from "@/components/ModelPicker";
 
 interface Scene {
   id: string;
@@ -77,16 +78,17 @@ export function Episode() {
         </Link>
       )}
 
-      <Section
-        title="Cảnh"
-        action={
-          !allWritten && !active ? (
-            <ActionButton path={`/api/episodes/${ep.id}/write-scenes`} variant="primary">
-              Viết {ep.scenes.length - written} cảnh còn lại
-            </ActionButton>
-          ) : null
-        }
-      >
+      <Section title="Cảnh">
+        {!allWritten && !active && (
+          <Form
+            path={`/api/episodes/${ep.id}/write-scenes`}
+            submit={`Viết ${ep.scenes.length - written} cảnh còn lại`}
+            className="max-w-md rounded border border-neutral-800 p-4"
+          >
+            <ModelPicker />
+          </Form>
+        )}
+
         <div className="space-y-3">
           {ep.scenes.map((scene) => (
             <div key={scene.id} className="rounded border border-neutral-800">

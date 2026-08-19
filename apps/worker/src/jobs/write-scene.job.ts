@@ -1,6 +1,6 @@
 import { countWords, estimateDurationMs, renderContext } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
-import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate } from "@audio/llm";
+import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_MAX_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
@@ -50,10 +50,16 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 
     let result;
     try {
+      // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+      // Xem packages/llm/src/model-settings.ts.
+      const model = await resolveModel({
+        requested: typeof job.data.model === "string" ? job.data.model : null,
+        prompt: prompt.model,
+        kind: "write",
+      });
+
       result = await llm.generate({
-        // Prompt đè được model cho riêng bước này; không đặt thì dùng mặc định
-        // của provider (OLLAMA_MODEL_WRITE).
-        model: prompt.model ?? undefined,
+        model,
         system: context.bible,
         prompt: renderTemplate(prompt.content, {
           context: renderContext({

@@ -51,15 +51,26 @@ episodes.get("/:id/audio", async (c) => {
 
 episodes.post("/:id/write-scenes", async (c) => {
   const episodeId = c.req.param("id");
-  await enqueue({ type: "WRITE_SCENE", episodeId, payload: { episodeId } });
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  await enqueue({
+    type: "WRITE_SCENE",
+    episodeId,
+    // Chỉ áp cho lần chạy này; để trống thì worker dùng mặc định.
+    payload: { episodeId, model: field(body, "model") || undefined },
+  });
   return c.json({ ok: true });
 });
 
 episodes.post("/:id/scenes/:sceneId/rewrite", async (c) => {
   const episodeId = c.req.param("id");
   const sceneId = c.req.param("sceneId");
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
   await prisma.scene.update({ where: { id: sceneId }, data: { text: null } });
-  await enqueue({ type: "WRITE_SCENE", episodeId, payload: { sceneId } });
+  await enqueue({
+    type: "WRITE_SCENE",
+    episodeId,
+    payload: { sceneId, model: field(body, "model") || undefined },
+  });
   return c.json({ ok: true });
 });
 

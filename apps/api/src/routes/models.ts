@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
+import { getDefaultModels, setDefaultModel, type ModelKind } from "@audio/llm";
 import { UserError, field } from "../lib/http";
 import {
   isValidModelTag,
@@ -79,15 +80,17 @@ models.get("/", async (c) => {
     select: { step: true, genre: true, model: true },
   });
 
+  const defaults = await getDefaultModels();
   const configured = [
-    { label: "Viết truyện (OLLAMA_MODEL_WRITE)", model: env.OLLAMA_MODEL_WRITE },
-    { label: "Việc phụ (OLLAMA_MODEL_UTILITY)", model: env.OLLAMA_MODEL_UTILITY },
-    { label: "Nhúng vector (EMBED_MODEL)", model: env.EMBED_MODEL },
-    ...promptModels.map((p) => ({
-      label: `Prompt ${p.step}${p.genre === "*" ? "" : ` · ${p.genre}`}`,
-      model: p.model!,
-    })),
+    { label: "Viết truyện", kind: "write" as ModelKind, ...defaults.write },
+    { label: "Việc phụ — tóm tắt, metadata", kind: "utility" as ModelKind, ...defaults.utility },
+    { label: "Nhúng vector", kind: "embed" as ModelKind, ...defaults.embed },
   ];
+
+  const promptOverrides = promptModels.map((p) => ({
+    label: `Prompt ${p.step}${p.genre === "*" ? "" : ` · ${p.genre}`}`,
+    model: p.model!,
+  }));
 
   const names = new Set(installed.map((m) => m.name));
   // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
@@ -101,9 +104,23 @@ models.get("/", async (c) => {
     llmProvider: env.LLM_PROVIDER,
     embedProvider: env.EMBED_PROVIDER,
     installed,
-    configured: configured.map((x) => ({ ...x, installed: isInstalled(x.model) })),
+    configured: configured.map((x) => ({ ...x, model: x.value, installed: isInstalled(x.value) })),
+    promptOverrides: promptOverrides.map((x) => ({ ...x, installed: isInstalled(x.model) })),
     pull: withElapsed(pull),
   });
+});
+
+/** Đặt model mặc định cho một loại việc. Để trống = quay về giá trị trong .env. */
+models.put("/default/:kind", async (c) => {
+  const kind = c.req.param("kind") as ModelKind;
+  if (!["write", "utility", "embed"].includes(kind)) throw new UserError("Loại không hợp lệ");
+
+  const body = await c.req.parseBody();
+  const model = field(body, "model");
+  if (model && !isValidModelTag(model)) throw new UserError(`Tên model không hợp lệ: "${model}"`);
+
+  await setDefaultModel(kind, model);
+  return c.json({ ok: model ? `Mặc định giờ là ${model}` : "Đã bỏ, quay về giá trị trong .env" });
 });
 
 models.get("/pull", (c) => c.json({ pull: withElapsed(pull) }));

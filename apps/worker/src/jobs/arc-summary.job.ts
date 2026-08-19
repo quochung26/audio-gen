@@ -1,7 +1,7 @@
 import { prisma } from "@audio/database";
 import {
   getLlm,
-  getUtilityModel,
+  resolveModel,
   loadPrompt,
   recordFailure,
   recordRun,
@@ -52,6 +52,14 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
 
   let result;
   try {
+    // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+    // Xem packages/llm/src/model-settings.ts.
+    const model = await resolveModel({
+      requested: typeof job.data.model === "string" ? job.data.model : null,
+      prompt: prompt.model,
+      kind: "utility",
+    });
+
     result = await getLlm().generate({
       prompt: renderTemplate(prompt.content, {
         maxWords: ARC_MAX_WORDS,
@@ -64,8 +72,7 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
           .map((e) => `### Tập ${e.number}: ${e.title}\n${e.summary}`)
           .join("\n\n"),
       }),
-      // Xem chú thích ở summarize.job.
-      model: prompt.model ?? getUtilityModel(),
+      model,
       ...(prompt.params as object),
     });
   } catch (err) {

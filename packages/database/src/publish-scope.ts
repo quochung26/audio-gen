@@ -31,6 +31,7 @@ export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
 
 /** Bảng chỉ tồn tại phía Studio, không có bản sao nào ở DB hosted. */
 export const LOCAL_ONLY_TABLES = [
+  "Setting",
   "Scene",
   "LlmRun",
   "Prompt",

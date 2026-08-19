@@ -72,6 +72,8 @@ series.post("/", async (c) => {
       genre: field(body, "genre") || "kinh dị",
       episodeCount: Number(body.episodeCount ?? 1),
       world,
+      // Chỉ áp cho lần chạy này; để trống thì worker dùng mặc định.
+      model: field(body, "model") || undefined,
     },
   });
   return c.json({ jobId: job.id });

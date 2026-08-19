@@ -231,6 +231,24 @@ Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRA
 
 `/model` trong Studio: kết nối Ollama, tải model về, xem model nào hệ thống đang dùng.
 
+### Model nào cho lần chạy nào
+
+Ba tầng, cụ thể hơn thì thắng:
+
+```
+model chọn cho LẦN CHẠY này   ← ô "Model cho lần chạy này" ở form tạo truyện / viết cảnh
+        ↓ không chọn
+model của PROMPT              ← trang Prompt, ô "Model"
+        ↓ không đặt
+model MẶC ĐỊNH                ← trang Model
+        ↓ chưa đặt
+giá trị trong .env
+```
+
+Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì đổi model mặc định là việc làm thường xuyên lúc đang thử model nào viết hay hơn — mà sửa `.env` thì phải khởi động lại worker. Xoá ô đó là quay về giá trị `.env`, và trang có nhãn **từ .env** để biết đang lấy từ đâu.
+
+Ô chọn model chỉ liệt kê **model đã tải**: chọn model chưa có thì job chết giữa chừng một tập đang viết dở. Ollama chưa chạy thì ô đó ẩn hẳn.
+
 **Tải model** — chọn model và mức lượng tử hoá, trang hiện sẵn lệnh `ollama pull` tương ứng để đối chiếu trước khi bấm.
 
 | Mức | |
