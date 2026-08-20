@@ -27,10 +27,16 @@ vi.mock("@audio/database", () => ({
   },
 }));
 
+/** Provider mặc định — đổi được trong từng test. */
+const env = { provider: "ollama" as "mock" | "ollama" | "openrouter" };
+
 vi.mock("@audio/config", () => ({
   loadEnv: () => ({
+    LLM_PROVIDER: env.provider,
     OLLAMA_MODEL_WRITE: "env-write:14b",
     OLLAMA_MODEL_UTILITY: "env-utility:8b",
+    OPENROUTER_MODEL_WRITE: "anthropic/claude-sonnet-4.5",
+    OPENROUTER_MODEL_UTILITY: "anthropic/claude-haiku-4.5",
     EMBED_MODEL: "env-embed",
   }),
 }));
@@ -39,11 +45,15 @@ const {
   envDefaultModel,
   getDefaultModel,
   getDefaultModels,
+  needsLocalGpu,
   resolveModel,
   setDefaultModel,
 } = await import("./model-settings");
 
-beforeEach(() => settings.clear());
+beforeEach(() => {
+  settings.clear();
+  env.provider = "ollama";
+});
 
 describe("mặc định", () => {
   it("chưa đặt gì thì lấy từ .env", async () => {
@@ -124,5 +134,59 @@ describe("envDefaultModel", () => {
     expect(envDefaultModel("write")).toBe("env-write:14b");
     expect(envDefaultModel("utility")).toBe("env-utility:8b");
     expect(envDefaultModel("embed")).toBe("env-embed");
+  });
+});
+
+describe("mặc định theo provider đang bật", () => {
+  it("openrouter thì lấy model của openrouter, không phải của ollama", () => {
+    // Trả về "qwen3:14b" khi đang chạy OpenRouter thì nhận 404 không có model,
+    // và lỗi đó chẳng chỉ về đúng nguyên nhân.
+    env.provider = "openrouter";
+    expect(envDefaultModel("write")).toBe("anthropic/claude-sonnet-4.5");
+    expect(envDefaultModel("utility")).toBe("anthropic/claude-haiku-4.5");
+  });
+
+  it("nhúng vector KHÔNG đi theo provider — luôn chạy tại chỗ", () => {
+    // Nhúng một câu tốn vài ms; trả tiền cho đám mây để làm việc đó là vô lý.
+    env.provider = "openrouter";
+    expect(envDefaultModel("embed")).toBe("env-embed");
+  });
+
+  it("mock và ollama đều dùng model của ollama", () => {
+    env.provider = "mock";
+    expect(envDefaultModel("write")).toBe("env-write:14b");
+  });
+});
+
+describe("needsLocalGpu", () => {
+  it("model có tiền tố openrouter thì KHÔNG giữ chỗ VRAM", async () => {
+    expect(await needsLocalGpu({ requested: "openrouter:openai/gpt-5", kind: "write" })).toBe(false);
+  });
+
+  it("model Ollama thì vẫn giữ chỗ", async () => {
+    expect(await needsLocalGpu({ requested: "qwen3:14b", kind: "write" })).toBe(true);
+  });
+
+  it("không chọn model thì xét model MẶC ĐỊNH", async () => {
+    await setDefaultModel("write", "openrouter:anthropic/claude-sonnet-4.5");
+    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
+    // Loại việc khác vẫn chạy Ollama nên vẫn cần GPU.
+    expect(await needsLocalGpu({ requested: null, kind: "utility" })).toBe(true);
+  });
+
+  it("chuỗi rỗng coi như không chọn", async () => {
+    // Form gửi model="" khi người dùng để trống.
+    await setDefaultModel("write", "openrouter:openai/gpt-5");
+    expect(await needsLocalGpu({ requested: "   ", kind: "write" })).toBe(false);
+  });
+
+  it("provider mặc định là openrouter thì không job nào giữ chỗ", async () => {
+    env.provider = "openrouter";
+    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
+  });
+
+  it("provider mock cũng không cần GPU", async () => {
+    env.provider = "mock";
+    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
   });
 });

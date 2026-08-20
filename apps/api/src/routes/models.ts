@@ -1,8 +1,16 @@
 import { Hono } from "hono";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
-import { getDefaultModels, setDefaultModel, type ModelKind } from "@audio/llm";
+import { getDefaultModels, parseModelRef, setDefaultModel, type ModelKind } from "@audio/llm";
+import { describeConnectError } from "../lib/connect-error";
 import { UserError, field } from "../lib/http";
+import {
+  averagePerEpisode,
+  isValidOpenRouterModel,
+  parseKeyStatus,
+  parseModelList,
+  type OpenRouterModel,
+} from "../lib/openrouter";
 import {
   isValidModelTag,
   newPullProgress,
@@ -51,7 +59,7 @@ models.get("/", async (c) => {
       reason = `Ollama trả HTTP ${v.status}`;
     }
   } catch (err) {
-    reason = describeConnectError(err);
+    reason = describeConnectError(err, TIMEOUT_MS);
   }
 
   if (reachable) {
@@ -80,6 +88,26 @@ models.get("/", async (c) => {
     select: { step: true, genre: true, model: true },
   });
 
+  /**
+   * Model đã DÙNG THẬT gần đây.
+   *
+   * Nguồn cho ô chọn model từng lần chạy. OpenRouter có hơn 300 model, đổ hết
+   * vào một ô select là không dùng được; còn danh sách này tự lớn lên theo thứ
+   * mình thật sự chạy, nên gần như luôn là thứ muốn chọn lại.
+   */
+  const recentRuns = await prisma.llmRun.findMany({
+    select: { model: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  const recent: Array<{ model: string; provider: string }> = [];
+  const seenRecent = new Set<string>();
+  for (const r of recentRuns) {
+    if (seenRecent.has(r.model) || recent.length >= 12) continue;
+    seenRecent.add(r.model);
+    recent.push({ model: r.model, provider: parseModelRef(r.model).provider ?? env.LLM_PROVIDER });
+  }
+
   const defaults = await getDefaultModels();
   const configured = [
     { label: "Viết truyện", kind: "write" as ModelKind, ...defaults.write },
@@ -93,8 +121,26 @@ models.get("/", async (c) => {
   }));
 
   const names = new Set(installed.map((m) => m.name));
-  // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
-  const isInstalled = (m: string) => names.has(m) || names.has(`${m}:latest`);
+  const defaultProvider = env.LLM_PROVIDER;
+
+  /**
+   * "Đã có sẵn chưa?" — nhưng câu hỏi này chỉ có nghĩa với model chạy tại chỗ.
+   *
+   * Model trên OpenRouter không tải về máy bao giờ, nên hỏi "đã tải chưa" là
+   * sai; nếu vẫn đối chiếu với danh sách của Ollama thì mọi model đám mây đều
+   * hiện cảnh báo "chưa tải" mà chẳng có gì để tải.
+   */
+  const describeModel = (m: string) => {
+    const ref = parseModelRef(m);
+    const provider = ref.provider ?? defaultProvider;
+    return {
+      model: m,
+      provider,
+      // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
+      installed:
+        provider === "ollama" ? names.has(ref.model) || names.has(`${ref.model}:latest`) : true,
+    };
+  };
 
   return c.json({
     reachable,
@@ -104,8 +150,9 @@ models.get("/", async (c) => {
     llmProvider: env.LLM_PROVIDER,
     embedProvider: env.EMBED_PROVIDER,
     installed,
-    configured: configured.map((x) => ({ ...x, model: x.value, installed: isInstalled(x.value) })),
-    promptOverrides: promptOverrides.map((x) => ({ ...x, installed: isInstalled(x.model) })),
+    recent,
+    configured: configured.map((x) => ({ ...x, ...describeModel(x.value) })),
+    promptOverrides: promptOverrides.map((x) => ({ ...x, ...describeModel(x.model) })),
     pull: withElapsed(pull),
   });
 });
@@ -117,7 +164,7 @@ models.put("/default/:kind", async (c) => {
 
   const body = await c.req.parseBody();
   const model = field(body, "model");
-  if (model && !isValidModelTag(model)) throw new UserError(`Tên model không hợp lệ: "${model}"`);
+  if (model && !isValidModelRef(model)) throw new UserError(`Tên model không hợp lệ: "${model}"`);
 
   await setDefaultModel(kind, model);
   return c.json({ ok: model ? `Mặc định giờ là ${model}` : "Đã bỏ, quay về giá trị trong .env" });
@@ -170,6 +217,105 @@ models.delete("/:name{.+}", async (c) => {
   });
   if (!res.ok) throw new UserError(`Ollama không xoá được: HTTP ${res.status}`);
   return c.json({ ok: `Đã xoá ${name}` });
+});
+
+/* ─────────────────────────── OpenRouter ─────────────────────────── */
+
+/**
+ * Danh sách model, giữ trong bộ nhớ.
+ *
+ * OpenRouter có hơn 300 model và danh sách gần như không đổi trong ngày; gọi
+ * lại mỗi lần mở trang là tải vài trăm KB không để làm gì.
+ */
+let modelCache: { at: number; models: OpenRouterModel[] } | null = null;
+const MODEL_CACHE_MS = 10 * 60 * 1000;
+
+function openRouterUrl(path: string): string {
+  return `${loadEnv().OPENROUTER_URL.replace(/\/+$/, "")}${path}`;
+}
+
+/**
+ * Trạng thái kết nối OpenRouter.
+ *
+ * KHÔNG trả về khoá API dưới bất kỳ dạng nào — kể cả cắt ngắn hay che bớt.
+ * Thứ này đi thẳng ra trình duyệt.
+ */
+models.get("/openrouter", async (c) => {
+  const env = loadEnv();
+  const hasKey = env.OPENROUTER_API_KEY.length > 0;
+
+  // Ước tính chi phí dựa trên các lượt chạy THẬT đã ghi lại, không đoán.
+  const runs = await prisma.llmRun.findMany({
+    where: { episodeId: { not: null } },
+    select: { episodeId: true, inputTokens: true, outputTokens: true },
+  });
+  const usage = averagePerEpisode(runs);
+
+  const base = {
+    hasKey,
+    url: env.OPENROUTER_URL,
+    active: env.LLM_PROVIDER === "openrouter",
+    usage,
+  };
+
+  if (!hasKey) {
+    return c.json({
+      ...base,
+      reachable: false,
+      reason: "Chưa đặt OPENROUTER_API_KEY trong .env",
+      key: null,
+    });
+  }
+
+  try {
+    const res = await fetch(openRouterUrl("/key"), {
+      headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}` },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+    if (res.status === 401) {
+      return c.json({
+        ...base,
+        reachable: false,
+        reason: "OpenRouter từ chối khoá này (401). Kiểm tra lại OPENROUTER_API_KEY.",
+        key: null,
+      });
+    }
+    if (!res.ok) {
+      return c.json({ ...base, reachable: false, reason: `OpenRouter trả HTTP ${res.status}`, key: null });
+    }
+
+    return c.json({ ...base, reachable: true, reason: null, key: parseKeyStatus(await res.json()) });
+  } catch (err) {
+    return c.json({ ...base, reachable: false, reason: describeConnectError(err, TIMEOUT_MS), key: null });
+  }
+});
+
+/** Danh sách model đang có trên OpenRouter, kèm giá. */
+models.get("/openrouter/models", async (c) => {
+  if (modelCache && Date.now() - modelCache.at < MODEL_CACHE_MS) {
+    return c.json({ models: modelCache.models, cached: true });
+  }
+
+  const env = loadEnv();
+  try {
+    const res = await fetch(openRouterUrl("/models"), {
+      // Danh sách model là công khai, nhưng gửi kèm khoá thì OpenRouter lọc
+      // theo quyền của tài khoản — sát với thứ thật sự gọi được hơn.
+      headers: env.OPENROUTER_API_KEY
+        ? { authorization: `Bearer ${env.OPENROUTER_API_KEY}` }
+        : undefined,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new UserError(`OpenRouter trả HTTP ${res.status}`);
+
+    const list = parseModelList(await res.json());
+    modelCache = { at: Date.now(), models: list };
+    return c.json({ models: list, cached: false });
+  } catch (err) {
+    if (err instanceof UserError) throw err;
+    throw new UserError(`Không lấy được danh sách model: ${describeConnectError(err, TIMEOUT_MS)}`);
+  }
 });
 
 /**
@@ -225,20 +371,15 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
   }
 }
 
-/**
- * Đổi lỗi kết nối thành câu người đọc hiểu.
- *
- * `fetch` của Node trả đúng một chuỗi "fetch failed" cho mọi lỗi mạng và giấu
- * nguyên nhân thật trong `cause` — mà đây lại là đúng lúc người dùng cần biết
- * nhất: Ollama chưa chạy hay gõ sai địa chỉ?
- */
-function describeConnectError(err: unknown): string {
-  const e = err as Error & { cause?: { code?: string } };
-  if (e.name === "TimeoutError") return `Không kết nối được trong ${TIMEOUT_MS / 1000} giây`;
 
-  const code = e.cause?.code;
-  if (code === "ECONNREFUSED") return "Không có gì đang lắng nghe ở địa chỉ này — Ollama đã chạy chưa?";
-  if (code === "ENOTFOUND") return "Không phân giải được tên miền trong OLLAMA_URL";
-  if (code === "ECONNRESET") return "Kết nối bị ngắt giữa chừng";
-  return code ? `${e.message} (${code})` : e.message;
+/**
+ * Tên model hợp lệ ở tầng mặc định — chấp nhận cả hai provider.
+ *
+ * Cùng một ô nhập giờ nhận "qwen3:14b" lẫn "openrouter:anthropic/claude-...",
+ * nên phải bóc tiền tố trước rồi mới kiểm theo luật của đúng provider đó.
+ */
+function isValidModelRef(ref: string): boolean {
+  const { provider, model } = parseModelRef(ref);
+  if (provider === "openrouter") return isValidOpenRouterModel(model);
+  return isValidModelTag(model);
 }

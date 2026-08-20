@@ -227,11 +227,15 @@ const FIXTURES: Record<string, unknown> = {
         modifiedAt: "2026-08-01T00:00:00Z",
       },
     ],
-    configured: [
-      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", installed: false },
-      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", fromEnv: false, model: "qwen3:8b", installed: true },
+    recent: [
+      { model: "qwen3:8b", provider: "ollama" },
+      { model: "openrouter:anthropic/claude-sonnet-4.5", provider: "openrouter" },
     ],
-    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
+    configured: [
+      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", provider: "ollama", installed: false },
+      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "openrouter:openai/gpt-5", fromEnv: false, model: "openrouter:openai/gpt-5", provider: "openrouter", installed: true },
+    ],
+    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", provider: "ollama", installed: false }],
     pull: {
       model: "qwen3:14b-q4_K_M",
       status: "downloading",
@@ -241,6 +245,37 @@ const FIXTURES: Record<string, unknown> = {
       error: null,
       elapsedMs: 45_000,
     },
+  },
+  "/api/models/openrouter": {
+    hasKey: true,
+    reachable: true,
+    reason: null,
+    key: { usage: 2.5, limit: 10, remaining: 7.5, freeTier: false },
+    url: "https://openrouter.ai/api/v1",
+    active: false,
+    // Số thật đo được từ 20 tập đã chạy trên máy này.
+    usage: { episodes: 20, inputTokens: 3820, outputTokens: 1718 },
+  },
+  "/api/models/openrouter/models": {
+    cached: false,
+    models: [
+      {
+        id: "anthropic/claude-sonnet-4.5",
+        name: "Claude Sonnet 4.5",
+        contextLength: 200000,
+        promptPerMTok: 3,
+        completionPerMTok: 15,
+        free: false,
+      },
+      {
+        id: "meta-llama/llama-3.3-70b-instruct:free",
+        name: "Llama 3.3 70B (free)",
+        contextLength: 131072,
+        promptPerMTok: 0,
+        completionPerMTok: 0,
+        free: true,
+      },
+    ],
   },
   "/api/stats": {
     users: 12,

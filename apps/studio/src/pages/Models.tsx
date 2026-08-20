@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
+import { OpenRouterPanel } from "@/components/OpenRouterPanel";
 
 /**
  * Mức lượng tử hoá — đánh đổi giữa dung lượng và chất lượng văn.
@@ -50,9 +51,10 @@ interface Data {
     value: string;
     fromEnv: boolean;
     model: string;
+    provider: string;
     installed: boolean;
   }>;
-  promptOverrides: Array<{ label: string; model: string; installed: boolean }>;
+  promptOverrides: Array<{ label: string; model: string; provider: string; installed: boolean }>;
   pull: Pull | null;
 }
 
@@ -91,7 +93,7 @@ export function Models() {
         </p>
       </div>
 
-      <Section title="Kết nối">
+      <Section title="Ollama — model chạy tại chỗ">
         <div
           className={`rounded border p-4 ${
             data.reachable ? "border-emerald-900/60 bg-emerald-950/20" : "border-red-900 bg-red-950/30"
@@ -123,6 +125,8 @@ export function Models() {
           </p>
         </div>
       </Section>
+
+      <OpenRouterPanel />
 
       {p && (
         <Section title="Đang tải">
@@ -249,7 +253,8 @@ export function Models() {
       <Section title="Model mặc định">
         <p className="-mt-1 text-xs text-neutral-500">
           Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
-          nó quay về giá trị trong <code>.env</code>.
+          nó quay về giá trị trong <code>.env</code>. Thêm tiền tố <code>openrouter:</code> để bước
+          đó gọi lên đám mây.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) => (
@@ -263,7 +268,9 @@ export function Models() {
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-300">{cfg.label}</span>
                 {cfg.fromEnv && <Badge>từ .env</Badge>}
-                {data.reachable &&
+                <Badge tone={cfg.provider === "openrouter" ? "blue" : "neutral"}>{cfg.provider}</Badge>
+                {/* "chưa tải" chỉ có nghĩa với model ở máy — model đám mây không tải bao giờ. */}
+                {data.reachable && cfg.provider === "ollama" &&
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
               </div>
               <input
@@ -281,7 +288,7 @@ export function Models() {
             <option key={m.name} value={m.name} />
           ))}
         </datalist>
-        {data.reachable && data.configured.some((c) => !c.installed) && (
+        {data.reachable && data.configured.some((c) => c.provider === "ollama" && !c.installed) && (
           <p className="text-xs text-amber-500">
             Model đánh dấu “chưa tải” sẽ làm job lỗi khi chạy tới bước đó.
           </p>
@@ -296,7 +303,7 @@ export function Models() {
                 <span className="text-sm text-neutral-400">{o.label}</span>
                 <span className="flex items-center gap-2">
                   <code className="text-xs text-neutral-300">{o.model}</code>
-                  {data.reachable &&
+                  {data.reachable && o.provider === "ollama" &&
                     (o.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
                 </span>
               </div>

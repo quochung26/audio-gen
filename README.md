@@ -229,7 +229,7 @@ Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRA
 
 ## Model
 
-`/model` trong Studio: kết nối Ollama, tải model về, xem model nào hệ thống đang dùng.
+`/model` trong Studio: kết nối Ollama, tải model về, kết nối OpenRouter, xem model nào hệ thống đang dùng.
 
 ### Model nào cho lần chạy nào
 
@@ -247,7 +247,7 @@ giá trị trong .env
 
 Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì đổi model mặc định là việc làm thường xuyên lúc đang thử model nào viết hay hơn — mà sửa `.env` thì phải khởi động lại worker. Xoá ô đó là quay về giá trị `.env`, và trang có nhãn **từ .env** để biết đang lấy từ đâu.
 
-Ô chọn model chỉ liệt kê **model đã tải**: chọn model chưa có thì job chết giữa chừng một tập đang viết dở. Ollama chưa chạy thì ô đó ẩn hẳn.
+Ô chọn model liệt kê **model Ollama đã tải** — chọn model chưa có thì job chết giữa chừng một tập đang viết dở — và **model OpenRouter đã dùng gần đây**. Không liệt kê hết hơn 300 model của OpenRouter: một ô select như thế không dùng được; muốn thử model mới thì vào trang Model, nơi có tìm kiếm và bảng giá. Không có gì để chọn thì ô đó ẩn hẳn.
 
 **Tải model** — chọn model và mức lượng tử hoá, trang hiện sẵn lệnh `ollama pull` tương ứng để đối chiếu trước khi bấm.
 
@@ -267,6 +267,38 @@ Dung lượng hiển thị bằng **GB thập phân** cho khớp con số trên 
 **Cảnh báo model đã cấu hình mà chưa tải.** Không cảnh báo thì job chạy tới bước đó mới lỗi, lúc đó đang giữa chừng một lượt viết dài.
 
 Ollama chưa chạy thì trang nói rõ *"Không có gì đang lắng nghe ở địa chỉ này"* — `fetch` của Node trả đúng một chuỗi "fetch failed" cho mọi lỗi mạng và giấu nguyên nhân trong `cause`.
+
+### OpenRouter — model đám mây
+
+Ollama chạy tại chỗ, rẻ và kín. OpenRouter là cổng vào hàng trăm model đám mây (Claude, GPT, Llama, Qwen…), dùng khi cần chất lượng văn mà máy ở nhà không với tới.
+
+> ⚠️ **Nội dung rời khỏi máy.** Story Bible, bản thảo, lời thoại nhân vật — tất cả những gì gửi lên đều nằm trong tay nhà cung cấp. Cả kiến trúc hai DB dựng lên để bản nháp ở lại đây; bật OpenRouter là mở ngoại lệ đó một cách có ý thức. Trang `/model` nhắc lại điều này mỗi lần mở, và cảnh báo đó không tắt được.
+
+Đặt `OPENROUTER_API_KEY` trong `.env` (lấy khoá ở `openrouter.ai/keys`) rồi khởi động lại API. Khoá **không bao giờ** được trả về trình duyệt, kể cả dạng che bớt, và không lọt vào thông điệp lỗi — lỗi job được lưu vào DB rồi hiện lên Studio.
+
+**Không phải chọn một trong hai.** `LLM_PROVIDER` chỉ quyết định provider *mặc định*. Thêm tiền tố `openrouter:` vào tên model là riêng lần chạy đó đi đám mây:
+
+```
+qwen3:14b                                → Ollama (hoặc provider mặc định)
+openrouter:anthropic/claude-sonnet-4.5   → OpenRouter
+ollama:qwen3:14b                         → ép về Ollama
+```
+
+Tiền tố chỉ được cắt khi phần đầu **đúng là tên một provider đã biết**. Tên model Ollama vốn đã có dấu hai chấm (`qwen3:14b`), cắt bừa ở dấu hai chấm đầu tiên là biến `qwen3` thành provider và `14b` thành model — hỏng mọi lượt sinh.
+
+Nhờ vậy chia được việc theo giá: Ollama lo phần lớn khối lượng, còn tập nào cần văn hay thì riêng tập đó gọi lên đám mây. Việc định tuyến nằm trong tầng provider nên các job không biết gì về nó.
+
+**Bảng giá quy về “một tập”.** OpenRouter báo giá theo USD *mỗi token* (`0.000003`) — con số không ai ước lượng được. Trang `/model` đổi sang USD/1 triệu token, rồi nhân với số token **đo được từ các tập đã chạy thật** trên máy này (bảng `LlmRun`) để ra tiền mỗi tập. Chưa chạy tập nào thì không hiện ước tính, vì đoán bừa còn tệ hơn không nói gì.
+
+Số token cộng **theo tập** trước rồi mới lấy trung bình: một tập gọi model chục lần (mỗi cảnh một lần, cộng tóm tắt, cộng metadata). Lấy trung bình trên từng lượt gọi ra giá của một *cảnh* — thấp hơn giá thật nhiều lần, mà ước tính chi phí thấp hơn thực tế là kiểu sai tệ nhất ở đây.
+
+**Không giữ chỗ VRAM cho lượt chạy đám mây.** Job LLM giữ chỗ `VRAM_LLM_MB` (mặc định 12 GB) suốt thời gian chạy, để hai model không cùng nhảy vào 16 GB rồi cả hai cùng chết. Gọi OpenRouter thì không dùng một MB VRAM nào, mà một lượt gọi kéo dài hàng chục giây — giữ chỗ trong lúc đó là chặn đứng clone giọng mà chẳng để làm gì. Lúc xếp hàng, chỗ giữ tính theo provider sẽ thật sự chạy: `openrouter` và `mock` giữ 0 MB, `ollama` giữ đủ.
+
+Lúc xếp hàng chưa biết thể loại nên chưa chọn được prompt, vì vậy tầng "model của prompt" không xét tới ở đây — nghi ngờ thì cứ giữ chỗ, mất chút song song còn hơn để hai model tranh nhau VRAM.
+
+**Nhúng vector không đi theo.** Model mặc định lấy theo provider đang bật, riêng embedding luôn chạy tại chỗ: nhúng một câu tốn vài ms, trả tiền cho đám mây để làm việc đó là vô lý.
+
+Vài chỗ phải xử riêng vì OpenRouter không giống Ollama: không phải model nào cũng tôn trọng `response_format`, nên JSON trả về có thể bọc trong rào ```` ``` ```` và phải lột trước khi parse; `finish_reason: "length"` nghĩa là model bị cắt vì chạm trần token — im lặng thì cảnh cụt giữa câu mà không ai hiểu vì sao; và lỗi có thể đến **giữa luồng** khi HTTP đã 200 rồi (nhà cung cấp phía sau chết, hết tín dụng).
 
 ---
 

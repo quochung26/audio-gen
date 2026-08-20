@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 import { JobLane, JobStatus, JobType, prisma } from "@audio/database";
 import { getJobVramCost, loadEnv } from "@audio/config";
+import { needsLocalGpu } from "@audio/llm";
 
 /**
  * API chỉ ĐẨY job vào hàng đợi, không tự chạy LLM hay ffmpeg.
@@ -49,7 +50,7 @@ export async function enqueue(input: {
   payload?: Record<string, unknown>;
 }) {
   const lane = LANE_OF[input.type] ?? JobLane.LLM;
-  const vramMb = getJobVramCost()[input.type] ?? 0;
+  const vramMb = await vramCostFor(input.type, input.payload);
 
   // Ghi Postgres trước rồi mới đẩy Redis: Postgres là nguồn sự thật,
   // Redis chỉ là hàng đợi tạm.
@@ -78,3 +79,30 @@ export async function enqueue(input: {
 
   return job;
 }
+
+/**
+ * Chi phí VRAM của một job, xét cả provider sẽ chạy.
+ *
+ * Bảng `getJobVramCost` chỉ biết loại job, không biết model — mà cùng một
+ * WRITE_SCENE có thể chạy Ollama (12 GB) hay OpenRouter (0 GB).
+ */
+async function vramCostFor(
+  type: JobType,
+  payload: Record<string, unknown> | undefined,
+): Promise<number> {
+  const base = getJobVramCost()[type] ?? 0;
+  if (base === 0 || !LLM_JOB_KIND[type]) return base;
+
+  const requested = typeof payload?.model === "string" ? payload.model : null;
+  return (await needsLocalGpu({ requested, kind: LLM_JOB_KIND[type]! })) ? base : 0;
+}
+
+/** Job nào gọi model, và gọi bằng model loại nào. */
+const LLM_JOB_KIND: Partial<Record<JobType, "write" | "utility">> = {
+  OUTLINE: "write",
+  WRITE_SCENE: "write",
+  AUDIO_EDIT: "utility",
+  SUMMARIZE: "utility",
+  ARC_SUMMARY: "utility",
+  METADATA: "utility",
+};

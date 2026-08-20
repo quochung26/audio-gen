@@ -18,7 +18,7 @@ const schema = z.object({
   REDIS_URL: z.string().url(),
 
   // "mock" cho phép chạy toàn bộ pipeline mà chưa cần GPU hay model
-  LLM_PROVIDER: z.enum(["mock", "ollama"]).default("mock"),
+  LLM_PROVIDER: z.enum(["mock", "ollama", "openrouter"]).default("mock"),
   /** Tầng 1 — chạy CPU, đọc phần dẫn truyện (70–80% thời lượng). */
   TTS_PROVIDER: z.enum(["mock", "kokoro", "piper"]).default("mock"),
   /** Tầng 2 — chạy GPU, clone giọng cho nhân vật. Phase 5. */
@@ -34,6 +34,19 @@ const schema = z.object({
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
   OLLAMA_MODEL_WRITE: z.string().default("qwen3:14b"),
   OLLAMA_MODEL_UTILITY: z.string().default("qwen3:8b"),
+
+  /**
+   * OpenRouter — cổng vào model đám mây, dùng khi cần chất lượng văn mà model
+   * chạy local không với tới.
+   *
+   * BÍ MẬT: khoá này không bao giờ được lọt vào log, vào `Job.error`, hay vào
+   * bất cứ route API nào trả về cho trình duyệt.
+   */
+  OPENROUTER_API_KEY: z.string().default(""),
+  OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  /** Tên model ở OpenRouter có dạng "nhà-cung-cấp/tên-model". */
+  OPENROUTER_MODEL_WRITE: z.string().default("anthropic/claude-sonnet-4.5"),
+  OPENROUTER_MODEL_UTILITY: z.string().default("anthropic/claude-haiku-4.5"),
 
   KOKORO_URL: z.string().url().default("http://localhost:8880"),
   VOICE_CLONE_URL: z.string().url().default("http://localhost:8881"),

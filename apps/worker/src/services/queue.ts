@@ -1,6 +1,7 @@
 import { Queue } from "bullmq";
 import { JobLane, JobStatus, JobType, prisma } from "@audio/database";
 import { getJobVramCost, type Lane } from "@audio/config";
+import { needsLocalGpu } from "@audio/llm";
 import { connection } from "../lib/redis";
 
 const queues = new Map<Lane, Queue>();
@@ -45,7 +46,7 @@ export async function enqueue(input: {
   vramMb?: number;
 }) {
   const lane = input.lane ?? LANE_OF[input.type];
-  const vramMb = input.vramMb ?? getJobVramCost()[input.type] ?? 0;
+  const vramMb = input.vramMb ?? (await vramCostFor(input.type, input.payload));
 
   const renderJob = await prisma.renderJob.create({
     data: {
@@ -86,3 +87,31 @@ export async function shutdownQueueClient() {
   await closeQueues();
   await connection.quit();
 }
+
+/**
+ * Chi phí VRAM của một job, xét cả provider sẽ chạy.
+ *
+ * Cùng lý do như bên `apps/api/src/lib/queue.ts`: bảng chi phí chỉ biết loại
+ * job chứ không biết model, mà WRITE_SCENE chạy OpenRouter thì không tốn VRAM.
+ */
+async function vramCostFor(
+  type: JobType,
+  payload: Record<string, unknown> | undefined,
+): Promise<number> {
+  const base = getJobVramCost()[type] ?? 0;
+  const kind = LLM_JOB_KIND[type];
+  if (base === 0 || !kind) return base;
+
+  const requested = typeof payload?.model === "string" ? payload.model : null;
+  return (await needsLocalGpu({ requested, kind })) ? base : 0;
+}
+
+/** Job nào gọi model, và gọi bằng model loại nào. */
+const LLM_JOB_KIND: Partial<Record<JobType, "write" | "utility">> = {
+  OUTLINE: "write",
+  WRITE_SCENE: "write",
+  AUDIO_EDIT: "utility",
+  SUMMARIZE: "utility",
+  ARC_SUMMARY: "utility",
+  METADATA: "utility",
+};
