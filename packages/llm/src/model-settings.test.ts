@@ -43,10 +43,12 @@ vi.mock("@audio/config", () => ({
 
 const {
   envDefaultModel,
+  getActiveProvider,
   getDefaultModel,
   getDefaultModels,
   needsLocalGpu,
   resolveModel,
+  setActiveProvider,
   setDefaultModel,
 } = await import("./model-settings");
 
@@ -129,64 +131,98 @@ describe("resolveModel — ba tầng ưu tiên", () => {
   });
 });
 
-describe("envDefaultModel", () => {
-  it("trả đúng biến cho từng loại", () => {
-    expect(envDefaultModel("write")).toBe("env-write:14b");
-    expect(envDefaultModel("utility")).toBe("env-utility:8b");
-    expect(envDefaultModel("embed")).toBe("env-embed");
+describe("provider đang bật — một trong hai", () => {
+  it("chưa chọn gì thì lấy từ .env", async () => {
+    env.provider = "openrouter";
+    expect(await getActiveProvider()).toBe("openrouter");
+  });
+
+  it("chọn trên giao diện thì đè lên .env", async () => {
+    env.provider = "ollama";
+    await setActiveProvider("openrouter");
+    expect(await getActiveProvider()).toBe("openrouter");
+  });
+
+  it("xoá thì quay về .env", async () => {
+    env.provider = "ollama";
+    await setActiveProvider("openrouter");
+    await setActiveProvider("");
+    expect(await getActiveProvider()).toBe("ollama");
+  });
+
+  it("từ chối tên provider lạ", async () => {
+    await expect(setActiveProvider("openai")).rejects.toThrow(/openai/);
+  });
+
+  it("giá trị rác trong DB không làm chết — lùi về .env", async () => {
+    // Sửa tay trong DB, hoặc dữ liệu cũ từ bản trước.
+    settings.set("llm.provider", "khong-ton-tai");
+    env.provider = "ollama";
+    expect(await getActiveProvider()).toBe("ollama");
   });
 });
 
-describe("mặc định theo provider đang bật", () => {
-  it("openrouter thì lấy model của openrouter, không phải của ollama", () => {
-    // Trả về "qwen3:14b" khi đang chạy OpenRouter thì nhận 404 không có model,
-    // và lỗi đó chẳng chỉ về đúng nguyên nhân.
-    env.provider = "openrouter";
-    expect(envDefaultModel("write")).toBe("anthropic/claude-sonnet-4.5");
-    expect(envDefaultModel("utility")).toBe("anthropic/claude-haiku-4.5");
+describe("model mặc định tách theo provider", () => {
+  it("mỗi provider nhớ model riêng, đổi qua đổi lại không mất", async () => {
+    // Dùng chung một khoá thì đổi sang OpenRouter, chọn claude, rồi đổi về
+    // Ollama là mọi job đi hỏi Ollama model tên "anthropic/..." và chết.
+    await setActiveProvider("ollama");
+    await setDefaultModel("write", "qwen3:32b");
+
+    await setActiveProvider("openrouter");
+    await setDefaultModel("write", "anthropic/claude-sonnet-4.5");
+    expect(await getDefaultModel("write")).toBe("anthropic/claude-sonnet-4.5");
+
+    await setActiveProvider("ollama");
+    expect(await getDefaultModel("write")).toBe("qwen3:32b");
   });
 
-  it("nhúng vector KHÔNG đi theo provider — luôn chạy tại chỗ", () => {
-    // Nhúng một câu tốn vài ms; trả tiền cho đám mây để làm việc đó là vô lý.
-    env.provider = "openrouter";
-    expect(envDefaultModel("embed")).toBe("env-embed");
+  it("nhúng vector KHÔNG tách — luôn chạy tại chỗ", async () => {
+    await setActiveProvider("ollama");
+    await setDefaultModel("embed", "bge-m3-custom");
+    await setActiveProvider("openrouter");
+    expect(await getDefaultModel("embed")).toBe("bge-m3-custom");
   });
 
-  it("mock và ollama đều dùng model của ollama", () => {
-    env.provider = "mock";
-    expect(envDefaultModel("write")).toBe("env-write:14b");
+  it("chưa đặt gì thì .env theo đúng provider đang bật", async () => {
+    await setActiveProvider("openrouter");
+    expect(await getDefaultModel("write")).toBe("anthropic/claude-sonnet-4.5");
+    expect(await getDefaultModel("utility")).toBe("anthropic/claude-haiku-4.5");
+    // Nhúng vector vẫn là model chạy tại chỗ.
+    expect(await getDefaultModel("embed")).toBe("env-embed");
+  });
+});
+
+describe("envDefaultModel", () => {
+  it("trả model theo provider được hỏi", () => {
+    expect(envDefaultModel("write", "ollama")).toBe("env-write:14b");
+    expect(envDefaultModel("write", "openrouter")).toBe("anthropic/claude-sonnet-4.5");
+  });
+
+  it("mock dùng model của ollama", () => {
+    expect(envDefaultModel("write", "mock")).toBe("env-write:14b");
+  });
+
+  it("nhúng vector không đổi theo provider", () => {
+    expect(envDefaultModel("embed", "openrouter")).toBe("env-embed");
   });
 });
 
 describe("needsLocalGpu", () => {
-  it("model có tiền tố openrouter thì KHÔNG giữ chỗ VRAM", async () => {
-    expect(await needsLocalGpu({ requested: "openrouter:openai/gpt-5", kind: "write" })).toBe(false);
+  it("chạy Ollama thì giữ chỗ VRAM", async () => {
+    await setActiveProvider("ollama");
+    expect(await needsLocalGpu()).toBe(true);
   });
 
-  it("model Ollama thì vẫn giữ chỗ", async () => {
-    expect(await needsLocalGpu({ requested: "qwen3:14b", kind: "write" })).toBe(true);
+  it("chạy OpenRouter thì KHÔNG giữ chỗ", async () => {
+    // Một lượt gọi mạng kéo dài hàng chục giây; giữ 12 GB trong lúc đó là chặn
+    // đứng clone giọng mà chẳng để làm gì.
+    await setActiveProvider("openrouter");
+    expect(await needsLocalGpu()).toBe(false);
   });
 
-  it("không chọn model thì xét model MẶC ĐỊNH", async () => {
-    await setDefaultModel("write", "openrouter:anthropic/claude-sonnet-4.5");
-    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
-    // Loại việc khác vẫn chạy Ollama nên vẫn cần GPU.
-    expect(await needsLocalGpu({ requested: null, kind: "utility" })).toBe(true);
-  });
-
-  it("chuỗi rỗng coi như không chọn", async () => {
-    // Form gửi model="" khi người dùng để trống.
-    await setDefaultModel("write", "openrouter:openai/gpt-5");
-    expect(await needsLocalGpu({ requested: "   ", kind: "write" })).toBe(false);
-  });
-
-  it("provider mặc định là openrouter thì không job nào giữ chỗ", async () => {
-    env.provider = "openrouter";
-    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
-  });
-
-  it("provider mock cũng không cần GPU", async () => {
-    env.provider = "mock";
-    expect(await needsLocalGpu({ requested: null, kind: "write" })).toBe(false);
+  it("mock cũng không cần GPU", async () => {
+    await setActiveProvider("mock");
+    expect(await needsLocalGpu()).toBe(false);
   });
 });

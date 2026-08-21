@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
-import { OpenRouterPanel } from "@/components/OpenRouterPanel";
+import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
+import { ProviderSwitch } from "@/components/ProviderSwitch";
 
 /**
  * Mức lượng tử hoá — đánh đổi giữa dung lượng và chất lượng văn.
@@ -42,19 +43,23 @@ interface Data {
   reason: string | null;
   version: string | null;
   url: string;
-  llmProvider: string;
+  /** Provider đang chạy — một trong hai. */
+  provider: string;
+  /** Giá trị trong .env, để nói rõ lựa chọn ở giao diện đang đè lên cái gì. */
+  envProvider: string;
   embedProvider: string;
   installed: Model[];
+  /** Model đã dùng gần đây, đã lọc theo provider đang chạy. */
+  recent: string[];
   configured: Array<{
     label: string;
     kind: string;
     value: string;
     fromEnv: boolean;
     model: string;
-    provider: string;
     installed: boolean;
   }>;
-  promptOverrides: Array<{ label: string; model: string; provider: string; installed: boolean }>;
+  promptOverrides: Array<{ label: string; model: string; installed: boolean }>;
   pull: Pull | null;
 }
 
@@ -76,6 +81,8 @@ export function Models() {
 
   // Đang tải thì hỏi dày hơn để thanh tiến độ chạy mượt.
   const { data, isLoading } = useApi<Data>("/api/models", { refetchMs: 1500 });
+  // Cùng khoá với OpenRouterPanel nên TanStack Query dùng chung một lần gọi.
+  const or = useApi<OrStatus>("/api/models/openrouter");
   if (isLoading || !data) return <Loading />;
 
   const tag = quant ? `${base}-${quant}` : base;
@@ -87,11 +94,19 @@ export function Models() {
       <div>
         <h1 className="text-xl font-semibold">Model</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Tải model về Ollama và đặt model mặc định. Thứ tự ưu tiên khi chạy:{" "}
+          Chọn nơi chạy model, tải model về Ollama, đặt model mặc định. Thứ tự ưu tiên khi chạy:{" "}
           <strong className="text-neutral-200">model chọn cho lần chạy đó</strong> → model của
           prompt → mặc định ở đây.
         </p>
       </div>
+
+      <Section title="Chạy model ở đâu">
+        <ProviderSwitch
+          provider={data.provider}
+          envProvider={data.envProvider}
+          openRouterReady={or.data?.reachable === true}
+        />
+      </Section>
 
       <Section title="Ollama — model chạy tại chỗ">
         <div
@@ -115,13 +130,11 @@ export function Models() {
           )}
 
           <p className="mt-3 text-xs text-neutral-500">
-            Đang dùng provider: LLM <Badge tone={data.llmProvider === "mock" ? "amber" : "green"}>{data.llmProvider}</Badge>{" "}
-            · nhúng vector <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>{data.embedProvider}</Badge>
-            {data.llmProvider === "mock" && (
-              <span className="ml-2 text-amber-500">
-                — còn giả lập, tải model xong nhớ đặt LLM_PROVIDER=ollama
-              </span>
-            )}
+            Nhúng vector:{" "}
+            <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
+              {data.embedProvider}
+            </Badge>{" "}
+            — luôn chạy tại chỗ, không đổi theo lựa chọn ở trên.
           </p>
         </div>
       </Section>
@@ -253,8 +266,8 @@ export function Models() {
       <Section title="Model mặc định">
         <p className="-mt-1 text-xs text-neutral-500">
           Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
-          nó quay về giá trị trong <code>.env</code>. Thêm tiền tố <code>openrouter:</code> để bước
-          đó gọi lên đám mây.
+          nó quay về giá trị trong <code>.env</code>. Mỗi provider nhớ lựa chọn riêng — đây là
+          model cho <strong className="text-neutral-300">{data.provider}</strong>.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) => (
@@ -268,9 +281,8 @@ export function Models() {
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-300">{cfg.label}</span>
                 {cfg.fromEnv && <Badge>từ .env</Badge>}
-                <Badge tone={cfg.provider === "openrouter" ? "blue" : "neutral"}>{cfg.provider}</Badge>
-                {/* "chưa tải" chỉ có nghĩa với model ở máy — model đám mây không tải bao giờ. */}
-                {data.reachable && cfg.provider === "ollama" &&
+                {/* "chưa tải" chỉ có nghĩa khi đang chạy Ollama — model đám mây không tải bao giờ. */}
+                {data.reachable && data.provider === "ollama" &&
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
               </div>
               <input
@@ -288,7 +300,7 @@ export function Models() {
             <option key={m.name} value={m.name} />
           ))}
         </datalist>
-        {data.reachable && data.configured.some((c) => c.provider === "ollama" && !c.installed) && (
+        {data.reachable && data.provider === "ollama" && data.configured.some((c) => !c.installed) && (
           <p className="text-xs text-amber-500">
             Model đánh dấu “chưa tải” sẽ làm job lỗi khi chạy tới bước đó.
           </p>
@@ -303,7 +315,7 @@ export function Models() {
                 <span className="text-sm text-neutral-400">{o.label}</span>
                 <span className="flex items-center gap-2">
                   <code className="text-xs text-neutral-300">{o.model}</code>
-                  {data.reachable && o.provider === "ollama" &&
+                  {data.reachable && data.provider === "ollama" &&
                     (o.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
                 </span>
               </div>

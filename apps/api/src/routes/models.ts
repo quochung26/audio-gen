@@ -1,7 +1,14 @@
 import { Hono } from "hono";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
-import { getDefaultModels, parseModelRef, setDefaultModel, type ModelKind } from "@audio/llm";
+import {
+  getActiveProvider,
+  getDefaultModels,
+  setActiveProvider,
+  setDefaultModel,
+  type ModelKind,
+  type ProviderName,
+} from "@audio/llm";
 import { describeConnectError } from "../lib/connect-error";
 import { UserError, field } from "../lib/http";
 import {
@@ -45,6 +52,7 @@ async function ollamaFetch(path: string, init?: RequestInit): Promise<Response> 
 /** Trạng thái kết nối, model đã cài, và model mà hệ thống đang cấu hình dùng. */
 models.get("/", async (c) => {
   const env = loadEnv();
+  const provider = await getActiveProvider();
   let reachable = false;
   let version: string | null = null;
   let installed: OllamaModel[] = [];
@@ -100,15 +108,26 @@ models.get("/", async (c) => {
     orderBy: { createdAt: "desc" },
     take: 200,
   });
-  const recent: Array<{ model: string; provider: string }> = [];
-  const seenRecent = new Set<string>();
-  for (const r of recentRuns) {
-    if (seenRecent.has(r.model) || recent.length >= 12) continue;
-    seenRecent.add(r.model);
-    recent.push({ model: r.model, provider: parseModelRef(r.model).provider ?? env.LLM_PROVIDER });
-  }
-
   const defaults = await getDefaultModels();
+
+  const recent: string[] = [];
+  const seenRecent = new Set<string>();
+  const addRecent = (m: string) => {
+    if (!m || seenRecent.has(m) || recent.length >= 12) return;
+    // Chỉ giữ model hợp lệ với provider đang bật: lịch sử còn tên model của
+    // provider kia, mà chọn nhầm là job chết giữa một tập đang viết dở.
+    if (!isValidForProvider(m, provider)) return;
+    seenRecent.add(m);
+    recent.push(m);
+  };
+
+  // Model đang đặt luôn nằm trong danh sách, kể cả khi chưa chạy lần nào: mới
+  // bật OpenRouter thì lịch sử rỗng, và ô chọn model từng lần chạy sẽ biến mất
+  // hẳn chứ không phải chỉ ngắn đi.
+  addRecent(defaults.write.value);
+  addRecent(defaults.utility.value);
+  for (const r of recentRuns) addRecent(r.model);
+
   const configured = [
     { label: "Viết truyện", kind: "write" as ModelKind, ...defaults.write },
     { label: "Việc phụ — tóm tắt, metadata", kind: "utility" as ModelKind, ...defaults.utility },
@@ -121,33 +140,27 @@ models.get("/", async (c) => {
   }));
 
   const names = new Set(installed.map((m) => m.name));
-  const defaultProvider = env.LLM_PROVIDER;
 
   /**
-   * "Đã có sẵn chưa?" — nhưng câu hỏi này chỉ có nghĩa với model chạy tại chỗ.
+   * "Đã tải chưa?" — câu hỏi này chỉ có nghĩa khi đang chạy Ollama.
    *
-   * Model trên OpenRouter không tải về máy bao giờ, nên hỏi "đã tải chưa" là
-   * sai; nếu vẫn đối chiếu với danh sách của Ollama thì mọi model đám mây đều
-   * hiện cảnh báo "chưa tải" mà chẳng có gì để tải.
+   * Model trên OpenRouter không tải về máy bao giờ; đối chiếu với danh sách của
+   * Ollama thì mọi model đám mây đều hiện cảnh báo "chưa tải" mà chẳng có gì
+   * để tải.
    */
-  const describeModel = (m: string) => {
-    const ref = parseModelRef(m);
-    const provider = ref.provider ?? defaultProvider;
-    return {
-      model: m,
-      provider,
-      // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
-      installed:
-        provider === "ollama" ? names.has(ref.model) || names.has(`${ref.model}:latest`) : true,
-    };
-  };
+  const describeModel = (m: string) => ({
+    model: m,
+    // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
+    installed: provider === "ollama" ? names.has(m) || names.has(`${m}:latest`) : true,
+  });
 
   return c.json({
     reachable,
     reason,
     version,
     url: env.OLLAMA_URL,
-    llmProvider: env.LLM_PROVIDER,
+    provider,
+    envProvider: env.LLM_PROVIDER,
     embedProvider: env.EMBED_PROVIDER,
     installed,
     recent,
@@ -164,10 +177,44 @@ models.put("/default/:kind", async (c) => {
 
   const body = await c.req.parseBody();
   const model = field(body, "model");
-  if (model && !isValidModelRef(model)) throw new UserError(`Tên model không hợp lệ: "${model}"`);
+  const provider = await getActiveProvider();
+  if (model && !isValidForProvider(model, provider)) {
+    throw new UserError(
+      provider === "openrouter"
+        ? `Tên model OpenRouter phải có dạng "nhà-cung-cấp/tên-model": "${model}"`
+        : `Tên model không hợp lệ: "${model}"`,
+    );
+  }
 
   await setDefaultModel(kind, model);
   return c.json({ ok: model ? `Mặc định giờ là ${model}` : "Đã bỏ, quay về giá trị trong .env" });
+});
+
+/**
+ * Đổi provider đang chạy. Một trong hai, không chạy lẫn.
+ *
+ * Ăn ngay ở lượt gọi model tiếp theo, kể cả trong worker đang chạy dở — lựa
+ * chọn nằm trong `Setting` và được hỏi lại mỗi lượt.
+ */
+models.put("/provider", async (c) => {
+  const body = await c.req.parseBody();
+  const value = field(body, "provider");
+
+  try {
+    await setActiveProvider(value);
+  } catch (err) {
+    throw new UserError((err as Error).message);
+  }
+
+  const now = await getActiveProvider();
+  return c.json({
+    ok:
+      now === "openrouter"
+        ? "Đang chạy OpenRouter — nội dung gửi lên sẽ rời khỏi máy này."
+        : now === "ollama"
+          ? "Đang chạy Ollama tại chỗ."
+          : "Đang chạy provider giả lập.",
+  });
 });
 
 models.get("/pull", (c) => c.json({ pull: withElapsed(pull) }));
@@ -254,7 +301,7 @@ models.get("/openrouter", async (c) => {
   const base = {
     hasKey,
     url: env.OPENROUTER_URL,
-    active: env.LLM_PROVIDER === "openrouter",
+    active: (await getActiveProvider()) === "openrouter",
     usage,
   };
 
@@ -373,13 +420,12 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
 
 
 /**
- * Tên model hợp lệ ở tầng mặc định — chấp nhận cả hai provider.
+ * Tên model hợp lệ với provider đang bật.
  *
- * Cùng một ô nhập giờ nhận "qwen3:14b" lẫn "openrouter:anthropic/claude-...",
- * nên phải bóc tiền tố trước rồi mới kiểm theo luật của đúng provider đó.
+ * Hai bên đặt tên khác hẳn: Ollama dùng "qwen3:14b", OpenRouter dùng
+ * "nhà-cung-cấp/tên-model". Kiểm theo đúng luật của bên đang chạy thì lỗi hiện
+ * ngay lúc lưu, thay vì đợi tới lúc job chạy giữa một tập đang viết dở.
  */
-function isValidModelRef(ref: string): boolean {
-  const { provider, model } = parseModelRef(ref);
-  if (provider === "openrouter") return isValidOpenRouterModel(model);
-  return isValidModelTag(model);
+function isValidForProvider(model: string, provider: ProviderName): boolean {
+  return provider === "openrouter" ? isValidOpenRouterModel(model) : isValidModelTag(model);
 }

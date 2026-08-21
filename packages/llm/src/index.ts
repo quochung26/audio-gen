@@ -2,7 +2,8 @@ import { loadEnv } from "@audio/config";
 import { MockProvider } from "./providers/mock";
 import { OllamaProvider } from "./providers/ollama";
 import { OpenRouterProvider } from "./providers/openrouter";
-import { RoutingProvider } from "./providers/routing";
+import { ActiveProvider } from "./providers/active";
+import { getActiveProvider } from "./model-settings";
 import type { LlmProvider } from "./provider";
 
 export * from "./provider";
@@ -11,25 +12,23 @@ export * from "./telemetry";
 export { zodToJsonSchema } from "./json-schema";
 export * from "./embedding";
 export * from "./model-settings";
-export * from "./providers/routing";
+export * from "./providers/active";
 
 let cached: LlmProvider | undefined;
 
 /**
  * Provider dùng chung cho mọi job.
  *
- * `LLM_PROVIDER` quyết định provider MẶC ĐỊNH, còn tên model có thể mang tiền
- * tố để đi đường khác cho riêng lần chạy đó — "openrouter:anthropic/claude-..."
- * gọi lên đám mây trong khi phần còn lại vẫn chạy Ollama tại chỗ.
- *
- * Các provider dựng lười: không có khoá OpenRouter mà cả pipeline chạy Ollama
- * thì cũng không sao.
+ * MỘT provider chạy tại một thời điểm: hoặc Ollama tại chỗ, hoặc OpenRouter
+ * trên mây. Lựa chọn nằm trong bảng `Setting` (lùi về `LLM_PROVIDER` trong
+ * `.env`) và được hỏi lại ở mỗi lượt gọi, nên đổi trên giao diện là ăn ngay,
+ * không phải khởi động lại worker.
  */
 export function getLlm(): LlmProvider {
   if (cached) return cached;
   const env = loadEnv();
 
-  cached = new RoutingProvider(
+  cached = new ActiveProvider(
     {
       mock: () => new MockProvider(),
       ollama: () => new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL_WRITE),
@@ -46,7 +45,7 @@ export function getLlm(): LlmProvider {
         );
       },
     },
-    env.LLM_PROVIDER,
+    getActiveProvider,
   );
   return cached;
 }

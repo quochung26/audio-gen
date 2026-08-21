@@ -121,13 +121,16 @@ export function OpenRouterPanel() {
         )}
 
         <p className="mt-3 text-xs text-neutral-500">
-          Provider mặc định:{" "}
-          <Badge tone={data.active ? "green" : "neutral"}>
-            {data.active ? "openrouter" : "không phải openrouter"}
-          </Badge>{" "}
-          — không cần đổi <code>LLM_PROVIDER</code>: thêm tiền tố{" "}
-          <code>openrouter:</code> vào tên model là lần chạy đó đi đám mây, phần còn lại vẫn chạy
-          tại chỗ.
+          {data.active ? (
+            <>
+              <Badge tone="green">đang chạy</Badge> — mọi lượt sinh đi qua OpenRouter.
+            </>
+          ) : (
+            <>
+              Hiện <strong className="text-neutral-400">không</strong> chạy bên này. Chuyển ở khối
+              “Chạy model ở đâu” phía trên, rồi mới đặt được model mặc định.
+            </>
+          )}
         </p>
       </div>
 
@@ -191,20 +194,29 @@ export function OpenRouterPanel() {
                     </div>
                     <span className="flex shrink-0 items-center gap-1">
                       {m.free && <Badge tone="green">miễn phí</Badge>}
-                      <ActionButton
-                        path="/api/models/default/write"
-                        method="PUT"
-                        body={{ model: `openrouter:${m.id}` }}
-                      >
-                        đặt làm model viết
-                      </ActionButton>
-                      <ActionButton
-                        path="/api/models/default/utility"
-                        method="PUT"
-                        body={{ model: `openrouter:${m.id}` }}
-                      >
-                        việc phụ
-                      </ActionButton>
+                      {/*
+                        Model mặc định lưu riêng cho từng provider, mà API ghi
+                        theo provider ĐANG CHẠY. Bấm khi đang chạy Ollama là ghi
+                        nhầm tên model đám mây vào ô của Ollama.
+                      */}
+                      {data.active ? (
+                        <>
+                          <ActionButton
+                            path="/api/models/default/write"
+                            method="PUT"
+                            body={{ model: m.id }}
+                          >
+                            đặt làm model viết
+                          </ActionButton>
+                          <ActionButton
+                            path="/api/models/default/utility"
+                            method="PUT"
+                            body={{ model: m.id }}
+                          >
+                            việc phụ
+                          </ActionButton>
+                        </>
+                      ) : null}
                     </span>
                   </div>
                 );

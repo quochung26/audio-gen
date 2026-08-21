@@ -46,7 +46,7 @@ export async function enqueue(input: {
   vramMb?: number;
 }) {
   const lane = input.lane ?? LANE_OF[input.type];
-  const vramMb = input.vramMb ?? (await vramCostFor(input.type, input.payload));
+  const vramMb = input.vramMb ?? (await vramCostFor(input.type));
 
   const renderJob = await prisma.renderJob.create({
     data: {
@@ -89,29 +89,13 @@ export async function shutdownQueueClient() {
 }
 
 /**
- * Chi phí VRAM của một job, xét cả provider sẽ chạy.
+ * Chi phí VRAM của một job, xét cả provider đang bật.
  *
- * Cùng lý do như bên `apps/api/src/lib/queue.ts`: bảng chi phí chỉ biết loại
- * job chứ không biết model, mà WRITE_SCENE chạy OpenRouter thì không tốn VRAM.
+ * Bảng `getJobVramCost` chỉ biết loại job, không biết ai sẽ chạy — mà cùng một
+ * WRITE_SCENE tốn 12 GB khi chạy Ollama và 0 khi gọi OpenRouter.
  */
-async function vramCostFor(
-  type: JobType,
-  payload: Record<string, unknown> | undefined,
-): Promise<number> {
+async function vramCostFor(type: JobType): Promise<number> {
   const base = getJobVramCost()[type] ?? 0;
-  const kind = LLM_JOB_KIND[type];
-  if (base === 0 || !kind) return base;
-
-  const requested = typeof payload?.model === "string" ? payload.model : null;
-  return (await needsLocalGpu({ requested, kind })) ? base : 0;
+  if (base === 0) return base;
+  return (await needsLocalGpu()) ? base : 0;
 }
-
-/** Job nào gọi model, và gọi bằng model loại nào. */
-const LLM_JOB_KIND: Partial<Record<JobType, "write" | "utility">> = {
-  OUTLINE: "write",
-  WRITE_SCENE: "write",
-  AUDIO_EDIT: "utility",
-  SUMMARIZE: "utility",
-  ARC_SUMMARY: "utility",
-  METADATA: "utility",
-};

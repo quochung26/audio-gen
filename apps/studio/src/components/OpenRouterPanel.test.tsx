@@ -143,9 +143,8 @@ describe("OpenRouterPanel", () => {
     expect(container.textContent).toContain("anthropic/claude-sonnet-4.5");
   });
 
-  it("nút đặt model gửi tên KÈM tiền tố openrouter", async () => {
-    // Thiếu tiền tố thì lần chạy đó đi Ollama và chết vì không có model.
-    const { container } = mount();
+  it("đang chạy OpenRouter thì đặt được model mặc định, gửi đúng tên model", async () => {
+    const { container } = mount({ active: true });
     await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
     fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
     await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
@@ -158,7 +157,19 @@ describe("OpenRouterPanel", () => {
       );
       expect(call).toBeTruthy();
       const body = (call![1] as { body: FormData }).body;
-      expect(body.get("model")).toBe("openrouter:anthropic/claude-sonnet-4.5");
+      expect(body.get("model")).toBe("anthropic/claude-sonnet-4.5");
     });
+  });
+
+  it("KHÔNG cho đặt model mặc định khi đang chạy bên kia", async () => {
+    // Model mặc định lưu riêng cho từng provider và API ghi theo provider đang
+    // chạy — bấm lúc này là nhét tên model đám mây vào ô của Ollama.
+    const { container } = mount({ active: false });
+    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
+    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
+
+    expect(screen.queryByRole("button", { name: "đặt làm model viết" })).toBeNull();
+    expect(container.textContent).toContain("Chạy model ở đâu");
   });
 });

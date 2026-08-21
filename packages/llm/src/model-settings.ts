@@ -1,87 +1,128 @@
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
-import { parseModelRef, type ProviderName } from "./providers/routing";
+import { isProviderName, type ProviderName } from "./providers/active";
 
 /**
  * Model nào cho việc gì.
  *
  * Ba tầng, cụ thể hơn thì thắng:
  *
- *   1. Model chọn cho LẦN CHẠY này  — "viết tập này bằng qwen3:32b xem sao"
+ *   1. Model chọn cho LẦN CHẠY này  — "viết tập này bằng model to xem sao"
  *   2. Model của PROMPT              — bước này luôn dùng model nhỏ hơn
  *   3. Model MẶC ĐỊNH                — bảng Setting, lùi về .env nếu chưa đặt
  *
- * Tầng 3 nằm trong DB chứ không chỉ trong `.env` vì đổi model mặc định là việc
- * làm thường xuyên lúc đang thử; sửa `.env` thì phải khởi động lại worker.
+ * Tầng mặc định nằm trong DB chứ không chỉ trong `.env` vì đổi model mặc định
+ * là việc làm thường xuyên lúc đang thử; sửa `.env` thì phải khởi động lại
+ * worker.
  */
 export type ModelKind = "write" | "utility" | "embed";
 
-const KEYS: Record<ModelKind, string> = {
-  write: "model.write",
-  utility: "model.utility",
-  embed: "model.embed",
-};
+const PROVIDER_KEY = "llm.provider";
+
+/**
+ * Khoá lưu model mặc định — TÁCH THEO PROVIDER.
+ *
+ * Nếu dùng chung một khoá thì đổi sang OpenRouter, chọn claude-sonnet, rồi đổi
+ * về Ollama là mọi job đi hỏi Ollama một model tên "anthropic/claude-sonnet-4.5"
+ * và chết. Mà đổi qua đổi lại chính là việc người ta sẽ làm.
+ *
+ * Nhúng vector không tách: nó luôn chạy tại chỗ.
+ */
+function settingKey(kind: ModelKind, provider: ProviderName): string {
+  return kind === "embed" ? "model.embed" : `model.${provider}.${kind}`;
+}
+
+/**
+ * Provider đang bật. Một tại một thời điểm.
+ *
+ * `.env` là giá trị khởi đầu; đổi trên giao diện thì ghi vào `Setting` và ăn
+ * ngay, không phải khởi động lại worker.
+ */
+export async function getActiveProvider(): Promise<ProviderName> {
+  const row = await prisma.setting.findUnique({ where: { key: PROVIDER_KEY } });
+  const stored = row?.value?.trim();
+  if (stored && isProviderName(stored)) return stored;
+  return loadEnv().LLM_PROVIDER;
+}
+
+/** Đổi provider. Chuỗi rỗng = xoá, quay về giá trị trong `.env`. */
+export async function setActiveProvider(value: string): Promise<void> {
+  const v = value.trim();
+  if (!v) {
+    await prisma.setting.deleteMany({ where: { key: PROVIDER_KEY } });
+    return;
+  }
+  if (!isProviderName(v)) throw new Error(`Provider không hợp lệ: "${v}"`);
+  await prisma.setting.upsert({
+    where: { key: PROVIDER_KEY },
+    create: { key: PROVIDER_KEY, value: v },
+    update: { value: v },
+  });
+}
 
 /**
  * Giá trị trong `.env` — dùng khi chưa ai đặt gì ở giao diện.
  *
- * Theo provider đang bật: chuyển `LLM_PROVIDER` sang openrouter mà vẫn trả về
- * "qwen3:14b" thì OpenRouter báo 404 không có model, và lỗi đó chẳng chỉ về
- * đúng nguyên nhân.
+ * Theo provider đang bật: trả về "qwen3:14b" khi đang chạy OpenRouter thì nhận
+ * 404 không có model, và lỗi đó chẳng chỉ về đúng nguyên nhân.
  *
  * Embedding luôn chạy tại chỗ nên không đi theo — nhúng một câu tốn vài ms,
  * trả tiền cho đám mây để làm việc đó là vô lý.
  */
-export function envDefaultModel(kind: ModelKind): string {
+export function envDefaultModel(kind: ModelKind, provider: ProviderName): string {
   const env = loadEnv();
   if (kind === "embed") return env.EMBED_MODEL;
 
-  if (env.LLM_PROVIDER === "openrouter") {
+  if (provider === "openrouter") {
     return kind === "write" ? env.OPENROUTER_MODEL_WRITE : env.OPENROUTER_MODEL_UTILITY;
   }
   return kind === "write" ? env.OLLAMA_MODEL_WRITE : env.OLLAMA_MODEL_UTILITY;
 }
 
 export async function getDefaultModel(kind: ModelKind): Promise<string> {
-  const row = await prisma.setting.findUnique({ where: { key: KEYS[kind] } });
-  return row?.value?.trim() || envDefaultModel(kind);
+  const provider = await getActiveProvider();
+  const row = await prisma.setting.findUnique({ where: { key: settingKey(kind, provider) } });
+  return row?.value?.trim() || envDefaultModel(kind, provider);
 }
 
 export async function getDefaultModels(): Promise<
   Record<ModelKind, { value: string; fromEnv: boolean }>
 > {
-  const rows = await prisma.setting.findMany({ where: { key: { in: Object.values(KEYS) } } });
+  const provider = await getActiveProvider();
+  const kinds: ModelKind[] = ["write", "utility", "embed"];
+  const keys = kinds.map((k) => settingKey(k, provider));
+
+  const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
   const byKey = new Map(rows.map((r) => [r.key, r.value.trim()]));
 
   const out = {} as Record<ModelKind, { value: string; fromEnv: boolean }>;
-  for (const kind of Object.keys(KEYS) as ModelKind[]) {
-    const stored = byKey.get(KEYS[kind]);
+  for (const kind of kinds) {
+    const stored = byKey.get(settingKey(kind, provider));
     out[kind] = stored
       ? { value: stored, fromEnv: false }
-      : { value: envDefaultModel(kind), fromEnv: true };
+      : { value: envDefaultModel(kind, provider), fromEnv: true };
   }
   return out;
 }
 
-/** Đặt model mặc định. Chuỗi rỗng = xoá, quay về giá trị trong `.env`. */
+/** Đặt model mặc định cho provider đang bật. Chuỗi rỗng = quay về `.env`. */
 export async function setDefaultModel(kind: ModelKind, value: string): Promise<void> {
+  const provider = await getActiveProvider();
+  const key = settingKey(kind, provider);
   const v = value.trim();
+
   if (!v) {
-    await prisma.setting.deleteMany({ where: { key: KEYS[kind] } });
+    await prisma.setting.deleteMany({ where: { key } });
     return;
   }
-  await prisma.setting.upsert({
-    where: { key: KEYS[kind] },
-    create: { key: KEYS[kind], value: v },
-    update: { value: v },
-  });
+  await prisma.setting.upsert({ where: { key }, create: { key, value: v }, update: { value: v } });
 }
 
 /**
- * Chọn model cho một lần gọi, theo đúng ba tầng ưu tiên.
+ * Chọn model cho một lần gọi.
  *
  * Chuỗi rỗng ở tầng trên coi như KHÔNG đặt — form gửi lên `model=""` khi người
- * dùng để trống, mà coi chuỗi rỗng là một lựa chọn thì Ollama nhận model tên
+ * dùng để trống, mà coi chuỗi rỗng là một lựa chọn thì provider nhận model tên
  * rỗng và báo lỗi khó hiểu.
  */
 export async function resolveModel(input: {
@@ -105,17 +146,7 @@ export async function resolveModel(input: {
  * OpenRouter thì không dùng một MB VRAM nào, mà một lượt gọi mạng kéo dài hàng
  * chục giây — giữ chỗ trong lúc đó là chặn đứng clone giọng và mọi việc GPU
  * khác mà chẳng để làm gì.
- *
- * KHÔNG tra model của prompt ở đây: lúc xếp hàng chưa biết thể loại nên chưa
- * chọn được prompt. Nghi ngờ thì cứ giữ chỗ — mất chút song song còn hơn để
- * hai model cùng nhảy vào 16 GB VRAM rồi cả hai cùng chết.
  */
-export async function needsLocalGpu(input: {
-  requested?: string | null;
-  kind: ModelKind;
-}): Promise<boolean> {
-  const requested = input.requested?.trim();
-  const model = requested || (await getDefaultModel(input.kind));
-  const provider: ProviderName = parseModelRef(model).provider ?? loadEnv().LLM_PROVIDER;
-  return provider === "ollama";
+export async function needsLocalGpu(): Promise<boolean> {
+  return (await getActiveProvider()) === "ollama";
 }

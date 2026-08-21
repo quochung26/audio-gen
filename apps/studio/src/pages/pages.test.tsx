@@ -216,7 +216,8 @@ const FIXTURES: Record<string, unknown> = {
     reason: null,
     version: "0.5.0",
     url: "http://localhost:11434",
-    llmProvider: "mock",
+    provider: "ollama",
+    envProvider: "mock",
     embedProvider: "mock",
     installed: [
       {
@@ -227,15 +228,12 @@ const FIXTURES: Record<string, unknown> = {
         modifiedAt: "2026-08-01T00:00:00Z",
       },
     ],
-    recent: [
-      { model: "qwen3:8b", provider: "ollama" },
-      { model: "openrouter:anthropic/claude-sonnet-4.5", provider: "openrouter" },
-    ],
+    recent: ["qwen3:8b"],
     configured: [
-      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", provider: "ollama", installed: false },
-      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "openrouter:openai/gpt-5", fromEnv: false, model: "openrouter:openai/gpt-5", provider: "openrouter", installed: true },
+      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", installed: false },
+      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", fromEnv: false, model: "qwen3:8b", installed: true },
     ],
-    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", provider: "ollama", installed: false }],
+    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
     pull: {
       model: "qwen3:14b-q4_K_M",
       status: "downloading",
@@ -458,8 +456,15 @@ describe("trang Model", () => {
     expect(t).toContain("sẽ làm job lỗi khi chạy tới bước đó");
   });
 
-  it("nhắc còn đang chạy provider giả lập", async () => {
-    expect(await pageText()).toContain("nhớ đặt LLM_PROVIDER=ollama");
+  it("cho chọn MỘT trong hai nơi chạy model", async () => {
+    const t = await pageText();
+    expect(t).toContain("Chạy model ở đâu");
+    expect(t).toContain("Ollama — tại chỗ");
+    expect(t).toContain("OpenRouter — đám mây");
+    // Fixture đang chạy Ollama, nên bên kia phải là nút chuyển chứ không phải
+    // cũng "đang chạy".
+    expect(t).toContain("đang chạy");
+    expect(t).toContain("chuyển sang OpenRouter");
   });
 
   it("xem trước đúng lệnh ollama sẽ chạy", async () => {
