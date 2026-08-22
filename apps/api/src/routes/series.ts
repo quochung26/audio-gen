@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { BatchStatus, prisma } from "@audio/database";
-import { parseWorld, renderBible, worldSetupSchema, type StoryBibleRecord } from "@audio/core";
+import { isLanguage, parseWorld, renderBible, worldSetupSchema, type StoryBibleRecord } from "@audio/core";
 import { rename, unlink } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { checkCover, ffprobe } from "@audio/audio";
 import { loadEnv } from "@audio/config";
+import { getDefaultLanguage } from "@audio/llm";
 import { enqueue } from "../lib/queue";
 import { putLocal, safeFileName, storageRoot } from "../lib/storage";
 import { field, splitLines, UserError } from "../lib/http";
@@ -65,10 +66,16 @@ series.post("/", async (c) => {
     glossary: [],
   });
 
+  // Ngôn ngữ chốt lúc TẠO BỘ và không đổi sau đó: đổi giữa chừng thì tóm tắt
+  // cung truyện, tên nhân vật và giọng đọc của các tập cũ đều lệch.
+  const language = field(body, "language");
+  if (language && !isLanguage(language)) throw new UserError(`Ngôn ngữ không hợp lệ: "${language}"`);
+
   const job = await enqueue({
     type: "OUTLINE",
     payload: {
       idea,
+      language: language || (await getDefaultLanguage()),
       genre: field(body, "genre") || "kinh dị",
       episodeCount: Number(body.episodeCount ?? 1),
       world,

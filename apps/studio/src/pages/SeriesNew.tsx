@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Form } from "@/components/Form";
 import { Field } from "@/components/Field";
 import { ModelPicker } from "@/components/ModelPicker";
+import { LanguagePicker } from "@/components/LanguagePicker";
 
 const GENRES = ["kinh dị", "tình cảm", "trinh thám", "đời thường", "kỳ ảo"];
 
@@ -34,7 +35,7 @@ export function SeriesNew() {
           rows={3}
         />
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <label className="flex-1">
             <span className="mb-1 block text-sm text-neutral-400">Thể loại</span>
             <select
@@ -48,7 +49,8 @@ export function SeriesNew() {
               ))}
             </select>
           </label>
-          <label className="w-32">
+          <LanguagePicker />
+          <label className="w-28">
             <span className="mb-1 block text-sm text-neutral-400">Số tập</span>
             <input
               name="episodeCount"

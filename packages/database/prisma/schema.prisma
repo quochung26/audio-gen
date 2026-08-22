@@ -148,6 +148,11 @@ model Series {
   tags        String[]     @default([])
   status      SeriesStatus @default(DRAFT)
 
+  /// Truyện viết bằng tiếng gì — "vi" hoặc "en". Xem packages/core/src/language.ts.
+  /// Gắn với BỘ chứ không gắn với từng tập: trộn tiếng giữa các tập thì tóm tắt
+  /// cung truyện, tên nhân vật và giọng đọc đều loạn.
+  language    String       @default("vi")
+
   /// Luật thế giới, bối cảnh, giọng văn. Nhân vật KHÔNG để ở đây — xem model Character.
   storyBible Json?
 
@@ -366,6 +371,10 @@ model Voice {
   ageRange  String?
   accent    String?
   sampleUrl String?
+
+  /// Giọng này đọc được tiếng gì. Giọng tiếng Việt đọc văn tiếng Anh ra thứ
+  /// không ai nghe được, nên đây là điều kiện lọc chứ không phải ghi chú.
+  language  String  @default("vi")
 
   licenseType  LicenseType @default(UNKNOWN)
   commercialOk Boolean     @default(false)

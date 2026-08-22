@@ -1,3 +1,4 @@
+import { toLanguage, withLanguage } from "@audio/core";
 import { prisma } from "@audio/database";
 import {
   getLlm,
@@ -61,6 +62,7 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
     });
 
     result = await getLlm().generate({
+      system: withLanguage(toLanguage(series.language)),
       prompt: renderTemplate(prompt.content, {
         maxWords: ARC_MAX_WORDS,
         // Nén chồng nén: tóm tắt cung truyện cũ được đưa vào cùng, để mạch

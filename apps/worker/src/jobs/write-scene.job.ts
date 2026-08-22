@@ -1,4 +1,4 @@
-import { countWords, estimateDurationMs, renderContext } from "@audio/core";
+import { countWords, estimateDurationMs, renderContext, toLanguage, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_MAX_WORDS } from "@audio/config";
@@ -60,7 +60,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 
       result = await llm.generate({
         model,
-        system: context.bible,
+        system: withLanguage(toLanguage(context.language), context.bible),
         prompt: renderTemplate(prompt.content, {
           context: renderContext({
             bible: context.bible,

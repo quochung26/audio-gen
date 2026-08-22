@@ -40,6 +40,7 @@ interface Data {
   title: string;
   description: string | null;
   genre: string;
+  language: string;
   kind: string;
   arcSummary: string | null;
   arcThroughEpisode: number | null;
@@ -80,6 +81,10 @@ export function Series() {
           <h1 className="text-xl font-semibold">{s.title}</h1>
           <Badge>{s.kind === "SHORT" ? "truyện ngắn" : "truyện dài"}</Badge>
           <Badge>{s.genre}</Badge>
+          {/* Hiện luôn: ngôn ngữ quyết định model viết bằng tiếng gì và giọng nào đọc được. */}
+          <Badge tone={s.language === "en" ? "blue" : "neutral"}>
+            {s.language === "en" ? "Tiếng Anh" : "Tiếng Việt"}
+          </Badge>
         </div>
         {s.description && <p className="mt-2 text-sm text-neutral-400">{s.description}</p>}
       </div>

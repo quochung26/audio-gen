@@ -30,6 +30,7 @@ const series = (over: Partial<FeedSeries> = {}): FeedSeries => ({
   tags: ["ma", "đêm"],
   coverUrl: null,
   aiDisclosure: true,
+  language: "vi",
   episodes: [episode()],
   ...over,
 });
@@ -211,5 +212,26 @@ describe("originFromHeaders", () => {
 
   it("không có host thì lùi về giá trị dự phòng", () => {
     expect(originFromHeaders(h({}), "http://0.0.0.0:3001")).toBe("http://0.0.0.0:3001");
+  });
+});
+
+describe("ngôn ngữ của bộ", () => {
+  it("thẻ <language> lấy theo bộ, không cứng 'vi'", () => {
+    expect(buildRssFeed(series({ language: "en" }), opts)).toContain("<language>en</language>");
+    expect(buildRssFeed(series({ language: "vi" }), opts)).toContain("<language>vi</language>");
+  });
+
+  it("lời công bố AI viết bằng đúng tiếng của bộ", () => {
+    // Một câu tiếng Việt kẹp giữa mô tả tiếng Anh trông như lỗi, mà đây lại là
+    // câu bắt buộc phải để người nghe đọc được.
+    const en = buildRssFeed(series({ language: "en" }), opts);
+    expect(en).toContain("produced with the help of AI");
+    expect(en).not.toContain("hỗ trợ của AI");
+
+    expect(buildRssFeed(series({ language: "vi" }), opts)).toContain("hỗ trợ của AI");
+  });
+
+  it("thiếu ngôn ngữ thì vẫn ra feed hợp lệ", () => {
+    expect(buildRssFeed(series({ language: "" }), opts)).toContain("<language>vi</language>");
   });
 });

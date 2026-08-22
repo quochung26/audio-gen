@@ -27,6 +27,12 @@ const schema = z.object({
   PIPER_BINARY: z.string().default("piper"),
   PIPER_VOICES_DIR: z.string().optional(),
 
+  /**
+   * Ngôn ngữ mặc định cho truyện mới. Chỉ là giá trị khởi đầu — đổi trên Studio
+   * thì lựa chọn ghi vào `Setting`, và mỗi bộ truyện giữ ngôn ngữ riêng.
+   */
+  CONTENT_LANGUAGE: z.enum(["vi", "en"]).default("vi"),
+
   // Embedding chạy CPU là đủ — nhúng một câu tốn vài ms, không đáng chiếm VRAM.
   EMBED_PROVIDER: z.enum(["mock", "ollama"]).default("mock"),
   EMBED_MODEL: z.string().default("bge-m3"),

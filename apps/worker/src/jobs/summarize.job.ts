@@ -1,4 +1,4 @@
-import { episodeDigestSchema } from "@audio/core";
+import { episodeDigestSchema, toLanguage, withLanguage } from "@audio/core";
 import { prisma } from "@audio/database";
 import {
   getLlm,
@@ -53,6 +53,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
     });
 
     result = await getLlm().generateJson({
+      system: withLanguage(toLanguage(episode.series.language)),
       schema: episodeDigestSchema,
       prompt: renderTemplate(prompt.content, {
         characters: episode.series.characters.map((c) => `- ${c.name}: ${c.role ?? ""}`).join("\n"),

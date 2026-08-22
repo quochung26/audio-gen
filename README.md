@@ -296,6 +296,34 @@ Vài chỗ phải xử riêng vì OpenRouter không giống Ollama: không phả
 
 ---
 
+## Ngôn ngữ
+
+Truyện viết bằng **tiếng Việt hoặc tiếng Anh**. Chọn ở màn tạo truyện; mặc định điền sẵn lấy từ trang `/model`, mục "Ngôn ngữ mặc định" (lùi về `CONTENT_LANGUAGE` trong `.env`).
+
+Đây không phải ngôn ngữ giao diện Studio — Studio vẫn tiếng Việt.
+
+**Ngôn ngữ gắn với BỘ, chốt lúc tạo.** Nằm ở `Series.language`, không đổi được sau. Đổi ngôn ngữ một bộ đang viết dở không phải là sửa một ô cấu hình: tóm tắt cung truyện, tên nhân vật, sự kiện đã truy hồi và giọng đọc của các tập cũ đều lệch theo. Đổi mặc định ở trang `/model` **không** đụng tới bộ đã có.
+
+**Chỉ dẫn tiếng Việt, đầu ra tiếng Anh.** Prompt trong bảng `Prompt` viết bằng tiếng Việt kể cả khi truyện là tiếng Anh — không nhân đôi toàn bộ prompt cho mỗi thứ tiếng. Thay vào đó, mỗi lượt gọi model được chèn một chỉ thị ngôn ngữ vào đầu system prompt:
+
+```
+Write ALL output in English. The instructions below are written in Vietnamese —
+that is the language of the instructions, NOT the language you must write in.
+Character names, dialogue and narration must all be in English.
+```
+
+Câu thứ hai là câu quan trọng nhất. Thiếu nó, model coi ngôn ngữ của chỉ dẫn là ngôn ngữ cần viết và trả về văn tiếng Việt trong khi cả bộ đang là tiếng Anh. Câu thứ ba nhắc riêng tên riêng và lời thoại vì đó là chỗ model hay lẫn nhất: văn tiếng Anh nhưng tên nhân vật và câu thoại vẫn tiếng Việt.
+
+Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible dài hàng nghìn chữ, chỉ thị nằm dưới là chìm nghỉm. Cả sáu bước gọi model đều được chèn.
+
+**Giọng đọc lọc theo ngôn ngữ ở mọi tầng**, kể cả casting người viết đặt tay. Giọng tiếng Việt đọc văn tiếng Anh ra thứ không ai nghe được — và hỏng kiểu đó *không báo lỗi*, nó chỉ lộ ra khi ngồi nghe lại cả tập. Nên casting sai tiếng bị bỏ qua, và nếu không còn giọng nào đọc được thứ tiếng đó thì job dừng hẳn với thông báo nói rõ thiếu tiếng gì và có bao nhiêu giọng khác tiếng đang nằm đó.
+
+`pnpm db:seed` tạo giọng giả lập cho **cả hai** thứ tiếng. Thiếu bộ giọng tiếng Anh thì truyện tiếng Anh không dựng được audio dù đang chạy giả lập.
+
+**Feed RSS** lấy `<language>` theo bộ, và câu công bố dùng AI viết bằng đúng thứ tiếng đó — một câu tiếng Việt kẹp giữa phần mô tả tiếng Anh trông như lỗi, mà đây lại là câu bắt buộc phải để người nghe đọc được.
+
+---
+
 ## Prompt
 
 `/prompts` — sáu bước gọi model, mỗi bước một prompt.

@@ -51,6 +51,8 @@ interface Data {
   installed: Model[];
   /** Model đã dùng gần đây, đã lọc theo provider đang chạy. */
   recent: string[];
+  /** Ngôn ngữ mặc định cho truyện MỚI — không đụng tới bộ đã có. */
+  language: { value: string; fromEnv: boolean };
   configured: Array<{
     label: string;
     kind: string;
@@ -99,6 +101,34 @@ export function Models() {
           prompt → mặc định ở đây.
         </p>
       </div>
+
+      <Section title="Ngôn ngữ mặc định">
+        <Form
+          path="/api/models/language"
+          method="PUT"
+          submit="Lưu"
+          className="rounded border border-neutral-800 p-4"
+        >
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-neutral-300">Truyện mới viết bằng</span>
+            {data.language.fromEnv && <Badge>từ .env</Badge>}
+          </div>
+          <select
+            name="language"
+            key={data.language.value}
+            defaultValue={data.language.value}
+            className="w-48 rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+          >
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">Tiếng Anh</option>
+          </select>
+          <p className="mt-2 text-xs text-neutral-600">
+            Chỉ là giá trị điền sẵn ở màn tạo truyện — đổi ở đây{" "}
+            <strong className="text-neutral-400">không</strong> đụng tới bộ truyện đã có. Mỗi bộ giữ
+            ngôn ngữ riêng, chốt lúc tạo.
+          </p>
+        </Form>
+      </Section>
 
       <Section title="Chạy model ở đâu">
         <ProviderSwitch

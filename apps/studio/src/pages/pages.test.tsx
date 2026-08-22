@@ -74,6 +74,7 @@ const FIXTURES: Record<string, unknown> = {
     title: "Đường về",
     description: "mô tả",
     genre: "kinh dị",
+    language: "en",
     kind: "LONG",
     arcSummary: null,
     arcThroughEpisode: null,
@@ -229,6 +230,7 @@ const FIXTURES: Record<string, unknown> = {
       },
     ],
     recent: ["qwen3:8b"],
+    language: { value: "vi", fromEnv: true },
     configured: [
       { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, model: "qwen3:14b", installed: false },
       { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", fromEnv: false, model: "qwen3:8b", installed: true },
@@ -522,5 +524,32 @@ describe("trang Thống kê", () => {
 
   it("nhắc số bình luận đang chờ duyệt", async () => {
     expect(await text()).toContain("2 bình luận đang chờ duyệt");
+  });
+});
+
+describe("ngôn ngữ", () => {
+  it("trang bộ truyện hiện rõ bộ này viết bằng tiếng gì", async () => {
+    // Ngôn ngữ quyết định model viết bằng tiếng gì và giọng nào đọc được —
+    // không hiện thì mở một bộ tiếng Anh mà tưởng là tiếng Việt.
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(container.textContent).toContain("Đường về"));
+    expect(container.textContent).toContain("Tiếng Anh");
+  });
+
+  it("màn tạo truyện có ô chọn ngôn ngữ, điền sẵn theo mặc định", async () => {
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    await waitFor(() => expect(container.textContent).toContain("Ngôn ngữ"));
+    const select = container.querySelector<HTMLSelectElement>('select[name="language"]');
+    expect(select).toBeTruthy();
+    expect(select!.value).toBe("vi");
+    // Nói rõ là chốt luôn — đổi ngôn ngữ giữa chừng là viết lại từ đầu.
+    expect(container.textContent).toContain("không đổi được sau");
+  });
+
+  it("trang Model đặt được ngôn ngữ mặc định cho truyện mới", async () => {
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Ngôn ngữ mặc định"));
+    // Phải nói rõ là KHÔNG đụng tới bộ đã có.
+    expect(container.textContent).toMatch(/không.*đụng tới bộ truyện đã có/);
   });
 });

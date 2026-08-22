@@ -47,6 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       tags: series.tags,
       coverUrl: series.coverUrl,
       aiDisclosure: series.aiDisclosure,
+      language: series.language,
       episodes: series.episodes.map((ep) => {
         const mp3 = ep.exports[0]!;
         return {

@@ -12,6 +12,7 @@ export * from "./telemetry";
 export { zodToJsonSchema } from "./json-schema";
 export * from "./embedding";
 export * from "./model-settings";
+export * from "./language-settings";
 export * from "./providers/active";
 
 let cached: LlmProvider | undefined;

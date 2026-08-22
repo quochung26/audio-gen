@@ -57,17 +57,26 @@ async function seedPrompts() {
  * Giọng thật thêm ở Phase 3 bằng scripts/seed-voices.
  */
 async function seedVoices() {
+  // Mỗi thứ tiếng phải có bộ giọng riêng: giọng sai tiếng bị bộ giải giọng bỏ
+  // qua, nên thiếu là truyện tiếng Anh không dựng được audio dù đang chạy giả
+  // lập. Xem apps/worker/src/services/voice-resolver.ts.
   const voices = [
-    { externalVoiceId: "mock-narrator", name: "Người dẫn (giả lập)", gender: "male", ageRange: "adult" },
-    { externalVoiceId: "mock-male", name: "Nam trung niên (giả lập)", gender: "male", ageRange: "adult" },
-    { externalVoiceId: "mock-female", name: "Nữ trẻ (giả lập)", gender: "female", ageRange: "young" },
-    { externalVoiceId: "mock-old", name: "Nam già (giả lập)", gender: "male", ageRange: "senior" },
+    { externalVoiceId: "mock-narrator", name: "Người dẫn (giả lập)", gender: "male", ageRange: "adult", language: "vi" },
+    { externalVoiceId: "mock-male", name: "Nam trung niên (giả lập)", gender: "male", ageRange: "adult", language: "vi" },
+    { externalVoiceId: "mock-female", name: "Nữ trẻ (giả lập)", gender: "female", ageRange: "young", language: "vi" },
+    { externalVoiceId: "mock-old", name: "Nam già (giả lập)", gender: "male", ageRange: "senior", language: "vi" },
+    { externalVoiceId: "mock-en-narrator", name: "Narrator (mock)", gender: "male", ageRange: "adult", language: "en" },
+    { externalVoiceId: "mock-en-male", name: "Adult male (mock)", gender: "male", ageRange: "adult", language: "en" },
+    { externalVoiceId: "mock-en-female", name: "Young female (mock)", gender: "female", ageRange: "young", language: "en" },
+    { externalVoiceId: "mock-en-old", name: "Senior male (mock)", gender: "male", ageRange: "senior", language: "en" },
   ];
 
   for (const v of voices) {
     await prisma.voice.upsert({
       where: { engine_externalVoiceId: { engine: TtsEngine.MOCK, externalVoiceId: v.externalVoiceId } },
-      update: {},
+      // Cập nhật `language` cả với hàng đã có: bản trước chưa có cột này nên
+      // mọi giọng cũ đều mang giá trị mặc định "vi".
+      update: { language: v.language },
       create: {
         engine: TtsEngine.MOCK,
         tier: VoiceTier.FAST,
@@ -77,7 +86,7 @@ async function seedVoices() {
       },
     });
   }
-  console.log(`✔ ${voices.length} giọng giả lập`);
+  console.log(`✔ ${voices.length} giọng giả lập (vi + en)`);
 }
 
 /** Từ điển phát âm chung — những thứ TTS tiếng Việt hay đọc sai. */

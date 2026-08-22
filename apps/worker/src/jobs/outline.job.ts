@@ -1,5 +1,7 @@
 import {
   buildBible,
+  toLanguage,
+  withLanguage,
   outlineSchema,
   planScenes,
   parseWorld,
@@ -8,7 +10,15 @@ import {
   suggestSceneCount,
 } from "@audio/core";
 import { EpisodeStatus, SeriesKind, SeriesStatus, prisma } from "@audio/database";
-import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
+import {
+  getDefaultLanguage,
+  getLlm,
+  loadPrompt,
+  recordFailure,
+  recordRun,
+  renderTemplate,
+  resolveModel,
+} from "@audio/llm";
 import { EPISODE_TARGET_WORDS, SCENE_MAX_WORDS, SCENE_MIN_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
@@ -29,6 +39,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const world = parseWorld(job.data.world);
 
   if (!idea.trim()) throw new Error("Thiếu ý tưởng (payload.idea)");
+
+  // Ngôn ngữ chọn lúc tạo bộ; không chọn thì lấy mặc định ở trang Model.
+  const language = toLanguage(job.data.language, await getDefaultLanguage());
 
   const sceneCount = suggestSceneCount(EPISODE_TARGET_WORDS);
   const prompt = await loadPrompt("OUTLINE", genre);
@@ -51,6 +64,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
     result = await llm.generateJson({
       model,
+      system: withLanguage(language),
       schema: outlineSchema,
       prompt: renderTemplate(prompt.content, {
         idea,
@@ -83,6 +97,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       slug: await freeSlug(outline.title),
       description: outline.logline,
       genre: outline.genre,
+      language,
       status: SeriesStatus.DRAFT,
       storyBible: {
         raw: outline,

@@ -29,6 +29,8 @@ export interface FeedSeries {
   tags: string[];
   coverUrl: string | null;
   aiDisclosure: boolean;
+  /** Ngôn ngữ của bộ — trình đọc podcast dùng để lọc và để đọc đúng tiếng. */
+  language: string;
   episodes: FeedEpisode[];
 }
 
@@ -36,7 +38,6 @@ export interface FeedOptions {
   /** Gốc URL công khai, ví dụ "https://truyen.example.com". Không có dấu / cuối. */
   baseUrl: string;
   /** Ngôn ngữ feed. */
-  language?: string;
   author?: string;
 }
 
@@ -79,7 +80,7 @@ export function buildRssFeed(series: FeedSeries, opts: FeedOptions): string {
   const description = [
     series.description,
     // Ghi rõ có AI tham gia. Một số nền tảng yêu cầu, và người nghe có quyền biết.
-    series.aiDisclosure ? "Nội dung có sự hỗ trợ của AI." : null,
+    series.aiDisclosure ? aiNote(series.language) : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -92,7 +93,7 @@ export function buildRssFeed(series: FeedSeries, opts: FeedOptions): string {
     <title>${escapeXml(series.title)}</title>
     <link>${escapeXml(link)}</link>
     <description>${escapeXml(description)}</description>
-    <language>${escapeXml(opts.language ?? "vi")}</language>
+    <language>${escapeXml(series.language || "vi")}</language>
     <atom:link href="${escapeXml(`${link}/rss.xml`)}" rel="self" type="application/rss+xml"/>
     <itunes:author>${escapeXml(author)}</itunes:author>
     <itunes:owner><itunes:name>${escapeXml(author)}</itunes:name></itunes:owner>
@@ -172,4 +173,16 @@ export function originFromHeaders(headers: Headers, fallback: string): string {
   if (!host) return fallback;
   const proto = headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") || /^127\.|^\[?::1\]?/.test(host) ? "http" : "https");
   return `${proto}://${host}`;
+}
+
+/**
+ * Lời công bố dùng AI, viết bằng đúng thứ tiếng của bộ truyện.
+ *
+ * Một câu tiếng Việt kẹp giữa phần mô tả tiếng Anh trông như lỗi, mà đây lại là
+ * câu bắt buộc phải để người nghe đọc được.
+ */
+function aiNote(language: string): string {
+  return language === "en"
+    ? "This content was produced with the help of AI."
+    : "Nội dung có sự hỗ trợ của AI.";
 }

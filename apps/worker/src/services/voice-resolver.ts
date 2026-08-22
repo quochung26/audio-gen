@@ -25,10 +25,17 @@ export interface ResolvedVoice {
  *
  * Thứ tự ưu tiên: casting riêng của nhân vật → giọng mặc định của bộ →
  * giọng đầu tiên khớp engine đang cấu hình.
+ *
+ * NGÔN NGỮ lọc ở MỌI tầng, kể cả casting người viết đặt tay. Giọng tiếng Việt
+ * đọc văn tiếng Anh ra thứ không ai nghe được — và hỏng kiểu đó không báo lỗi,
+ * chỉ lộ ra khi ngồi nghe lại cả tập. Thà bỏ qua casting sai tiếng rồi dừng hẳn
+ * với thông báo rõ ràng.
  */
 export async function resolveVoice(input: {
   seriesDefaultVoiceId?: string | null;
   characterVoiceId?: string | null;
+  /** Ngôn ngữ của bộ truyện. */
+  language: string;
 }): Promise<ResolvedVoice> {
   const ids = [input.characterVoiceId, input.seriesDefaultVoiceId].filter(
     (v): v is string => Boolean(v),
@@ -36,19 +43,24 @@ export async function resolveVoice(input: {
 
   for (const id of ids) {
     const v = await prisma.voice.findUnique({ where: { id } });
-    if (v?.enabled) return toResolved(v);
+    if (v?.enabled && v.language === input.language) return toResolved(v);
   }
 
-  // Chưa casting gì: lấy giọng đầu tiên của engine đang cấu hình.
+  // Chưa casting gì (hoặc casting sai tiếng): lấy giọng đầu tiên của engine
+  // đang cấu hình, đọc được đúng thứ tiếng này.
   const engine = loadEnv().TTS_PROVIDER.toUpperCase() as TtsEngine;
   const fallback = await prisma.voice.findFirst({
-    where: { engine, enabled: true },
+    where: { engine, enabled: true, language: input.language },
     orderBy: { createdAt: "asc" },
   });
 
   if (!fallback) {
+    const other = await prisma.voice.count({ where: { engine, enabled: true } });
     throw new Error(
-      `Không có giọng nào cho engine "${engine}". ` +
+      `Không có giọng "${input.language}" nào cho engine "${engine}". ` +
+        (other > 0
+          ? `Có ${other} giọng khác tiếng — giọng sai tiếng đọc ra thứ không nghe được nên không dùng thay. `
+          : "") +
         `Chạy \`pnpm db:seed\` (giọng giả lập), hoặc thêm giọng thật vào bảng Voice ` +
         `rồi gán ở trang Nhân vật của bộ truyện.`,
     );

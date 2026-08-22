@@ -3,7 +3,10 @@ import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import {
   getActiveProvider,
+  getDefaultLanguage,
+  getDefaultLanguageSource,
   getDefaultModels,
+  setDefaultLanguage,
   setActiveProvider,
   setDefaultModel,
   type ModelKind,
@@ -164,6 +167,7 @@ models.get("/", async (c) => {
     embedProvider: env.EMBED_PROVIDER,
     installed,
     recent,
+    language: await getDefaultLanguageSource(),
     configured: configured.map((x) => ({ ...x, ...describeModel(x.value) })),
     promptOverrides: promptOverrides.map((x) => ({ ...x, ...describeModel(x.model) })),
     pull: withElapsed(pull),
@@ -215,6 +219,24 @@ models.put("/provider", async (c) => {
           ? "Đang chạy Ollama tại chỗ."
           : "Đang chạy provider giả lập.",
   });
+});
+
+/**
+ * Ngôn ngữ mặc định cho truyện MỚI.
+ *
+ * Không đụng tới bộ truyện đã có: ngôn ngữ nằm ở `Series.language`, chốt lúc
+ * tạo bộ. Đổi ngôn ngữ một bộ đang viết dở là viết lại từ đầu, không phải đổi
+ * một ô cấu hình.
+ */
+models.put("/language", async (c) => {
+  const body = await c.req.parseBody();
+  try {
+    await setDefaultLanguage(field(body, "language"));
+  } catch (err) {
+    throw new UserError((err as Error).message);
+  }
+  const now = await getDefaultLanguage();
+  return c.json({ ok: `Truyện mới sẽ viết bằng ${now === "en" ? "tiếng Anh" : "tiếng Việt"}.` });
 });
 
 models.get("/pull", (c) => c.json({ pull: withElapsed(pull) }));

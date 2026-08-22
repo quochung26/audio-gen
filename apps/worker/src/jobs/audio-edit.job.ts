@@ -1,4 +1,4 @@
-import { audioScriptSchema } from "@audio/core";
+import { audioScriptSchema, toLanguage, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { DEFAULT_PAUSE_AFTER_MS } from "@audio/config";
@@ -53,6 +53,7 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
     });
 
     result = await getLlm().generateJson({
+      system: withLanguage(toLanguage(episode.series.language)),
       model,
       schema: audioScriptSchema,
       prompt: renderTemplate(prompt.content, {
@@ -83,6 +84,7 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
     if (!v) {
       v = await resolveVoice({
         seriesDefaultVoiceId: episode.series.defaultVoiceId,
+        language: episode.series.language,
         characterVoiceId,
       });
       voiceCache.set(key, v);

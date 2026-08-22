@@ -5,6 +5,8 @@ import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 
 export interface SceneContext {
   genre: string;
+  /** Ngôn ngữ của bộ — quyết định model viết bằng tiếng gì. */
+  language: string;
   bible: string;
   /** Tóm tắt cung truyện — các tập cũ đã nén lại. */
   arcSummary?: string;
@@ -114,6 +116,7 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
 
   return {
     genre: series.genre,
+    language: series.language,
     bible,
     arcSummary: series.arcSummary ?? undefined,
     arcThroughEpisode: series.arcThroughEpisode ?? undefined,
