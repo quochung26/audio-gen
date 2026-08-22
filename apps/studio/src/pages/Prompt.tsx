@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router";
+import { GenParamsFields, type GenParamSpec } from "@/components/GenParamsFields";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
@@ -14,9 +15,11 @@ interface Data {
     content: string;
     model: string | null;
     note: string | null;
-    params: Record<string, unknown> | null;
+    params: Record<string, number>;
+    unknownParams: string[];
     updatedAt: string;
   };
+  genParams: GenParamSpec[];
   wins: boolean;
   check: { used: string[]; unknown: string[]; unused: string[] };
   available: string[];
@@ -105,21 +108,16 @@ export function Prompt() {
             <TextInput name="note" label="Ghi chú" defaultValue={p.note ?? ""} />
           </div>
 
-          <label className="block">
-            <span className="mb-1 block text-xs text-neutral-500">Tham số sinh (JSON)</span>
-            <textarea
-              name="params"
-              rows={4}
-              defaultValue={JSON.stringify(p.params ?? {}, null, 2)}
-              spellCheck={false}
-              className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 font-mono text-xs outline-none focus:border-neutral-600"
-            />
-            <span className="mt-1 block text-xs text-neutral-600">
-              <code>temperature</code> cao thì văn biến hoá hơn nhưng dễ lạc; bước biên tập và tóm
-              tắt nên để thấp. <code>numCtx</code> là trần ngữ cảnh — hạ xuống là cắt mất phần đầu
-              prompt mà không báo gì.
+          <div>
+            <span className="mb-2 block text-xs text-neutral-500">
+              Tham số sinh — để trống thì dùng mặc định của provider (số mờ trong ô)
             </span>
-          </label>
+            <GenParamsFields
+              specs={data.genParams}
+              params={p.params}
+              unknownParams={p.unknownParams}
+            />
+          </div>
         </Form>
       </Section>
 

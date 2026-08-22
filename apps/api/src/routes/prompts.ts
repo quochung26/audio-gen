@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { prisma, type PromptStep } from "@audio/database";
-import { checkPromptVariables, pickPrompt, PROMPT_VARIABLES } from "@audio/llm";
+import {
+  checkPromptVariables,
+  GEN_PARAMS,
+  knownGenParams,
+  parseGenParams,
+  pickPrompt,
+  PROMPT_VARIABLES,
+  unknownGenParamKeys,
+} from "@audio/llm";
 import { field, UserError } from "../lib/http";
 
 export const prompts = new Hono();
@@ -14,7 +22,17 @@ prompts.get("/", async (c) => {
     const active = rows.filter((x) => x.step === p.step && x.active);
     return { ...p, wins: pickPrompt(active, p.genre === "*" ? undefined : p.genre)?.id === p.id };
   });
-  return c.json({ prompts: withWinner, steps: Object.keys(PROMPT_VARIABLES) });
+  return c.json({
+    prompts: withWinner.map((p) => ({
+      ...p,
+      params: knownGenParams(p.params),
+      unknownParams: unknownGenParamKeys(p.params),
+    })),
+    steps: Object.keys(PROMPT_VARIABLES),
+    // Bảng khai báo đi kèm để Studio dựng ô nhập mà không phải chép lại khoảng
+    // hợp lệ — chép lại là sớm muộn giao diện cho nhập thứ mà API từ chối.
+    genParams: GEN_PARAMS,
+  });
 });
 
 prompts.get("/:id", async (c) => {
@@ -24,7 +42,12 @@ prompts.get("/:id", async (c) => {
   const runs = await prisma.llmRun.count({ where: { promptId: id } });
 
   return c.json({
-    prompt,
+    prompt: {
+      ...prompt,
+      params: knownGenParams(prompt.params),
+      unknownParams: unknownGenParamKeys(prompt.params),
+    },
+    genParams: GEN_PARAMS,
     wins: pickPrompt(siblings, prompt.genre === "*" ? undefined : prompt.genre)?.id === id,
     check: checkPromptVariables(prompt.step, prompt.content),
     available: PROMPT_VARIABLES[prompt.step],
@@ -55,19 +78,19 @@ prompts.put("/:id", async (c) => {
     );
   }
 
-  let params: object = {};
-  const rawParams = field(body, "params");
-  if (rawParams) {
-    try {
-      params = JSON.parse(rawParams) as object;
-    } catch {
-      throw new UserError("Tham số không phải JSON hợp lệ");
-    }
-  }
+  // Tham số gửi lên thành từng ô riêng chứ không còn là một khối JSON: gõ sai
+  // tên khoá thì xưa nay không có gì báo, tham số lặng lẽ bị bỏ qua.
+  const parsed = parseGenParams(body as Record<string, unknown>);
+  if (parsed.errors.length > 0) throw new UserError(parsed.errors.join("; "));
 
   await prisma.prompt.update({
     where: { id },
-    data: { content, model: field(body, "model") || null, note: field(body, "note") || null, params },
+    data: {
+      content,
+      model: field(body, "model") || null,
+      note: field(body, "note") || null,
+      params: parsed.params,
+    },
   });
   return c.json({ ok: "Đã lưu. Job chạy sau đó dùng bản mới; job đang chạy vẫn dùng bản cũ." });
 });
@@ -76,6 +99,25 @@ prompts.put("/:id", async (c) => {
  * Tạo biến thể prompt cho một thể loại — cách bảo AI viết khác đi theo thể loại
  * mà không đụng vào bản mặc định.
  */
+/**
+ * Sửa RIÊNG tham số sinh, không đụng tới nội dung prompt.
+ *
+ * Để trang Cài đặt vặn temperature cả sáu bước trong một màn, thay vì mở lần
+ * lượt sáu trang prompt.
+ */
+prompts.put("/:id/params", async (c) => {
+  const body = await c.req.parseBody();
+  const parsed = parseGenParams(body as Record<string, unknown>);
+  if (parsed.errors.length > 0) throw new UserError(parsed.errors.join("; "));
+
+  const p = await prisma.prompt.update({
+    where: { id: c.req.param("id") },
+    data: { params: parsed.params },
+    select: { step: true },
+  });
+  return c.json({ ok: `Đã lưu tham số cho ${p.step}.` });
+});
+
 prompts.post("/variants/:step", async (c) => {
   const step = c.req.param("step") as PromptStep;
   const body = await c.req.parseBody();

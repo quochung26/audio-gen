@@ -343,7 +343,11 @@ Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể 
 | `ARC_SUMMARY` | `maxWords` `previousArc` `summaries` |
 | `METADATA` | `text` |
 
-Tham số sinh (`temperature`, `numCtx`…) và **model riêng cho bước đó** sửa cùng chỗ — để trống thì dùng model theo cấu hình. `temperature` cao thì văn biến hoá hơn nhưng dễ lạc — bước biên tập và tóm tắt để thấp. Bản mặc định không tắt và không xoá được: mọi thể loại chưa có biến thể đều rơi về nó.
+Tham số sinh và **model riêng cho bước đó** sửa cùng chỗ — để trống thì dùng model theo cấu hình. Tham số vặn được cả ở trang Prompt lẫn mục **Tham số sinh** trên `/model`, nơi bày cả sáu bước trong một màn (chỉ bản đang thắng — sửa biến thể thì vào trang Prompt).
+
+Trước đây tham số là một ô gõ JSON tay: gõ sai tên khoá thì **không có gì báo** — provider chỉ đọc các khoá nó biết, nên tham số lặng lẽ bị bỏ qua, văn vẫn ra, chỉ là ra bằng giá trị mặc định. Giờ là ô nhập số, khoảng hợp lệ do API cấp (Studio không chép lại, chép lại là sớm muộn giao diện cho nhập thứ API từ chối), và khoá lạ trong dữ liệu cũ được chỉ mặt. Ô trống nghĩa là **không đặt** — rơi về mặc định của provider, và số mờ trong ô chính là giá trị đó; khác hẳn `temperature: 0`, vốn là một lựa chọn thật.
+
+Khoảng hợp lệ chặn hai thứ hay hỏng nhất: `temperature` trên 1.5 thì phần lớn model bắt đầu nói lảm nhảm, và `numCtx` quá nhỏ thì cắt mất phần đầu prompt — mất luôn Story Bible mà không báo gì. `temperature` cao thì văn biến hoá hơn nhưng dễ lạc — bước biên tập và tóm tắt để thấp. Bản mặc định không tắt và không xoá được: mọi thể loại chưa có biến thể đều rơi về nó.
 
 ---
 

@@ -326,9 +326,19 @@ const FIXTURES: Record<string, unknown> = {
         note: "mặc định",
         content: "{{context}}",
         wins: true,
+        params: { temperature: 0.95, numCtx: 16384 },
+        unknownParams: [],
       },
     ],
     steps: ["OUTLINE", "WRITE_SCENE", "AUDIO_EDIT", "SUMMARIZE", "ARC_SUMMARY", "METADATA"],
+    // Bảng khai báo do API cấp — Studio không chép lại khoảng hợp lệ.
+    genParams: [
+      { key: "temperature", label: "temperature", hint: "Cao thì văn biến hoá hơn nhưng dễ lạc đề.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
+      { key: "topP", label: "topP", hint: "Hạ xuống là văn an toàn hơn, nhạt hơn.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
+      { key: "repeatPenalty", label: "repeatPenalty", hint: "Phạt lặp cụm từ.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
+      { key: "numCtx", label: "numCtx", hint: "Trần ngữ cảnh.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
+      { key: "maxTokens", label: "maxTokens", hint: "Trần độ dài câu trả lời.", min: 128, max: 32768, step: 128, fallback: 1500 },
+    ],
   },
   "/api/prompts/p1": {
     prompt: {
@@ -341,8 +351,17 @@ const FIXTURES: Record<string, unknown> = {
       model: null,
       note: null,
       params: { temperature: 0.95 },
+      unknownParams: ["top_k"],
       updatedAt: "2026-08-18T07:00:00Z",
     },
+    // Bảng khai báo do API cấp — Studio không chép lại khoảng hợp lệ.
+    genParams: [
+      { key: "temperature", label: "temperature", hint: "Cao thì văn biến hoá hơn nhưng dễ lạc đề.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
+      { key: "topP", label: "topP", hint: "Hạ xuống là văn an toàn hơn, nhạt hơn.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
+      { key: "repeatPenalty", label: "repeatPenalty", hint: "Phạt lặp cụm từ.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
+      { key: "numCtx", label: "numCtx", hint: "Trần ngữ cảnh.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
+      { key: "maxTokens", label: "maxTokens", hint: "Trần độ dài câu trả lời.", min: 128, max: 32768, step: 128, fallback: 1500 },
+    ],
     wins: true,
     check: { used: ["context"], unknown: [], unused: [] },
     available: ["context"],
@@ -551,5 +570,26 @@ describe("ngôn ngữ", () => {
     await waitFor(() => expect(container.textContent).toContain("Ngôn ngữ mặc định"));
     // Phải nói rõ là KHÔNG đụng tới bộ đã có.
     expect(container.textContent).toMatch(/không.*đụng tới bộ truyện đã có/);
+  });
+});
+
+describe("tham số sinh", () => {
+  it("trang Cài đặt vặn được tham số của từng bước", async () => {
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Tham số sinh"));
+    expect(container.textContent).toContain("WRITE_SCENE");
+    expect(container.querySelector('input[name="temperature"]')).toBeTruthy();
+    expect(container.querySelector('input[name="numCtx"]')).toBeTruthy();
+  });
+
+  it("trang Prompt dùng ô nhập, KHÔNG còn bắt gõ JSON", async () => {
+    // Gõ sai tên khoá trong JSON thì không có gì báo — tham số lặng lẽ bị bỏ
+    // qua và văn vẫn ra, chỉ là ra bằng giá trị mặc định.
+    const { container } = renderAt("/prompts/p1", "/prompts/:id", <Prompt />);
+    await waitFor(() => expect(container.textContent).toContain("Tham số sinh"));
+    expect(container.querySelector('textarea[name="params"]')).toBeNull();
+    expect(container.querySelector<HTMLInputElement>('input[name="temperature"]')!.value).toBe("0.95");
+    // Khoá lạ trong dữ liệu cũ được chỉ ra.
+    expect(container.textContent).toContain("top_k");
   });
 });

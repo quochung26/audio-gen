@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
+import { modelChoices } from "@/lib/model-choices";
+import { GenParamsSettings } from "@/components/GenParamsSettings";
 import { ModelDefaultField } from "@/components/ModelDefaultField";
 import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
 import { ProviderSwitch } from "@/components/ProviderSwitch";
@@ -90,25 +92,9 @@ export function Models() {
   const or = useApi<OrStatus>("/api/models/openrouter");
   if (isLoading || !data) return <Loading />;
 
-  /**
-   * Model liệt kê được để chọn.
-   *
-   * Ollama: model đã tải — chọn model chưa có thì job chết giữa chừng một tập
-   * đang viết dở. OpenRouter: model đang đặt cộng model đã dùng gần đây, vì
-   * không thể đổ hơn 300 model vào một ô chọn.
-   */
-  const localChoices = data.reachable
-    ? data.installed.map((m) => ({
-        value: m.name,
-        label:
-          m.name +
-          (m.parameterSize ? ` · ${m.parameterSize}` : "") +
-          (m.quantization ? ` · ${m.quantization}` : ""),
-      }))
-    : [];
   // Nhúng vector LUÔN chạy tại chỗ, kể cả khi đang chạy OpenRouter.
-  const choicesFor =
-    data.provider === "ollama" ? localChoices : data.recent.map((m) => ({ value: m, label: m }));
+  const localChoices = modelChoices({ ...data, provider: "ollama" });
+  const choicesFor = modelChoices(data);
 
   const tag = quant ? `${base}-${quant}` : base;
   const p = data.pull;
@@ -353,6 +339,8 @@ export function Models() {
           </p>
         )}
       </Section>
+
+      <GenParamsSettings />
 
       {data.promptOverrides.length > 0 && (
         <Section title="Prompt đặt model riêng">

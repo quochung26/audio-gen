@@ -1,4 +1,5 @@
 import { useApi } from "@/lib/api";
+import { modelChoices } from "@/lib/model-choices";
 
 interface ModelsData {
   reachable: boolean;
@@ -24,18 +25,7 @@ export function ModelPicker({ kind = "write" }: { kind?: "write" | "utility" }) 
   const { data } = useApi<ModelsData>("/api/models");
   if (!data) return null;
 
-  const choices =
-    data.provider === "ollama"
-      ? data.reachable
-        ? data.installed.map((m) => ({
-            value: m.name,
-            label:
-              m.name +
-              (m.parameterSize ? ` · ${m.parameterSize}` : "") +
-              (m.quantization ? ` · ${m.quantization}` : ""),
-          }))
-        : []
-      : (data.recent ?? []).map((m) => ({ value: m, label: m }));
+  const choices = modelChoices(data);
 
   // Không có gì để chọn thì ẩn hẳn — một ô select rỗng chỉ làm rối.
   if (choices.length === 0) return null;
