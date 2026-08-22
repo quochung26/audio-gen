@@ -13,6 +13,12 @@ import {
   type ProviderName,
 } from "@audio/llm";
 import { describeConnectError } from "../lib/connect-error";
+import {
+  collectQuantVariants,
+  hfPullTag,
+  parseHfRepo,
+  type HfFile,
+} from "../lib/huggingface";
 import { UserError, field } from "../lib/http";
 import {
   averagePerEpisode,
@@ -237,6 +243,52 @@ models.put("/language", async (c) => {
   }
   const now = await getDefaultLanguage();
   return c.json({ ok: `Truyện mới sẽ viết bằng ${now === "en" ? "tiếng Anh" : "tiếng Việt"}.` });
+});
+
+/**
+ * Quét một kho Hugging Face, liệt kê các bản lượng tử hoá tải được.
+ *
+ * Ollama kéo thẳng được từ HF bằng tên `hf.co/{repo}:{QUANT}`, nên chỗ này chỉ
+ * cần đọc danh sách file trong kho và gom theo mức lượng tử hoá.
+ */
+models.get("/hf", async (c) => {
+  const repo = parseHfRepo(c.req.query("repo") ?? "");
+  if (!repo) {
+    throw new UserError(
+      'Không đọc được tên kho. Dán đường dẫn dạng "https://huggingface.co/<người>/<kho>".',
+    );
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`https://huggingface.co/api/models/${repo}/tree/main?recursive=true`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (err) {
+    throw new UserError(`Không gọi được Hugging Face: ${describeConnectError(err, 15_000)}`);
+  }
+
+  if (res.status === 404 || res.status === 401 || res.status === 403) {
+    // Hugging Face trả 401 cho CẢ kho không tồn tại lẫn kho riêng tư — cố tình,
+    // để không lộ ra kho nào có thật. Nói cả hai khả năng còn hơn đoán bừa một
+    // cái rồi bắt người dùng đi tìm nhầm hướng.
+    throw new UserError(
+      `Không đọc được kho "${repo}": kho không tồn tại, hoặc là kho riêng tư / cần bấm đồng ý điều khoản trên Hugging Face trước. Kiểm tra lại đường dẫn.`,
+    );
+  }
+  if (!res.ok) throw new UserError(`Hugging Face trả HTTP ${res.status}`);
+
+  const variants = collectQuantVariants((await res.json()) as HfFile[]);
+  if (variants.length === 0) {
+    throw new UserError(
+      `Kho "${repo}" không có file GGUF nào. Ollama chỉ chạy được GGUF — tìm kho có đuôi "-GGUF".`,
+    );
+  }
+
+  return c.json({
+    repo,
+    variants: variants.map((v) => ({ ...v, tag: hfPullTag(repo, v.quant) })),
+  });
 });
 
 models.get("/pull", (c) => c.json({ pull: withElapsed(pull) }));

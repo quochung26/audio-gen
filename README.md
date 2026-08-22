@@ -260,6 +260,16 @@ Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì 
 | `q6_K` | Văn mượt hơn rõ, nặng hơn ~35% so với Q4 |
 | `q8_0` | Gần như bản gốc, nặng gấp đôi Q4 |
 
+**Tải thẳng từ Hugging Face.** Dán đường dẫn một kho GGUF rồi bấm quét: trang liệt kê đúng những bản lượng tử hoá kho đó **thật sự có**, kèm dung lượng, bấm là tải. Danh sách `q4_K_M`/`q5_K_M`/… cố định ở mục trên chỉ đúng với thư viện chính chủ của Ollama; kho trên HF mỗi nơi một kiểu — có kho chỉ có hai bản, có kho hơn hai chục bản kể cả các bản `IQ*`.
+
+Ollama kéo được từ HF bằng tên `hf.co/{kho}:{QUANT}`, nên phần việc chỉ là bóc tên kho khỏi đường dẫn (chấp nhận cả `/tree/main`, `/blob/main/…`, tham số truy vấn) và gom file `.gguf` theo mức lượng tử hoá.
+
+Dung lượng **cộng theo bản, không theo file**: model lớn hay bị chia chục phần, hiện dung lượng từng phần thì không ai ước lượng được phải tải bao nhiêu. Lấy `lfs.size` chứ không lấy `size` — với file LFS thì `size` chỉ là kích thước con trỏ, khoảng 130 byte.
+
+Mức lượng tử hoá giữ **nguyên chữ hoa thường** như trong tên file: Ollama đối chiếu tag với chuỗi đó, đổi hoa thường là đi tìm một bản không tồn tại.
+
+Kho không đọc được thì nói cả hai khả năng — không tồn tại, hoặc riêng tư/cần đồng ý điều khoản — vì Hugging Face cố tình trả 401 cho cả hai để không lộ kho nào có thật.
+
 **Thanh tiến độ cộng theo từng lớp ảnh.** Ollama trả tiến độ theo lớp, mỗi lớp có `digest` riêng và `completed` đếm lại từ 0 — cộng dồn thẳng thì thanh tiến độ **nhảy lùi** mỗi khi sang lớp mới, nhìn như đang tải hỏng.
 
 Tiến độ giữ trong bộ nhớ tiến trình API, không lưu DB: nó là trạng thái nhất thời. API khởi động lại thì Ollama **vẫn tải tiếp** (việc tải chạy bên phía Ollama), chỉ mất thanh tiến độ — bấm tải lại cùng model là Ollama nối tiếp phần đã có.

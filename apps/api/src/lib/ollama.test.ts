@@ -115,3 +115,12 @@ describe("isValidModelTag", () => {
     ["quá dài", "a".repeat(129)],
   ])("từ chối %s", (_name, tag) => expect(isValidModelTag(tag)).toBe(false));
 });
+
+describe("tên model kéo từ Hugging Face", () => {
+  it("chấp nhận dạng hf.co/<kho>:<mức lượng tử hoá>", () => {
+    // Nếu luật này siết lại thì nút "Tải" ở mục Hugging Face gãy mà không có
+    // test nào khác bắt được.
+    expect(isValidModelTag("hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M")).toBe(true);
+    expect(isValidModelTag("hf.co/a/b:q4_k_m")).toBe(true);
+  });
+});

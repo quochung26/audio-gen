@@ -4,6 +4,7 @@ import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { modelChoices } from "@/lib/model-choices";
 import { GenParamsSettings } from "@/components/GenParamsSettings";
+import { HuggingFacePanel } from "@/components/HuggingFacePanel";
 import { ModelDefaultField } from "@/components/ModelDefaultField";
 import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
 import { ProviderSwitch } from "@/components/ProviderSwitch";
@@ -276,6 +277,8 @@ export function Models() {
           </p>
         </Form>
       </Section>
+
+      <HuggingFacePanel busy={Boolean(p && !p.done)} />
 
       <Section title={`Model đang có (${data.installed.length})`}>
         {data.installed.length === 0 ? (
