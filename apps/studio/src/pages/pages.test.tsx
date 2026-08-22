@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -633,5 +633,38 @@ describe("khi không có model nào để chọn", () => {
     expect(container.textContent).toContain("Không có model nào để chọn");
     // Vẫn cho biết lần chạy này sẽ dùng gì.
     expect(container.textContent).toContain("dùng mặc định");
+  });
+});
+
+describe("chọn model ngay trong danh sách đã tải", () => {
+  it("mỗi model có nút đặt làm model viết / việc phụ / nhúng vector", async () => {
+    // Trước đây danh sách này chỉ có nút xoá: nhìn thấy model mình vừa tải mà
+    // không có cách nào dùng nó.
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Model đang có"));
+    for (const name of ["dùng để viết", "việc phụ", "nhúng vector"]) {
+      expect(screen.getAllByRole("button", { name }).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("bấm là gửi đúng tên model lên đúng loại việc", async () => {
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("qwen3:8b"));
+    fireEvent.click(screen.getAllByRole("button", { name: "dùng để viết" })[0]!);
+
+    await waitFor(() => {
+      const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
+        (c) => String(c[0]) === "/api/models/default/write",
+      );
+      expect(call).toBeTruthy();
+      expect((call![1] as { body: FormData }).body.get("model")).toBe("qwen3:8b");
+    });
+  });
+
+  it("chỉ ra model nào đang được dùng làm gì", async () => {
+    // Fixture đặt qwen3:8b làm model việc phụ.
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Model đang có"));
+    expect(container.textContent).toContain("đang dùng: Việc phụ");
   });
 });

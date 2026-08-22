@@ -97,6 +97,10 @@ export function Models() {
   const choicesFor = modelChoices(data);
   const pick = (kind: string) => (kind === "embed" ? localChoices : choicesFor);
 
+  /** Model này đang được đặt làm gì — để khỏi phải dò ngược lên mục bên dưới. */
+  const usedAs = (name: string) =>
+    data.configured.filter((c) => c.value === name).map((c) => c.label.split(" — ")[0]!);
+
   const tag = quant ? `${base}-${quant}` : base;
   const p = data.pull;
   const pct = p && p.totalBytes > 0 ? (p.completedBytes / p.totalBytes) * 100 : 0;
@@ -285,18 +289,59 @@ export function Models() {
                 <div className="min-w-0">
                   <div className="font-mono text-sm">{m.name}</div>
                   <div className="mt-0.5 text-xs text-neutral-600">
+                    {usedAs(m.name).length > 0 && (
+                      <span className="mr-1 text-emerald-400">
+                        đang dùng: {usedAs(m.name).join(", ")} ·{" "}
+                      </span>
+                    )}
                     {gb(m.sizeBytes)}
                     {m.parameterSize ? ` · ${m.parameterSize}` : ""}
                     {m.quantization ? ` · ${m.quantization}` : ""}
                   </div>
                 </div>
-                <ActionButton
-                  path={`/api/models/${encodeURIComponent(m.name)}`}
-                  method="DELETE"
-                  confirmText={`Xoá ${m.name} khỏi Ollama? Tải lại sẽ mất ${gb(m.sizeBytes)} băng thông.`}
-                >
-                  xoá
-                </ActionButton>
+                <span className="flex flex-wrap items-center gap-1">
+                  {/*
+                    Chọn ngay tại chỗ. Trước đây danh sách này chỉ có nút xoá:
+                    nhìn thấy model mình vừa tải mà không có cách nào dùng nó,
+                    phải cuộn xuống mục khác rồi chọn lại từ đầu.
+
+                    Ẩn khi đang chạy OpenRouter vì API ghi mặc định theo provider
+                    đang chạy — bấm lúc đó là nhét tên model Ollama vào ô của
+                    OpenRouter và bị từ chối.
+                  */}
+                  {data.provider !== "openrouter" && (
+                    <>
+                      <ActionButton
+                        path="/api/models/default/write"
+                        method="PUT"
+                        body={{ model: m.name }}
+                      >
+                        dùng để viết
+                      </ActionButton>
+                      <ActionButton
+                        path="/api/models/default/utility"
+                        method="PUT"
+                        body={{ model: m.name }}
+                      >
+                        việc phụ
+                      </ActionButton>
+                      <ActionButton
+                        path="/api/models/default/embed"
+                        method="PUT"
+                        body={{ model: m.name }}
+                      >
+                        nhúng vector
+                      </ActionButton>
+                    </>
+                  )}
+                  <ActionButton
+                    path={`/api/models/${encodeURIComponent(m.name)}`}
+                    method="DELETE"
+                    confirmText={`Xoá ${m.name} khỏi Ollama? Tải lại sẽ mất ${gb(m.sizeBytes)} băng thông.`}
+                  >
+                    xoá
+                  </ActionButton>
+                </span>
               </div>
             ))}
           </div>

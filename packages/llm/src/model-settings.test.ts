@@ -186,6 +186,16 @@ describe("model mặc định tách theo provider", () => {
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
   });
 
+  it("mock dùng CHUNG ô lưu với ollama", async () => {
+    // Phần lớn thời gian dựng máy là chạy giả lập. Tách ra thì model đặt lúc đó
+    // biến mất ngay khi chuyển sang Ollama thật, mà chẳng có gì báo.
+    await setActiveProvider("mock");
+    await setDefaultModel("write", "qwen3:32b");
+
+    await setActiveProvider("ollama");
+    expect(await getDefaultModel("write")).toBe("qwen3:32b");
+  });
+
   it("nhúng vector KHÔNG tách — luôn chạy tại chỗ", async () => {
     await setActiveProvider("ollama");
     await setDefaultModel("embed", "bge-m3-custom");

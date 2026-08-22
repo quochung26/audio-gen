@@ -266,6 +266,10 @@ Tiến độ giữ trong bộ nhớ tiến trình API, không lưu DB: nó là t
 
 Dung lượng hiển thị bằng **GB thập phân** cho khớp con số trên ollama.com và trong `ollama list`; dùng GiB thì cùng một model hiện 2,8 ở đây và 3,0 ở kia.
 
+Danh sách **Model đang có** chọn được ngay tại chỗ — mỗi model có nút đặt làm model viết / việc phụ / nhúng vector, và ghi rõ nó đang được dùng làm gì. Trước đây danh sách này chỉ có nút xoá: nhìn thấy model mình vừa tải mà không có cách nào dùng nó.
+
+Provider `mock` dùng **chung** ô lưu model mặc định với `ollama`: nó vốn là bản đứng thay cho model chạy tại chỗ và nhận cùng kiểu tên. Tách ra thì cấu hình đặt lúc đang chạy giả lập — tức là lúc phần lớn người ta dựng máy — biến mất ngay khi chuyển sang Ollama thật, mà chẳng có gì báo.
+
 **Cảnh báo model đã cấu hình mà chưa tải.** Không cảnh báo thì job chạy tới bước đó mới lỗi, lúc đó đang giữa chừng một lượt viết dài.
 
 Ollama chưa chạy thì trang nói rõ *"Không có gì đang lắng nghe ở địa chỉ này"* — `fetch` của Node trả đúng một chuỗi "fetch failed" cho mọi lỗi mạng và giấu nguyên nhân trong `cause`.

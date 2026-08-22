@@ -29,7 +29,19 @@ const PROVIDER_KEY = "llm.provider";
  * Nhúng vector không tách: nó luôn chạy tại chỗ.
  */
 function settingKey(kind: ModelKind, provider: ProviderName): string {
-  return kind === "embed" ? "model.embed" : `model.${provider}.${kind}`;
+  return kind === "embed" ? "model.embed" : `model.${storageProvider(provider)}.${kind}`;
+}
+
+/**
+ * Provider nào dùng chung ô lưu model mặc định.
+ *
+ * `mock` dùng chung với `ollama`: nó vốn là bản đứng thay cho model chạy tại
+ * chỗ và nhận cùng kiểu tên model. Tách ra thì cấu hình đặt lúc đang chạy giả
+ * lập — tức là lúc phần lớn người ta dựng máy — biến mất ngay khi chuyển sang
+ * Ollama thật, mà chẳng có gì báo.
+ */
+function storageProvider(provider: ProviderName): "ollama" | "openrouter" {
+  return provider === "openrouter" ? "openrouter" : "ollama";
 }
 
 /**
@@ -73,7 +85,7 @@ export function envDefaultModel(kind: ModelKind, provider: ProviderName): string
   const env = loadEnv();
   if (kind === "embed") return env.EMBED_MODEL;
 
-  if (provider === "openrouter") {
+  if (storageProvider(provider) === "openrouter") {
     return kind === "write" ? env.OPENROUTER_MODEL_WRITE : env.OPENROUTER_MODEL_UTILITY;
   }
   return kind === "write" ? env.OLLAMA_MODEL_WRITE : env.OLLAMA_MODEL_UTILITY;
