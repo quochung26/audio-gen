@@ -18,26 +18,29 @@ afterEach(cleanup);
 describe("Layout", () => {
   it("có đủ các mục việc hằng ngày", () => {
     mount();
-    for (const label of ["Truyện", "Prompt", "Thư viện nhạc", "Thống kê", "Bình luận"]) {
+    for (const label of ["Truyện", "Thư viện nhạc", "Thống kê", "Bình luận"]) {
       expect(screen.getByRole("link", { name: label })).toBeTruthy();
     }
   });
 
-  it("Model nằm TRONG nhóm Cài đặt, không nằm ở menu chính", () => {
+  it("Model và Prompt nằm TRONG nhóm Cài đặt, không nằm ở menu chính", () => {
     const { container } = mount();
     const navs = container.querySelectorAll("nav");
-    const settings = [...navs].find((n) => n.textContent?.includes("Cài đặt"));
+    const settings = [...navs].find((n) => n.textContent?.includes("Cài đặt")) as HTMLElement;
+    const main = [...navs].find((n) => !n.textContent?.includes("Cài đặt")) as HTMLElement;
     expect(settings).toBeTruthy();
-    expect(within(settings as HTMLElement).getByRole("link", { name: /Model/ })).toBeTruthy();
 
-    // Menu chính không được còn Model — đây chính là thứ vừa chuyển đi.
-    const main = [...navs].find((n) => !n.textContent?.includes("Cài đặt"));
-    expect(within(main as HTMLElement).queryByRole("link", { name: /Model/ })).toBeNull();
+    for (const name of [/Model/, /^Prompt$/]) {
+      expect(within(settings).getByRole("link", { name })).toBeTruthy();
+      // Menu chính không được còn — đây chính là thứ vừa chuyển đi.
+      expect(within(main).queryByRole("link", { name })).toBeNull();
+    }
   });
 
-  it("Model trỏ đúng đường dẫn cũ, không làm hỏng link đã lưu", () => {
+  it("giữ nguyên đường dẫn cũ, không làm hỏng link đã lưu", () => {
     mount();
     expect(screen.getByRole("link", { name: /Model/ }).getAttribute("href")).toBe("/model");
+    expect(screen.getByRole("link", { name: /^Prompt$/ }).getAttribute("href")).toBe("/prompts");
   });
 
   it("đánh dấu mục đang mở", () => {

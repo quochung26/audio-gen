@@ -4,7 +4,6 @@ import { Link, NavLink } from "react-router";
 /** Việc hằng ngày: nội dung của bạn. */
 const NAV = [
   ["/series", "Truyện"],
-  ["/prompts", "Prompt"],
   ["/tracks", "Thư viện nhạc"],
   ["/thong-ke", "Thống kê"],
   ["/binh-luan", "Bình luận"],
@@ -13,11 +12,16 @@ const NAV = [
 /**
  * Cấu hình máy chạy thế nào — đặt riêng ở cuối cột.
  *
- * Nhóm chứ không phải menu xổ xuống: một menu xổ ra để lộ đúng một mục thì
- * thêm một cú bấm mà chẳng giấu được gì. Nhóm luôn nhìn thấy, và thêm mục sau
- * không phải đổi kiểu điều hướng.
+ * Nhóm chứ không phải menu xổ xuống: xổ ra để lộ vài mục thì thêm một cú bấm mà
+ * chẳng giấu được gì.
+ *
+ * Prompt nằm đây chứ không nằm ở menu chính vì nó là cách MÁY viết, không phải
+ * nội dung của bạn — cùng loại với việc chọn model.
  */
-const SETTINGS_NAV = [["/model", "Model & ngôn ngữ"]] as const;
+const SETTINGS_NAV = [
+  ["/prompts", "Prompt"],
+  ["/model", "Model & ngôn ngữ"],
+] as const;
 
 function itemClass({ isActive }: { isActive: boolean }): string {
   return `block rounded px-3 py-1.5 text-sm transition ${
