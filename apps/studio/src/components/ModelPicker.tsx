@@ -4,6 +4,8 @@ import { modelChoices } from "@/lib/model-choices";
 interface ModelsData {
   reachable: boolean;
   provider: string;
+  /** Địa chỉ Ollama — để lời giải thích chỉ thẳng chỗ cần sửa. */
+  url: string;
   installed: Array<{ name: string; parameterSize: string | null; quantization: string | null }>;
   recent: string[];
   configured: Array<{ label: string; kind: string; value: string; fromEnv: boolean }>;
@@ -25,12 +27,22 @@ export function ModelPicker({ kind = "write" }: { kind?: "write" | "utility" }) 
   const { data } = useApi<ModelsData>("/api/models");
   if (!data) return null;
 
-  const choices = modelChoices(data);
-
-  // Không có gì để chọn thì ẩn hẳn — một ô select rỗng chỉ làm rối.
-  if (choices.length === 0) return null;
-
+  const { choices, reason } = modelChoices(data);
   const def = data.configured.find((c) => c.kind === kind);
+
+  // Trước đây chỗ này ẩn hẳn khi không có gì để chọn — nhìn vào form thì tưởng
+  // Studio không cho chọn model, chứ không biết là Ollama chưa chạy.
+  if (choices.length === 0) {
+    return (
+      <div>
+        <span className="mb-1 block text-xs text-neutral-500">Model cho lần chạy này</span>
+        <p className="rounded border border-neutral-800 bg-neutral-900/60 p-2.5 text-xs text-neutral-400">
+          Không có model nào để chọn — lần chạy này dùng mặc định
+          {def ? ` (${def.value})` : ""}. {reason}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <label className="block">

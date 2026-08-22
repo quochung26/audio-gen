@@ -17,11 +17,14 @@ export interface ModelChoice {
  */
 export function ModelDefaultField({
   choices,
+  emptyReason,
   value,
   fromEnv,
   envValue,
 }: {
   choices: ModelChoice[];
+  /** Vì sao không có gì để chọn — hiện ngay dưới ô, không im lặng. */
+  emptyReason?: string | null;
   /** Giá trị đang lưu. Rỗng nghĩa là đang lấy theo `.env`. */
   value: string;
   fromEnv: boolean;
@@ -45,7 +48,7 @@ export function ModelDefaultField({
           placeholder={envValue}
           className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 font-mono text-sm"
         />
-        {choices.length > 0 && (
+        {choices.length > 0 ? (
           <button
             type="button"
             onClick={() => setManual(false)}
@@ -53,6 +56,12 @@ export function ModelDefaultField({
           >
             ← chọn từ danh sách
           </button>
+        ) : (
+          // Im lặng đổi sang ô gõ tay thì nhìn vào chỉ thấy "không có chỗ chọn
+          // model" mà không biết vì sao.
+          <p className="text-xs text-amber-500">
+            Không có model nào để chọn. {emptyReason}
+          </p>
         )}
       </div>
     );

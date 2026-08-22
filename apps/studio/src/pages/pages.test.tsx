@@ -593,3 +593,45 @@ describe("tham số sinh", () => {
     expect(container.textContent).toContain("top_k");
   });
 });
+
+describe("khi không có model nào để chọn", () => {
+  /** Ollama chưa chạy — đúng tình huống hay gặp nhất. */
+  function withoutOllama() {
+    const base = FIXTURES["/api/models"] as Record<string, unknown>;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string) => {
+        const path = String(input).split("?")[0]!;
+        const body =
+          path === "/api/models"
+            ? { ...base, reachable: false, version: null, installed: [], recent: [] }
+            : FIXTURES[path];
+        return Promise.resolve(
+          new Response(JSON.stringify(body ?? { error: "thiếu fixture" }), {
+            status: body ? 200 : 404,
+          }),
+        );
+      }),
+    );
+  }
+
+  it("trang Model nói KHÔNG CÓ model nào, kèm lý do và địa chỉ", async () => {
+    // Trước đây nó lặng lẽ đổi sang ô gõ tay — nhìn vào chỉ thấy "không có chỗ
+    // chọn model" mà không biết là do Ollama chưa chạy.
+    withoutOllama();
+    const { container } = renderAt("/model", "/model", <Models />);
+    await waitFor(() => expect(container.textContent).toContain("Model mặc định"));
+    expect(container.textContent).toContain("Không có model nào để chọn");
+    expect(container.textContent).toContain("http://localhost:11434");
+    expect(container.textContent).toContain("ollama serve");
+  });
+
+  it("form tạo truyện cũng nói, thay vì ẩn ô chọn đi", async () => {
+    withoutOllama();
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    await waitFor(() => expect(container.textContent).toContain("Model cho lần chạy này"));
+    expect(container.textContent).toContain("Không có model nào để chọn");
+    // Vẫn cho biết lần chạy này sẽ dùng gì.
+    expect(container.textContent).toContain("dùng mặc định");
+  });
+});

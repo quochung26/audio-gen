@@ -270,6 +270,8 @@ Dung lượng hiển thị bằng **GB thập phân** cho khớp con số trên 
 
 Ollama chưa chạy thì trang nói rõ *"Không có gì đang lắng nghe ở địa chỉ này"* — `fetch` của Node trả đúng một chuỗi "fetch failed" cho mọi lỗi mạng và giấu nguyên nhân trong `cause`.
 
+**Không có model để chọn thì phải NÓI RA.** Trước đây danh sách rỗng thì ô chọn lặng lẽ đổi sang ô gõ tay, còn ô "Model cho lần chạy này" thì ẩn hẳn — nhìn vào chỉ thấy "Studio không cho chọn model", chứ không biết là Ollama chưa chạy, hay chưa tải model nào, hay đang chạy OpenRouter. Ba trường hợp đó giờ có ba lời giải thích khác nhau, kèm địa chỉ Ollama để khỏi phải đi tra `.env`.
+
 ### OpenRouter — model đám mây
 
 Ollama chạy tại chỗ, rẻ và kín. OpenRouter là cổng vào hàng trăm model đám mây (Claude, GPT, Llama, Qwen…), dùng khi cần chất lượng văn mà máy ở nhà không với tới. Chọn **một trong hai**.

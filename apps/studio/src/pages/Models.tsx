@@ -95,6 +95,7 @@ export function Models() {
   // Nhúng vector LUÔN chạy tại chỗ, kể cả khi đang chạy OpenRouter.
   const localChoices = modelChoices({ ...data, provider: "ollama" });
   const choicesFor = modelChoices(data);
+  const pick = (kind: string) => (kind === "embed" ? localChoices : choicesFor);
 
   const tag = quant ? `${base}-${quant}` : base;
   const p = data.pull;
@@ -325,7 +326,8 @@ export function Models() {
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
               </div>
               <ModelDefaultField
-                choices={cfg.kind === "embed" ? localChoices : choicesFor}
+                choices={pick(cfg.kind).choices}
+                emptyReason={pick(cfg.kind).reason}
                 value={cfg.value}
                 fromEnv={cfg.fromEnv}
                 envValue={cfg.envValue}
