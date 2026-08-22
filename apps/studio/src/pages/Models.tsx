@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
+import { ModelDefaultField } from "@/components/ModelDefaultField";
 import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
 import { ProviderSwitch } from "@/components/ProviderSwitch";
 
@@ -58,6 +59,8 @@ interface Data {
     kind: string;
     value: string;
     fromEnv: boolean;
+    /** Giá trị trong .env — để nói rõ "bỏ trống" sẽ rơi về đâu. */
+    envValue: string;
     model: string;
     installed: boolean;
   }>;
@@ -86,6 +89,26 @@ export function Models() {
   // Cùng khoá với OpenRouterPanel nên TanStack Query dùng chung một lần gọi.
   const or = useApi<OrStatus>("/api/models/openrouter");
   if (isLoading || !data) return <Loading />;
+
+  /**
+   * Model liệt kê được để chọn.
+   *
+   * Ollama: model đã tải — chọn model chưa có thì job chết giữa chừng một tập
+   * đang viết dở. OpenRouter: model đang đặt cộng model đã dùng gần đây, vì
+   * không thể đổ hơn 300 model vào một ô chọn.
+   */
+  const localChoices = data.reachable
+    ? data.installed.map((m) => ({
+        value: m.name,
+        label:
+          m.name +
+          (m.parameterSize ? ` · ${m.parameterSize}` : "") +
+          (m.quantization ? ` · ${m.quantization}` : ""),
+      }))
+    : [];
+  // Nhúng vector LUÔN chạy tại chỗ, kể cả khi đang chạy OpenRouter.
+  const choicesFor =
+    data.provider === "ollama" ? localChoices : data.recent.map((m) => ({ value: m, label: m }));
 
   const tag = quant ? `${base}-${quant}` : base;
   const p = data.pull;
@@ -315,21 +338,15 @@ export function Models() {
                 {data.reachable && data.provider === "ollama" &&
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
               </div>
-              <input
-                name="model"
-                defaultValue={cfg.fromEnv ? "" : cfg.value}
-                placeholder={cfg.value}
-                list="model-installed"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 font-mono text-sm"
+              <ModelDefaultField
+                choices={cfg.kind === "embed" ? localChoices : choicesFor}
+                value={cfg.value}
+                fromEnv={cfg.fromEnv}
+                envValue={cfg.envValue}
               />
             </Form>
           ))}
         </div>
-        <datalist id="model-installed">
-          {data.installed.map((m) => (
-            <option key={m.name} value={m.name} />
-          ))}
-        </datalist>
         {data.reachable && data.provider === "ollama" && data.configured.some((c) => !c.installed) && (
           <p className="text-xs text-amber-500">
             Model đánh dấu “chưa tải” sẽ làm job lỗi khi chạy tới bước đó.

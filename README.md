@@ -247,6 +247,8 @@ giá trị trong .env
 
 Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì đổi model mặc định là việc làm thường xuyên lúc đang thử model nào viết hay hơn — mà sửa `.env` thì phải khởi động lại worker. Xoá ô đó là quay về giá trị `.env`, và trang có nhãn **từ .env** để biết đang lấy từ đâu.
 
+Ô đặt mặc định là **ô chọn**, liệt kê thẳng model dùng được (Ollama: model đã tải; OpenRouter: model đang đặt cộng model đã dùng gần đây). Trước đây nó là ô gõ tay kèm `datalist` — danh sách chỉ hiện khi bấm vào rồi gõ, nên nhìn vào trang thì tưởng không có chỗ chọn. Vẫn giữ đường gõ tay để đặt sẵn model **chưa** tải. Model đang đặt mà chưa tải vẫn nằm trong danh sách, kèm nhãn *(chưa tải)*: bỏ nó ra thì mở trang lên ô chọn nhảy sang giá trị khác, bấm Lưu là ghi đè mất lựa chọn cũ mà không ai bấm vào nó.
+
 Ô chọn model liệt kê **model Ollama đã tải** — chọn model chưa có thì job chết giữa chừng một tập đang viết dở — và **model OpenRouter đã dùng gần đây**. Không liệt kê hết hơn 300 model của OpenRouter: một ô select như thế không dùng được; muốn thử model mới thì vào trang Model, nơi có tìm kiếm và bảng giá. Không có gì để chọn thì ô đó ẩn hẳn.
 
 **Tải model** — chọn model và mức lượng tử hoá, trang hiện sẵn lệnh `ollama pull` tương ứng để đối chiếu trước khi bấm.

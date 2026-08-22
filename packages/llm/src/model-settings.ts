@@ -86,7 +86,7 @@ export async function getDefaultModel(kind: ModelKind): Promise<string> {
 }
 
 export async function getDefaultModels(): Promise<
-  Record<ModelKind, { value: string; fromEnv: boolean }>
+  Record<ModelKind, { value: string; fromEnv: boolean; envValue: string }>
 > {
   const provider = await getActiveProvider();
   const kinds: ModelKind[] = ["write", "utility", "embed"];
@@ -95,12 +95,13 @@ export async function getDefaultModels(): Promise<
   const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
   const byKey = new Map(rows.map((r) => [r.key, r.value.trim()]));
 
-  const out = {} as Record<ModelKind, { value: string; fromEnv: boolean }>;
+  const out = {} as Record<ModelKind, { value: string; fromEnv: boolean; envValue: string }>;
   for (const kind of kinds) {
     const stored = byKey.get(settingKey(kind, provider));
-    out[kind] = stored
-      ? { value: stored, fromEnv: false }
-      : { value: envDefaultModel(kind, provider), fromEnv: true };
+    // `envValue` đi kèm luôn: giao diện cần nói rõ "bỏ trống thì rơi về đâu",
+    // mà `value` lúc đã đặt tay thì không còn là giá trị của `.env` nữa.
+    const envValue = envDefaultModel(kind, provider);
+    out[kind] = stored ? { value: stored, fromEnv: false, envValue } : { value: envValue, fromEnv: true, envValue };
   }
   return out;
 }

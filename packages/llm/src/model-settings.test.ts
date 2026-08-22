@@ -87,8 +87,17 @@ describe("mặc định", () => {
   it("getDefaultModels nói rõ cái nào đến từ .env", async () => {
     await setDefaultModel("write", "qwen3:32b");
     const all = await getDefaultModels();
-    expect(all.write).toEqual({ value: "qwen3:32b", fromEnv: false });
-    expect(all.utility).toEqual({ value: "env-utility:8b", fromEnv: true });
+    expect(all.write).toMatchObject({ value: "qwen3:32b", fromEnv: false });
+    expect(all.utility).toMatchObject({ value: "env-utility:8b", fromEnv: true });
+  });
+
+  it("kèm luôn giá trị .env, kể cả khi đã đặt tay", async () => {
+    // Giao diện phải nói được "bỏ trống thì rơi về đâu" — mà `value` lúc đã đặt
+    // tay thì không còn là giá trị của `.env` nữa.
+    await setDefaultModel("write", "qwen3:32b");
+    const all = await getDefaultModels();
+    expect(all.write.envValue).toBe("env-write:14b");
+    expect(all.utility.envValue).toBe("env-utility:8b");
   });
 });
 
