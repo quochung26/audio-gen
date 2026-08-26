@@ -107,14 +107,29 @@ function hashVector(text: string, dim: number): number[] {
 
 let cached: EmbeddingProvider | undefined;
 
-export function getEmbedding(): EmbeddingProvider {
+/**
+ * Provider nhúng vector.
+ *
+ * Model KHÔNG lấy từ `.env` nữa mà từ cấu hình ở trang Model (hoặc model đã tải
+ * hợp việc nhúng). Vì thế hàm này async — provider phải biết model trước khi
+ * dựng, chứ không thể để trống rồi gửi tên rỗng lên Ollama.
+ */
+export async function getEmbedding(): Promise<EmbeddingProvider> {
   if (cached) return cached;
   const env = loadEnv();
-  cached =
-    env.EMBED_PROVIDER === "ollama"
-      ? new OllamaEmbedding(env.OLLAMA_URL, env.EMBED_MODEL)
-      : new MockEmbedding();
+  if (env.EMBED_PROVIDER !== "ollama") {
+    cached = new MockEmbedding();
+    return cached;
+  }
+
+  const { resolveModel } = await import("./model-settings");
+  cached = new OllamaEmbedding(env.OLLAMA_URL, await resolveModel({ kind: "embed" }));
   return cached;
+}
+
+/** Quên provider đang nhớ — gọi khi đổi model nhúng. */
+export function forgetEmbedding(): void {
+  cached = undefined;
 }
 
 /** Định dạng vector cho pgvector: '[0.1,0.2,...]' */

@@ -20,10 +20,7 @@ interface OllamaChunk {
 export class OllamaProvider implements LlmProvider {
   readonly name = "ollama";
 
-  constructor(
-    private readonly baseUrl: string,
-    private readonly defaultModel: string,
-  ) {}
+  constructor(private readonly baseUrl: string) {}
 
   async generate(opts: GenerateOptions): Promise<GenerateResult> {
     return this.#call(opts, undefined);
@@ -55,7 +52,11 @@ export class OllamaProvider implements LlmProvider {
   }
 
   async #call(opts: GenerateOptions, format: object | undefined): Promise<GenerateResult> {
-    const model = opts.model ?? this.defaultModel;
+    const model = opts.model?.trim();
+    if (!model) {
+      // Gửi tên rỗng đi thì lỗi trả về khó hiểu; câu này chỉ thẳng chỗ sửa.
+      throw new LlmError("Chưa chọn model. Vào trang Model để chọn model mặc định.");
+    }
     const started = Date.now();
 
     let res: Response;

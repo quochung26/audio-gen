@@ -18,71 +18,41 @@ describe("looksLikeEmbedding", () => {
 });
 
 describe("pickInstalledModel", () => {
-  it("giữ giá trị .env khi model đó ĐÃ tải", () => {
-    // Cấu hình đúng thì tôn trọng, không tự ý đổi sang model khác.
-    expect(
-      pickInstalledModel({
-        envValue: "qwen3:14b",
-        installed: m("qwen3:8b", "qwen3:14b"),
-        wantEmbedding: false,
-      }),
-    ).toBe("qwen3:14b");
-  });
-
-  it("khớp cả dạng có đuôi :latest", () => {
-    // Ollama coi "bge-m3" và "bge-m3:latest" là một.
-    expect(
-      pickInstalledModel({ envValue: "bge-m3", installed: m("bge-m3:latest"), wantEmbedding: true }),
-    ).toBe("bge-m3");
-  });
-
-  it("model trong .env CHƯA tải thì lấy model đã tải", () => {
-    // Đây là cả lý do tồn tại của hàm này: .env ghi sẵn một model mà máy không
-    // có, job chết lúc đang viết dở một tập.
-    expect(
-      pickInstalledModel({ envValue: "qwen3:14b", installed: m("qwen3:8b"), wantEmbedding: false }),
-    ).toBe("qwen3:8b");
+  it("lấy model đã tải đầu tiên hợp loại việc", () => {
+    expect(pickInstalledModel({ installed: m("qwen3:8b", "gemma3:12b"), wantEmbedding: false })).toBe(
+      "gemma3:12b",
+    );
   });
 
   it("KHÔNG lấy model nhúng làm model viết", () => {
     // Vector ra từ model viết truyện thì vô nghĩa, mà không có gì báo lỗi.
     expect(
-      pickInstalledModel({
-        envValue: "qwen3:14b",
-        installed: m("bge-m3", "qwen3:8b"),
-        wantEmbedding: false,
-      }),
+      pickInstalledModel({ installed: m("bge-m3", "qwen3:8b"), wantEmbedding: false }),
     ).toBe("qwen3:8b");
   });
 
   it("và ngược lại, model nhúng chỉ lấy model nhúng", () => {
     expect(
-      pickInstalledModel({
-        envValue: "bge-m3",
-        installed: m("qwen3:8b", "nomic-embed-text"),
-        wantEmbedding: true,
-      }),
+      pickInstalledModel({ installed: m("qwen3:8b", "nomic-embed-text"), wantEmbedding: true }),
     ).toBe("nomic-embed-text");
   });
 
   it("sắp theo TÊN cho tất định", () => {
     // Dựa vào thứ tự Ollama trả về thì hai lần mở cho ra hai model khác nhau.
-    const a = pickInstalledModel({ envValue: "x", installed: m("b", "a", "c"), wantEmbedding: false });
-    const b = pickInstalledModel({ envValue: "x", installed: m("c", "b", "a"), wantEmbedding: false });
+    const a = pickInstalledModel({ installed: m("b", "a", "c"), wantEmbedding: false });
+    const b = pickInstalledModel({ installed: m("c", "b", "a"), wantEmbedding: false });
     expect(a).toBe("a");
     expect(b).toBe("a");
   });
 
-  it("chưa tải gì thì vẫn trả về giá trị .env", () => {
-    // Trả chuỗi rỗng thì lỗi còn khó hiểu hơn "không tìm thấy model qwen3:14b".
-    expect(pickInstalledModel({ envValue: "qwen3:14b", installed: [], wantEmbedding: false })).toBe(
-      "qwen3:14b",
-    );
+  it("chưa tải gì thì trả CHUỖI RỖNG, không bịa ra một tên", () => {
+    // Bịa ra tên (kiểu lùi về giá trị .env) thì job chết giữa chừng với "không
+    // tìm thấy model", thay vì báo ngay lúc mở Studio.
+    expect(pickInstalledModel({ installed: [], wantEmbedding: false })).toBe("");
   });
 
-  it("không có model nào HỢP LOẠI thì cũng lùi về .env", () => {
-    expect(
-      pickInstalledModel({ envValue: "bge-m3", installed: m("qwen3:8b"), wantEmbedding: true }),
-    ).toBe("bge-m3");
+  it("không có model nào HỢP LOẠI cũng trả rỗng", () => {
+    expect(pickInstalledModel({ installed: m("qwen3:8b"), wantEmbedding: true })).toBe("");
+    expect(pickInstalledModel({ installed: m("bge-m3"), wantEmbedding: false })).toBe("");
   });
 });

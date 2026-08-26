@@ -20,17 +20,14 @@ export function ModelDefaultField({
   emptyReason,
   value,
   auto,
-  envValue,
 }: {
   choices: ModelChoice[];
   /** Vì sao không có gì để chọn — hiện ngay dưới ô, không im lặng. */
   emptyReason?: string | null;
-  /** Giá trị đang lưu. Rỗng nghĩa là đang lấy theo `.env`. */
+  /** Giá trị đang có hiệu lực. Rỗng nghĩa là chưa có model nào. */
   value: string;
   /** Giá trị đang là mặc định TỰ ĐỘNG, không phải lựa chọn đặt tay. */
   auto: boolean;
-  /** Giá trị trong `.env`, để nói rõ "bỏ trống" sẽ rơi về đâu. */
-  envValue: string;
 }) {
   const [manual, setManual] = useState(false);
 
@@ -48,7 +45,7 @@ export function ModelDefaultField({
         <input
           name="model"
           defaultValue={current}
-          placeholder={envValue}
+          placeholder="gõ tên model"
           className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 font-mono text-sm"
         />
         {choices.length > 0 ? (
@@ -78,7 +75,13 @@ export function ModelDefaultField({
         defaultValue={current}
         className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 font-mono text-sm"
       >
-        <option value="">— theo .env: {envValue} —</option>
+        {/*
+          Bỏ trống = để máy tự bám vào model đã tải. Nói rõ nó đang là cái nào,
+          nếu không người dùng không biết mình đang chọn cái gì.
+        */}
+        <option value="">
+          {auto && value ? `— tự chọn: ${value} —` : "— để máy tự chọn —"}
+        </option>
         {options.map((c) => (
           <option key={c.value} value={c.value}>
             {c.label}

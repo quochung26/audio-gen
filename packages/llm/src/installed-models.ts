@@ -27,32 +27,22 @@ export interface InstalledModel {
 }
 
 /**
- * Model mặc định nên dùng, xét theo những gì đã tải.
+ * Model đã tải đầu tiên hợp với loại việc. Chuỗi rỗng nghĩa là KHÔNG CÓ.
  *
- * Thứ tự:
- *   1. Giá trị trong `.env` — NẾU model đó đã tải. Cấu hình đúng thì tôn trọng.
- *   2. Model đã tải đầu tiên hợp với loại việc.
- *   3. Vẫn là giá trị `.env` — khi Ollama chưa chạy hoặc chưa tải gì. Không có
- *      gì tốt hơn để trả về, và trả chuỗi rỗng thì lỗi còn khó hiểu hơn.
+ * Trả rỗng chứ không bịa ra một tên: trước đây chỗ này lùi về tên ghi sẵn trong
+ * `.env`, và cái tên đó thành lời nói dối ngay khi máy không có model đó — job
+ * chết giữa chừng với "không tìm thấy model" thay vì báo ngay lúc mở Studio.
  *
  * Sắp theo TÊN cho tất định. Dựa vào thứ tự Ollama trả về thì cùng một máy, hai
  * lần mở cho ra hai model khác nhau.
  */
 export function pickInstalledModel(input: {
-  envValue: string;
   installed: InstalledModel[];
   wantEmbedding: boolean;
 }): string {
   const names = input.installed.map((m) => m.name).sort((a, b) => a.localeCompare(b));
-
-  // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một.
-  const has = (want: string) =>
-    names.some((n) => n === want || n === `${want}:latest` || `${n}:latest` === want);
-
-  if (input.envValue && has(input.envValue)) return input.envValue;
-
   const fit = names.filter((n) => looksLikeEmbedding(n) === input.wantEmbedding);
-  return fit[0] ?? input.envValue;
+  return fit[0] ?? "";
 }
 
 /**

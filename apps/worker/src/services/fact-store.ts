@@ -43,7 +43,7 @@ export async function saveFacts(input: {
   });
 
   // Nhúng theo lô — embedding rẻ, gọi từng câu một là tự làm chậm mình.
-  const vectors = await getEmbedding().embed(created.map((c) => c.text));
+  const vectors = await (await getEmbedding()).embed(created.map((c) => c.text));
 
   for (const [i, row] of created.entries()) {
     await prisma.$executeRaw`
@@ -70,7 +70,7 @@ export async function retrieveFacts(input: {
   beforeEpisode: number;
   query: string;
 }): Promise<RetrievedFact[]> {
-  const [vector] = await getEmbedding().embed([input.query]);
+  const [vector] = await (await getEmbedding()).embed([input.query]);
   if (!vector) return [];
 
   // `1 - (a <=> b)` đổi khoảng cách cosine thành độ tương đồng cho dễ đọc.

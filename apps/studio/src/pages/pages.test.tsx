@@ -249,8 +249,8 @@ const FIXTURES: Record<string, unknown> = {
     recent: ["qwen3:8b"],
     language: { value: "vi", fromEnv: true },
     configured: [
-      { label: "Viết truyện", kind: "write", value: "qwen3:14b", source: "env", envValue: "qwen3:14b", model: "qwen3:14b", installed: false },
-      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", source: "setting", envValue: "qwen3:8b", model: "qwen3:8b", installed: true },
+      { label: "Viết truyện", kind: "write", value: "qwen3:14b", source: "installed", model: "qwen3:14b", installed: false },
+      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", source: "setting", model: "qwen3:8b", installed: true },
     ],
     promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
     pull: {
@@ -490,11 +490,9 @@ describe("trang Model", () => {
     expect(t).toContain("đã 45 giây");
   });
 
-  it("cảnh báo model đã cấu hình nhưng CHƯA tải", async () => {
-    // Không cảnh báo thì job chạy tới bước đó mới lỗi, lúc đó đang giữa chừng.
-    const t = await pageText();
-    expect(t).toContain("chưa tải");
-    expect(t).toContain("sẽ làm job lỗi khi chạy tới bước đó");
+  it("nói rõ mặc định nào là do MÁY tự chọn", async () => {
+    // Không nói thì người dùng tưởng mình đã đặt tay giá trị đó.
+    expect(await pageText()).toContain("tự chọn theo model đã tải");
   });
 
   it("cho chọn MỘT trong hai nơi chạy model", async () => {

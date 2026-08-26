@@ -74,60 +74,45 @@ export async function setActiveProvider(value: string): Promise<void> {
 }
 
 /**
- * Giá trị trong `.env` — dùng khi chưa ai đặt gì ở giao diện.
+ * Mặc định đến từ đâu.
  *
- * Theo provider đang bật: trả về "qwen3:14b" khi đang chạy OpenRouter thì nhận
- * 404 không có model, và lỗi đó chẳng chỉ về đúng nguyên nhân.
- *
- * Embedding luôn chạy tại chỗ nên không đi theo — nhúng một câu tốn vài ms,
- * trả tiền cho đám mây để làm việc đó là vô lý.
+ * `none` là một trạng thái THẬT, không phải lỗi: máy chưa tải model nào hợp
+ * việc đó. Trước đây chỗ này lùi về một tên ghi sẵn trong `.env`, và cái tên đó
+ * thành lời nói dối ngay khi máy không có model đó — job chết giữa chừng với
+ * "không tìm thấy model", chứ không phải báo ngay lúc mở Studio.
  */
-export function envDefaultModel(kind: ModelKind, provider: ProviderName): string {
-  const env = loadEnv();
-  if (kind === "embed") return env.EMBED_MODEL;
-
-  if (storageProvider(provider) === "openrouter") {
-    return kind === "write" ? env.OPENROUTER_MODEL_WRITE : env.OPENROUTER_MODEL_UTILITY;
-  }
-  return kind === "write" ? env.OLLAMA_MODEL_WRITE : env.OLLAMA_MODEL_UTILITY;
-}
-
-/** Mặc định đến từ đâu — giao diện cần nói rõ, vì hai nguồn sau là tự động. */
-export type ModelSource = "setting" | "env" | "installed";
+export type ModelSource = "setting" | "installed" | "none";
 
 export async function getDefaultModel(kind: ModelKind): Promise<string> {
   return (await resolveDefault(kind)).value;
 }
 
-async function resolveDefault(
-  kind: ModelKind,
-): Promise<{ value: string; source: ModelSource; envValue: string }> {
+async function resolveDefault(kind: ModelKind): Promise<{ value: string; source: ModelSource }> {
   const provider = await getActiveProvider();
   const row = await prisma.setting.findUnique({ where: { key: settingKey(kind, provider) } });
-  const envValue = envDefaultModel(kind, provider);
 
   const stored = row?.value?.trim();
-  if (stored) return { value: stored, source: "setting", envValue };
+  if (stored) return { value: stored, source: "setting" };
 
-  // OpenRouter không liệt kê được model "đã tải" — không có gì để tải cả.
-  if (provider === "openrouter") return { value: envValue, source: "env", envValue };
+  // Provider giả lập bỏ qua tên model — và cả lý do nó tồn tại là chạy được khi
+  // máy chưa có model nào. Bắt nó phải có model là phá đúng công dụng đó.
+  if (provider === "mock") return { value: "mock", source: "installed" };
+
+  // OpenRouter không có khái niệm "đã tải" — phải chọn tay ở trang Model.
+  if (provider === "openrouter") return { value: "", source: "none" };
 
   const value = pickInstalledModel({
-    envValue,
     installed: await listInstalledModels(loadEnv().OLLAMA_URL),
     wantEmbedding: kind === "embed",
   });
-  return { value, source: value === envValue ? "env" : "installed", envValue };
+  return value ? { value, source: "installed" } : { value: "", source: "none" };
 }
 
 export async function getDefaultModels(): Promise<
-  Record<ModelKind, { value: string; source: ModelSource; envValue: string }>
+  Record<ModelKind, { value: string; source: ModelSource }>
 > {
   const kinds: ModelKind[] = ["write", "utility", "embed"];
-  const out = {} as Record<ModelKind, { value: string; source: ModelSource; envValue: string }>;
-
-  // `envValue` đi kèm luôn: giao diện cần nói rõ "bỏ trống thì rơi về đâu", mà
-  // `value` lúc đã đặt tay thì không còn là giá trị của `.env` nữa.
+  const out = {} as Record<ModelKind, { value: string; source: ModelSource }>;
   for (const kind of kinds) out[kind] = await resolveDefault(kind);
   return out;
 }
@@ -163,7 +148,16 @@ export async function resolveModel(input: {
   const fromPrompt = input.prompt?.trim();
   if (fromPrompt) return fromPrompt;
 
-  return getDefaultModel(input.kind);
+  const fallback = await getDefaultModel(input.kind);
+  if (!fallback) {
+    // Dừng ở ĐÂY chứ không gửi tên model rỗng đi: provider sẽ báo một lỗi khó
+    // hiểu, còn câu này chỉ thẳng chỗ cần sửa.
+    throw new Error(
+      `Chưa có model cho bước "${input.kind}". Vào trang Model: tải một model về ` +
+        `hoặc chọn model mặc định. (Đang chạy provider "${await getActiveProvider()}".)`,
+    );
+  }
+  return fallback;
 }
 
 /**

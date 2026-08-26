@@ -31,7 +31,6 @@ export class OpenRouterProvider implements LlmProvider {
 
   constructor(
     private readonly apiKey: string,
-    private readonly defaultModel: string,
     private readonly baseUrl = "https://openrouter.ai/api/v1",
     /** Hiện trên bảng xếp hạng OpenRouter; không ảnh hưởng kết quả. */
     private readonly appName = "audio-gen",
@@ -70,7 +69,11 @@ export class OpenRouterProvider implements LlmProvider {
   }
 
   async #call(opts: GenerateOptions, responseFormat: object | undefined): Promise<GenerateResult> {
-    const model = opts.model ?? this.defaultModel;
+    const model = opts.model?.trim();
+    if (!model) {
+      // Gửi tên rỗng đi thì lỗi trả về khó hiểu; câu này chỉ thẳng chỗ sửa.
+      throw new LlmError("Chưa chọn model. Vào trang Model để chọn model mặc định.");
+    }
     const started = Date.now();
 
     const messages: Array<{ role: string; content: string }> = [];

@@ -36,16 +36,10 @@ vi.mock("@audio/config", () => ({
     // Cổng không ai nghe: `listInstalledModels` phải nuốt lỗi và trả mảng rỗng,
     // chứ không được làm chết việc lấy model mặc định.
     OLLAMA_URL: "http://127.0.0.1:9",
-    OLLAMA_MODEL_WRITE: "env-write:14b",
-    OLLAMA_MODEL_UTILITY: "env-utility:8b",
-    OPENROUTER_MODEL_WRITE: "anthropic/claude-sonnet-4.5",
-    OPENROUTER_MODEL_UTILITY: "anthropic/claude-haiku-4.5",
-    EMBED_MODEL: "env-embed",
   }),
 }));
 
 const {
-  envDefaultModel,
   getActiveProvider,
   getDefaultModel,
   getDefaultModels,
@@ -61,50 +55,57 @@ beforeEach(() => {
 });
 
 describe("mặc định", () => {
-  it("chưa đặt gì thì lấy từ .env", async () => {
-    expect(await getDefaultModel("write")).toBe("env-write:14b");
-    expect(await getDefaultModel("utility")).toBe("env-utility:8b");
-    expect(await getDefaultModel("embed")).toBe("env-embed");
+  it("provider giả lập vẫn chạy được khi máy chưa có model nào", async () => {
+    // Cả lý do "mock" tồn tại là dựng được Studio/worker trước khi có model.
+    await setActiveProvider("mock");
+    expect(await getDefaultModel("write")).toBe("mock");
+    await expect(resolveModel({ kind: "write" })).resolves.toBe("mock");
   });
 
-  it("đặt ở giao diện thì đè lên .env", async () => {
+  it("chưa đặt gì và chưa tải model nào thì KHÔNG chọn gì", async () => {
+    await setActiveProvider("ollama");
+    // Không bịa ra một tên: bịa thì job chết giữa chừng với "không tìm thấy
+    // model", thay vì báo ngay lúc mở Studio.
+    expect(await getDefaultModel("write")).toBe("");
+    expect(await getDefaultModel("utility")).toBe("");
+    expect(await getDefaultModel("embed")).toBe("");
+  });
+
+  it("đặt ở giao diện thì thắng mặc định tự chọn", async () => {
+    await setActiveProvider("ollama");
     await setDefaultModel("write", "qwen3:32b");
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
     // Không đụng tới loại khác.
-    expect(await getDefaultModel("utility")).toBe("env-utility:8b");
+    expect(await getDefaultModel("utility")).toBe("");
   });
 
-  it("xoá thì quay về .env", async () => {
+  it("xoá thì quay về mặc định tự chọn", async () => {
+    await setActiveProvider("ollama");
     await setDefaultModel("write", "qwen3:32b");
     await setDefaultModel("write", "");
-    expect(await getDefaultModel("write")).toBe("env-write:14b");
+    expect(await getDefaultModel("write")).toBe("");
   });
 
   it("cắt khoảng trắng thừa; toàn khoảng trắng coi như xoá", async () => {
+    await setActiveProvider("ollama");
     await setDefaultModel("write", "  qwen3:32b  ");
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
     await setDefaultModel("write", "   ");
-    expect(await getDefaultModel("write")).toBe("env-write:14b");
+    expect(await getDefaultModel("write")).toBe("");
   });
 
   it("getDefaultModels nói rõ giá trị đến TỪ ĐÂU", async () => {
+    await setActiveProvider("ollama");
     // Ba nguồn khác nhau, và giao diện phải phân biệt được: người dùng cần biết
     // khi nào mình đang xem lựa chọn của chính mình, khi nào là máy tự suy ra.
     await setDefaultModel("write", "qwen3:32b");
     const all = await getDefaultModels();
     expect(all.write).toMatchObject({ value: "qwen3:32b", source: "setting" });
-    // Ollama không chạy trong test nên danh sách rỗng → lùi về .env.
-    expect(all.utility).toMatchObject({ value: "env-utility:8b", source: "env" });
+    // Ollama không chạy trong test nên danh sách rỗng → không có gì để chọn.
+    expect(all.utility).toMatchObject({ value: "", source: "none" });
   });
 
-  it("kèm luôn giá trị .env, kể cả khi đã đặt tay", async () => {
-    // Giao diện phải nói được "bỏ trống thì rơi về đâu" — mà `value` lúc đã đặt
-    // tay thì không còn là giá trị của `.env` nữa.
-    await setDefaultModel("write", "qwen3:32b");
-    const all = await getDefaultModels();
-    expect(all.write.envValue).toBe("env-write:14b");
-    expect(all.utility.envValue).toBe("env-utility:8b");
-  });
+
 });
 
 describe("resolveModel — ba tầng ưu tiên", () => {
@@ -131,14 +132,16 @@ describe("resolveModel — ba tầng ưu tiên", () => {
     expect(await resolveModel({ requested: "", prompt: "cua-prompt", kind: "write" })).toBe(
       "cua-prompt",
     );
-    expect(await resolveModel({ requested: "  ", prompt: "", kind: "write" })).toBe("env-write:14b");
+    await expect(resolveModel({ requested: "  ", prompt: "", kind: "write" })).rejects.toThrow(
+      /Chưa có model/,
+    );
   });
 
-  it("null và undefined cũng vậy", async () => {
-    expect(await resolveModel({ requested: null, prompt: null, kind: "utility" })).toBe(
-      "env-utility:8b",
+  it("hết đường thì DỪNG với lời chỉ rõ chỗ sửa", async () => {
+    // Gửi tên model rỗng đi thì provider báo một lỗi khó hiểu.
+    await expect(resolveModel({ requested: null, prompt: null, kind: "utility" })).rejects.toThrow(
+      /trang Model/,
     );
-    expect(await resolveModel({ kind: "utility" })).toBe("env-utility:8b");
   });
 
   it("cắt khoảng trắng quanh model chọn tay", async () => {
@@ -209,27 +212,10 @@ describe("model mặc định tách theo provider", () => {
     expect(await getDefaultModel("embed")).toBe("bge-m3-custom");
   });
 
-  it("chưa đặt gì thì .env theo đúng provider đang bật", async () => {
+  it("OpenRouter chưa chọn gì thì cũng KHÔNG có mặc định", async () => {
+    // Không có khái niệm "đã tải" nên phải chọn tay ở trang Model.
     await setActiveProvider("openrouter");
-    expect(await getDefaultModel("write")).toBe("anthropic/claude-sonnet-4.5");
-    expect(await getDefaultModel("utility")).toBe("anthropic/claude-haiku-4.5");
-    // Nhúng vector vẫn là model chạy tại chỗ.
-    expect(await getDefaultModel("embed")).toBe("env-embed");
-  });
-});
-
-describe("envDefaultModel", () => {
-  it("trả model theo provider được hỏi", () => {
-    expect(envDefaultModel("write", "ollama")).toBe("env-write:14b");
-    expect(envDefaultModel("write", "openrouter")).toBe("anthropic/claude-sonnet-4.5");
-  });
-
-  it("mock dùng model của ollama", () => {
-    expect(envDefaultModel("write", "mock")).toBe("env-write:14b");
-  });
-
-  it("nhúng vector không đổi theo provider", () => {
-    expect(envDefaultModel("embed", "openrouter")).toBe("env-embed");
+    expect(await getDefaultModel("write")).toBe("");
   });
 });
 

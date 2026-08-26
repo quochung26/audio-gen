@@ -300,17 +300,19 @@ model MẶC ĐỊNH                ← trang Model
 giá trị trong .env
 ```
 
-**Mặc định tự bám vào model đã tải.** Chưa chọn gì thì hệ thống không lấy mù giá trị `.env`: nó hỏi Ollama xem đang có model nào, rồi
+**Model dùng cho từng việc KHÔNG nằm trong `.env`.** Chưa chọn gì thì hệ thống hỏi Ollama xem đang có model nào rồi lấy model đã tải đầu tiên hợp với loại việc. Không có model nào hợp thì **không chọn gì** — và job chạy tới bước đó dừng lại kèm câu chỉ rõ chỗ sửa:
 
-1. giữ giá trị `.env` **nếu** model đó đã tải — cấu hình đúng thì tôn trọng;
-2. không có thì lấy model đã tải đầu tiên hợp với loại việc;
-3. Ollama chưa chạy hoặc chưa tải gì thì mới lùi về `.env`.
+> Chưa có model cho bước "write". Vào trang Model: tải một model về hoặc chọn model mặc định.
 
-Không có bước này thì `.env` ghi `qwen3:14b` mà máy chỉ có `qwen3:8b` là job chết với lỗi "không tìm thấy model" — đúng lúc đang viết dở một tập, chứ không phải lúc mở Studio. Trang Model ghi rõ giá trị đang đến từ đâu: **bạn chọn**, **từ .env**, hay **tự chọn theo model đã tải**.
+Trước đây chỗ này lùi về một tên ghi sẵn trong `.env` (`qwen3:14b`). Cái tên đó thành lời nói dối ngay khi máy không có model đó: job chết giữa chừng một tập đang viết dở với lỗi "không tìm thấy model", thay vì báo ngay lúc mở Studio. Nên các biến `OLLAMA_MODEL_*`, `OPENROUTER_MODEL_*`, `EMBED_MODEL` đã bị bỏ hẳn.
+
+Trang Model ghi rõ giá trị đang đến từ đâu: **bạn chọn**, **tự chọn theo model đã tải**, hay **chưa có model**.
 
 Model nhúng vector không bị chọn nhầm làm model viết và ngược lại — nhận diện theo tên (`embed`, `bge`, `gte-`, `minilm`, `e5-`). Là phỏng đoán, nhưng đoán nhầm ở đây rẻ: cùng lắm gợi ý sai một lần rồi chọn tay. Không đoán thì bước nhúng rơi vào một model viết truyện, và vector ra vô nghĩa mà không báo lỗi.
 
-Danh sách model nhớ tạm 15 giây — một lượt chạy hàng loạt gọi tới hàng chục lần trong vài giây — và bị quên ngay sau khi tải hoặc xoá model. Ollama treo cũng không kéo theo hàng đợi: timeout 2 giây rồi lùi về `.env`.
+Provider `mock` là ngoại lệ: nó bỏ qua tên model, và cả lý do nó tồn tại là dựng được Studio/worker khi máy chưa có model nào. Bắt nó phải có model là phá đúng công dụng đó.
+
+Danh sách model nhớ tạm 15 giây — một lượt chạy hàng loạt gọi tới hàng chục lần trong vài giây — và bị quên ngay sau khi tải hoặc xoá model. Ollama treo cũng không kéo theo hàng đợi: timeout 2 giây rồi coi như chưa tải gì.
 
 Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì đổi model mặc định là việc làm thường xuyên lúc đang thử model nào viết hay hơn — mà sửa `.env` thì phải khởi động lại worker. Xoá ô đó là quay về giá trị `.env`, và trang có nhãn **từ .env** để biết đang lấy từ đâu.
 

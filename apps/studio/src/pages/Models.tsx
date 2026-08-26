@@ -61,10 +61,8 @@ interface Data {
     label: string;
     kind: string;
     value: string;
-    /** "setting" = bạn chọn · "installed" = tự bám model đã tải · "env" = .env */
-    source: "setting" | "env" | "installed";
-    /** Giá trị trong .env — để nói rõ "bỏ trống" sẽ rơi về đâu. */
-    envValue: string;
+    /** "setting" = bạn chọn · "installed" = tự bám model đã tải · "none" = chưa có */
+    source: "setting" | "installed" | "none";
     model: string;
     installed: boolean;
   }>;
@@ -355,9 +353,10 @@ export function Models() {
       <Section title="Model mặc định">
         <p className="-mt-1 text-xs text-neutral-500">
           Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
-          nó tự bám vào model đã tải (ưu tiên giá trị trong <code>.env</code> nếu model đó có sẵn).
-          Mỗi provider nhớ lựa chọn riêng — đây là model cho{" "}
-          <strong className="text-neutral-300">{data.provider}</strong>.
+          nó tự bám vào model đã tải. Chưa tải model nào hợp việc đó thì{" "}
+          <strong className="text-neutral-300">không chọn gì</strong> — và job chạy tới bước đó sẽ
+          dừng kèm lời nhắc, thay vì chết vì một tên model không tồn tại. Mỗi provider nhớ lựa chọn
+          riêng — đây là model cho <strong className="text-neutral-300">{data.provider}</strong>.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) => (
@@ -370,9 +369,9 @@ export function Models() {
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-300">{cfg.label}</span>
-                {cfg.source === "env" && <Badge>từ .env</Badge>}
                 {/* Tự chọn: nói ra, nếu không người dùng tưởng mình đã đặt tay. */}
                 {cfg.source === "installed" && <Badge tone="blue">tự chọn theo model đã tải</Badge>}
+                {cfg.source === "none" && <Badge tone="red">chưa có model</Badge>}
                 {/* "chưa tải" chỉ có nghĩa khi đang chạy Ollama — model đám mây không tải bao giờ. */}
                 {data.reachable && data.provider === "ollama" &&
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
@@ -382,14 +381,13 @@ export function Models() {
                 emptyReason={pick(cfg.kind).reason}
                 value={cfg.value}
                 auto={cfg.source !== "setting"}
-                envValue={cfg.envValue}
               />
             </Form>
           ))}
         </div>
-        {data.reachable && data.provider === "ollama" && data.configured.some((c) => !c.installed) && (
-          <p className="text-xs text-amber-500">
-            Model đánh dấu “chưa tải” sẽ làm job lỗi khi chạy tới bước đó.
+        {data.configured.some((c) => c.source === "none") && (
+          <p className="text-xs text-red-400">
+            Bước nào “chưa có model” thì job chạy tới đó sẽ dừng. Tải một model về, hoặc chọn tay.
           </p>
         )}
       </Section>

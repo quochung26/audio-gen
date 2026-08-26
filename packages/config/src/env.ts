@@ -34,12 +34,13 @@ const schema = z.object({
   CONTENT_LANGUAGE: z.enum(["vi", "en"]).default("vi"),
 
   // Embedding chạy CPU là đủ — nhúng một câu tốn vài ms, không đáng chiếm VRAM.
+  //
+  // Model dùng cho từng việc KHÔNG nằm trong `.env`: nó bám vào model thật sự
+  // đã tải, hoặc do bạn chọn trên trang Model. Ghi sẵn một tên model ở đây thì
+  // nó thành lời nói dối ngay khi máy không có model đó.
   EMBED_PROVIDER: z.enum(["mock", "ollama"]).default("mock"),
-  EMBED_MODEL: z.string().default("bge-m3"),
 
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
-  OLLAMA_MODEL_WRITE: z.string().default("qwen3:14b"),
-  OLLAMA_MODEL_UTILITY: z.string().default("qwen3:8b"),
 
   /**
    * OpenRouter — cổng vào model đám mây, dùng khi cần chất lượng văn mà model
@@ -50,9 +51,6 @@ const schema = z.object({
    */
   OPENROUTER_API_KEY: z.string().default(""),
   OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),
-  /** Tên model ở OpenRouter có dạng "nhà-cung-cấp/tên-model". */
-  OPENROUTER_MODEL_WRITE: z.string().default("anthropic/claude-sonnet-4.5"),
-  OPENROUTER_MODEL_UTILITY: z.string().default("anthropic/claude-haiku-4.5"),
 
   KOKORO_URL: z.string().url().default("http://localhost:8880"),
   VOICE_CLONE_URL: z.string().url().default("http://localhost:8881"),

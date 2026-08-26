@@ -34,18 +34,14 @@ export function getLlm(): LlmProvider {
   cached = new ActiveProvider(
     {
       mock: () => new MockProvider(),
-      ollama: () => new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL_WRITE),
+      ollama: () => new OllamaProvider(env.OLLAMA_URL),
       openrouter: () => {
         if (!env.OPENROUTER_API_KEY) {
           throw new Error(
             "Chưa đặt OPENROUTER_API_KEY trong .env — không gọi được model trên OpenRouter.",
           );
         }
-        return new OpenRouterProvider(
-          env.OPENROUTER_API_KEY,
-          env.OPENROUTER_MODEL_WRITE,
-          env.OPENROUTER_URL,
-        );
+        return new OpenRouterProvider(env.OPENROUTER_API_KEY, env.OPENROUTER_URL);
       },
     },
     getActiveProvider,
