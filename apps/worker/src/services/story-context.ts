@@ -1,5 +1,5 @@
 import { EPISODE_TARGET_WORDS } from "@audio/config";
-import { parseWorld, renderBible, type StoryBibleRecord } from "@audio/core";
+import { parseWorld, seriesBible, type StoryBibleRecord } from "@audio/core";
 import { prisma } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 
@@ -58,21 +58,13 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
   const world = parseWorld(stored.world);
 
-  const bible = renderBible({
+  const bible = seriesBible({
     title: series.title,
     genre: series.genre,
-    logline: series.description ?? undefined,
+    tags: series.tags,
+    description: series.description,
     world,
-    // Ghép trạng thái hiện tại vào mô tả nhân vật. Đây là thứ giữ cho tập 40
-    // không để một nhân vật đã chết ở tập 12 bước vào cảnh.
-    characters: series.characters.map((c) => ({
-      name: c.name,
-      role: c.role,
-      description: [c.description, c.state ? `Hiện tại: ${c.state}` : null]
-        .filter(Boolean)
-        .join("\n  "),
-      isNarrator: c.isNarrator,
-    })),
+    characters: series.characters,
     episodes: stored.raw?.episodes,
   });
 

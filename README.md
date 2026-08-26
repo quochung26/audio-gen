@@ -65,6 +65,23 @@ Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng c�
 
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.
 
+### Thể loại chính và thể loại phụ
+
+Một truyện có nhiều thể loại, chỉ khác nhau cái nào chính cái nào phụ. Hệ thống chia làm hai vì chúng làm hai việc khác nhau:
+
+| | Lưu ở | Làm gì |
+|---|---|---|
+| **Thể loại chính** | `Series.genre` | Là **khoá** chọn biến thể prompt — `pickPrompt` tra theo nó, không khớp thì rơi về bản `*`. Vì là khoá nên phải đúng MỘT giá trị. |
+| **Thể loại phụ** | `Series.tags` | Nhiều giá trị, gõ tự do. Không đổi prompt, mà vào thẳng **Story Bible** để lái giọng văn, và vào từ khoá RSS. |
+
+Gộp lại thì hỏng một trong hai: bỏ chính đi thì việc chọn prompt phải dựa vào "tag đầu tiên" — mà thứ tự tag là thứ người ta kéo thả lung tung; bỏ phụ đi thì mọi định hướng nhỏ (`slow burn`, `đô thị`) đều phải đẻ ra một biến thể prompt riêng.
+
+Dòng thể loại phụ nằm **ngay dưới** thể loại chính trong Bible, và nói rõ là thứ phải bám theo chứ không phải nhãn phân loại — liệt kê trần thì model coi là metadata rồi bỏ qua, văn ra y hệt như không đặt gì.
+
+Sửa thể loại phụ ăn ngay ở lượt viết tiếp theo, vì Bible được **dựng lại từ dữ liệu mới nhất** mỗi lần viết cảnh chứ không dùng bản render sẵn. Tập đã viết xong thì giữ nguyên — chúng đã viết bằng định hướng cũ.
+
+Việc dựng Bible từ bản ghi Series gom vào một hàm `seriesBible`. Trước đó có hai nơi tự viết tay danh sách tham số — worker lúc viết cảnh và API lúc sửa thiết lập thế giới — nên thêm một trường vào Bible mà quên một chỗ thì Bible vẫn dựng được, chỉ là thiếu mất một phần định hướng, và không có gì báo.
+
 ### Viết từng tập một
 
 Tạo truyện chỉ dựng **một tập**: dàn ý, nhân vật, và tập 1. Tập sau thêm dần bằng nút **Viết tập mới** ở trang bộ truyện.

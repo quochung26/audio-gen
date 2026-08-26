@@ -38,7 +38,7 @@ export function SeriesNew() {
 
         <div className="flex flex-wrap gap-4">
           <label className="flex-1">
-            <span className="mb-1 block text-sm text-neutral-400">Thể loại</span>
+            <span className="mb-1 block text-sm text-neutral-400">Thể loại chính</span>
             <select
               name="genre"
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
@@ -52,6 +52,28 @@ export function SeriesNew() {
           </label>
           <LanguagePicker />
         </div>
+
+        <label className="block">
+          <span className="mb-1 block text-sm text-neutral-400">
+            Thể loại phụ <span className="text-neutral-600">— tuỳ chọn</span>
+          </span>
+          <input
+            name="tags"
+            list="genre-suggestions"
+            placeholder="tình cảm, slow burn, đô thị"
+            className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+          />
+          <span className="mt-1 block text-xs text-neutral-600">
+            Cách nhau bằng dấu phẩy. AI đọc chúng khi viết — thể loại chính quyết định dùng prompt
+            nào, thể loại phụ lái giọng văn và tình tiết. Cũng thành từ khoá để người nghe tìm ra
+            kênh.
+          </span>
+        </label>
+        <datalist id="genre-suggestions">
+          {GENRES.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
 
         <ModelPicker />
 

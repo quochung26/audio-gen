@@ -1,6 +1,52 @@
 import type { Outline, StoryContext } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
 
+export interface SeriesBibleInput {
+  title: string;
+  genre: string;
+  tags: string[];
+  description?: string | null;
+  world: WorldSetup;
+  characters: Array<{
+    name: string;
+    role?: string | null;
+    description?: string | null;
+    isNarrator: boolean;
+    /** Tình trạng ở cuối tập gần nhất. */
+    state?: string | null;
+  }>;
+  episodes?: Array<{ number: number; title: string; beats: string[] }>;
+}
+
+/**
+ * Dựng Story Bible từ một bản ghi Series.
+ *
+ * Gom vào một chỗ vì trước đây có HAI nơi tự viết tay danh sách tham số cho
+ * `renderBible` — worker lúc viết cảnh, và API lúc sửa thiết lập thế giới.
+ * Thêm một trường vào Bible thì phải nhớ sửa cả hai, mà quên một chỗ thì không
+ * có gì báo: Bible vẫn dựng được, chỉ là thiếu mất một phần định hướng.
+ */
+export function seriesBible(input: SeriesBibleInput): string {
+  return renderBible({
+    title: input.title,
+    genre: input.genre,
+    tags: input.tags,
+    logline: input.description ?? undefined,
+    world: input.world,
+    // Ghép trạng thái hiện tại vào mô tả nhân vật. Đây là thứ giữ cho tập 40
+    // không để một nhân vật đã chết ở tập 12 bước vào cảnh.
+    characters: input.characters.map((c) => ({
+      name: c.name,
+      role: c.role,
+      description: [c.description, c.state ? `Hiện tại: ${c.state}` : null]
+        .filter(Boolean)
+        .join("\n  "),
+      isNarrator: c.isNarrator,
+    })),
+    episodes: input.episodes,
+  });
+}
+
 /**
  * Dựng Story Bible — phần cố định nạp vào system prompt mỗi lần viết.
  *
@@ -8,7 +54,7 @@ import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
  * phần này đặt vào `system` kèm cache_control nên chỉ tính phí/thời gian xử lý
  * một lần cho cả bộ truyện.
  */
-export function buildBible(outline: Outline, world?: WorldSetup): string {
+export function buildBible(outline: Outline, world?: WorldSetup, tags: string[] = []): string {
   // Bối cảnh do người viết đặt thắng bối cảnh AI tự nghĩ: nếu người viết đã
   // ghi rõ thì giữ nguyên, chưa ghi thì lấy tạm phần AI sinh làm điểm khởi đầu.
   const merged: WorldSetup = {
@@ -20,6 +66,7 @@ export function buildBible(outline: Outline, world?: WorldSetup): string {
   return renderBible({
     title: outline.title,
     genre: outline.genre,
+    tags,
     logline: outline.logline,
     world: merged,
     characters: outline.characters,

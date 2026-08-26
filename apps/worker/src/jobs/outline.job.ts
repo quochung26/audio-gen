@@ -1,5 +1,6 @@
 import {
   buildBible,
+  parseTags,
   toLanguage,
   withLanguage,
   outlineSchema,
@@ -38,6 +39,8 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   // Thiết lập thế giới do người viết đặt TRƯỚC — nếu có, AI phải bám theo
   // thay vì tự nghĩ ra bối cảnh riêng.
   const world = parseWorld(job.data.world);
+  // Thể loại phụ do người viết chọn lúc tạo — vào Bible để lái cả bộ.
+  const tags = parseTags(String(job.data.tags ?? ""));
 
   if (!idea.trim()) throw new Error("Thiếu ý tưởng (payload.idea)");
 
@@ -73,6 +76,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         episodeCount,
         sceneCount,
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
+        tags: tags.length > 0 ? tags.join(", ") : "(không có)",
         world: renderWorldForOutline(world),
       }),
       ...(params as object),
@@ -98,6 +102,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       slug: await freeSlug(outline.title),
       description: outline.logline,
       genre: outline.genre,
+      tags,
       language,
       status: SeriesStatus.DRAFT,
       storyBible: {
@@ -105,7 +110,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         // Người viết chưa đặt bối cảnh thì lấy phần AI sinh làm điểm khởi đầu,
         // để trang Story Bible có sẵn nội dung mà sửa.
         world: { ...world, setting: world.setting.trim() || outline.setting },
-        bible: buildBible(outline, world),
+        bible: buildBible(outline, world, tags),
       },
       characters: {
         // Khử trùng tên: ràng buộc (seriesId, name) là duy nhất, và model —

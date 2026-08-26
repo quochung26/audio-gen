@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { BatchStatus, prisma } from "@audio/database";
-import { isLanguage, parseWorld, renderBible, worldSetupSchema, type StoryBibleRecord } from "@audio/core";
+import {
+  checkTags,
+  isLanguage,
+  parseTags,
+  parseWorld,
+  seriesBible,
+  worldSetupSchema,
+  type StoryBibleRecord,
+} from "@audio/core";
 import { rename, unlink } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { checkCover, ffprobe } from "@audio/audio";
@@ -77,6 +85,7 @@ series.post("/", async (c) => {
       idea,
       language: language || (await getDefaultLanguage()),
       genre: field(body, "genre") || "kinh dị",
+      tags: field(body, "tags"),
       // Luôn dựng ĐÚNG MỘT tập. Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8
       // trở đi chỉ là phỏng đoán của model về câu chuyện chưa được viết; viết
       // tiếp từng tập thì mỗi tập được dựng khi đã biết tập trước kết thúc ra
@@ -126,6 +135,32 @@ series.post("/:id/episodes", async (c) => {
   return c.json({ jobId: job.id });
 });
 
+/**
+ * Sửa thể loại phụ.
+ *
+ * Ăn ngay ở lượt viết tiếp theo: Story Bible được DỰNG LẠI từ dữ liệu mới nhất
+ * mỗi lần viết cảnh, không dùng bản đã render sẵn. Các tập đã viết xong thì
+ * không đổi — chúng đã viết bằng định hướng cũ rồi.
+ */
+series.put("/:id/tags", async (c) => {
+  const body = await c.req.parseBody();
+  const raw = field(body, "tags");
+
+  const errors = checkTags(raw);
+  if (errors.length > 0) throw new UserError(errors.join("; "));
+
+  const tags = parseTags(raw);
+  await prisma.series.update({ where: { id: c.req.param("id") }, data: { tags } });
+
+  return c.json({
+    ok: tags.length > 0 ? `Đã lưu ${tags.length} thể loại phụ.` : "Đã bỏ hết thể loại phụ.",
+    warnings:
+      tags.length > 0
+        ? ["Chỉ áp cho tập viết từ giờ. Tập đã viết xong giữ nguyên định hướng cũ."]
+        : [],
+  });
+});
+
 series.get("/:id/world", async (c) => {
   const s = await prisma.series.findUniqueOrThrow({ where: { id: c.req.param("id") } });
   const stored = (s.storyBible ?? {}) as StoryBibleRecord;
@@ -167,10 +202,11 @@ series.put("/:id/world", async (c) => {
       storyBible: {
         ...stored,
         world,
-        bible: renderBible({
+        bible: seriesBible({
           title: s.title,
           genre: s.genre,
-          logline: s.description ?? undefined,
+          tags: s.tags,
+          description: s.description,
           world,
           characters: s.characters,
           episodes: stored.raw?.episodes,

@@ -70,11 +70,13 @@ const FIXTURES: Record<string, unknown> = {
   ],
   "/api/series/genres": ["kinh dị"],
   "/api/series/s1/episodes": { jobId: "j-new" },
+  "/api/series/s1/tags": { ok: "Đã lưu 2 thể loại phụ." },
   "/api/series/s1": {
     id: "s1",
     title: "Đường về",
     description: "mô tả",
     genre: "kinh dị",
+    tags: ["tình cảm", "slow burn"],
     language: "en",
     kind: "LONG",
     arcSummary: null,
@@ -696,5 +698,30 @@ describe("viết từng tập một", () => {
       expect(call).toBeTruthy();
       expect((call![1] as { method: string }).method).toBe("POST");
     });
+  });
+});
+
+describe("thể loại phụ", () => {
+  it("màn tạo truyện có ô thể loại phụ, tách bạch với thể loại chính", async () => {
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    await waitFor(() => expect(container.textContent).toContain("Thể loại chính"));
+    expect(container.querySelector('input[name="tags"]')).toBeTruthy();
+    // Nói rõ hai thứ làm việc khác nhau, nếu không người dùng tưởng trùng lặp.
+    expect(container.textContent).toMatch(/thể loại chính quyết định dùng prompt nào/i);
+  });
+
+  it("trang bộ truyện hiện thể loại phụ và cho sửa", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(container.textContent).toContain("Đường về"));
+    expect(container.textContent).toContain("slow burn");
+
+    const input = container.querySelector<HTMLInputElement>('input[name="tags"]')!;
+    expect(input.value).toBe("tình cảm, slow burn");
+  });
+
+  it("nói rõ sửa ở đây KHÔNG đụng tới thể loại chính", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(container.textContent).toContain("Thể loại phụ"));
+    expect(container.textContent).toMatch(/đổi ở đây không đụng tới nó/i);
   });
 });

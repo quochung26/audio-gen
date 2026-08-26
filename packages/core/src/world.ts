@@ -1,3 +1,4 @@
+import { renderTags } from "./tags";
 import { z } from "zod";
 import type { Outline } from "./types";
 
@@ -81,6 +82,8 @@ export function isWorldEmpty(w: WorldSetup): boolean {
 export function renderBible(input: {
   title: string;
   genre: string;
+  /** Thể loại phụ — "tình cảm", "hành động"… Xem packages/core/src/tags.ts. */
+  tags?: string[];
   logline?: string;
   world: WorldSetup;
   characters: Array<{
@@ -92,6 +95,10 @@ export function renderBible(input: {
   episodes?: Array<{ number: number; title: string; beats: string[] }>;
 }): string {
   const parts: string[] = [`# ${input.title}`, ``, `Thể loại: ${input.genre}`];
+
+  // Ngay dưới thể loại: đây là thứ lái giọng văn, phải nằm chỗ model đọc trước.
+  const tagLine = renderTags(input.tags ?? []);
+  if (tagLine) parts.push(tagLine);
 
   if (input.logline) parts.push(`Tóm tắt: ${input.logline}`);
 

@@ -40,6 +40,7 @@ interface Data {
   title: string;
   description: string | null;
   genre: string;
+  tags: string[];
   language: string;
   kind: string;
   arcSummary: string | null;
@@ -82,6 +83,11 @@ export function Series() {
           <h1 className="text-xl font-semibold">{s.title}</h1>
           <Badge>{s.kind === "SHORT" ? "truyện ngắn" : "truyện dài"}</Badge>
           <Badge>{s.genre}</Badge>
+          {s.tags.map((t) => (
+            <Badge key={t} tone="blue">
+              {t}
+            </Badge>
+          ))}
           {/* Hiện luôn: ngôn ngữ quyết định model viết bằng tiếng gì và giọng nào đọc được. */}
           <Badge tone={s.language === "en" ? "blue" : "neutral"}>
             {s.language === "en" ? "Tiếng Anh" : "Tiếng Việt"}
@@ -289,6 +295,27 @@ export function Series() {
             Lượt chạy trước thất bại: {run.error}
           </p>
         )}
+      </Section>
+
+      <Section title="Thể loại phụ">
+        <Form
+          path={`/api/series/${s.id}/tags`}
+          method="PUT"
+          submit="Lưu"
+          className="rounded border border-neutral-800 p-4"
+        >
+          <input
+            name="tags"
+            defaultValue={s.tags.join(", ")}
+            placeholder="tình cảm, slow burn, đô thị"
+            className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+          />
+          <p className="mt-2 text-xs text-neutral-600">
+            Cách nhau bằng dấu phẩy. AI đọc chúng khi viết, và chúng thành từ khoá RSS. Thể loại{" "}
+            <strong className="text-neutral-400">chính</strong> ({s.genre}) là thứ quyết định dùng
+            prompt nào — đổi ở đây không đụng tới nó.
+          </p>
+        </Form>
       </Section>
 
       <Section
