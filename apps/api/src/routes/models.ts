@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import {
+  forgetInstalledModels,
   getActiveProvider,
   getDefaultLanguage,
   getDefaultLanguageSource,
@@ -337,6 +338,8 @@ models.delete("/:name{.+}", async (c) => {
     body: JSON.stringify({ model: name }),
   });
   if (!res.ok) throw new UserError(`Ollama không xoá được: HTTP ${res.status}`);
+  // Danh sách đang nhớ giờ sai — mặc định tự chọn phải thấy ngay.
+  forgetInstalledModels();
   return c.json({ ok: `Đã xoá ${name}` });
 });
 
@@ -474,6 +477,8 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
       for (const ch of chunks) pull = reducePull(pull!, ch, layers);
       if (pull?.done) return;
     }
+
+    forgetInstalledModels();
 
     // Hết luồng mà chưa thấy dòng "success" — coi như xong, nhưng nói rõ.
     if (pull && !pull.done) {

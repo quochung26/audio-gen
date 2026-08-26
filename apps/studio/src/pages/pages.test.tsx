@@ -249,8 +249,8 @@ const FIXTURES: Record<string, unknown> = {
     recent: ["qwen3:8b"],
     language: { value: "vi", fromEnv: true },
     configured: [
-      { label: "Viết truyện", kind: "write", value: "qwen3:14b", fromEnv: true, envValue: "qwen3:14b", model: "qwen3:14b", installed: false },
-      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", fromEnv: false, envValue: "qwen3:8b", model: "qwen3:8b", installed: true },
+      { label: "Viết truyện", kind: "write", value: "qwen3:14b", source: "env", envValue: "qwen3:14b", model: "qwen3:14b", installed: false },
+      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", source: "setting", envValue: "qwen3:8b", model: "qwen3:8b", installed: true },
     ],
     promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
     pull: {

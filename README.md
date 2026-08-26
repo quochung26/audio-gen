@@ -300,6 +300,18 @@ model MẶC ĐỊNH                ← trang Model
 giá trị trong .env
 ```
 
+**Mặc định tự bám vào model đã tải.** Chưa chọn gì thì hệ thống không lấy mù giá trị `.env`: nó hỏi Ollama xem đang có model nào, rồi
+
+1. giữ giá trị `.env` **nếu** model đó đã tải — cấu hình đúng thì tôn trọng;
+2. không có thì lấy model đã tải đầu tiên hợp với loại việc;
+3. Ollama chưa chạy hoặc chưa tải gì thì mới lùi về `.env`.
+
+Không có bước này thì `.env` ghi `qwen3:14b` mà máy chỉ có `qwen3:8b` là job chết với lỗi "không tìm thấy model" — đúng lúc đang viết dở một tập, chứ không phải lúc mở Studio. Trang Model ghi rõ giá trị đang đến từ đâu: **bạn chọn**, **từ .env**, hay **tự chọn theo model đã tải**.
+
+Model nhúng vector không bị chọn nhầm làm model viết và ngược lại — nhận diện theo tên (`embed`, `bge`, `gte-`, `minilm`, `e5-`). Là phỏng đoán, nhưng đoán nhầm ở đây rẻ: cùng lắm gợi ý sai một lần rồi chọn tay. Không đoán thì bước nhúng rơi vào một model viết truyện, và vector ra vô nghĩa mà không báo lỗi.
+
+Danh sách model nhớ tạm 15 giây — một lượt chạy hàng loạt gọi tới hàng chục lần trong vài giây — và bị quên ngay sau khi tải hoặc xoá model. Ollama treo cũng không kéo theo hàng đợi: timeout 2 giây rồi lùi về `.env`.
+
 Mặc định nằm trong bảng `Setting` chứ không chỉ trong `.env`, vì đổi model mặc định là việc làm thường xuyên lúc đang thử model nào viết hay hơn — mà sửa `.env` thì phải khởi động lại worker. Xoá ô đó là quay về giá trị `.env`, và trang có nhãn **từ .env** để biết đang lấy từ đâu.
 
 Ô đặt mặc định là **ô chọn**, liệt kê thẳng model dùng được (Ollama: model đã tải; OpenRouter: model đang đặt cộng model đã dùng gần đây). Trước đây nó là ô gõ tay kèm `datalist` — danh sách chỉ hiện khi bấm vào rồi gõ, nên nhìn vào trang thì tưởng không có chỗ chọn. Vẫn giữ đường gõ tay để đặt sẵn model **chưa** tải. Model đang đặt mà chưa tải vẫn nằm trong danh sách, kèm nhãn *(chưa tải)*: bỏ nó ra thì mở trang lên ô chọn nhảy sang giá trị khác, bấm Lưu là ghi đè mất lựa chọn cũ mà không ai bấm vào nó.

@@ -33,6 +33,9 @@ const env = { provider: "ollama" as "mock" | "ollama" | "openrouter" };
 vi.mock("@audio/config", () => ({
   loadEnv: () => ({
     LLM_PROVIDER: env.provider,
+    // Cổng không ai nghe: `listInstalledModels` phải nuốt lỗi và trả mảng rỗng,
+    // chứ không được làm chết việc lấy model mặc định.
+    OLLAMA_URL: "http://127.0.0.1:9",
     OLLAMA_MODEL_WRITE: "env-write:14b",
     OLLAMA_MODEL_UTILITY: "env-utility:8b",
     OPENROUTER_MODEL_WRITE: "anthropic/claude-sonnet-4.5",
@@ -84,11 +87,14 @@ describe("mặc định", () => {
     expect(await getDefaultModel("write")).toBe("env-write:14b");
   });
 
-  it("getDefaultModels nói rõ cái nào đến từ .env", async () => {
+  it("getDefaultModels nói rõ giá trị đến TỪ ĐÂU", async () => {
+    // Ba nguồn khác nhau, và giao diện phải phân biệt được: người dùng cần biết
+    // khi nào mình đang xem lựa chọn của chính mình, khi nào là máy tự suy ra.
     await setDefaultModel("write", "qwen3:32b");
     const all = await getDefaultModels();
-    expect(all.write).toMatchObject({ value: "qwen3:32b", fromEnv: false });
-    expect(all.utility).toMatchObject({ value: "env-utility:8b", fromEnv: true });
+    expect(all.write).toMatchObject({ value: "qwen3:32b", source: "setting" });
+    // Ollama không chạy trong test nên danh sách rỗng → lùi về .env.
+    expect(all.utility).toMatchObject({ value: "env-utility:8b", source: "env" });
   });
 
   it("kèm luôn giá trị .env, kể cả khi đã đặt tay", async () => {

@@ -14,6 +14,7 @@ export * from "./embedding";
 export * from "./model-settings";
 export * from "./language-settings";
 export * from "./gen-params";
+export * from "./installed-models";
 export * from "./providers/active";
 
 let cached: LlmProvider | undefined;

@@ -8,7 +8,7 @@ interface ModelsData {
   url: string;
   installed: Array<{ name: string; parameterSize: string | null; quantization: string | null }>;
   recent: string[];
-  configured: Array<{ label: string; kind: string; value: string; fromEnv: boolean }>;
+  configured: Array<{ label: string; kind: string; value: string }>;
 }
 
 /**

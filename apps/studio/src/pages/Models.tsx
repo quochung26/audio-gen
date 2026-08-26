@@ -61,7 +61,8 @@ interface Data {
     label: string;
     kind: string;
     value: string;
-    fromEnv: boolean;
+    /** "setting" = bạn chọn · "installed" = tự bám model đã tải · "env" = .env */
+    source: "setting" | "env" | "installed";
     /** Giá trị trong .env — để nói rõ "bỏ trống" sẽ rơi về đâu. */
     envValue: string;
     model: string;
@@ -354,8 +355,9 @@ export function Models() {
       <Section title="Model mặc định">
         <p className="-mt-1 text-xs text-neutral-500">
           Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
-          nó quay về giá trị trong <code>.env</code>. Mỗi provider nhớ lựa chọn riêng — đây là
-          model cho <strong className="text-neutral-300">{data.provider}</strong>.
+          nó tự bám vào model đã tải (ưu tiên giá trị trong <code>.env</code> nếu model đó có sẵn).
+          Mỗi provider nhớ lựa chọn riêng — đây là model cho{" "}
+          <strong className="text-neutral-300">{data.provider}</strong>.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) => (
@@ -368,7 +370,9 @@ export function Models() {
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-300">{cfg.label}</span>
-                {cfg.fromEnv && <Badge>từ .env</Badge>}
+                {cfg.source === "env" && <Badge>từ .env</Badge>}
+                {/* Tự chọn: nói ra, nếu không người dùng tưởng mình đã đặt tay. */}
+                {cfg.source === "installed" && <Badge tone="blue">tự chọn theo model đã tải</Badge>}
                 {/* "chưa tải" chỉ có nghĩa khi đang chạy Ollama — model đám mây không tải bao giờ. */}
                 {data.reachable && data.provider === "ollama" &&
                   (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
@@ -377,7 +381,7 @@ export function Models() {
                 choices={pick(cfg.kind).choices}
                 emptyReason={pick(cfg.kind).reason}
                 value={cfg.value}
-                fromEnv={cfg.fromEnv}
+                auto={cfg.source !== "setting"}
                 envValue={cfg.envValue}
               />
             </Form>

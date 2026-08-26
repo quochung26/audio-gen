@@ -1,6 +1,7 @@
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import { isProviderName, type ProviderName } from "./providers/active";
+import { listInstalledModels, pickInstalledModel } from "./installed-models";
 
 /**
  * Model nào cho việc gì.
@@ -91,30 +92,43 @@ export function envDefaultModel(kind: ModelKind, provider: ProviderName): string
   return kind === "write" ? env.OLLAMA_MODEL_WRITE : env.OLLAMA_MODEL_UTILITY;
 }
 
+/** Mặc định đến từ đâu — giao diện cần nói rõ, vì hai nguồn sau là tự động. */
+export type ModelSource = "setting" | "env" | "installed";
+
 export async function getDefaultModel(kind: ModelKind): Promise<string> {
+  return (await resolveDefault(kind)).value;
+}
+
+async function resolveDefault(
+  kind: ModelKind,
+): Promise<{ value: string; source: ModelSource; envValue: string }> {
   const provider = await getActiveProvider();
   const row = await prisma.setting.findUnique({ where: { key: settingKey(kind, provider) } });
-  return row?.value?.trim() || envDefaultModel(kind, provider);
+  const envValue = envDefaultModel(kind, provider);
+
+  const stored = row?.value?.trim();
+  if (stored) return { value: stored, source: "setting", envValue };
+
+  // OpenRouter không liệt kê được model "đã tải" — không có gì để tải cả.
+  if (provider === "openrouter") return { value: envValue, source: "env", envValue };
+
+  const value = pickInstalledModel({
+    envValue,
+    installed: await listInstalledModels(loadEnv().OLLAMA_URL),
+    wantEmbedding: kind === "embed",
+  });
+  return { value, source: value === envValue ? "env" : "installed", envValue };
 }
 
 export async function getDefaultModels(): Promise<
-  Record<ModelKind, { value: string; fromEnv: boolean; envValue: string }>
+  Record<ModelKind, { value: string; source: ModelSource; envValue: string }>
 > {
-  const provider = await getActiveProvider();
   const kinds: ModelKind[] = ["write", "utility", "embed"];
-  const keys = kinds.map((k) => settingKey(k, provider));
+  const out = {} as Record<ModelKind, { value: string; source: ModelSource; envValue: string }>;
 
-  const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
-  const byKey = new Map(rows.map((r) => [r.key, r.value.trim()]));
-
-  const out = {} as Record<ModelKind, { value: string; fromEnv: boolean; envValue: string }>;
-  for (const kind of kinds) {
-    const stored = byKey.get(settingKey(kind, provider));
-    // `envValue` đi kèm luôn: giao diện cần nói rõ "bỏ trống thì rơi về đâu",
-    // mà `value` lúc đã đặt tay thì không còn là giá trị của `.env` nữa.
-    const envValue = envDefaultModel(kind, provider);
-    out[kind] = stored ? { value: stored, fromEnv: false, envValue } : { value: envValue, fromEnv: true, envValue };
-  }
+  // `envValue` đi kèm luôn: giao diện cần nói rõ "bỏ trống thì rơi về đâu", mà
+  // `value` lúc đã đặt tay thì không còn là giá trị của `.env` nữa.
+  for (const kind of kinds) out[kind] = await resolveDefault(kind);
   return out;
 }
 

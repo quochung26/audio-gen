@@ -19,7 +19,7 @@ export function ModelDefaultField({
   choices,
   emptyReason,
   value,
-  fromEnv,
+  auto,
   envValue,
 }: {
   choices: ModelChoice[];
@@ -27,7 +27,8 @@ export function ModelDefaultField({
   emptyReason?: string | null;
   /** Giá trị đang lưu. Rỗng nghĩa là đang lấy theo `.env`. */
   value: string;
-  fromEnv: boolean;
+  /** Giá trị đang là mặc định TỰ ĐỘNG, không phải lựa chọn đặt tay. */
+  auto: boolean;
   /** Giá trị trong `.env`, để nói rõ "bỏ trống" sẽ rơi về đâu. */
   envValue: string;
 }) {
@@ -35,7 +36,9 @@ export function ModelDefaultField({
 
   // Model đang đặt mà không nằm trong danh sách thì vẫn phải hiện ra, nếu không
   // mở trang lên là ô chọn nhảy sang giá trị khác rồi bấm Lưu là ghi đè mất.
-  const current = fromEnv ? "" : value;
+  // Mặc định tự động thì ô để trống — chọn sẵn nó vào là biến một giá trị tự
+  // suy ra thành một lựa chọn cố định ngay lần bấm Lưu đầu tiên.
+  const current = auto ? "" : value;
   const known = choices.some((c) => c.value === current);
   const options = known || !current ? choices : [{ value: current, label: `${current} (chưa tải)` }, ...choices];
 
