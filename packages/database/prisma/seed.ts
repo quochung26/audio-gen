@@ -59,6 +59,53 @@ async function seedPrompts() {
  * Giọng giả lập để pipeline chạy được trước khi có Kokoro thật.
  * Giọng thật thêm ở Phase 3 bằng scripts/seed-voices.
  */
+/**
+ * Thể loại khởi đầu.
+ *
+ * Mô tả viết như CHỈ DẪN cho model, không phải định nghĩa từ điển: nó được nhét
+ * vào Story Bible nên câu chữ ở đây ảnh hưởng thẳng tới văn.
+ */
+async function seedGenres() {
+  const genres = [
+    {
+      name: "kinh dị",
+      description:
+        "Sợ đến từ thứ không giải thích được, không phải từ máu me. Giữ nhịp chậm, tả chi tiết đời thường trước rồi mới để một chi tiết lệch đi. Không hù bằng âm thanh lớn.",
+    },
+    {
+      name: "tình cảm",
+      description:
+        "Trọng tâm là quan hệ đổi thay giữa hai người. Cảm xúc lộ qua hành động và im lặng, không qua lời tự sự dài. Tránh sến và lời thoại giảng giải.",
+    },
+    {
+      name: "trinh thám",
+      description:
+        "Người nghe phải có đủ manh mối để tự suy ra. Không giấu thông tin rồi tiết lộ ở phút cuối. Mỗi tập khép lại một câu hỏi nhỏ và mở ra một câu hỏi lớn hơn.",
+    },
+    {
+      name: "đời thường",
+      description:
+        "Không có biến cố lớn. Sức nặng nằm ở chi tiết nhỏ và thứ nhân vật không nói ra. Giữ giọng bình thản, để người nghe tự thấy.",
+    },
+    {
+      name: "kỳ ảo",
+      description:
+        "Yếu tố siêu nhiên phải có luật rõ ràng và không được phá luật để gỡ bí. Giải thích luật bằng cảnh, không bằng lời dẫn.",
+    },
+  ];
+
+  for (const g of genres) {
+    await prisma.genre.upsert({
+      where: { name: g.name },
+      // Không ghi đè mô tả đã sửa tay: đây là thứ người viết chỉnh theo giọng
+      // của mình, chạy lại seed mà mất là rất khó chịu.
+      update: {},
+      create: g,
+    });
+  }
+  console.log(`✔ ${genres.length} thể loại`);
+}
+
 async function seedVoices() {
   // Mỗi thứ tiếng phải có bộ giọng riêng: giọng sai tiếng bị bộ giải giọng bỏ
   // qua, nên thiếu là truyện tiếng Anh không dựng được audio dù đang chạy giả
@@ -119,6 +166,7 @@ async function seedPronunciations() {
 
 async function main() {
   await seedPrompts();
+  await seedGenres();
   await seedVoices();
   await seedPronunciations();
 }

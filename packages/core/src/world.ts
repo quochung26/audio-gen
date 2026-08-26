@@ -84,6 +84,8 @@ export function renderBible(input: {
   genre: string;
   /** Thể loại phụ — "tình cảm", "hành động"… Xem packages/core/src/tags.ts. */
   tags?: string[];
+  /** Mô tả từng thể loại, để model hiểu chúng theo nghĩa người viết định. */
+  genreNotes?: Array<{ name: string; description: string }>;
   logline?: string;
   world: WorldSetup;
   characters: Array<{
@@ -101,6 +103,17 @@ export function renderBible(input: {
   if (tagLine) parts.push(tagLine);
 
   if (input.logline) parts.push(`Tóm tắt: ${input.logline}`);
+
+  // Ngay sau dòng thể loại, trước bối cảnh: model phải biết "kinh dị" ở đây
+  // nghĩa là gì trước khi đọc bất cứ thứ gì khác.
+  const notes = (input.genreNotes ?? []).filter((g) => g.description.trim());
+  if (notes.length > 0) {
+    parts.push(
+      ``,
+      `## Thể loại này nghĩa là gì`,
+      ...notes.map((g) => `- **${g.name}**: ${g.description.trim()}`),
+    );
+  }
 
   const w = input.world;
 

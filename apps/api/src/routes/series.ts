@@ -28,7 +28,13 @@ series.get("/", async (c) => {
   return c.json(rows);
 });
 
-/** Thể loại các bộ đang dùng — gợi ý khi tạo biến thể prompt. */
+/**
+ * Thể loại các bộ ĐANG dùng — gợi ý khi tạo biến thể prompt.
+ *
+ * Khác `/api/genres`: chỗ này lấy từ dữ liệu thật, kể cả thể loại gõ tay chưa
+ * có trong danh mục. Danh mục dùng cho ô chọn, cái này dùng cho biến thể prompt
+ * — chỉ đáng tạo biến thể cho thể loại thật sự có truyện.
+ */
 series.get("/genres", async (c) => {
   const rows = await prisma.series.findMany({
     distinct: ["genre"],
@@ -206,6 +212,10 @@ series.put("/:id/world", async (c) => {
           title: s.title,
           genre: s.genre,
           tags: s.tags,
+          genreNotes: await prisma.genre.findMany({
+            where: { name: { in: [s.genre, ...s.tags] } },
+            select: { name: true, description: true },
+          }),
           description: s.description,
           world,
           characters: s.characters,

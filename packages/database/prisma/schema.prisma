@@ -93,6 +93,25 @@ enum ExportType {
   SCRIPT_TXT
 }
 
+/// Thể loại truyện — danh mục dùng chung cho cả thể loại chính lẫn phụ.
+///
+/// `description` KHÔNG phải ghi chú cho người đọc: nó đi vào Story Bible để
+/// model hiểu "kinh dị" theo nghĩa bạn định, thay vì nghĩa nó tự đoán. Đổi mô
+/// tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
+model Genre {
+  id   String @id @default(cuid())
+  /// Đúng chuỗi nằm ở `Series.genre` và trong `Series.tags`.
+  name String @unique
+
+  description String
+
+  /// Tắt thì không hiện ở ô chọn nữa, nhưng bộ đang dùng vẫn giữ nguyên.
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum PromptStep {
   OUTLINE
   /// Dựng dàn ý cho MỘT tập tiếp theo, dựa trên những tập đã có.

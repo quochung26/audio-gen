@@ -65,6 +65,29 @@ Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng c�
 
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.
 
+### Danh mục thể loại
+
+`/the-loai` trong Studio (Cài đặt → Thể loại): thêm thể loại với **tên** và **mô tả**.
+
+Mô tả không phải ghi chú cho người đọc — nó được nhét vào Story Bible, ngay sau dòng thể loại, dưới mục *"Thể loại này nghĩa là gì"*. Nhờ vậy `kinh dị` mang nghĩa **bạn** định chứ không phải nghĩa model tự đoán, mà mỗi model đoán một kiểu. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
+
+Viết mô tả như đang dặn người viết thuê — nói rõ cái gì nên và cái gì tránh:
+
+> **kinh dị**: Sợ đến từ thứ không giải thích được, không phải từ máu me. Giữ nhịp chậm, tả chi tiết đời thường trước rồi mới để một chi tiết lệch đi. Không hù bằng âm thanh lớn.
+
+Thể loại **chính đứng đầu** danh sách mô tả, vì model đọc tuần tự — truy vấn DB trả về thứ tự tuỳ ý nên phải sắp lại.
+
+Vài chỗ chặn:
+
+- **Không xoá được thể loại đang có bộ dùng** (tính cả làm thể loại phụ). Xoá thì các bộ đó mất mô tả trong Bible mà không có gì báo — văn đổi đi ở lượt viết sau và rất khó lần ra nguyên nhân. Thay bằng **ẩn**: ô chọn không hiện nữa, bộ cũ vẫn giữ được mô tả.
+- **Đổi tên không kéo theo bộ đang dùng tên cũ** — `Series.genre` lưu chuỗi, không phải khoá ngoại. Trang báo còn bao nhiêu bộ ghi tên cũ chứ không tự sửa hàng loạt.
+- **Mô tả rỗng bị từ chối**: thể loại vốn đã dùng được mà không cần có trong danh mục, nên một bản ghi không mô tả thì chẳng làm gì cả.
+- Mô tả tối đa 600 ký tự — nó nằm trong **mọi** lần gọi model.
+
+Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong danh mục** (gõ tay ở ô thể loại phụ, hoặc dữ liệu cũ): model không được dặn gì về chúng.
+
+`Genre` là bảng chỉ-ở-máy, không đồng bộ sang Player.
+
 ### Thể loại chính và thể loại phụ
 
 Một truyện có nhiều thể loại, chỉ khác nhau cái nào chính cái nào phụ. Hệ thống chia làm hai vì chúng làm hai việc khác nhau:

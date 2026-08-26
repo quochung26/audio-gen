@@ -1,13 +1,19 @@
 import { useNavigate } from "react-router";
+import { useApi } from "@/lib/api";
 import { Form } from "@/components/Form";
 import { Field } from "@/components/Field";
 import { ModelPicker } from "@/components/ModelPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 
-const GENRES = ["kinh dị", "tình cảm", "trinh thám", "đời thường", "kỳ ảo"];
 
 export function SeriesNew() {
   const nav = useNavigate();
+  // Lấy từ danh mục chứ không cứng trong mã: thêm thể loại ở trang Cài đặt là
+  // ô này có ngay, và mỗi thể loại mang theo mô tả để model đọc.
+  const { data } = useApi<{ genres: Array<{ name: string; description: string; enabled: boolean }> }>(
+    "/api/genres",
+  );
+  const genres = (data?.genres ?? []).filter((g) => g.enabled);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -41,14 +47,20 @@ export function SeriesNew() {
             <span className="mb-1 block text-sm text-neutral-400">Thể loại chính</span>
             <select
               name="genre"
+              key={genres.length}
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
             >
-              {GENRES.map((g) => (
-                <option key={g} value={g}>
-                  {g}
+              {genres.map((g) => (
+                <option key={g.name} value={g.name}>
+                  {g.name}
                 </option>
               ))}
             </select>
+            {genres.length === 0 && (
+              <span className="mt-1 block text-xs text-amber-500">
+                Danh mục thể loại đang rỗng — thêm ở Cài đặt → Thể loại.
+              </span>
+            )}
           </label>
           <LanguagePicker />
         </div>
@@ -70,8 +82,8 @@ export function SeriesNew() {
           </span>
         </label>
         <datalist id="genre-suggestions">
-          {GENRES.map((g) => (
-            <option key={g} value={g} />
+          {genres.map((g) => (
+            <option key={g.name} value={g.name} />
           ))}
         </datalist>
 

@@ -13,6 +13,7 @@ import { episodes } from "./routes/episodes";
 import { jobs } from "./routes/jobs";
 import { models } from "./routes/models";
 import { prompts } from "./routes/prompts";
+import { genres } from "./routes/genres";
 import { series } from "./routes/series";
 import { stats } from "./routes/stats";
 import { tracks } from "./routes/tracks";
@@ -39,6 +40,7 @@ app.get("/health", async (c) => {
 });
 
 app.route("/api/series", series);
+app.route("/api/genres", genres);
 app.route("/api/episodes", episodes);
 app.route("/api/prompts", prompts);
 app.route("/api/tracks", tracks);

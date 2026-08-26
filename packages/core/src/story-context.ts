@@ -7,6 +7,17 @@ export interface SeriesBibleInput {
   tags: string[];
   description?: string | null;
   world: WorldSetup;
+  /**
+   * Mô tả của những thể loại bộ này dùng (cả chính lẫn phụ).
+   *
+   * Có nó thì "kinh dị" mang nghĩa người viết định, thay vì nghĩa model tự
+   * đoán — mà mỗi model đoán một kiểu.
+   *
+   * BẮT BUỘC, dù mảng rỗng cũng phải truyền: để tuỳ chọn thì quên truyền là
+   * Bible lặng lẽ thiếu mất phần định hướng, văn đổi đi ở lượt viết sau mà
+   * không có gì báo. Đã mất một lần vì `tags` như thế rồi.
+   */
+  genreNotes: Array<{ name: string; description: string }>;
   characters: Array<{
     name: string;
     role?: string | null;
@@ -26,6 +37,18 @@ export interface SeriesBibleInput {
  * Thêm một trường vào Bible thì phải nhớ sửa cả hai, mà quên một chỗ thì không
  * có gì báo: Bible vẫn dựng được, chỉ là thiếu mất một phần định hướng.
  */
+function sortGenreNotes(
+  main: string,
+  notes: Array<{ name: string; description: string }>,
+): Array<{ name: string; description: string }> {
+  const key = main.trim().toLowerCase();
+  return [...notes].sort((a, b) => {
+    const am = a.name.trim().toLowerCase() === key ? 0 : 1;
+    const bm = b.name.trim().toLowerCase() === key ? 0 : 1;
+    return am - bm || a.name.localeCompare(b.name);
+  });
+}
+
 export function seriesBible(input: SeriesBibleInput): string {
   return renderBible({
     title: input.title,
@@ -33,6 +56,9 @@ export function seriesBible(input: SeriesBibleInput): string {
     tags: input.tags,
     logline: input.description ?? undefined,
     world: input.world,
+    // Thể loại CHÍNH lên đầu. Truy vấn trả về thứ tự tuỳ ý, mà model đọc tuần
+    // tự — để thể loại phụ đứng trước là đảo mất thứ tự ưu tiên.
+    genreNotes: sortGenreNotes(input.genre, input.genreNotes),
     // Ghép trạng thái hiện tại vào mô tả nhân vật. Đây là thứ giữ cho tập 40
     // không để một nhân vật đã chết ở tập 12 bước vào cảnh.
     characters: input.characters.map((c) => ({

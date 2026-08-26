@@ -20,6 +20,7 @@ const NAV = [
  */
 const SETTINGS_NAV = [
   ["/prompts", "Prompt"],
+  ["/the-loai", "Thể loại"],
   ["/model", "Model & ngôn ngữ"],
 ] as const;
 

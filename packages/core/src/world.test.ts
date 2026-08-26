@@ -37,6 +37,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     tags: ["tình cảm", "slow burn"],
     description: "Một câu chuyện.",
     world: EMPTY_WORLD,
+    genreNotes: [],
     characters: [{ name: "Hùng", isNarrator: true, description: "tài xế", state: null }],
   };
 
@@ -68,5 +69,49 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
   it("mô tả bộ truyện thành logline", () => {
     expect(seriesBible(series)).toContain("Một câu chuyện.");
     expect(seriesBible({ ...series, description: null })).not.toContain("Tóm tắt:");
+  });
+});
+
+describe("mô tả thể loại trong Bible", () => {
+  const notes = [
+    { name: "tình cảm", description: "Quan hệ đổi thay giữa hai người." },
+    { name: "kinh dị", description: "Sợ đến từ thứ không giải thích được." },
+  ];
+  const base = {
+    title: "Đường về",
+    genre: "kinh dị",
+    tags: ["tình cảm"],
+    world: EMPTY_WORLD,
+    genreNotes: [],
+    characters: [{ name: "Hùng", isNarrator: true }],
+  };
+
+  it("thể loại CHÍNH đứng đầu, bất kể thứ tự truy vấn trả về", () => {
+    // Model đọc tuần tự; để thể loại phụ đứng trước là đảo mất thứ tự ưu tiên.
+    const b = seriesBible({ ...base, genreNotes: notes });
+    expect(b.indexOf("**kinh dị**")).toBeLessThan(b.indexOf("**tình cảm**"));
+  });
+
+  it("so tên KHÔNG phân biệt hoa thường và khoảng trắng thừa", () => {
+    const b = seriesBible({
+      ...base,
+      genre: " Kinh Dị ",
+      genreNotes: notes,
+    });
+    expect(b.indexOf("**kinh dị**")).toBeLessThan(b.indexOf("**tình cảm**"));
+  });
+
+  it("bỏ mô tả rỗng thay vì in một gạch đầu dòng trống", () => {
+    const b = seriesBible({
+      ...base,
+      genreNotes: [{ name: "kinh dị", description: "   " }, notes[0]!],
+    });
+    expect(b).not.toContain("**kinh dị**");
+    expect(b).toContain("**tình cảm**");
+  });
+
+  it("không có mô tả nào thì không sinh mục trống", () => {
+    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("Thể loại này nghĩa là gì");
+    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("Thể loại này nghĩa là gì");
   });
 });

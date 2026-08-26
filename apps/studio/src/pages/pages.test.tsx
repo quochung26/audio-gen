@@ -10,6 +10,7 @@ import { Dashboard } from "./Dashboard";
 import { Episode } from "./Episode";
 import { EpisodeAudio } from "./EpisodeAudio";
 import { Facts } from "./Facts";
+import { Genres } from "./Genres";
 import { Job } from "./Job";
 import { Models } from "./Models";
 import { Prompt } from "./Prompt";
@@ -69,6 +70,19 @@ const FIXTURES: Record<string, unknown> = {
     },
   ],
   "/api/series/genres": ["kinh dị"],
+  "/api/genres": {
+    genres: [
+      {
+        id: "g1",
+        name: "kinh dị",
+        description: "Sợ đến từ thứ không giải thích được.",
+        enabled: true,
+        usedBy: 3,
+      },
+      { id: "g2", name: "kỳ ảo", description: "Siêu nhiên phải có luật.", enabled: false, usedBy: 0 },
+    ],
+    unlisted: [{ name: "slow burn", usedBy: 1 }],
+  },
   "/api/series/s1/episodes": { jobId: "j-new" },
   "/api/series/s1/tags": { ok: "Đã lưu 2 thể loại phụ." },
   "/api/series/s1": {
@@ -723,5 +737,56 @@ describe("thể loại phụ", () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(container.textContent).toContain("Thể loại phụ"));
     expect(container.textContent).toMatch(/đổi ở đây không đụng tới nó/i);
+  });
+});
+
+describe("trang Thể loại", () => {
+  async function page() {
+    const { container } = renderAt("/the-loai", "/the-loai", <Genres />);
+    await waitFor(() => expect(container.textContent).toContain("Danh mục"));
+    return container;
+  }
+
+  it("nói rõ mô tả là thứ MODEL đọc, không phải ghi chú cho người", async () => {
+    // Không nói thì người ta viết mô tả kiểu từ điển, chẳng lái được gì.
+    const c = await page();
+    expect(c.textContent).toMatch(/không phải ghi chú cho người đọc/);
+    expect(c.textContent).toMatch(/nhét vào Story Bible/);
+  });
+
+  it("hiện số bộ đang dùng từng thể loại", async () => {
+    const c = await page();
+    expect(c.textContent).toContain("3 bộ đang dùng");
+    expect(c.textContent).toContain("chưa bộ nào dùng");
+  });
+
+  it("KHÔNG cho xoá thể loại đang có bộ dùng", async () => {
+    // Xoá thì các bộ đó mất mô tả trong Bible mà không có gì báo.
+    await page();
+    expect(screen.getAllByRole("button", { name: "xoá" })).toHaveLength(1);
+  });
+
+  it("đánh dấu thể loại đã ẩn", async () => {
+    expect((await page()).textContent).toContain("đã ẩn");
+  });
+
+  it("nêu thể loại đang dùng mà chưa có mô tả", async () => {
+    const c = await page();
+    expect(c.textContent).toContain("slow burn");
+    expect(c.textContent).toMatch(/chưa nằm trong danh mục/);
+  });
+});
+
+describe("màn tạo truyện lấy thể loại từ danh mục", () => {
+  it("chỉ liệt kê thể loại đang bật", async () => {
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    const options = () =>
+      [...container.querySelectorAll('select[name="genre"] option')].map((o) => o.textContent);
+
+    // Chờ DANH MỤC về, không chỉ chờ trang render: nhãn "Thể loại chính" hiện
+    // ngay từ đầu nên chờ nó là chờ hụt.
+    await waitFor(() => expect(options().length).toBeGreaterThan(0));
+    // "kỳ ảo" đã ẩn nên không được xuất hiện.
+    expect(options()).toEqual(["kinh dị"]);
   });
 });

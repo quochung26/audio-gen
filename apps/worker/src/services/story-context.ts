@@ -58,10 +58,18 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
   const world = parseWorld(stored.world);
 
+  // Mô tả của đúng những thể loại bộ này dùng. Một truy vấn, đổi lại model
+  // hiểu "kinh dị" theo nghĩa người viết định.
+  const genreNotes = await prisma.genre.findMany({
+    where: { name: { in: [series.genre, ...series.tags] } },
+    select: { name: true, description: true },
+  });
+
   const bible = seriesBible({
     title: series.title,
     genre: series.genre,
     tags: series.tags,
+    genreNotes,
     description: series.description,
     world,
     characters: series.characters,

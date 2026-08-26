@@ -35,6 +35,9 @@ export const LOCAL_ONLY_TABLES = [
   "Scene",
   "LlmRun",
   "Prompt",
+  // Mô tả thể loại là chỉ dẫn cho model lúc viết — Player không cần, và nó là
+  // cách viết riêng của người làm truyện.
+  "Genre",
   "RenderJob",
   "AudioAsset",
   "PronunciationEntry",
