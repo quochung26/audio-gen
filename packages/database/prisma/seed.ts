@@ -14,6 +14,7 @@ const PROMPTS_DIR = join(import.meta.dirname, "../../../prompts");
  */
 const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = [
   { step: "OUTLINE", file: "outline.md" },
+  { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
@@ -24,6 +25,8 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
 /** Tham số sinh theo từng bước — văn sáng tạo cần temperature cao hơn việc phụ. */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
+  // Ngữ cảnh rộng hơn OUTLINE vì phải nạp cả tóm tắt các tập cũ.
+  NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
   WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.12, numCtx: 16384, maxTokens: 1800 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.5, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },

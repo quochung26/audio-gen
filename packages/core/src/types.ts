@@ -29,6 +29,23 @@ export const episodePlanSchema = z.object({
   hookCuoi: z.string().describe("Câu/tình tiết cuối tập giữ chân người nghe"),
 });
 
+/**
+ * Dàn ý cho MỘT tập viết tiếp.
+ *
+ * Không có `number`: số tập do server quyết theo những tập đã có, chứ không để
+ * model tự đánh — model hay đánh lại từ 1 hoặc nhảy số.
+ */
+export const nextEpisodePlanSchema = z.object({
+  title: z.string().min(1),
+  beats: z
+    .array(z.string())
+    .min(2)
+    .describe("Các nhịp chính của tập, mỗi nhịp sẽ thành một cảnh"),
+  hookCuoi: z.string().describe("Câu/tình tiết cuối tập giữ chân người nghe"),
+});
+
+export type NextEpisodePlan = z.infer<typeof nextEpisodePlanSchema>;
+
 export const outlineSchema = z.object({
   title: z.string().min(1),
   logline: z.string().describe("Tóm tắt một câu"),

@@ -30,6 +30,8 @@ export function renderTemplate(template: string, vars: Record<string, string | n
  */
 export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   OUTLINE: ["idea", "genre", "episodeCount", "sceneCount", "sceneWords", "world"],
+  // Viết tiếp thì không cần ý tưởng gốc — cần biết đã xảy ra những gì.
+  NEXT_EPISODE: ["bible", "context", "episodeNumber", "sceneCount", "sceneWords"],
   // Cả ngữ cảnh gộp thành MỘT biến: Story Bible, tóm tắt cung truyện, sự kiện
   // truy hồi, cảnh trước, beat, số từ đích — xem `renderContext` ở @audio/core.
   WRITE_SCENE: ["context"],

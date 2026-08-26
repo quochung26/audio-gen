@@ -77,11 +77,51 @@ series.post("/", async (c) => {
       idea,
       language: language || (await getDefaultLanguage()),
       genre: field(body, "genre") || "kinh dị",
-      episodeCount: Number(body.episodeCount ?? 1),
+      // Luôn dựng ĐÚNG MỘT tập. Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8
+      // trở đi chỉ là phỏng đoán của model về câu chuyện chưa được viết; viết
+      // tiếp từng tập thì mỗi tập được dựng khi đã biết tập trước kết thúc ra
+      // sao. Thêm tập bằng nút "Viết tập mới" ở trang bộ truyện.
+      episodeCount: 1,
       world,
       // Chỉ áp cho lần chạy này; để trống thì worker dùng mặc định.
       model: field(body, "model") || undefined,
     },
+  });
+  return c.json({ jobId: job.id });
+});
+
+/**
+ * Dựng dàn ý cho tập tiếp theo.
+ *
+ * Chặn khi tập gần nhất chưa có tóm tắt: không có tóm tắt thì tập mới được
+ * dựng mà không biết tập trước kết thúc ra sao — đúng thứ mà viết-từng-tập
+ * sinh ra để tránh.
+ */
+series.post("/:id/episodes", async (c) => {
+  const seriesId = c.req.param("id");
+  const body = await c.req.parseBody();
+
+  const s = await prisma.series.findUniqueOrThrow({
+    where: { id: seriesId },
+    select: { id: true },
+  });
+
+  const last = await prisma.episode.findFirst({
+    where: { seriesId: s.id },
+    orderBy: { number: "desc" },
+    select: { number: true, title: true, summary: true },
+  });
+
+  if (last && !last.summary && field(body, "force") !== "1") {
+    throw new UserError(
+      `Tập ${last.number} "${last.title}" chưa có tóm tắt. Viết xong và tóm tắt tập đó trước, ` +
+        `nếu không tập mới sẽ được dựng mà không biết tập trước kết thúc ra sao.`,
+    );
+  }
+
+  const job = await enqueue({
+    type: "NEXT_EPISODE",
+    payload: { seriesId: s.id, model: field(body, "model") || undefined },
   });
   return c.json({ jobId: job.id });
 });

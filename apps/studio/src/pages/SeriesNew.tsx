@@ -14,8 +14,9 @@ export function SeriesNew() {
       <div>
         <h1 className="text-xl font-semibold">Truyện mới</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Viết một dòng ý tưởng. Máy sẽ dựng dàn ý, nhân vật và chia cảnh — bạn sửa lại trước khi
-          cho viết.
+          Viết một dòng ý tưởng. Máy sẽ dựng dàn ý, nhân vật và <strong className="text-neutral-200">tập
+          đầu tiên</strong> — bạn sửa lại trước khi cho viết. Tập sau thêm dần bằng nút “Viết tập
+          mới” ở trang bộ truyện, để mỗi tập được dựng khi đã biết tập trước kết thúc ra sao.
         </p>
       </div>
 
@@ -50,17 +51,6 @@ export function SeriesNew() {
             </select>
           </label>
           <LanguagePicker />
-          <label className="w-28">
-            <span className="mb-1 block text-sm text-neutral-400">Số tập</span>
-            <input
-              name="episodeCount"
-              type="number"
-              min={1}
-              max={30}
-              defaultValue={1}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
-            />
-          </label>
         </div>
 
         <ModelPicker />

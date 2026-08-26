@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,6 +69,7 @@ const FIXTURES: Record<string, unknown> = {
     },
   ],
   "/api/series/genres": ["kinh dị"],
+  "/api/series/s1/episodes": { jobId: "j-new" },
   "/api/series/s1": {
     id: "s1",
     title: "Đường về",
@@ -385,7 +386,10 @@ beforeEach(() => {
   vi.stubGlobal("confirm", vi.fn(() => true));
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function renderAt(path: string, route: string, element: ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -666,5 +670,31 @@ describe("chọn model ngay trong danh sách đã tải", () => {
     const { container } = renderAt("/model", "/model", <Models />);
     await waitFor(() => expect(container.textContent).toContain("Model đang có"));
     expect(container.textContent).toContain("đang dùng: Việc phụ");
+  });
+});
+
+describe("viết từng tập một", () => {
+  it("màn tạo truyện KHÔNG còn hỏi số tập", async () => {
+    // Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8 trở đi chỉ là phỏng đoán
+    // của model về câu chuyện chưa được viết.
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    await waitFor(() => expect(container.textContent).toContain("Ý tưởng"));
+    expect(container.querySelector('input[name="episodeCount"]')).toBeNull();
+    expect(container.textContent).toContain("tập đầu tiên");
+    expect(container.textContent).toContain("Viết tập mới");
+  });
+
+  it("trang bộ truyện có nút Viết tập mới, gọi đúng route", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(container.textContent).toContain("Đường về"));
+    fireEvent.click(screen.getByRole("button", { name: "Viết tập mới" }));
+
+    await waitFor(() => {
+      const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
+        (c) => String(c[0]) === "/api/series/s1/episodes",
+      );
+      expect(call).toBeTruthy();
+      expect((call![1] as { method: string }).method).toBe("POST");
+    });
   });
 });

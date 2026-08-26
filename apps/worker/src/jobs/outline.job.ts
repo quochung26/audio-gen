@@ -20,6 +20,7 @@ import {
   resolveModel,
 } from "@audio/llm";
 import { EPISODE_TARGET_WORDS, SCENE_MAX_WORDS, SCENE_MIN_WORDS } from "@audio/config";
+import { freeSlug } from "../services/slug";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 
@@ -171,16 +172,3 @@ function dedupeByName<T extends { name: string; isNarrator: boolean }>(items: T[
   return out;
 }
 
-/** Slug phải duy nhất toàn hệ thống — thêm hậu tố nếu đã bị chiếm. */
-async function freeSlug(source: string): Promise<string> {
-  const base = slugify(source);
-  for (let i = 0; i < 50; i++) {
-    const candidate = i === 0 ? base : `${base}-${i + 1}`;
-    const [s, e] = await Promise.all([
-      prisma.series.findUnique({ where: { slug: candidate }, select: { id: true } }),
-      prisma.episode.findUnique({ where: { slug: candidate }, select: { id: true } }),
-    ]);
-    if (!s && !e) return candidate;
-  }
-  return `${base}-${Date.now()}`;
-}

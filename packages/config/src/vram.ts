@@ -33,6 +33,7 @@ export function getJobVramCost(): Record<string, number> {
   return {
     // GPU
     OUTLINE: env.VRAM_LLM_MB,
+    NEXT_EPISODE: env.VRAM_LLM_MB,
     WRITE_SCENE: env.VRAM_LLM_MB,
     AUDIO_EDIT: env.VRAM_LLM_MB,
     SUMMARIZE: env.VRAM_LLM_MB,

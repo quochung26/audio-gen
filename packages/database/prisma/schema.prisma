@@ -61,6 +61,7 @@ enum JobType {
   /// Nhờ có nó, Studio chỉ cần enqueue chứ không phải mang theo logic điều phối.
   BATCH
   OUTLINE
+  NEXT_EPISODE
   WRITE_SCENE
   AUDIO_EDIT
   SUMMARIZE
@@ -94,6 +95,8 @@ enum ExportType {
 
 enum PromptStep {
   OUTLINE
+  /// Dựng dàn ý cho MỘT tập tiếp theo, dựa trên những tập đã có.
+  NEXT_EPISODE
   WRITE_SCENE
   AUDIO_EDIT
   SUMMARIZE

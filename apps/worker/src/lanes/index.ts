@@ -1,6 +1,7 @@
 import { JobType } from "@audio/database";
 import { createLane } from "./create-lane";
 import { mockJob } from "../jobs/mock.job";
+import { nextEpisodeJob } from "../jobs/next-episode.job";
 import { outlineJob } from "../jobs/outline.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
 import { audioEditJob } from "../jobs/audio-edit.job";
@@ -22,6 +23,7 @@ export function startLanes() {
   return [
     createLane("LLM", {
       [JobType.OUTLINE]: outlineJob,
+      [JobType.NEXT_EPISODE]: nextEpisodeJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
       [JobType.AUDIO_EDIT]: audioEditJob,
       [JobType.SUMMARIZE]: summarizeJob,

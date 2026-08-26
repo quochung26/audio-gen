@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { mediaUrl, useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
@@ -57,6 +57,7 @@ function formatDuration(ms: number): string {
 }
 
 export function Series() {
+  const nav = useNavigate();
   const { id } = useParams();
   const { data: s, isLoading } = useApi<Data>(`/api/series/${id}`, { refetchMs: 5000 });
   if (isLoading || !s) return <Loading />;
@@ -290,7 +291,21 @@ export function Series() {
         )}
       </Section>
 
-      <Section title={`Tập (${s.episodes.length})`}>
+      <Section
+        title={`Tập (${s.episodes.length})`}
+        action={
+          <ActionButton
+            path={`/api/series/${s.id}/episodes`}
+            variant="default"
+            onDone={(r) => {
+              const jobId = (r as { jobId?: string }).jobId;
+              if (jobId) nav(`/job/${jobId}`);
+            }}
+          >
+            Viết tập mới
+          </ActionButton>
+        }
+      >
         <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
           {s.episodes.map((ep) => (
             <Link

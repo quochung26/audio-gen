@@ -54,6 +54,7 @@ describe("checkPromptVariables", () => {
 describe("prompt mặc định trong repo", () => {
   const FILES: Array<[Parameters<typeof checkPromptVariables>[0], string]> = [
     ["OUTLINE", "outline.md"],
+    ["NEXT_EPISODE", "next-episode.md"],
     ["WRITE_SCENE", "write-scene.md"],
     ["AUDIO_EDIT", "audio-edit.md"],
     ["SUMMARIZE", "summarize.md"],
@@ -68,7 +69,7 @@ describe("prompt mặc định trong repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("khai báo đủ cả 6 bước", () => {
+  it("khai báo đủ cả 7 bước", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });
@@ -102,5 +103,12 @@ describe("pickPrompt", () => {
   it("không có bản nào dùng được thì trả undefined", () => {
     expect(pickPrompt([p("trinh thám", 1)], "kinh dị")).toBeUndefined();
     expect(pickPrompt([])).toBeUndefined();
+  });
+});
+
+describe("biến của bước NEXT_EPISODE", () => {
+  it("KHÔNG nhận biến của bước dựng bộ mới", () => {
+    // Viết tiếp thì không có "ý tưởng gốc" nào để truyền vào.
+    expect(checkPromptVariables("NEXT_EPISODE", "{{idea}}").unknown).toEqual(["idea"]);
   });
 });

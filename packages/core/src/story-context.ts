@@ -87,3 +87,59 @@ export function renderContext(ctx: StoryContext): string {
 
   return parts.join("\n\n");
 }
+
+export interface EpisodeContext {
+  arcSummary?: string;
+  arcThroughEpisode?: number;
+  episodeIndex: Array<{ number: number; title: string; gist: string }>;
+  previousSummaries: Array<{ number: number; summary: string }>;
+  openThreads: Array<{ episodeNumber: number; text: string }>;
+}
+
+/**
+ * Ghép ngữ cảnh để dựng dàn ý cho MỘT tập viết tiếp.
+ *
+ * Khác `renderContext` ở chỗ nhìn cả bộ chứ không nhìn một cảnh: không có beat,
+ * không có cảnh liền trước, và KHÔNG truy hồi sự kiện theo ngữ nghĩa — lúc này
+ * chưa biết tập sắp viết nói về cái gì thì lấy gì mà truy hồi.
+ *
+ * Đổi lại, tình tiết bỏ ngỏ quan trọng hơn hẳn: dựng tập mới chính là lúc quyết
+ * định món nợ nào của câu chuyện sẽ được trả.
+ */
+export function renderEpisodeContext(ctx: EpisodeContext): string {
+  const parts: string[] = [];
+
+  if (ctx.arcSummary) {
+    const through = ctx.arcThroughEpisode ? ` (tập 1–${ctx.arcThroughEpisode})` : "";
+    parts.push(`## Mạch truyện từ đầu${through}\n${ctx.arcSummary}`);
+  }
+
+  if (ctx.episodeIndex.length > 0) {
+    parts.push(
+      `## Mục lục các tập đã viết\n` +
+        ctx.episodeIndex.map((e) => `${e.number}. ${e.title} — ${e.gist}`).join("\n"),
+    );
+  }
+
+  if (ctx.previousSummaries.length > 0) {
+    parts.push(
+      `## Tóm tắt tập gần nhất\n` +
+        ctx.previousSummaries.map((s) => `Tập ${s.number}: ${s.summary}`).join("\n\n"),
+    );
+  }
+
+  if (ctx.openThreads.length > 0) {
+    parts.push(
+      `## Tình tiết còn bỏ ngỏ\n` +
+        `Chưa có lời giải. Tập mới nên đẩy tiếp hoặc giải quyết ít nhất một trong số này:\n` +
+        ctx.openThreads.map((t) => `- [tập ${t.episodeNumber}] ${t.text}`).join("\n"),
+    );
+  }
+
+  // Bộ mới toanh: nói thẳng ra thay vì gửi một khối rỗng, để model không tưởng
+  // là ngữ cảnh bị cắt mất.
+  if (parts.length === 0) {
+    return "Chưa có tập nào được viết xong. Đây là tập đầu tiên nối sau phần đã dựng.";
+  }
+  return parts.join("\n\n");
+}

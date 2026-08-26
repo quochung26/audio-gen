@@ -65,6 +65,21 @@ Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng c�
 
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.
 
+### Viết từng tập một
+
+Tạo truyện chỉ dựng **một tập**: dàn ý, nhân vật, và tập 1. Tập sau thêm dần bằng nút **Viết tập mới** ở trang bộ truyện.
+
+Không dựng sẵn mười tập từ một dòng ý tưởng, vì tập 8 lúc đó chỉ là phỏng đoán của model về một câu chuyện chưa được viết — mà bản thảo thật gần như luôn đi chệch dàn ý. Dựng từng tập thì mỗi tập được lên khi đã biết tập trước kết thúc ra sao, ai còn sống, tình tiết nào còn bỏ ngỏ.
+
+Bước `NEXT_EPISODE` tách riêng khỏi `OUTLINE` vì hai việc khác hẳn: `OUTLINE` dựng cả bộ từ một dòng ý tưởng, còn `NEXT_EPISODE` viết tiếp một bộ đang chạy — nạp Story Bible, mạch truyện đã nén, tóm tắt tập liền trước và **tình tiết còn bỏ ngỏ**, rồi bắt tập mới đẩy tiếp hoặc giải quyết ít nhất một trong số đó.
+
+Hai chỗ chặn:
+
+- **Số tập do server chốt**, không để model tự đánh — model hay đánh lại từ 1 hoặc nhảy số, mà `(seriesId, number)` là ràng buộc duy nhất nên trùng số là job chết.
+- **Tập gần nhất chưa có tóm tắt thì không cho viết tiếp.** Không có tóm tắt nghĩa là tập mới sẽ được dựng mà không biết tập trước kết thúc ra sao — đúng thứ mà viết-từng-tập sinh ra để tránh.
+
+Ngữ cảnh cho bước này KHÔNG truy hồi sự kiện theo ngữ nghĩa như lúc viết cảnh: chưa biết tập sắp viết nói về cái gì thì lấy gì mà truy hồi. Đổi lại, tình tiết bỏ ngỏ được nạp đầy đủ.
+
 ### Ba tầng để AI viết theo ý bạn
 
 Từ hẹp tới rộng — thứ nào cụ thể hơn thì thắng:
