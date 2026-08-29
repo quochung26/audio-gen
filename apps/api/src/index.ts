@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
+import { checkPrismaClient } from "@audio/database/schema-check";
 import { UserError } from "./lib/http";
 import { audio } from "./routes/audio";
 import { comments } from "./routes/comments";
@@ -67,6 +68,23 @@ if (existsSync(SPA_DIR)) {
 app.onError((err, c) => {
   if (err instanceof UserError) return c.json({ error: err.message }, 400);
   console.error("[api]", err);
+
+  // DB cũ hơn schema: bảng (P2021) hay cột (P2022) mà code đang cần chưa có
+  // thật trong Postgres. Chỉ đọc MÃ lỗi, không lấy nguyên văn thông báo của
+  // Prisma — khối trích dẫn mã nguồn trong đó có thể chứa chuỗi kết nối kèm
+  // mật khẩu (xem lib/player-db.ts).
+  const code = (err as { code?: unknown }).code;
+  if (code === "P2021" || code === "P2022") {
+    return c.json(
+      {
+        error:
+          "DB chưa có bảng hoặc cột mà code đang cần. Chạy `pnpm db:push` " +
+          "(hoặc `pnpm db:push:player` nếu là DB hosted) để cập nhật DB.",
+      },
+      500,
+    );
+  }
+
   // Giấu chi tiết lỗi không lường trước, nhưng log đầy đủ ở server.
   return c.json({ error: "Có lỗi không lường trước. Xem log của API." }, 500);
 });
@@ -75,6 +93,15 @@ app.notFound((c) => c.json({ error: "Không có endpoint này" }, 404));
 
 const port = Number(process.env.API_PORT ?? 3002);
 const env = loadEnv();
+
+// Client cũ hơn schema thì mọi route chạm model mới đều chết bằng một
+// TypeError chẳng nói lên điều gì. Chết ngay từ đây, kèm lệnh cần chạy.
+try {
+  checkPrismaClient();
+} catch (err) {
+  console.error(`[api] ${(err as Error).message}`);
+  process.exit(1);
+}
 
 console.log(`[api] LLM=${env.LLM_PROVIDER} TTS=${env.TTS_PROVIDER} storage=${env.STORAGE_DRIVER}`);
 serve({ fetch: app.fetch, port }, (info) => {

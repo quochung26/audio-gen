@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // `prisma generate` ghi ra node_modules/.prisma ở GỐC repo — ngoài thư mục
+    // gói này, nên turbo không khôi phục được từ cache. Bật cache ở đây nghĩa
+    // là một lần trúng cache sẽ bỏ qua việc sinh client và để nguyên bản cũ,
+    // đúng cái lỗi cần tránh.
+    "build": {
+      "cache": false,
+      "outputs": []
+    }
+  }
+}

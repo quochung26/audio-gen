@@ -3,7 +3,7 @@
   "globalDependencies": [".env"],
   "globalEnv": [
     "DATABASE_URL", "PLAYER_DATABASE_URL", "PLAYER_PUBLIC_URL", "REDIS_URL",
-    "OLLAMA_URL", "EMBED_PROVIDER", "EMBED_MODEL", "OLLAMA_MODEL_WRITE", "OLLAMA_MODEL_UTILITY",
+    "OLLAMA_URL", "EMBED_PROVIDER", "OPENROUTER_API_KEY",
     "KOKORO_URL", "VOICE_CLONE_URL", "TTS_EXPRESSIVE_PROVIDER", "PIPER_BINARY", "PIPER_VOICES_DIR",
     "LLM_PROVIDER", "TTS_PROVIDER",
     "VRAM_TOTAL_MB", "VRAM_RESERVED_MB", "VRAM_LLM_MB", "VRAM_TTS_CLONE_MB",
@@ -17,6 +17,7 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },

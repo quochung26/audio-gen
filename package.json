@@ -7,6 +7,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "db:generate": "pnpm --filter @audio/database db:generate",
     "db:push": "pnpm --filter @audio/database db:push",
     "db:migrate": "pnpm --filter @audio/database db:migrate",
     "db:studio": "pnpm --filter @audio/database db:studio",

@@ -935,6 +935,9 @@ Ghi lại để sau này không phải tranh luận lại:
 ## 8. Lệnh thường dùng
 
 ```bash
+# Sinh lại Prisma client cho khớp schema
+pnpm db:generate
+
 # Tạo migration sau khi sửa schema
 npx prisma migrate dev --name mo_ta_thay_doi
 
@@ -950,3 +953,13 @@ npx prisma db seed
 # Backup (chạy hàng ngày, đẩy lên R2 — xem mục rủi ro trong PLAN.md)
 docker compose exec -T postgres pg_dump -U postgres audio_truyen | gzip > backup-$(date +%F).sql.gz
 ```
+
+> **`git pull` về một model mới thì cần cả hai bước: sinh lại client VÀ đẩy
+> schema lên DB.** `prisma generate` chỉ tự chạy lúc cài gói (`postinstall`),
+> nên client cũ vẫn nằm nguyên đó sau khi pull; `prisma.genre` khi đó bằng
+> `undefined` và Node báo `Cannot read properties of undefined (reading
+> 'findMany')`, một câu không nhắc gì tới Prisma. `turbo` đã lo bước sinh lại
+> giúp (`pnpm dev`, `pnpm build`, `pnpm test` đều chạy `@audio/database#build`
+> trước), còn `pnpm db:push` thì vẫn phải gõ tay vì nó ghi vào DB thật. Chạy
+> thiếu bước nào cũng có lời nhắc kèm đúng lệnh: API và worker kiểm client lúc
+> khởi động, còn bảng/cột thiếu thì API trả về mã P2021/P2022 kèm chỉ dẫn.
