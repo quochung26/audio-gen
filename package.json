@@ -14,7 +14,7 @@
     "db:seed": "pnpm --filter @audio/database db:seed",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
-    "worker": "pnpm --filter @audio/worker dev",
+    "worker": "turbo dev --filter=@audio/worker",
     "job:mock": "pnpm --filter @audio/worker job:mock",
     "queue:status": "pnpm --filter @audio/worker queue:status",
     "story": "pnpm --filter @audio/worker story",
@@ -22,9 +22,9 @@
     "fix:storage-refs": "pnpm --filter @audio/worker fix:storage-refs",
     "test": "turbo test",
     "db:push:player": "pnpm --filter @audio/database db:push:player",
-    "api": "pnpm --filter @audio/api dev",
-    "studio": "pnpm --filter @audio/studio dev",
-    "player": "pnpm --filter @audio/player dev"
+    "api": "turbo dev --filter=@audio/api",
+    "studio": "turbo dev --filter=@audio/studio",
+    "player": "turbo dev --filter=@audio/player"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

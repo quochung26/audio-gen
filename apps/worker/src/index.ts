@@ -1,6 +1,5 @@
 import { loadEnv, getVramBudget } from "@audio/config";
 import { prisma } from "@audio/database";
-import { checkPrismaClient } from "@audio/database/schema-check";
 import { checkFfmpeg } from "@audio/audio";
 import { startLanes } from "./lanes/index";
 import { logger } from "./lib/logger";
@@ -15,10 +14,6 @@ async function main() {
   logger.info(`LLM provider : ${env.LLM_PROVIDER}`);
   logger.info(`TTS provider : ${env.TTS_PROVIDER}`);
   logger.info(`VRAM         : ${vram.usableMb}MB dùng được / ${vram.totalMb}MB tổng`);
-
-  // Cùng lý do như ở API: client cũ hơn schema thì job chết giữa chừng bằng
-  // một TypeError, và lỗi đó nằm trong bảng RenderJob chứ không ở màn hình.
-  checkPrismaClient();
 
   await prisma.$queryRaw`SELECT 1`;
   logger.info("Postgres     : kết nối được");

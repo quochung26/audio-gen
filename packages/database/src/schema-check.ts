@@ -1,27 +1,33 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Prisma } from "@prisma/client";
+
+/** Tên các model khai báo trong schema.prisma. */
+function declaredModels(schemaText: string): string[] {
+  return [...schemaText.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]!);
+}
 
 /**
- * Model có trong schema.prisma nhưng KHÔNG có trong client đã sinh ra.
+ * Tên model trong schema (`AudioTrack`) thành tên thuộc tính trên client
+ * (`prisma.audioTrack`) — Prisma chỉ hạ chữ cái ĐẦU, phần còn lại giữ nguyên.
+ */
+export function accessorName(model: string): string {
+  return model.charAt(0).toLowerCase() + model.slice(1);
+}
+
+/**
+ * Lời nhắc kèm đúng lệnh cần chạy, hoặc null nếu client còn khớp schema.
  *
- * `prisma generate` chỉ chạy lúc cài gói (postinstall), nên `git pull` về một
- * model mới thì client cũ vẫn nằm nguyên đó. Hậu quả lúc chạy là
- * `prisma.genre` bằng undefined và Node báo "Cannot read properties of
+ * `generated` là tên các model mà client dựng được. Model có trong schema mà
+ * thiếu ở đó nghĩa là `prisma generate` chưa chạy lại sau khi schema đổi: lúc
+ * chạy, `prisma.genre` bằng undefined và Node báo "Cannot read properties of
  * undefined (reading 'findMany')" — một câu không hề nhắc tới Prisma, tới
  * schema, hay tới lệnh cần chạy, và nó lặp lại ở MỌI request.
  */
-function missingModels(schemaText: string, generated: readonly string[]): string[] {
-  const declared = [...schemaText.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]!);
-  return declared.filter((name) => !generated.includes(name));
-}
-
-/** Lời nhắc kèm đúng lệnh cần chạy, hoặc null nếu client còn khớp schema. */
 export function staleClientMessage(
   schemaText: string,
   generated: readonly string[],
 ): string | null {
-  const missing = missingModels(schemaText, generated);
+  const missing = declaredModels(schemaText).filter((name) => !generated.includes(name));
   if (missing.length === 0) return null;
   return (
     `Prisma client cũ hơn schema — thiếu model ${missing.join(", ")}. ` +
@@ -34,10 +40,16 @@ const SCHEMA_PATH = resolve(import.meta.dirname, "../prisma/schema.prisma");
 /**
  * Ném lỗi kèm đúng lệnh cần chạy nếu client đã sinh cũ hơn schema.
  *
- * Gọi lúc khởi động API và worker: hỏng ngay từ đầu kèm lời chỉ dẫn tốt hơn
- * nhiều so với chạy được rồi chết ở request đầu tiên chạm tới model mới.
+ * Gọi ngay lúc dựng client trong client.ts, nên MỌI tiến trình chạm tới DB đều
+ * được chặn: API, worker, các script `pnpm story` / `inspect` / `db:seed`, và
+ * app Player. Hỏng ngay lúc import kèm lời chỉ dẫn tốt hơn nhiều so với chạy
+ * được rồi chết ở request đầu tiên chạm tới model mới.
+ *
+ * Hỏi thẳng thứ mà code gọi lúc chạy (`prisma.genre`) chứ không hỏi
+ * `Prisma.dmmf`: dmmf là cấu trúc khác, khớp schema mà accessor vẫn thiếu là
+ * chuyện có thể xảy ra — và đó đúng là trường hợp guard cần bắt.
  */
-export function checkPrismaClient(): void {
+export function checkPrismaClient(client: object): void {
   let schema: string;
   try {
     schema = readFileSync(SCHEMA_PATH, "utf8");
@@ -47,9 +59,7 @@ export function checkPrismaClient(): void {
     return;
   }
 
-  const message = staleClientMessage(
-    schema,
-    Prisma.dmmf.datamodel.models.map((m) => m.name),
-  );
+  const generated = declaredModels(schema).filter((name) => accessorName(name) in client);
+  const message = staleClientMessage(schema, generated);
   if (message) throw new Error(message);
 }

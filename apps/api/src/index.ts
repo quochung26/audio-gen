@@ -6,7 +6,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
-import { checkPrismaClient } from "@audio/database/schema-check";
 import { UserError } from "./lib/http";
 import { audio } from "./routes/audio";
 import { comments } from "./routes/comments";
@@ -93,15 +92,6 @@ app.notFound((c) => c.json({ error: "Không có endpoint này" }, 404));
 
 const port = Number(process.env.API_PORT ?? 3002);
 const env = loadEnv();
-
-// Client cũ hơn schema thì mọi route chạm model mới đều chết bằng một
-// TypeError chẳng nói lên điều gì. Chết ngay từ đây, kèm lệnh cần chạy.
-try {
-  checkPrismaClient();
-} catch (err) {
-  console.error(`[api] ${(err as Error).message}`);
-  process.exit(1);
-}
 
 console.log(`[api] LLM=${env.LLM_PROVIDER} TTS=${env.TTS_PROVIDER} storage=${env.STORAGE_DRIVER}`);
 serve({ fetch: app.fetch, port }, (info) => {
