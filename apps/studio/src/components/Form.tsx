@@ -16,6 +16,7 @@ export function Form({
   className,
   onDone,
   resetOnSuccess,
+  disabled,
 }: {
   path: string;
   method?: "POST" | "PUT" | "DELETE";
@@ -24,6 +25,8 @@ export function Form({
   className?: string;
   onDone?: (result: { ok?: string | boolean }) => void;
   resetOnSuccess?: boolean;
+  /** Chưa đủ điều kiện để gửi — nút mờ đi, lý do do phía gọi tự nói ra. */
+  disabled?: boolean;
 }) {
   const ref = useRef<HTMLFormElement>(null);
   const action = useAction(method);
@@ -51,7 +54,7 @@ export function Form({
     <form ref={ref} onSubmit={handle} className={className}>
       {children}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button variant="primary" type="submit" disabled={action.isPending}>
+        <Button variant="primary" type="submit" disabled={action.isPending || disabled}>
           {action.isPending ? "Đang gửi…" : submit}
         </Button>
         {ok && (

@@ -1,29 +1,12 @@
-import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { modelChoices } from "@/lib/model-choices";
 import { GenParamsSettings } from "@/components/GenParamsSettings";
-import { HuggingFacePanel } from "@/components/HuggingFacePanel";
+import { ModelDownload } from "@/components/ModelDownload";
 import { ModelDefaultField } from "@/components/ModelDefaultField";
 import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
 import { ProviderSwitch } from "@/components/ProviderSwitch";
-
-/**
- * Mức lượng tử hoá — đánh đổi giữa dung lượng và chất lượng văn.
- *
- * Số càng nhỏ càng nhẹ và càng nhanh, nhưng văn nhạt dần. Q4_K_M là mức cân
- * bằng mà cộng đồng dùng phổ biến nhất; Q6_K nặng hơn ~35% mà văn mượt hơn rõ.
- */
-const QUANTS = [
-  { tag: "q4_K_M", label: "Q4_K_M — cân bằng, phổ biến nhất", hint: "nhẹ nhất còn dùng tốt" },
-  { tag: "q5_K_M", label: "Q5_K_M — nhỉnh hơn Q4", hint: "nặng hơn ~12%" },
-  { tag: "q6_K", label: "Q6_K — văn mượt hơn rõ", hint: "nặng hơn ~35% so với Q4" },
-  { tag: "q8_0", label: "Q8_0 — gần như bản gốc", hint: "nặng gấp đôi Q4" },
-  { tag: "", label: "(mặc định của Ollama)", hint: "thường là Q4_K_M" },
-];
-
-const SUGGESTED = ["qwen3:14b", "qwen3:8b", "qwen2.5:14b", "gemma3:12b", "bge-m3"];
 
 interface Model {
   name: string;
@@ -83,9 +66,6 @@ function gb(bytes: number): string {
 }
 
 export function Models() {
-  const [base, setBase] = useState("qwen3:14b");
-  const [quant, setQuant] = useState("q4_K_M");
-
   // Đang tải thì hỏi dày hơn để thanh tiến độ chạy mượt.
   const { data, isLoading } = useApi<Data>("/api/models", { refetchMs: 1500 });
   // Cùng khoá với OpenRouterPanel nên TanStack Query dùng chung một lần gọi.
@@ -101,7 +81,6 @@ export function Models() {
   const usedAs = (name: string) =>
     data.configured.filter((c) => c.value === name).map((c) => c.label.split(" — ")[0]!);
 
-  const tag = quant ? `${base}-${quant}` : base;
   const p = data.pull;
   const pct = p && p.totalBytes > 0 ? (p.completedBytes / p.totalBytes) * 100 : 0;
 
@@ -226,58 +205,7 @@ export function Models() {
         </Section>
       )}
 
-      <Section title="Tải model về">
-        <Form
-          path="/api/models/pull"
-          submit={`Tải ${tag}`}
-          className="space-y-3 rounded border border-neutral-800 p-4"
-        >
-          <input type="hidden" name="model" value={tag} />
-
-          <label className="block">
-            <span className="mb-1 block text-xs text-neutral-500">Model</span>
-            <input
-              value={base}
-              onChange={(e) => setBase(e.target.value)}
-              list="model-suggestions"
-              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
-            />
-          </label>
-          <datalist id="model-suggestions">
-            {SUGGESTED.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
-
-          <label className="block">
-            <span className="mb-1 block text-xs text-neutral-500">Mức lượng tử hoá</span>
-            <select
-              value={quant}
-              onChange={(e) => setQuant(e.target.value)}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
-            >
-              {QUANTS.map((q) => (
-                <option key={q.tag} value={q.tag}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-neutral-600">
-              {QUANTS.find((q) => q.tag === quant)?.hint}
-            </span>
-          </label>
-
-          <p className="rounded bg-neutral-900 p-2 font-mono text-xs text-neutral-400">
-            ollama pull {tag}
-          </p>
-          <p className="text-xs text-neutral-600">
-            Không phải model nào cũng có đủ mọi mức lượng tử hoá. Tag không tồn tại thì Ollama báo
-            lỗi và hiện ngay ở đây.
-          </p>
-        </Form>
-      </Section>
-
-      <HuggingFacePanel busy={Boolean(p && !p.done)} />
+      <ModelDownload busy={Boolean(p && !p.done)} />
 
       <Section title={`Model đang có (${data.installed.length})`}>
         {data.installed.length === 0 ? (
