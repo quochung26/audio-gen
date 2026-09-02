@@ -18,8 +18,8 @@
     "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
-    "db:vector": "docker compose -f ../../docker-compose.yml exec -T postgres psql -U postgres -d audio_truyen -f - < sql/001-vector.sql",
-    "db:ext": "docker compose -f ../../docker-compose.yml exec -T postgres psql -U postgres -d audio_truyen -f - < sql/000-extension.sql",
+    "db:vector": "docker exec -i postgres psql -U postgres -d audio_truyen -f - < sql/001-vector.sql",
+    "db:ext": "docker exec -i postgres psql -U postgres -d audio_truyen -f - < sql/000-extension.sql",
     "db:push:player": "dotenv -e ../../.env -- tsx scripts/push-player.mts",
     "test": "vitest run"
   },

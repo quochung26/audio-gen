@@ -11,7 +11,7 @@ services:
     # pgvector thay cho postgres thường: tìm tập cũ liên quan bằng vector
     # search thay vì nhồi mọi tóm tắt vào ngữ cảnh. Xem docs/database.md.
     image: pgvector/pgvector:pg17
-    container_name: audio-postgres
+    container_name: postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -27,7 +27,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: audio-redis
+    container_name: redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports: ["6380:6379"]
