@@ -4,6 +4,7 @@ import { Form } from "@/components/Form";
 import { Field } from "@/components/Field";
 import { ModelPicker } from "@/components/ModelPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { TagPicker } from "@/components/TagPicker";
 
 
 export function SeriesNew() {
@@ -48,13 +49,20 @@ export function SeriesNew() {
             <select
               name="genre"
               key={genres.length}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+              disabled={genres.length === 0}
+              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm disabled:text-neutral-600"
             >
-              {genres.map((g) => (
-                <option key={g.name} value={g.name}>
-                  {g.name}
-                </option>
-              ))}
+              {/* Danh mục rỗng thì nói ra bằng một dòng. Select không có option
+                  nào mở ra một danh sách trắng — trông như đang hỏng. */}
+              {genres.length === 0 ? (
+                <option value="">— chưa có thể loại nào —</option>
+              ) : (
+                genres.map((g) => (
+                  <option key={g.name} value={g.name}>
+                    {g.name}
+                  </option>
+                ))
+              )}
             </select>
             {genres.length === 0 && (
               <span className="mt-1 block text-xs text-amber-500">
@@ -69,23 +77,13 @@ export function SeriesNew() {
           <span className="mb-1 block text-sm text-neutral-400">
             Thể loại phụ <span className="text-neutral-600">— tuỳ chọn</span>
           </span>
-          <input
-            name="tags"
-            list="genre-suggestions"
-            placeholder="tình cảm, slow burn, đô thị"
-            className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
-          />
+          <TagPicker genres={genres.map((g) => g.name)} />
           <span className="mt-1 block text-xs text-neutral-600">
-            Cách nhau bằng dấu phẩy. AI đọc chúng khi viết — thể loại chính quyết định dùng prompt
-            nào, thể loại phụ lái giọng văn và tình tiết. Cũng thành từ khoá để người nghe tìm ra
-            kênh.
+            Bấm để chọn, chọn được nhiều. AI đọc chúng khi viết — thể loại chính quyết định dùng
+            prompt nào, thể loại phụ lái giọng văn và tình tiết. Cũng thành từ khoá để người nghe
+            tìm ra kênh.
           </span>
         </label>
-        <datalist id="genre-suggestions">
-          {genres.map((g) => (
-            <option key={g.name} value={g.name} />
-          ))}
-        </datalist>
 
         <ModelPicker />
 

@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { mediaUrl, useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
+import { TagPicker } from "@/components/TagPicker";
 
 interface World {
   setting: string;
@@ -61,6 +62,9 @@ export function Series() {
   const nav = useNavigate();
   const { id } = useParams();
   const { data: s, isLoading } = useApi<Data>(`/api/series/${id}`, { refetchMs: 5000 });
+  const { data: catalog } = useApi<{ genres: Array<{ name: string; enabled: boolean }> }>(
+    "/api/genres",
+  );
   if (isLoading || !s) return <Loading />;
 
   const run = s.batchRuns[0];
@@ -304,14 +308,12 @@ export function Series() {
           submit="Lưu"
           className="rounded border border-neutral-800 p-4"
         >
-          <input
-            name="tags"
-            defaultValue={s.tags.join(", ")}
-            placeholder="tình cảm, slow burn, đô thị"
-            className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+          <TagPicker
+            genres={(catalog?.genres ?? []).filter((g) => g.enabled).map((g) => g.name)}
+            initial={s.tags}
           />
           <p className="mt-2 text-xs text-neutral-600">
-            Cách nhau bằng dấu phẩy. AI đọc chúng khi viết, và chúng thành từ khoá RSS. Thể loại{" "}
+            Bấm để chọn hoặc bỏ chọn. AI đọc chúng khi viết, và chúng thành từ khoá RSS. Thể loại{" "}
             <strong className="text-neutral-400">chính</strong> ({s.genre}) là thứ quyết định dùng
             prompt nào — đổi ở đây không đụng tới nó.
           </p>

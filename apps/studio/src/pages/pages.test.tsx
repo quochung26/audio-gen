@@ -781,10 +781,67 @@ describe("màn tạo truyện lấy thể loại từ danh mục", () => {
     const options = () =>
       [...container.querySelectorAll('select[name="genre"] option')].map((o) => o.textContent);
 
-    // Chờ DANH MỤC về, không chỉ chờ trang render: nhãn "Thể loại chính" hiện
-    // ngay từ đầu nên chờ nó là chờ hụt.
-    await waitFor(() => expect(options().length).toBeGreaterThan(0));
+    // Chờ đúng NỘI DUNG chứ không chờ "có option nào chưa": lúc danh mục chưa
+    // về, select đã có sẵn một option báo rỗng nên đếm số option là chờ hụt.
     // "kỳ ảo" đã ẩn nên không được xuất hiện.
-    expect(options()).toEqual(["kinh dị"]);
+    await waitFor(() => expect(options()).toEqual(["kinh dị"]));
+  });
+
+  it("danh mục rỗng thì nói ra bằng một dòng, không để select trắng", async () => {
+    // Select không có option nào mở ra một danh sách trắng — trông như hỏng.
+    const { container } = await withEmptyCatalog(async () => {
+      const r = renderAt("/series/new", "/series/new", <SeriesNew />);
+      await waitFor(() => expect(r.container.textContent).toContain("Danh mục thể loại đang rỗng"));
+      return r;
+    });
+
+    const select = container.querySelector<HTMLSelectElement>('select[name="genre"]')!;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["— chưa có thể loại nào —"]);
+    expect(select.disabled).toBe(true);
   });
 });
+
+describe("chọn thể loại phụ", () => {
+  it("chọn được nhiều, gửi lên một chuỗi cách nhau bằng dấu phẩy", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "kinh dị" })).toBeTruthy());
+    const tags = () => container.querySelector<HTMLInputElement>('input[name="tags"]')!.value;
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "kinh dị" }));
+    expect(tags()).toBe("tình cảm, slow burn, kinh dị");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "tình cảm" }));
+    expect(tags()).toBe("slow burn, kinh dị");
+  });
+
+  it("thể loại bộ đang mang mà danh mục không có vẫn hiện và vẫn được tick", async () => {
+    // Bỏ chúng đi thì chỉ cần bấm Lưu là mất sạch, mà không có gì báo.
+    renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() =>
+      expect(screen.getByRole("checkbox", { name: "slow burn" })).toBeInstanceOf(HTMLInputElement),
+    );
+    expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "slow burn" }).checked).toBe(true);
+  });
+
+  it("danh mục rỗng và bộ chưa có thể loại phụ nào thì chỉ báo rỗng", async () => {
+    const { container } = await withEmptyCatalog(async () => {
+      const r = renderAt("/series/new", "/series/new", <SeriesNew />);
+      await waitFor(() => expect(r.container.textContent).toContain("Danh mục thể loại đang rỗng"));
+      return r;
+    });
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    // Ô ẩn vẫn còn để form gửi được, chỉ là rỗng.
+    expect(container.querySelector<HTMLInputElement>('input[name="tags"]')!.value).toBe("");
+  });
+});
+
+/** Chạy `body` với /api/genres trả về danh mục rỗng, rồi trả fixture về cũ. */
+async function withEmptyCatalog<T>(body: () => Promise<T>): Promise<T> {
+  const saved = FIXTURES["/api/genres"];
+  FIXTURES["/api/genres"] = { genres: [], unlisted: [] };
+  try {
+    return await body();
+  } finally {
+    FIXTURES["/api/genres"] = saved;
+  }
+}
