@@ -964,6 +964,6 @@ docker compose exec -T postgres pg_dump -U postgres audio_truyen | gzip > backup
 > lẻ từng app cũng phải đi qua `turbo` chứ không gọi thẳng `pnpm --filter`.
 > Còn `pnpm db:push` thì vẫn phải gõ tay vì nó ghi vào DB thật. Chạy
 > thiếu bước nào cũng có lời nhắc kèm đúng lệnh: `@audio/database` kiểm client
-> ngay lúc dựng nó, nên mọi tiến trình chạm DB — API, worker, `pnpm story`,
-> `db:seed`, app Player — đều dừng kèm chỉ dẫn thay vì chết bằng TypeError;
+> ngay lúc dựng nó, nên mọi tiến trình chạy từ mã nguồn — API, worker,
+> `pnpm story`, `db:seed` — đều dừng kèm chỉ dẫn thay vì chết bằng TypeError;
 > còn bảng/cột thiếu thì API trả về mã P2021/P2022 kèm chỉ dẫn.

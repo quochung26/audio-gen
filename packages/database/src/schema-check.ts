@@ -35,24 +35,39 @@ export function staleClientMessage(
   );
 }
 
-const SCHEMA_PATH = resolve(import.meta.dirname, "../prisma/schema.prisma");
+/**
+ * Đường dẫn tới schema.prisma, hoặc null nếu không xác định được.
+ *
+ * Bundler gói module này lại thì `import.meta.dirname` biến mất — Next dựng
+ * app Player là một ca như vậy. Tính đường dẫn ở đây chứ không ở phạm vi
+ * module: `resolve(undefined, …)` ném ngay lúc import và làm hỏng cả bản build,
+ * trong khi thứ duy nhất mất đi khi không có schema chỉ là phép kiểm này.
+ */
+function schemaPath(): string | null {
+  const dir = import.meta.dirname;
+  return dir ? resolve(dir, "../prisma/schema.prisma") : null;
+}
 
 /**
  * Ném lỗi kèm đúng lệnh cần chạy nếu client đã sinh cũ hơn schema.
  *
- * Gọi ngay lúc dựng client trong client.ts, nên MỌI tiến trình chạm tới DB đều
- * được chặn: API, worker, các script `pnpm story` / `inspect` / `db:seed`, và
- * app Player. Hỏng ngay lúc import kèm lời chỉ dẫn tốt hơn nhiều so với chạy
- * được rồi chết ở request đầu tiên chạm tới model mới.
+ * Gọi ngay lúc dựng client trong client.ts, nên mọi tiến trình chạy TỪ MÃ NGUỒN
+ * đều được chặn: API, worker, và các script `pnpm story` / `inspect` /
+ * `db:seed`. Hỏng ngay lúc import kèm lời chỉ dẫn tốt hơn nhiều so với chạy
+ * được rồi chết ở request đầu tiên chạm tới model mới. (App Player chạy từ bản
+ * Next đã đóng gói nên không kiểm được — xem schemaPath.)
  *
  * Hỏi thẳng thứ mà code gọi lúc chạy (`prisma.genre`) chứ không hỏi
  * `Prisma.dmmf`: dmmf là cấu trúc khác, khớp schema mà accessor vẫn thiếu là
  * chuyện có thể xảy ra — và đó đúng là trường hợp guard cần bắt.
  */
 export function checkPrismaClient(client: object): void {
+  const path = schemaPath();
+  if (!path) return;
+
   let schema: string;
   try {
-    schema = readFileSync(SCHEMA_PATH, "utf8");
+    schema = readFileSync(path, "utf8");
   } catch {
     // Không đọc được schema (chạy từ bản đóng gói, không có mã nguồn) thì
     // không kiểm được. Im lặng bỏ qua chứ đừng chặn app khởi động.
