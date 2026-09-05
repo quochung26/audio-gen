@@ -47,11 +47,13 @@ export function Genres() {
             <textarea
               name="description"
               rows={3}
-              placeholder="Trọng tâm là võ và đạo nghĩa giang hồ. Đánh nhau phải có chiêu thức cụ thể, không tả chung chung."
+              placeholder="Focus on martial arts and the code of the jianghu. Fights need specific, named moves — no vague choreography."
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
             />
             <span className="mt-1 block text-xs text-neutral-600">
-              Viết như đang dặn người viết thuê: nói rõ cái gì nên và cái gì tránh.
+              Viết <strong className="text-neutral-400">bằng tiếng Anh</strong>, như đang dặn
+              người viết thuê: nói rõ cái gì nên và cái gì tránh. Câu này là chỉ dẫn cho model
+              và nằm cùng khối prompt tiếng Anh — tên thể loại thì gõ tiếng gì cũng được.
             </span>
           </label>
         </Form>

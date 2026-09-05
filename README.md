@@ -71,9 +71,13 @@ Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ng
 
 Mô tả không phải ghi chú cho người đọc — nó được nhét vào Story Bible, ngay sau dòng thể loại, dưới mục *"Thể loại này nghĩa là gì"*. Nhờ vậy `kinh dị` mang nghĩa **bạn** định chứ không phải nghĩa model tự đoán, mà mỗi model đoán một kiểu. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
 
-Viết mô tả như đang dặn người viết thuê — nói rõ cái gì nên và cái gì tránh:
+Viết mô tả **bằng tiếng Anh**, như đang dặn người viết thuê — nói rõ cái gì nên và cái gì tránh:
 
-> **kinh dị**: Sợ đến từ thứ không giải thích được, không phải từ máu me. Giữ nhịp chậm, tả chi tiết đời thường trước rồi mới để một chi tiết lệch đi. Không hù bằng âm thanh lớn.
+> **kinh dị**: Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.
+
+Tiếng Anh vì mô tả là **chỉ dẫn**, không phải nội dung: nó nằm giữa khối prompt tiếng Anh (xem mục [Ngôn ngữ](#ngôn-ngữ)), và model 7–14B tuân thủ chỉ dẫn tiếng Anh chặt hơn hẳn. Nó không kéo văn sang tiếng Anh — ngôn ngữ đầu ra do chỉ thị đầu system prompt quyết.
+
+**TÊN** thể loại thì gõ tiếng gì cũng được và nên giữ nguyên: đó là khoá tra cứu (`Series.genre`) và là khoá chọn biến thể prompt, nên đổi tên là các bộ đang dùng tên cũ lặng lẽ mất phần mô tả trong Bible.
 
 Thể loại **chính đứng đầu** danh sách mô tả, vì model đọc tuần tự — truy vấn DB trả về thứ tự tuỳ ý nên phải sắp lại.
 

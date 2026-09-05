@@ -68,33 +68,39 @@ async function seedPrompts() {
  *
  * Mô tả viết như CHỈ DẪN cho model, không phải định nghĩa từ điển: nó được nhét
  * vào Story Bible nên câu chữ ở đây ảnh hưởng thẳng tới văn.
+ *
+ * Vì là chỉ dẫn nên viết bằng TIẾNG ANH, giống mọi prompt khác — nó nằm giữa
+ * khối chỉ dẫn tiếng Anh, và model 7–14B tuân thủ chỉ dẫn tiếng Anh chặt hơn
+ * hẳn. Riêng TÊN thể loại giữ nguyên tiếng Việt: đó là khoá tra cứu
+ * (`Series.genre`) và là khoá chọn biến thể prompt, đổi tên là các bộ đang
+ * dùng tên cũ lặng lẽ mất phần mô tả trong Bible.
  */
 async function seedGenres() {
   const genres = [
     {
       name: "kinh dị",
       description:
-        "Sợ đến từ thứ không giải thích được, không phải từ máu me. Giữ nhịp chậm, tả chi tiết đời thường trước rồi mới để một chi tiết lệch đi. Không hù bằng âm thanh lớn.",
+        "Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.",
     },
     {
       name: "tình cảm",
       description:
-        "Trọng tâm là quan hệ đổi thay giữa hai người. Cảm xúc lộ qua hành động và im lặng, không qua lời tự sự dài. Tránh sến và lời thoại giảng giải.",
+        "The subject is a relationship between two people, and how it changes. Feeling shows through action and through silence, not through long interior monologue. Avoid sentimentality and dialogue that explains itself.",
     },
     {
       name: "trinh thám",
       description:
-        "Người nghe phải có đủ manh mối để tự suy ra. Không giấu thông tin rồi tiết lộ ở phút cuối. Mỗi tập khép lại một câu hỏi nhỏ và mở ra một câu hỏi lớn hơn.",
+        "The listener must be given enough clues to work it out. Never withhold a fact just to reveal it at the last minute. Each episode closes one small question and opens a larger one.",
     },
     {
       name: "đời thường",
       description:
-        "Không có biến cố lớn. Sức nặng nằm ở chi tiết nhỏ và thứ nhân vật không nói ra. Giữ giọng bình thản, để người nghe tự thấy.",
+        "Nothing dramatic happens. The weight sits in small detail and in what the characters do not say. Keep the tone level and let the listener see it for themselves.",
     },
     {
       name: "kỳ ảo",
       description:
-        "Yếu tố siêu nhiên phải có luật rõ ràng và không được phá luật để gỡ bí. Giải thích luật bằng cảnh, không bằng lời dẫn.",
+        "The supernatural must run on clear rules, and those rules must never be broken to get a character out of a corner. Show the rules through scenes, not through narration.",
     },
   ];
 
