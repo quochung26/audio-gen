@@ -7,6 +7,7 @@ interface Card {
   name: string;
   role: string | null;
   description: string | null;
+  appearance: string | null;
   voiceHint: string | null;
   isNarrator: boolean;
 }
@@ -24,6 +25,7 @@ interface Row {
   name: string;
   role: string;
   description: string;
+  appearance: string;
   voiceHint: string;
   isNarrator: boolean;
 }
@@ -34,6 +36,7 @@ const blank = (over: Partial<Row> = {}): Row => ({
   name: "",
   role: "",
   description: "",
+  appearance: "",
   voiceHint: "",
   isNarrator: false,
   ...over,
@@ -79,6 +82,7 @@ export function CastPicker() {
         name: card.name,
         role: card.role ?? "",
         description: card.description ?? "",
+        appearance: card.appearance ?? "",
         voiceHint: card.voiceHint ?? "",
         // Người dẫn của thẻ chỉ là mặc định; bộ vẫn chỉ được có một, nên thẻ
         // thứ hai mang cờ này vào sẽ không được nhận.
@@ -157,7 +161,7 @@ export function CastPicker() {
                 <input
                   value={r.role}
                   onChange={(e) => edit(r.key, { role: e.target.value })}
-                  placeholder="Vai, tuổi, nghề — vd: tài xế xe khách, 45 tuổi"
+                  placeholder="Vai trong truyện — vd: tài xế xe khách, 45 tuổi"
                   className={`${input} flex-1`}
                 />
                 <input
@@ -172,7 +176,15 @@ export function CastPicker() {
                 value={r.description}
                 onChange={(e) => edit(r.key, { description: e.target.value })}
                 rows={2}
-                placeholder="Tính cách và cách nói. Đây là thứ giữ cho lời thoại của người này nghe giống nhau qua hàng chục tập."
+                placeholder="Tính cách và cách nói — thứ giữ cho lời thoại của người này nghe giống nhau qua hàng chục tập."
+                className={input}
+              />
+
+              <textarea
+                value={r.appearance}
+                onChange={(e) => edit(r.key, { appearance: e.target.value })}
+                rows={2}
+                placeholder="Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần tả, không phải lời thoại."
                 className={input}
               />
 

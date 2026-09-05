@@ -57,6 +57,25 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).toContain("tài xế");
   });
 
+  it("ngoại hình có NHÃN RIÊNG, không gộp vào dòng tính cách", () => {
+    // Tính cách lái lời thoại, ngoại hình lái phần tả. Gộp chung thì model tả
+    // quần áo giữa một đoạn đang cần giọng nói.
+    const b = seriesBible({
+      ...series,
+      characters: [
+        {
+          name: "Hùng",
+          isNarrator: true,
+          description: "ít nói",
+          appearance: "gầy, da sạm",
+          state: null,
+        },
+      ],
+    });
+    expect(b).toContain("Appearance: gầy, da sạm");
+    expect(b.indexOf("ít nói")).toBeLessThan(b.indexOf("Appearance:"));
+  });
+
   it("nhân vật không có mô tả lẫn trạng thái thì không sinh dòng rỗng", () => {
     const b = seriesBible({
       ...series,
@@ -64,6 +83,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     });
     expect(b).toContain("Hùng");
     expect(b).not.toContain("Current state:");
+    expect(b).not.toContain("Appearance:");
   });
 
   it("mô tả bộ truyện thành logline", () => {

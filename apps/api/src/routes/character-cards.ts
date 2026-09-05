@@ -20,6 +20,7 @@ function cardInput(body: Record<string, unknown>) {
     name: field(body, "name"),
     role: field(body, "role") || null,
     description: field(body, "description") || null,
+    appearance: field(body, "appearance") || null,
     voiceHint: field(body, "voiceHint") || null,
     voiceId: field(body, "voiceId") || null,
     isNarrator: body.isNarrator === "on" || body.isNarrator === "true",

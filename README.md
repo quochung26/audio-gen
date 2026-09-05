@@ -94,7 +94,9 @@ Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong 
 
 ### Thẻ nhân vật
 
-`/character-cards` — nhân vật dùng lại được giữa các bộ: tên, vai, tính cách và cách nói, gợi ý chất giọng, giọng ưa dùng.
+`/character-cards` — nhân vật dùng lại được giữa các bộ: tên, vai trong truyện, tính cách và cách nói, ngoại hình, gợi ý chất giọng, giọng ưa dùng.
+
+**Tính cách và ngoại hình để RIÊNG hai ô**, không gộp. Chúng được model dùng khác nhau: tính cách lái **lời thoại**, ngoại hình lái phần **tả** — và ngoại hình còn là căn cứ cho `coverPrompt` khi làm ảnh bìa. Gộp chung thì model tả quần áo giữa một đoạn đang cần giọng nói. Trong Story Bible chúng nằm hai dòng, ngoại hình có nhãn `Appearance:` riêng.
 
 **Thẻ không phải liên kết sống.** Mang thẻ vào một bộ là **chép nội dung** nó; từ đó nhân vật sống đời sống riêng trong bộ. Sửa thẻ không đụng tới bộ đã dùng, và sửa nhân vật trong bộ không đụng ngược lên thẻ. Đây là chỗ người ta mặc định hiểu ngược lại, nên nói thẳng: một bộ đang viết dở mà tự đổi theo thư viện là kiểu hỏng không ai thấy — văn ở tập sau đổi đi, và chẳng có gì trong bộ đó ghi lại là vì sao. `Character.cardId` chỉ ghi **xuất xứ**.
 

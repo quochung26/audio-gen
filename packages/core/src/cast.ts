@@ -12,6 +12,8 @@ export interface CastMember {
   cardId?: string | null;
   role?: string | null;
   description?: string | null;
+  /** Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc. */
+  appearance?: string | null;
   /** Gợi ý chất giọng để casting. */
   voiceHint?: string | null;
   isNarrator?: boolean;
@@ -35,6 +37,7 @@ export function normalizeCast(cast: readonly CastMember[]): CastMember[] {
       cardId: c.cardId ?? null,
       role: c.role?.trim() || null,
       description: c.description?.trim() || null,
+      appearance: c.appearance?.trim() || null,
       voiceHint: c.voiceHint?.trim() || null,
       // Đúng MỘT người dẫn: người đầu tiên được đánh dấu thắng, còn lại bỏ. Hai
       // người dẫn thì bước biên tập audio gán block dẫn truyện cho ai cũng
@@ -65,6 +68,7 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
   for (const c of people) {
     parts.push(`- ${c.name}${c.isNarrator ? " (the narrator)" : ""}${c.role ? ` — ${c.role}` : ""}`);
     if (c.description) parts.push(`  ${c.description}`);
+    if (c.appearance) parts.push(`  Appearance: ${c.appearance}`);
     if (c.voiceHint) parts.push(`  Voice: ${c.voiceHint}`);
   }
 
@@ -113,6 +117,7 @@ export function mergeCast(
     return {
       ...c,
       role: c.role?.trim() || g.role,
+      appearance: c.appearance?.trim() || g.appearance,
       voiceHint: c.voiceHint?.trim() || g.voiceHint,
       isNarrator: c.isNarrator || (!hasNarrator && Boolean(g.isNarrator)),
     };

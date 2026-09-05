@@ -15,6 +15,7 @@ interface Character {
   name: string;
   role: string | null;
   description: string | null;
+  appearance: string | null;
   state: string | null;
   stateThroughEpisode: number | null;
   voiceHint: string | null;
@@ -226,7 +227,7 @@ function CharacterFields({ c }: { c?: Character }) {
         <Input name="name" label="Tên" defaultValue={c?.name ?? ""} placeholder="Tài" />
         <Input
           name="role"
-          label="Vai trò"
+          label="Vai trong truyện"
           defaultValue={c?.role ?? ""}
           placeholder="tài xế xe khách, 45 tuổi"
         />
@@ -234,11 +235,20 @@ function CharacterFields({ c }: { c?: Character }) {
 
       <Textarea
         name="description"
-        label="Mô tả — tính cách và cách nói"
-        hint="Thứ quyết định lời thoại có nhất quán không. Càng cụ thể càng tốt."
+        label="Tính cách và cách nói"
+        hint="Thứ quyết định LỜI THOẠI có nhất quán không qua hàng chục tập. Càng cụ thể càng tốt."
         defaultValue={c?.description ?? ""}
         placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
         rows={3}
+      />
+
+      <Textarea
+        name="appearance"
+        label="Ngoại hình"
+        hint="Dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần TẢ — và là căn cứ cho mô tả ảnh bìa."
+        defaultValue={c?.appearance ?? ""}
+        placeholder="Gầy, da sạm. Áo sơ mi bạc màu xắn tay. Vết sẹo dài ở cổ tay trái."
+        rows={2}
       />
 
       <Textarea

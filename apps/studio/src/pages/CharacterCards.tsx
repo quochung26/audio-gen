@@ -15,6 +15,7 @@ interface Card {
   name: string;
   role: string | null;
   description: string | null;
+  appearance: string | null;
   voiceHint: string | null;
   isNarrator: boolean;
   voiceId: string | null;
@@ -87,6 +88,9 @@ export function CharacterCards() {
                 {card.description && (
                   <p className="mt-1 text-sm text-neutral-500">{card.description}</p>
                 )}
+                {card.appearance && (
+                  <p className="mt-1 text-sm text-neutral-600">{card.appearance}</p>
+                )}
 
                 {editing === card.id && (
                   <div className="mt-3 border-t border-neutral-900 pt-3">
@@ -118,7 +122,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         <div className="flex-1">
           <TextInput
             name="role"
-            label="Vai, tuổi, nghề"
+            label="Vai trong truyện"
             placeholder="tài xế xe khách, 45 tuổi"
             defaultValue={card?.role ?? ""}
           />
@@ -128,10 +132,19 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
       <Field
         name="description"
         label="Tính cách và cách nói"
-        hint="Model đọc câu này mỗi lần viết — đây là thứ giữ cho lời thoại của người này nghe giống nhau qua hàng chục tập."
+        hint="Model đọc câu này mỗi lần viết — thứ giữ cho LỜI THOẠI của người này nghe giống nhau qua hàng chục tập."
         placeholder="Ít nói, trả lời cộc lốc. Chỉ dài lời khi nhắc tới con gái."
         rows={2}
         defaultValue={card?.description ?? ""}
+      />
+
+      <Field
+        name="appearance"
+        label="Ngoại hình"
+        hint="Dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần TẢ chứ không phải lời thoại."
+        placeholder="Gầy, da sạm. Áo sơ mi bạc màu xắn tay. Vết sẹo dài ở cổ tay trái."
+        rows={2}
+        defaultValue={card?.appearance ?? ""}
       />
 
       <div className="flex flex-wrap gap-3">

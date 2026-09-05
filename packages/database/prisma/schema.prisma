@@ -289,6 +289,13 @@ model Character {
   role        String?
   description String?
 
+  /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
+  ///
+  /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
+  /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
+  /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  appearance String?
+
   isNarrator Boolean @default(false)
 
   /// Trạng thái hiện tại: đang ở đâu, biết gì, quan hệ đã đổi thế nào.
@@ -336,7 +343,14 @@ model CharacterCard {
   name        String  @unique
   role        String?
   description String?
-  voiceHint   String?
+
+  /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
+  ///
+  /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
+  /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
+  /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  appearance String?
+  voiceHint  String?
 
   /// Thẻ này vốn là người dẫn truyện. Chỉ là giá trị mặc định lúc mang vào bộ —
   /// mỗi bộ vẫn chỉ được có đúng một người dẫn, và đó là luật của bộ.

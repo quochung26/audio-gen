@@ -137,6 +137,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
           name: c.name,
           role: c.role,
           description: c.description,
+          appearance: c.appearance,
           voiceHint: c.voiceHint,
           isNarrator: c.isNarrator ?? false,
           // Xuất xứ, không phải liên kết sống: sửa nhân vật ở đây không đụng thẻ.

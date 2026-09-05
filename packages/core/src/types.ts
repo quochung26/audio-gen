@@ -12,7 +12,10 @@ import { z } from "zod";
 
 export const characterSchema = z.object({
   name: z.string().min(1).describe("Character name"),
-  role: z.string().describe("Role, age, occupation"),
+  role: z.string().describe("Role in the story, age, occupation — one short line"),
+  appearance: z
+    .string()
+    .describe("What they look like: build, apparent age, how they dress, one detail you would recognise them by"),
   voiceHint: z
     .string()
     .describe("Casting hint for the voice: gender, age, vocal quality. E.g. middle-aged man, hoarse voice"),
