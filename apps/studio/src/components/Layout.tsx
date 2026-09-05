@@ -6,10 +6,10 @@ const NAV = [
   ["/series", "Truyện"],
   // Thẻ nhân vật đứng cùng thư viện nhạc chứ không nằm dưới Cài đặt: cả hai là
   // NGUYÊN LIỆU bạn gom dần rồi mang vào từng bộ, không phải cách máy chạy.
-  ["/the-nhan-vat", "Thẻ nhân vật"],
+  ["/character-cards", "Thẻ nhân vật"],
   ["/tracks", "Thư viện nhạc"],
-  ["/thong-ke", "Thống kê"],
-  ["/binh-luan", "Bình luận"],
+  ["/stats", "Thống kê"],
+  ["/comments", "Bình luận"],
 ] as const;
 
 /**
@@ -23,7 +23,7 @@ const NAV = [
  */
 const SETTINGS_NAV = [
   ["/prompts", "Prompt"],
-  ["/the-loai", "Thể loại"],
+  ["/genres", "Thể loại"],
   ["/model", "Model & ngôn ngữ"],
 ] as const;
 

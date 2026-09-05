@@ -71,7 +71,7 @@ export function Stats() {
 
       {data.totals.pending > 0 && (
         <p className="text-sm text-amber-300">
-          <Link to="/binh-luan" className="underline">
+          <Link to="/comments" className="underline">
             {data.totals.pending} bình luận đang chờ duyệt
           </Link>{" "}
           — chưa duyệt thì chúng không hiện ở trang nghe.

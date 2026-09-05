@@ -53,11 +53,11 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/episode/:id/audio" element={<EpisodeAudio />} />
             <Route path="/job/:id" element={<Job />} />
             <Route path="/tracks" element={<Tracks />} />
-            <Route path="/binh-luan" element={<Comments />} />
+            <Route path="/comments" element={<Comments />} />
             <Route path="/model" element={<Models />} />
-            <Route path="/the-loai" element={<Genres />} />
-            <Route path="/the-nhan-vat" element={<CharacterCards />} />
-            <Route path="/thong-ke" element={<Stats />} />
+            <Route path="/genres" element={<Genres />} />
+            <Route path="/character-cards" element={<CharacterCards />} />
+            <Route path="/stats" element={<Stats />} />
             <Route path="/prompts" element={<Prompts />} />
             <Route path="/prompts/:id" element={<Prompt />} />
             <Route path="*" element={<NotFound />} />

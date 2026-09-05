@@ -435,7 +435,7 @@ const PAGES: Array<[string, string, string, ReactElement, string]> = [
   ["Prompt (danh sách)", "/prompts", "/prompts", <Prompts />, "Viết cảnh"],
   ["Prompt (sửa)", "/prompts/p1", "/prompts/:id", <Prompt />, "Biến dùng được"],
   ["Model", "/model", "/model", <Models />, "Mức lượng tử hoá"],
-  ["Thống kê", "/thong-ke", "/thong-ke", <Stats />, "Theo tập"],
+  ["Thống kê", "/stats", "/stats", <Stats />, "Theo tập"],
 ];
 
 describe("mọi trang render được", () => {
@@ -530,7 +530,7 @@ describe("trang Model", () => {
 
 describe("trang Thống kê", () => {
   async function text(): Promise<string> {
-    const { container } = renderAt("/thong-ke", "/thong-ke", <Stats />);
+    const { container } = renderAt("/stats", "/stats", <Stats />);
     await waitFor(() => expect(container.textContent).toContain("Theo tập"));
     return container.textContent ?? "";
   }
@@ -740,7 +740,7 @@ describe("thể loại phụ", () => {
 
 describe("trang Thể loại", () => {
   async function page() {
-    const { container } = renderAt("/the-loai", "/the-loai", <Genres />);
+    const { container } = renderAt("/genres", "/genres", <Genres />);
     await waitFor(() => expect(container.textContent).toContain("Danh mục"));
     return container;
   }

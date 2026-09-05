@@ -67,7 +67,7 @@ Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ng
 
 ### Danh mục thể loại
 
-`/the-loai` trong Studio (Cài đặt → Thể loại): thêm thể loại với **tên** và **mô tả**.
+`/genres` trong Studio (Cài đặt → Thể loại): thêm thể loại với **tên** và **mô tả**.
 
 Mô tả không phải ghi chú cho người đọc — nó được nhét vào Story Bible, ngay sau dòng thể loại, dưới mục *"Thể loại này nghĩa là gì"*. Nhờ vậy `kinh dị` mang nghĩa **bạn** định chứ không phải nghĩa model tự đoán, mà mỗi model đoán một kiểu. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
 
@@ -94,7 +94,7 @@ Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong 
 
 ### Thẻ nhân vật
 
-`/the-nhan-vat` — nhân vật dùng lại được giữa các bộ: tên, vai, tính cách và cách nói, gợi ý chất giọng, giọng ưa dùng.
+`/character-cards` — nhân vật dùng lại được giữa các bộ: tên, vai, tính cách và cách nói, gợi ý chất giọng, giọng ưa dùng.
 
 **Thẻ không phải liên kết sống.** Mang thẻ vào một bộ là **chép nội dung** nó; từ đó nhân vật sống đời sống riêng trong bộ. Sửa thẻ không đụng tới bộ đã dùng, và sửa nhân vật trong bộ không đụng ngược lên thẻ. Đây là chỗ người ta mặc định hiểu ngược lại, nên nói thẳng: một bộ đang viết dở mà tự đổi theo thư viện là kiểu hỏng không ai thấy — văn ở tập sau đổi đi, và chẳng có gì trong bộ đó ghi lại là vì sao. `Character.cardId` chỉ ghi **xuất xứ**.
 
@@ -544,7 +544,7 @@ Job đóng dấu bằng cách đặt `updatedAt` **bằng đúng** `syncedAt` �
 
 ### Thống kê
 
-`/thong-ke` — đọc thẳng DB hosted: lượt bắt đầu nghe, nghe hết, **phần trăm nghe được trung bình**, sao, yêu thích, bình luận. Con số thấp ở một tập cụ thể đáng xem lại: người nghe bỏ giữa chừng ở đó.
+`/stats` — đọc thẳng DB hosted: lượt bắt đầu nghe, nghe hết, **phần trăm nghe được trung bình**, sao, yêu thích, bình luận. Con số thấp ở một tập cụ thể đáng xem lại: người nghe bỏ giữa chừng ở đó.
 
 ⚠️ Chỉ đếm được người **đã đăng nhập**. Ai nghe mà không đăng nhập thì vị trí chỉ nằm trong `localStorage` máy họ — đây là con số sàn dưới, không phải tổng lượt nghe.
 
@@ -777,7 +777,7 @@ Cần đăng nhập. Đều gắn theo **tập**, không phải theo bộ.
 
 ### Kiểm duyệt bình luận
 
-`/binh-luan` trong Studio. Bình luận mặc định `PENDING` và **không hiện ở trang nghe** — kể cả với chính người gửi, vì thấy nó thì tưởng đã công khai rồi.
+`/comments` trong Studio. Bình luận mặc định `PENDING` và **không hiện ở trang nghe** — kể cả với chính người gửi, vì thấy nó thì tưởng đã công khai rồi.
 
 Đây là lựa chọn có ý thức: trang nghe là trang công khai, mà chưa có ai trực để dọn spam theo giờ. Kèm giới hạn **30 giây giữa hai bình luận của cùng một người** — không có thì một người dán được hàng trăm cái vào hàng chờ và người duyệt phải dọn tay từng cái.
 

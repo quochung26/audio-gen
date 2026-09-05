@@ -26,8 +26,11 @@ export class MockProvider implements LlmProvider {
     opts: GenerateOptions & { schema: z.ZodType<T> },
   ): Promise<GenerateResult & { data: T }> {
     // Đọc số tập từ prompt để sinh đúng số lượng — cần cho việc kiểm chứng
-    // tính nhất quán xuyên tập ở truyện dài.
-    const episodeCount = Number(opts.prompt.match(/Số tập:\s*(\d+)/)?.[1] ?? 1);
+    // tính nhất quán xuyên tập ở truyện dài. Nhận cả nhãn tiếng Việt cũ, cùng
+    // lý do với `extractTargetWords`.
+    const episodeCount = Number(
+      opts.prompt.match(/(?:Episode count|Số tập):\s*(\d+)/i)?.[1] ?? 1,
+    );
     const data = fakeFromSchema(opts.schema, "", 0, 0, { episodeCount }) as T;
     const text = JSON.stringify(data, null, 2);
     const result = await this.#emit(text, opts);
@@ -65,8 +68,17 @@ export class MockProvider implements LlmProvider {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Số từ đích, đọc ngược ra từ prompt.
+ *
+ * Nhận CẢ HAI thứ tiếng. Prompt gốc giờ viết bằng tiếng Anh, nhưng bảng
+ * `Prompt` trong DB có thể vẫn giữ bản tiếng Việt cũ cho tới khi chạy lại
+ * `pnpm db:seed` — và khối ngữ cảnh cũng từng là tiếng Việt. Khớp hụt thì
+ * không có gì báo: mọi cảnh giả lập lặng lẽ ra đúng 300 từ, nên số từ và thời
+ * lượng ước tính của cả bộ đều bằng nhau mà trông vẫn hợp lý.
+ */
 function extractTargetWords(prompt: string): number | undefined {
-  const m = prompt.match(/khoảng\s+(\d+)\s+từ/i);
+  const m = prompt.match(/(?:about|khoảng)\s+(\d+)\s+(?:words|từ)/i);
   return m?.[1] ? Number(m[1]) : undefined;
 }
 
