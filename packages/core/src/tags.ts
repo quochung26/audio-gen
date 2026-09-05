@@ -65,5 +65,5 @@ export function checkTags(input: string): string[] {
  */
 export function renderTags(tags: string[]): string | null {
   if (tags.length === 0) return null;
-  return `Thể loại phụ: ${tags.join(", ")}. Giọng văn và tình tiết phải bám theo cả những thể loại này.`;
+  return `Sub-genres: ${tags.join(", ")}. The tone and the events must follow these too, not only the main genre.`;
 }

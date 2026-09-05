@@ -15,28 +15,30 @@ const full = {
 describe("renderEpisodeContext", () => {
   it("gộp đủ bốn phần khi có đủ dữ liệu", () => {
     const t = renderEpisodeContext(full);
-    expect(t).toContain("Mạch truyện từ đầu (tập 1–3)");
-    expect(t).toContain("Mục lục các tập đã viết");
-    expect(t).toContain("Tóm tắt tập gần nhất");
-    expect(t).toContain("Tình tiết còn bỏ ngỏ");
+    expect(t).toContain("The story so far (episodes 1–3)");
+    expect(t).toContain("Index of the episodes already written");
+    expect(t).toContain("Summaries of the most recent episodes");
+    expect(t).toContain("Open threads");
   });
 
   it("mạch truyện đặt TRƯỚC tóm tắt lẻ", () => {
     // Model đọc tuần tự; mạch xa phải nắm trước khi đọc chi tiết gần.
     const t = renderEpisodeContext(full);
-    expect(t.indexOf("Mạch truyện từ đầu")).toBeLessThan(t.indexOf("Tóm tắt tập gần nhất"));
+    expect(t.indexOf("The story so far")).toBeLessThan(
+      t.indexOf("Summaries of the most recent episodes"),
+    );
   });
 
   it("nói rõ tình tiết bỏ ngỏ là thứ tập mới nên xử lý", () => {
     // Dựng tập mới chính là lúc quyết định món nợ nào của truyện được trả.
-    expect(renderEpisodeContext(full)).toMatch(/đẩy tiếp hoặc giải quyết/);
+    expect(renderEpisodeContext(full)).toMatch(/push forward or resolve/);
   });
 
   it("bỏ phần rỗng thay vì để tiêu đề trống", () => {
     const t = renderEpisodeContext({ ...full, openThreads: [], arcSummary: undefined });
-    expect(t).not.toContain("Tình tiết còn bỏ ngỏ");
-    expect(t).not.toContain("Mạch truyện từ đầu");
-    expect(t).toContain("Mục lục các tập đã viết");
+    expect(t).not.toContain("Open threads");
+    expect(t).not.toContain("The story so far");
+    expect(t).toContain("Index of the episodes already written");
   });
 
   it("bộ chưa có tập nào thì NÓI THẲNG, không gửi khối rỗng", () => {
@@ -46,13 +48,13 @@ describe("renderEpisodeContext", () => {
       previousSummaries: [],
       openThreads: [],
     });
-    expect(t).toContain("Chưa có tập nào");
+    expect(t).toContain("No episode has been finished yet");
     expect(t.trim()).not.toBe("");
   });
 
   it("không có arcThroughEpisode thì không hiện khoảng tập trống", () => {
     const t = renderEpisodeContext({ ...full, arcThroughEpisode: undefined });
-    expect(t).toContain("Mạch truyện từ đầu\n");
-    expect(t).not.toContain("(tập 1–)");
+    expect(t).toContain("The story so far\n");
+    expect(t).not.toContain("(episodes 1–)");
   });
 });

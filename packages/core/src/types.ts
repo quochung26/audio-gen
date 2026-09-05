@@ -11,12 +11,12 @@ import { z } from "zod";
 // ── Dàn ý (bước 0a) ────────────────────────────────────────────
 
 export const characterSchema = z.object({
-  name: z.string().min(1).describe("Tên nhân vật"),
-  role: z.string().describe("Vai trò, tuổi tác, nghề nghiệp"),
+  name: z.string().min(1).describe("Character name"),
+  role: z.string().describe("Role, age, occupation"),
   voiceHint: z
     .string()
-    .describe("Gợi ý giọng đọc: giới tính, độ tuổi, chất giọng. VD: nam trung niên, giọng khàn"),
-  isNarrator: z.boolean().describe("Có phải người dẫn truyện không"),
+    .describe("Casting hint for the voice: gender, age, vocal quality. E.g. middle-aged man, hoarse voice"),
+  isNarrator: z.boolean().describe("Whether this character is the narrator"),
 });
 
 export const episodePlanSchema = z.object({
@@ -25,8 +25,8 @@ export const episodePlanSchema = z.object({
   beats: z
     .array(z.string())
     .min(2)
-    .describe("Các nhịp chính của tập, mỗi nhịp sẽ thành một cảnh"),
-  hookCuoi: z.string().describe("Câu/tình tiết cuối tập giữ chân người nghe"),
+    .describe("The main beats of the episode; each beat becomes one scene"),
+  hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
 });
 
 /**
@@ -40,17 +40,17 @@ export const nextEpisodePlanSchema = z.object({
   beats: z
     .array(z.string())
     .min(2)
-    .describe("Các nhịp chính của tập, mỗi nhịp sẽ thành một cảnh"),
-  hookCuoi: z.string().describe("Câu/tình tiết cuối tập giữ chân người nghe"),
+    .describe("The main beats of the episode; each beat becomes one scene"),
+  hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
 });
 
 export type NextEpisodePlan = z.infer<typeof nextEpisodePlanSchema>;
 
 export const outlineSchema = z.object({
   title: z.string().min(1),
-  logline: z.string().describe("Tóm tắt một câu"),
+  logline: z.string().describe("One-sentence summary"),
   genre: z.string(),
-  setting: z.string().describe("Bối cảnh: thời gian, địa điểm, không khí"),
+  setting: z.string().describe("Setting: time, place, atmosphere"),
   characters: z.array(characterSchema).min(1),
   episodes: z.array(episodePlanSchema).min(1),
 });
@@ -64,10 +64,10 @@ export type Outline = z.infer<typeof outlineSchema>;
 export const scriptBlockSchema = z.object({
   speaker: z
     .string()
-    .describe('Tên nhân vật đang nói, hoặc "narrator" nếu là lời dẫn truyện'),
-  text: z.string().min(1).describe("Lời đọc, đã viết lại cho dễ đọc thành tiếng"),
-  pauseAfter: z.number().int().min(0).max(5000).describe("Số mili-giây nghỉ sau block"),
-  sfxHint: z.string().nullable().describe("Gợi ý hiệu ứng âm thanh, null nếu không cần"),
+    .describe('Name of the character speaking, or "narrator" for narration'),
+  text: z.string().min(1).describe("The line to read aloud, rewritten to be speakable"),
+  pauseAfter: z.number().int().min(0).max(5000).describe("Milliseconds of pause after this block"),
+  sfxHint: z.string().nullable().describe("Sound-effect hint, null if none is needed"),
 });
 
 export const audioScriptSchema = z.object({
@@ -80,11 +80,11 @@ export type AudioScript = z.infer<typeof audioScriptSchema>;
 // ── Tóm tắt tập + trạng thái nhân vật (bước 0d) ──
 
 export const characterStateSchema = z.object({
-  name: z.string().describe("Tên nhân vật, đúng như trong danh sách"),
+  name: z.string().describe("Character name, exactly as given in the list"),
   state: z
     .string()
     .describe(
-      "Tình trạng của nhân vật ở CUỐI tập: đang ở đâu, biết gì, quan hệ đã đổi thế nào, còn sống không",
+      "Where the character stands at the END of the episode: where they are, what they know, how relationships changed, whether they are alive",
     ),
 });
 
@@ -92,15 +92,15 @@ export const storyFactSchema = z.object({
   kind: z
     .enum(["EVENT", "REVELATION", "PROMISE", "RELATION", "OBJECT", "PLACE", "OPEN_THREAD"])
     .describe(
-      "EVENT việc đã xảy ra | REVELATION điều nhân vật phát hiện | PROMISE lời thề/hứa | " +
-        "RELATION quan hệ thay đổi | OBJECT vật quan trọng | PLACE địa điểm có ý nghĩa | " +
-        "OPEN_THREAD tình tiết bỏ ngỏ chưa có lời giải",
+      "EVENT something happened | REVELATION something a character discovered | PROMISE an oath or promise | " +
+        "RELATION a relationship changed | OBJECT an important object | PLACE a meaningful location | " +
+        "OPEN_THREAD an open thread with no answer yet",
     ),
   text: z
     .string()
     .describe(
-      "MỘT câu tự đứng được mà không cần đọc tập. Nêu rõ tên nhân vật, địa điểm. " +
-        'VD: "Tài thề không bao giờ quay lại Bến Cũ sau đêm mưa."',
+      "ONE sentence that stands on its own without reading the episode. Name the character and the place. " +
+        'E.g. "Tai swore he would never go back to the Old Depot after that night of rain."',
     ),
 });
 
@@ -109,16 +109,16 @@ export type StoryFactInput = z.infer<typeof storyFactSchema>;
 export const episodeDigestSchema = z.object({
   gist: z
     .string()
-    .describe("Một câu tối đa 20 từ nêu việc chính của tập — dùng làm mục lục truyện"),
-  summary: z.string().describe("Tóm tắt tập, 150–250 từ, thuật lại theo trình tự"),
+    .describe("One sentence, at most 20 words, stating the main event — used as the series index line"),
+  summary: z.string().describe("Episode summary, 150-250 words, recounted in order"),
   characters: z
     .array(characterStateSchema)
-    .describe("Trạng thái cuối tập của các nhân vật CÓ XUẤT HIỆN trong tập này"),
+    .describe("End-of-episode state of every character who APPEARS in this episode"),
   facts: z
     .array(storyFactSchema)
     .describe(
-      "Các sự kiện rời của tập này, mỗi sự kiện MỘT câu. Đây là thứ được truy hồi " +
-        "khi viết các tập sau, nên phải tự đứng được mà không cần đọc lại tập.",
+      "The discrete facts of this episode, ONE sentence each. These are retrieved when " +
+        "later episodes are written, so each must stand on its own without rereading the episode.",
     ),
 });
 
@@ -131,7 +131,7 @@ export const metadataSchema = z.object({
   title: z.string(),
   description: z.string(),
   hashtags: z.array(z.string()),
-  coverPrompt: z.string().describe("Mô tả ảnh bìa"),
+  coverPrompt: z.string().describe("Cover-image description"),
 });
 
 export type EpisodeMetadata = z.infer<typeof metadataSchema>;

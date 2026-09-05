@@ -77,7 +77,7 @@ describe("renderTags", () => {
     // không đặt gì.
     const line = renderTags(["tình cảm", "hành động"])!;
     expect(line).toContain("tình cảm, hành động");
-    expect(line).toMatch(/phải bám theo/);
+    expect(line).toMatch(/must follow these too/);
   });
 
   it("không có tag thì trả null, để Bible khỏi thừa một dòng trống", () => {

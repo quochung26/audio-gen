@@ -53,23 +53,34 @@ describe("languageLabel", () => {
 });
 
 describe("languageDirective", () => {
-  it("tiếng Anh: nói rõ CHỈ DẪN là tiếng Việt nhưng ĐẦU RA phải tiếng Anh", () => {
-    // Prompt trong DB viết bằng tiếng Việt kể cả khi truyện là tiếng Anh.
-    // Không tách bạch hai thứ đó thì model viết văn tiếng Việt.
+  it("tiếng Việt: nói rõ CHỈ DẪN là tiếng Anh nhưng ĐẦU RA phải tiếng Việt", () => {
+    // Prompt trong DB viết bằng tiếng Anh kể cả khi truyện là tiếng Việt.
+    // Không tách bạch hai thứ đó thì model viết văn tiếng Anh.
+    const d = languageDirective("vi");
+    expect(d).toContain("Vietnamese");
+    expect(d).toMatch(/instructions .* English/i);
+    expect(d).toMatch(/NOT the language/i);
+  });
+
+  it("truyện tiếng Anh KHÔNG nhắc câu tách bạch — chỉ dẫn và đầu ra cùng một tiếng", () => {
+    // Nói "tiếng Anh KHÔNG phải ngôn ngữ cần viết" trong khi phải viết tiếng
+    // Anh là tự mâu thuẫn, và model làm theo vế sai.
     const d = languageDirective("en");
     expect(d).toContain("English");
-    expect(d).toMatch(/instructions .* Vietnamese/i);
-    expect(d).toMatch(/NOT the language/i);
+    expect(d).not.toMatch(/NOT the language/i);
   });
 
   it("nhắc cả tên riêng và lời thoại — chỗ model hay lẫn nhất", () => {
     expect(languageDirective("en")).toMatch(/names.*dialogue/i);
-    expect(languageDirective("vi")).toMatch(/Tên nhân vật.*lời thoại/i);
+    expect(languageDirective("vi")).toMatch(/names.*dialogue/i);
   });
 
-  it("tiếng Việt vẫn có chỉ thị, không để trống", () => {
-    // Model vẫn trôi sang tiếng Anh khi ngữ cảnh có nhiều thuật ngữ Anh.
-    expect(languageDirective("vi")).toContain("tiếng Việt");
+  it("mọi ngôn ngữ đều được gọi đúng tên trong chỉ thị", () => {
+    // Chỉ thị dựng từ bảng LANGUAGES, nên thêm một thứ tiếng là thêm một dòng
+    // chứ không phải sửa hàm.
+    for (const l of LANGUAGES) {
+      expect(languageDirective(l.code)).toContain(l.endonym);
+    }
   });
 });
 

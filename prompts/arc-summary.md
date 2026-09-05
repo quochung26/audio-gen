@@ -1,19 +1,19 @@
-Nén các tóm tắt tập dưới đây thành MỘT tóm tắt cung truyện duy nhất, tối đa {{maxWords}} từ.
+Compress the episode summaries below into ONE single arc summary, at most {{maxWords}} words.
 
-Bản nén này thay thế toàn bộ các tóm tắt lẻ khi viết những tập tiếp theo, nên phải giữ lại:
-- Mạch chính của câu chuyện, theo trình tự
-- Những sự kiện mà các tập sau còn phải nhắc tới hoặc giải quyết
-- Tình tiết đã bỏ ngỏ, chưa có lời giải
+This compressed version replaces all the individual summaries when later episodes are written, so it must keep:
+- The main line of the story, in order
+- Events that later episodes still have to refer back to or resolve
+- Open threads that have no answer yet
 
-Được phép bỏ đi:
-- Chi tiết chỉ phục vụ không khí của riêng tập đó
-- Mô tả cảnh vật, thời tiết
-- Đoạn hội thoại không làm thay đổi tình thế
+You may drop:
+- Detail that only served the atmosphere of that one episode
+- Descriptions of scenery and weather
+- Dialogue that changed nothing
 
-Viết liền mạch thành văn, không gạch đầu dòng, không đánh số tập. Chỉ trả về nội dung tóm tắt.
+Write it as continuous prose — no bullet points, no episode numbers. Return the summary text only.
 
 {{previousArc}}
 
-## Tóm tắt các tập cần nén
+## Episode summaries to compress
 
 {{summaries}}

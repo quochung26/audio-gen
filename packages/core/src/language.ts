@@ -15,6 +15,14 @@ export type LanguageCode = (typeof LANGUAGES)[number]["code"];
 
 export const DEFAULT_LANGUAGE: LanguageCode = "vi";
 
+/**
+ * Ngôn ngữ của CHỈ DẪN — mọi prompt trong `prompts/` và mọi khối ngữ cảnh
+ * dựng ở @audio/core đều viết bằng tiếng Anh, bất kể truyện viết bằng tiếng gì.
+ *
+ * Một thứ tiếng cho chỉ dẫn, thay vì nhân đôi prompt cho mỗi ngôn ngữ nội dung.
+ */
+const INSTRUCTION_LANGUAGE: LanguageCode = "en";
+
 export function isLanguage(v: unknown): v is LanguageCode {
   return typeof v === "string" && LANGUAGES.some((l) => l.code === v);
 }
@@ -29,29 +37,35 @@ export function languageLabel(code: LanguageCode): string {
   return LANGUAGES.find((l) => l.code === code)?.label ?? code;
 }
 
+/** Tên ngôn ngữ trong chính thứ tiếng model hiểu — dùng để viết chỉ thị. */
+export function languageEndonym(code: LanguageCode): string {
+  return LANGUAGES.find((l) => l.code === code)?.endonym ?? code;
+}
+
 /**
  * Chỉ thị ngôn ngữ nhét vào system prompt.
  *
- * Câu quan trọng nhất là câu thứ hai: prompt trong bảng `Prompt` viết bằng
- * TIẾNG VIỆT kể cả khi truyện viết bằng tiếng Anh. Không nói rõ thì model coi
- * ngôn ngữ của chỉ dẫn là ngôn ngữ cần viết, và trả về văn tiếng Việt trong
- * khi cả bộ đang là tiếng Anh.
+ * Chỉ dẫn viết bằng tiếng Anh, đầu ra viết bằng thứ tiếng của bộ truyện. Câu
+ * thứ hai tách bạch hai thứ đó: không nói rõ thì model coi ngôn ngữ của chỉ
+ * dẫn là ngôn ngữ cần viết, và trả về văn tiếng Anh trong khi cả bộ là tiếng
+ * Việt. Truyện tiếng Anh không cần câu này — chỉ dẫn và đầu ra cùng một tiếng,
+ * nói "đây KHÔNG phải ngôn ngữ cần viết" chỉ làm model rối.
  *
  * Nhắc cả tên riêng và lời thoại vì đó là chỗ model hay lẫn nhất: viết văn
- * tiếng Anh nhưng để nguyên tên nhân vật và câu thoại tiếng Việt.
+ * đúng tiếng nhưng để nguyên tên nhân vật và câu thoại theo tiếng của chỉ dẫn.
  */
 export function languageDirective(code: LanguageCode): string {
-  if (code === "en") {
-    return [
-      "Write ALL output in English.",
-      "The instructions below are written in Vietnamese — that is the language of the instructions, NOT the language you must write in.",
-      "Character names, dialogue and narration must all be in English.",
-    ].join(" ");
+  const endonym = languageEndonym(code);
+  const parts = [`Write ALL output in ${endonym}.`];
+
+  if (code !== INSTRUCTION_LANGUAGE) {
+    parts.push(
+      "The instructions below are written in English — that is the language of the instructions, NOT the language you must write in.",
+    );
   }
-  return [
-    "Viết TOÀN BỘ nội dung bằng tiếng Việt.",
-    "Tên nhân vật, lời thoại và lời dẫn đều phải là tiếng Việt.",
-  ].join(" ");
+
+  parts.push(`Character names, dialogue and narration must all be in ${endonym}.`);
+  return parts.join(" ");
 }
 
 /**

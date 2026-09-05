@@ -391,15 +391,19 @@ Truyện viết bằng **tiếng Việt hoặc tiếng Anh**. Chọn ở màn t�
 
 **Ngôn ngữ gắn với BỘ, chốt lúc tạo.** Nằm ở `Series.language`, không đổi được sau. Đổi ngôn ngữ một bộ đang viết dở không phải là sửa một ô cấu hình: tóm tắt cung truyện, tên nhân vật, sự kiện đã truy hồi và giọng đọc của các tập cũ đều lệch theo. Đổi mặc định ở trang `/model` **không** đụng tới bộ đã có.
 
-**Chỉ dẫn tiếng Việt, đầu ra tiếng Anh.** Prompt trong bảng `Prompt` viết bằng tiếng Việt kể cả khi truyện là tiếng Anh — không nhân đôi toàn bộ prompt cho mỗi thứ tiếng. Thay vào đó, mỗi lượt gọi model được chèn một chỉ thị ngôn ngữ vào đầu system prompt:
+**Chỉ dẫn tiếng Anh, đầu ra theo cấu hình.** Mọi prompt trong `prompts/` và bảng `Prompt`, mọi khối ngữ cảnh dựng ở `@audio/core` (Story Bible, tóm tắt, sự kiện truy hồi) đều viết bằng **tiếng Anh**, bất kể truyện viết bằng tiếng gì — một thứ tiếng cho chỉ dẫn, thay vì nhân đôi toàn bộ prompt cho mỗi ngôn ngữ nội dung. Thứ tiếng của truyện chỉ quyết định **đầu ra**, và được chèn thành một chỉ thị ở đầu system prompt mỗi lượt gọi:
 
 ```
-Write ALL output in English. The instructions below are written in Vietnamese —
+Write ALL output in Vietnamese. The instructions below are written in English —
 that is the language of the instructions, NOT the language you must write in.
-Character names, dialogue and narration must all be in English.
+Character names, dialogue and narration must all be in Vietnamese.
 ```
 
-Câu thứ hai là câu quan trọng nhất. Thiếu nó, model coi ngôn ngữ của chỉ dẫn là ngôn ngữ cần viết và trả về văn tiếng Việt trong khi cả bộ đang là tiếng Anh. Câu thứ ba nhắc riêng tên riêng và lời thoại vì đó là chỗ model hay lẫn nhất: văn tiếng Anh nhưng tên nhân vật và câu thoại vẫn tiếng Việt.
+Câu thứ hai là câu quan trọng nhất. Thiếu nó, model coi ngôn ngữ của chỉ dẫn là ngôn ngữ cần viết và trả về văn tiếng Anh trong khi cả bộ đang là tiếng Việt. Câu thứ ba nhắc riêng tên riêng và lời thoại vì đó là chỗ model hay lẫn nhất: văn đúng tiếng nhưng tên nhân vật và câu thoại vẫn theo tiếng của chỉ dẫn.
+
+Truyện **tiếng Anh** thì câu thứ hai bị bỏ đi: chỉ dẫn và đầu ra cùng một thứ tiếng, nói "tiếng Anh KHÔNG phải ngôn ngữ cần viết" chỉ làm model rối. Chỉ thị dựng từ bảng `LANGUAGES`, nên thêm một thứ tiếng là thêm một dòng chứ không phải sửa hàm.
+
+Prompt viết bằng tiếng Anh còn vì lý do khác: model mở cỡ 7–14B được huấn luyện chủ yếu trên tiếng Anh, và chỉ dẫn tiếng Anh được tuân thủ chặt hơn hẳn. Riêng **dữ liệu người viết nhập** — ý tưởng, thể loại và mô tả thể loại, thiết lập thế giới, tên nhân vật — giữ nguyên như đã gõ; đó là nội dung, không phải chỉ dẫn.
 
 Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible dài hàng nghìn chữ, chỉ thị nằm dưới là chìm nghỉm. Cả sáu bước gọi model đều được chèn.
 
@@ -413,7 +417,7 @@ Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible 
 
 ## Prompt
 
-`/prompts` — sáu bước gọi model, mỗi bước một prompt.
+`/prompts` — sáu bước gọi model, mỗi bước một prompt. **Prompt viết bằng tiếng Anh**; ngôn ngữ đầu ra do bộ truyện quyết, xem mục [Ngôn ngữ](#ngôn-ngữ).
 
 Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể loại, và có thể thêm **biến thể theo thể loại**. Biến thể luôn thắng bản mặc định khi bộ đúng thể loại đó; cùng thể loại thì `version` cao thắng. Tạo biến thể là chép từ bản mặc định — sửa từ bản đang chạy tốt an toàn hơn viết lại từ trang trắng.
 

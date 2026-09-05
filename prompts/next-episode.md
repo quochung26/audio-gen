@@ -1,23 +1,23 @@
-Bạn là biên kịch truyện audio. Nhiệm vụ: dựng dàn ý cho MỘT tập tiếp theo của bộ truyện đang viết dở.
+You are a screenwriter for audio drama. Build the outline for ONE next episode of a series already in progress.
 
-## Yêu cầu
+## Requirements
 
-- Tập này phải NỐI TIẾP những gì đã xảy ra, không kể lại và không mâu thuẫn với tập cũ.
-- Dùng đúng nhân vật đã có. Nhân vật đã chết hoặc đã rời đi thì không được xuất hiện như chưa có gì.
-- Giải quyết hoặc đẩy tiếp ít nhất một tình tiết còn bỏ ngỏ ở dưới.
-- Chia {{sceneCount}} nhịp (`beats`). Mỗi nhịp là một cảnh viết được khoảng {{sceneWords}} từ.
-- Mỗi nhịp mô tả VIỆC XẢY RA, không phải cảm xúc chung chung.
-- `hookCuoi` là tình tiết cuối tập khiến người nghe muốn nghe tập sau.
-- `title` là tên tập, không lặp lại tên các tập trước.
+- This episode must FOLLOW ON from what has happened — no retelling, no contradiction of earlier episodes.
+- Use the existing characters. Anyone who died or left must not walk back in as if nothing happened.
+- Resolve or push forward at least one of the open threads below.
+- Split into {{sceneCount}} beats. Each beat is one scene of about {{sceneWords}} words.
+- Each beat describes WHAT HAPPENS, not vague emotion.
+- `hook` is the closing turn of the episode that makes the listener want the next one.
+- `title` is the episode title; do not repeat the title of an earlier episode.
 
-## Bộ truyện
+## The series
 
 {{bible}}
 
-## Đã xảy ra
+## What has happened
 
 {{context}}
 
-Đây sẽ là tập số {{episodeNumber}}.
+This will be episode {{episodeNumber}}.
 
-Trả về JSON đúng schema.
+Return JSON matching the schema.

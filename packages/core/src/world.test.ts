@@ -15,8 +15,8 @@ describe("Story Bible mang theo thể loại phụ", () => {
     // nghìn chữ luật thế giới và mô tả nhân vật.
     const b = renderBible({ ...base, tags: ["tình cảm", "slow burn"], logline: "một câu" });
     expect(b).toContain("tình cảm, slow burn");
-    expect(b.indexOf("Thể loại")).toBeLessThan(b.indexOf("tình cảm"));
-    expect(b.indexOf("tình cảm")).toBeLessThan(b.indexOf("Tóm tắt"));
+    expect(b.indexOf("Genre:")).toBeLessThan(b.indexOf("tình cảm"));
+    expect(b.indexOf("tình cảm")).toBeLessThan(b.indexOf("Logline"));
   });
 
   it("không có thì Bible không đổi", () => {
@@ -26,7 +26,7 @@ describe("Story Bible mang theo thể loại phụ", () => {
   it("thể loại CHÍNH vẫn đứng riêng, không bị trộn vào", () => {
     // Chính là khoá chọn prompt; trộn lẫn thì không còn phân biệt được.
     const b = renderBible({ ...base, tags: ["tình cảm"] });
-    expect(b).toContain("Thể loại: kinh dị");
+    expect(b).toContain("Genre: kinh dị");
   });
 });
 
@@ -53,7 +53,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
       ...series,
       characters: [{ name: "Hùng", isNarrator: true, description: "tài xế", state: "đã chết" }],
     });
-    expect(b).toContain("Hiện tại: đã chết");
+    expect(b).toContain("Current state: đã chết");
     expect(b).toContain("tài xế");
   });
 
@@ -63,12 +63,12 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
       characters: [{ name: "Hùng", isNarrator: true, description: null, state: null }],
     });
     expect(b).toContain("Hùng");
-    expect(b).not.toContain("Hiện tại:");
+    expect(b).not.toContain("Current state:");
   });
 
   it("mô tả bộ truyện thành logline", () => {
     expect(seriesBible(series)).toContain("Một câu chuyện.");
-    expect(seriesBible({ ...series, description: null })).not.toContain("Tóm tắt:");
+    expect(seriesBible({ ...series, description: null })).not.toContain("Logline:");
   });
 });
 
@@ -111,7 +111,7 @@ describe("mô tả thể loại trong Bible", () => {
   });
 
   it("không có mô tả nào thì không sinh mục trống", () => {
-    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("Thể loại này nghĩa là gì");
-    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("Thể loại này nghĩa là gì");
+    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
+    expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
   });
 });

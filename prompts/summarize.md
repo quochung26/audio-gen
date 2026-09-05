@@ -1,57 +1,57 @@
-Đọc tập truyện dưới đây và trả về bốn thứ: một dòng mục lục, tóm tắt tập, trạng thái các nhân vật, và danh sách sự kiện rời.
+Read the episode below and return four things: a one-line index entry, an episode summary, the state of each character, and a list of discrete facts.
 
-## `gist` — một câu, tối đa 20 từ
+## `gist` — one sentence, at most 20 words
 
-Nêu VIỆC CHÍNH của tập. Đây là dòng mục lục, luôn được nạp khi viết các tập sau, nên phải đủ để nhận ra tập này nói về chuyện gì.
+State the MAIN EVENT of the episode. This is the index line, loaded every time a later episode is written, so it has to be enough to recognise what this episode was about.
 
-Ví dụ: "Tài chở người khách cuối cùng về Bến Cũ và phát hiện ghế số 12 trống."
+Example: "Tai drives his last passenger out to the Old Depot and finds seat 12 empty."
 
-## `summary` — tóm tắt tập, 150–250 từ
+## `summary` — episode summary, 150–250 words
 
-Bản tóm tắt này nạp làm ngữ cảnh khi viết các tập sau, nên phải nêu rõ:
-- Việc gì đã xảy ra, theo trình tự
-- Tình tiết còn bỏ ngỏ
+This summary is loaded as context when later episodes are written, so it must state:
+- What happened, in order
+- What is still left open
 
-Không bình luận, không đánh giá. Chỉ thuật lại.
+No commentary, no judgement. Just recount.
 
-## `characters` — trạng thái cuối tập
+## `characters` — state at the end of the episode
 
-Chỉ liệt kê nhân vật CÓ XUẤT HIỆN trong tập này. Với mỗi người, ghi tình trạng ở thời điểm tập kết thúc:
-- Đang ở đâu
-- Biết điều gì mà trước đó chưa biết
-- Quan hệ với nhân vật khác đã thay đổi thế nào
-- Còn sống không, có thương tích gì không
+List ONLY characters who APPEAR in this episode. For each of them, record where things stand as the episode ends:
+- Where they are
+- What they now know that they did not know before
+- How their relationship with other characters has changed
+- Whether they are alive, and whether they are hurt
 
-Viết ngắn gọn, mỗi người 1–2 câu. Đây là thứ giúp các tập sau không viết sai — ví dụ không để một nhân vật đã chết xuất hiện, hay để hai người vừa cãi nhau lại thân thiết.
+Keep it short, 1–2 sentences each. This is what keeps later episodes from going wrong — no walking a dead character into a scene, no warmth between two people who just fell out.
 
-Dùng đúng TÊN nhân vật trong danh sách dưới đây, không tự đặt tên khác.
+Use each character's exact NAME from the list below; do not invent other names.
 
-## `facts` — sự kiện rời
+## `facts` — discrete facts
 
-Tách tập thành các sự kiện, mỗi sự kiện MỘT câu. Đây là thứ được truy hồi khi viết các tập sau, nên mỗi câu phải **tự đứng được mà không cần đọc lại tập**: nêu rõ tên nhân vật và địa điểm, đừng dùng "anh ta", "ở đó".
+Break the episode into discrete facts, ONE sentence each. These are retrieved when later episodes are written, so every sentence must **stand on its own without rereading the episode**: name the character and the place, do not write "he" or "over there".
 
-Phân loại đúng `kind`, vì cách dùng khác nhau:
+Classify `kind` correctly — they are used differently:
 
-| kind | Khi nào | Ví dụ |
+| kind | When | Example |
 |---|---|---|
-| `EVENT` | Việc đã xảy ra | "Tài chở người khách cuối cùng về Bến Cũ lúc 2 giờ sáng." |
-| `REVELATION` | Nhân vật phát hiện điều gì | "Tài phát hiện ghế số 12 chưa từng có ai ngồi." |
-| `PROMISE` | Lời thề, lời hứa, cam kết | "Tài thề không bao giờ quay lại Bến Cũ." |
-| `RELATION` | Quan hệ thay đổi | "Tài không còn tin lời ông Bảy sau đêm đó." |
-| `OBJECT` | Vật quan trọng xuất hiện | "Chiếc vé xe cũ ghi ngày 30 tháng Chạp năm 1975." |
-| `PLACE` | Địa điểm có ý nghĩa được giới thiệu | "Bến Cũ nằm ngoài rìa thị trấn, bỏ hoang từ sau cơn bão." |
-| `OPEN_THREAD` | **Tình tiết bỏ ngỏ, chưa có lời giải** | "Không ai biết ai đã mua vé ghế số 12." |
+| `EVENT` | Something happened | "Tai drove his last passenger to the Old Depot at 2 a.m." |
+| `REVELATION` | A character discovers something | "Tai found that no one had ever sat in seat 12." |
+| `PROMISE` | An oath, a promise, a commitment | "Tai swore he would never go back to the Old Depot." |
+| `RELATION` | A relationship changed | "Tai no longer believes what old Bay tells him." |
+| `OBJECT` | An important object appears | "An old bus ticket dated the 30th of the twelfth lunar month, 1975." |
+| `PLACE` | A meaningful location is introduced | "The Old Depot sits at the edge of town, abandoned since the storm." |
+| `OPEN_THREAD` | **An open thread with no answer yet** | "No one knows who bought the ticket for seat 12." |
 
-`OPEN_THREAD` quan trọng nhất — đó là món nợ câu chuyện phải trả, và nó luôn được nạp khi viết các tập sau. Đừng bỏ sót.
+`OPEN_THREAD` matters most — it is a debt the story has to pay, and it is loaded every time a later episode is written. Do not miss any.
 
-Mỗi tập thường có 5–12 sự kiện. Đừng liệt kê chi tiết không ảnh hưởng gì về sau (thời tiết, mô tả cảnh vật).
+An episode usually has 5–12 facts. Do not list detail that has no bearing later (weather, scenery).
 
-## Nhân vật trong truyện
+## Characters in the story
 
 {{characters}}
 
-## Nội dung tập
+## Episode content
 
 {{text}}
 
-Trả về JSON đúng schema.
+Return JSON matching the schema.

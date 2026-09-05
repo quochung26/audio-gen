@@ -68,7 +68,7 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
         // Nén chồng nén: tóm tắt cung truyện cũ được đưa vào cùng, để mạch
         // truyện từ tập 1 không bị đứt sau nhiều lần nén.
         previousArc: series.arcSummary
-          ? `## Tóm tắt cung truyện đã có (các tập trước đó)\n${series.arcSummary}\n\nGộp phần dưới vào bản này.`
+          ? `## Existing arc summary (the episodes before these)\n${series.arcSummary}\n\nFold what follows into it.`
           : "",
         summaries: toCompress
           .map((e) => `### Tập ${e.number}: ${e.title}\n${e.summary}`)

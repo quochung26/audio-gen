@@ -192,15 +192,15 @@ function fakeString(base: string, desc: string, index: number): string {
   if (base === "genre") return "kinh dị";
   if (base === "setting") return "Quốc lộ miền Trung, thập niên 1970, những chuyến xe đêm.";
   if (base === "role") return index === 0 ? "tài xế xe khách, 45 tuổi" : "hành khách bí ẩn";
-  if (base === "voiceHint" || desc.includes("giọng")) {
+  if (base === "voiceHint" || desc.includes("vocal quality")) {
     return ["nam trung niên, giọng khàn", "nữ trẻ, giọng nhẹ và xa xăm", "nam già, giọng chậm"][
       index % 3
     ]!;
   }
   if (base === "beats") return `Nhịp ${index + 1} (giả lập) — việc xảy ra trong cảnh này.`;
-  if (base === "hookCuoi") return "Ghế số 12 vẫn trống, nhưng cửa xe đã mở.";
+  if (base === "hook") return "Ghế số 12 vẫn trống, nhưng cửa xe đã mở.";
   if (base === "gist") return "Tài chở người khách cuối cùng về Bến Cũ và phát hiện ghế trống.";
-  if (base === "text" && desc.includes("một câu")) {
+  if (base === "text" && desc.includes("ONE sentence")) {
     return [
       "Tài chở người khách cuối cùng về Bến Cũ lúc hai giờ sáng.",
       "Tài phát hiện ghế số mười hai chưa từng có ai ngồi.",

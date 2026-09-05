@@ -96,13 +96,13 @@ export function renderBible(input: {
   }>;
   episodes?: Array<{ number: number; title: string; beats: string[] }>;
 }): string {
-  const parts: string[] = [`# ${input.title}`, ``, `Thể loại: ${input.genre}`];
+  const parts: string[] = [`# ${input.title}`, ``, `Genre: ${input.genre}`];
 
   // Ngay dưới thể loại: đây là thứ lái giọng văn, phải nằm chỗ model đọc trước.
   const tagLine = renderTags(input.tags ?? []);
   if (tagLine) parts.push(tagLine);
 
-  if (input.logline) parts.push(`Tóm tắt: ${input.logline}`);
+  if (input.logline) parts.push(`Logline: ${input.logline}`);
 
   // Ngay sau dòng thể loại, trước bối cảnh: model phải biết "kinh dị" ở đây
   // nghĩa là gì trước khi đọc bất cứ thứ gì khác.
@@ -110,7 +110,7 @@ export function renderBible(input: {
   if (notes.length > 0) {
     parts.push(
       ``,
-      `## Thể loại này nghĩa là gì`,
+      `## What these genres mean here`,
       ...notes.map((g) => `- **${g.name}**: ${g.description.trim()}`),
     );
   }
@@ -118,38 +118,38 @@ export function renderBible(input: {
   const w = input.world;
 
   if (w.setting.trim()) {
-    parts.push(``, `## Bối cảnh`, w.setting.trim());
+    parts.push(``, `## Setting`, w.setting.trim());
   }
 
   if (w.rules.length > 0) {
     parts.push(
       ``,
-      `## Luật thế giới`,
-      `Những điều sau LUÔN đúng trong truyện này. Không được viết trái với chúng:`,
+      `## World rules`,
+      `The following are ALWAYS true in this story. Do not write anything that contradicts them:`,
       ...w.rules.map((r) => `- ${r}`),
     );
   }
 
   if (w.tone.trim()) {
-    parts.push(``, `## Giọng văn`, w.tone.trim());
+    parts.push(``, `## Tone`, w.tone.trim());
   }
 
   if (w.constraints.length > 0) {
-    parts.push(``, `## Điều cấm`, ...w.constraints.map((c) => `- ${c}`));
+    parts.push(``, `## Forbidden`, ...w.constraints.map((c) => `- ${c}`));
   }
 
   if (w.glossary.length > 0) {
     parts.push(
       ``,
-      `## Thuật ngữ`,
-      `Dùng đúng các cách gọi sau, không tự đổi:`,
+      `## Glossary`,
+      `Use these exact terms; do not rename them:`,
       ...w.glossary.map((g) => `- ${g.term}: ${g.meaning}`),
     );
   }
 
-  parts.push(``, `## Nhân vật`);
+  parts.push(``, `## Characters`);
   for (const c of input.characters) {
-    parts.push(`- ${c.name}${c.isNarrator ? " (người dẫn truyện)" : ""}: ${c.role ?? ""}`);
+    parts.push(`- ${c.name}${c.isNarrator ? " (narrator)" : ""}: ${c.role ?? ""}`);
     // Mô tả tính cách và cách nói đặt thụt vào — đây là thứ giữ cho lời thoại
     // của một nhân vật nghe giống nhau qua hàng chục tập.
     if (c.description?.trim()) parts.push(`  ${c.description.trim()}`);
@@ -158,7 +158,7 @@ export function renderBible(input: {
   if (input.episodes && input.episodes.length > 0) {
     parts.push(
       ``,
-      `## Dàn ý các tập`,
+      `## Episode outline`,
       ...input.episodes.map((e) => `${e.number}. ${e.title} — ${e.beats.join(" / ")}`),
     );
   }
@@ -174,19 +174,19 @@ export function renderBible(input: {
 export function renderWorldForOutline(w: WorldSetup): string {
   if (isWorldEmpty(w)) return "";
 
-  const parts: string[] = ["## Thiết lập thế giới đã có — BẮT BUỘC bám theo"];
+  const parts: string[] = ["## The world is already set — you MUST follow it"];
 
-  if (w.setting.trim()) parts.push(`Bối cảnh: ${w.setting.trim()}`);
-  if (w.tone.trim()) parts.push(`Giọng văn: ${w.tone.trim()}`);
-  if (w.rules.length > 0) parts.push(`Luật thế giới:`, ...w.rules.map((r) => `- ${r}`));
-  if (w.constraints.length > 0) parts.push(`Điều cấm:`, ...w.constraints.map((c) => `- ${c}`));
+  if (w.setting.trim()) parts.push(`Setting: ${w.setting.trim()}`);
+  if (w.tone.trim()) parts.push(`Tone: ${w.tone.trim()}`);
+  if (w.rules.length > 0) parts.push(`World rules:`, ...w.rules.map((r) => `- ${r}`));
+  if (w.constraints.length > 0) parts.push(`Forbidden:`, ...w.constraints.map((c) => `- ${c}`));
   if (w.glossary.length > 0) {
-    parts.push(`Thuật ngữ phải dùng đúng:`, ...w.glossary.map((g) => `- ${g.term}: ${g.meaning}`));
+    parts.push(`Use these exact terms:`, ...w.glossary.map((g) => `- ${g.term}: ${g.meaning}`));
   }
 
   parts.push(
     "",
-    "Không đặt lại bối cảnh khác. Trường `setting` trong kết quả phải khớp với bối cảnh trên.",
+    "Do not invent a different setting. The `setting` field you return must match the setting above.",
   );
 
   return parts.join("\n");

@@ -1,12 +1,12 @@
-Viết thông tin đăng bài cho tập truyện audio dưới đây.
+Write the publishing metadata for the audio episode below.
 
-- `title`: tiêu đề hấp dẫn, dưới 60 ký tự, không giật tít rẻ tiền
-- `description`: 2–3 câu giới thiệu, không tiết lộ kết
-- `hashtags`: 5–8 hashtag tiếng Việt không dấu, hợp TikTok
-- `coverPrompt`: mô tả ảnh bìa bằng tiếng Việt, tả hình ảnh cụ thể
+- `title`: a compelling title, under 60 characters, no cheap clickbait
+- `description`: 2–3 sentences of introduction, no spoilers for the ending
+- `hashtags`: 5–8 hashtags fit for TikTok — no spaces, no diacritics
+- `coverPrompt`: a cover-image description, concrete visual detail
 
-## Nội dung tập
+## Episode content
 
 {{text}}
 
-Trả về JSON đúng schema.
+Return JSON matching the schema.

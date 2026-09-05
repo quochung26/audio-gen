@@ -76,7 +76,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         episodeCount,
         sceneCount,
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
-        tags: tags.length > 0 ? tags.join(", ") : "(không có)",
+        tags: tags.length > 0 ? tags.join(", ") : "(none)",
         world: renderWorldForOutline(world),
       }),
       ...(params as object),

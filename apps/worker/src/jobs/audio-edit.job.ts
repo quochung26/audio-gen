@@ -58,7 +58,7 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
       schema: audioScriptSchema,
       prompt: renderTemplate(prompt.content, {
         characters: characters
-          .map((c) => `- ${c.name}${c.isNarrator ? " (người dẫn truyện)" : ""}: ${c.role ?? ""}`)
+          .map((c) => `- ${c.name}${c.isNarrator ? " (narrator)" : ""}: ${c.role ?? ""}`)
           .join("\n"),
         draft: episode.draftText,
       }),

@@ -64,7 +64,7 @@ export function seriesBible(input: SeriesBibleInput): string {
     characters: input.characters.map((c) => ({
       name: c.name,
       role: c.role,
-      description: [c.description, c.state ? `Hiện tại: ${c.state}` : null]
+      description: [c.description, c.state ? `Current state: ${c.state}` : null]
         .filter(Boolean)
         .join("\n  "),
       isNarrator: c.isNarrator,
@@ -113,50 +113,50 @@ export function renderContext(ctx: StoryContext): string {
   // Tóm tắt cung truyện đặt trước tóm tắt lẻ: model đọc tuần tự, và mạch
   // truyện xa phải được nắm trước khi đọc chi tiết gần.
   if (ctx.arcSummary) {
-    const through = ctx.arcThroughEpisode ? ` (tập 1–${ctx.arcThroughEpisode})` : "";
-    parts.push(`## Mạch truyện từ đầu${through}\n${ctx.arcSummary}`);
+    const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
+    parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
   }
 
   // Mục lục: rẻ (~15 từ/tập) và là thứ duy nhất còn lại của các tập đã nén.
   if (ctx.episodeIndex && ctx.episodeIndex.length > 0) {
     parts.push(
-      `## Mục lục các tập đã viết\n` +
+      `## Index of the episodes already written\n` +
         ctx.episodeIndex.map((e) => `${e.number}. ${e.title} — ${e.gist}`).join("\n"),
     );
   }
 
   if (ctx.previousSummaries.length > 0) {
     parts.push(
-      `## Tóm tắt tập liền trước\n` +
-        ctx.previousSummaries.map((s) => `Tập ${s.number}: ${s.summary}`).join("\n\n"),
+      `## Summary of the previous episode\n` +
+        ctx.previousSummaries.map((s) => `Episode ${s.number}: ${s.summary}`).join("\n\n"),
     );
   }
 
   // Sự kiện truy hồi theo ngữ nghĩa — thay cho việc nhồi mọi tóm tắt cũ.
   if (ctx.facts && ctx.facts.length > 0) {
     parts.push(
-      `## Sự kiện cũ liên quan tới cảnh này\n` +
-        `Những việc đã xảy ra ở các tập trước, được lấy ra vì liên quan tới cảnh đang viết. ` +
-        `Không được viết trái với chúng:\n` +
-        ctx.facts.map((f) => `- [tập ${f.episodeNumber}] ${f.text}`).join("\n"),
+      `## Earlier facts that bear on this scene\n` +
+        `Things that happened in earlier episodes, pulled in because they bear on the scene you are writing. ` +
+        `Do not write anything that contradicts them:\n` +
+        ctx.facts.map((f) => `- [episode ${f.episodeNumber}] ${f.text}`).join("\n"),
     );
   }
 
   // Tình tiết bỏ ngỏ: món nợ câu chuyện phải trả. Nạp bất kể tương đồng.
   if (ctx.openThreads && ctx.openThreads.length > 0) {
     parts.push(
-      `## Tình tiết còn bỏ ngỏ\n` +
-        `Chưa có lời giải. Đừng vô tình viết trái, và có thể dùng để nối mạch:\n` +
-        ctx.openThreads.map((t) => `- [tập ${t.episodeNumber}] ${t.text}`).join("\n"),
+      `## Open threads\n` +
+        `No answer yet. Do not contradict them by accident — and you may use them to carry the line forward:\n` +
+        ctx.openThreads.map((t) => `- [episode ${t.episodeNumber}] ${t.text}`).join("\n"),
     );
   }
 
   if (ctx.previousScene) {
-    parts.push(`## Cảnh liền trước (toàn văn)\n${ctx.previousScene}`);
+    parts.push(`## The previous scene, in full\n${ctx.previousScene}`);
   }
 
-  parts.push(`## Cảnh cần viết\n${ctx.beat}`);
-  parts.push(`Độ dài mục tiêu: khoảng ${ctx.targetWords} từ.`);
+  parts.push(`## The scene to write\n${ctx.beat}`);
+  parts.push(`Target length: about ${ctx.targetWords} words.`);
 
   return parts.join("\n\n");
 }
@@ -183,36 +183,36 @@ export function renderEpisodeContext(ctx: EpisodeContext): string {
   const parts: string[] = [];
 
   if (ctx.arcSummary) {
-    const through = ctx.arcThroughEpisode ? ` (tập 1–${ctx.arcThroughEpisode})` : "";
-    parts.push(`## Mạch truyện từ đầu${through}\n${ctx.arcSummary}`);
+    const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
+    parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
   }
 
   if (ctx.episodeIndex.length > 0) {
     parts.push(
-      `## Mục lục các tập đã viết\n` +
+      `## Index of the episodes already written\n` +
         ctx.episodeIndex.map((e) => `${e.number}. ${e.title} — ${e.gist}`).join("\n"),
     );
   }
 
   if (ctx.previousSummaries.length > 0) {
     parts.push(
-      `## Tóm tắt tập gần nhất\n` +
-        ctx.previousSummaries.map((s) => `Tập ${s.number}: ${s.summary}`).join("\n\n"),
+      `## Summaries of the most recent episodes\n` +
+        ctx.previousSummaries.map((s) => `Episode ${s.number}: ${s.summary}`).join("\n\n"),
     );
   }
 
   if (ctx.openThreads.length > 0) {
     parts.push(
-      `## Tình tiết còn bỏ ngỏ\n` +
-        `Chưa có lời giải. Tập mới nên đẩy tiếp hoặc giải quyết ít nhất một trong số này:\n` +
-        ctx.openThreads.map((t) => `- [tập ${t.episodeNumber}] ${t.text}`).join("\n"),
+      `## Open threads\n` +
+        `No answer yet. The new episode should push forward or resolve at least one of these:\n` +
+        ctx.openThreads.map((t) => `- [episode ${t.episodeNumber}] ${t.text}`).join("\n"),
     );
   }
 
   // Bộ mới toanh: nói thẳng ra thay vì gửi một khối rỗng, để model không tưởng
   // là ngữ cảnh bị cắt mất.
   if (parts.length === 0) {
-    return "Chưa có tập nào được viết xong. Đây là tập đầu tiên nối sau phần đã dựng.";
+    return "No episode has been finished yet. This is the first one, following on from the outline.";
   }
   return parts.join("\n\n");
 }
