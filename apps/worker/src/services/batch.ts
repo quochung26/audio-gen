@@ -1,3 +1,4 @@
+import { planDraft } from "@audio/core";
 import { BatchStatus, JobStatus, prisma, type JobType } from "@audio/database";
 import { logger } from "../lib/logger";
 import { enqueue } from "./queue";
@@ -141,7 +142,13 @@ interface EpisodeRow {
 const HAS_DRAFT = { AND: [{ draftText: { not: null } }, { draftText: { not: "" } }] };
 
 async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
-  const [episodes, drafted] = await Promise.all([
+  const series = await prisma.series.findUniqueOrThrow({
+    where: { id: seriesId },
+    select: { language: true, draftLanguage: true },
+  });
+  const plan = planDraft(series.language, series.draftLanguage);
+
+  const [episodes, drafted, untranslated] = await Promise.all([
     prisma.episode.findMany({
       where: { seriesId },
       orderBy: { number: "asc" },
@@ -158,9 +165,20 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
     // Truy vấn riêng thay vì `select: { draftText: true }`: bản thảo là vài
     // nghìn từ mỗi tập, kéo cả bộ về chỉ để xét rỗng/không là phí.
     prisma.episode.findMany({ where: { seriesId, ...HAS_DRAFT }, select: { id: true } }),
+    // Cảnh đã viết mà chưa qua chuyển ngữ — `sourceText` null là dấu hiệu đó.
+    // Bộ viết thẳng thì khỏi hỏi: không có bước này thì mọi cảnh đều "chưa
+    // chuyển ngữ" và lượt chạy sẽ kẹt ở một bước không bao giờ chạy.
+    plan.translate
+      ? prisma.scene.findMany({
+          where: { episode: { seriesId }, text: { not: null }, sourceText: null },
+          select: { episodeId: true },
+          distinct: ["episodeId"],
+        })
+      : Promise.resolve([]),
   ]);
 
   const hasDraft = new Set(drafted.map((e) => e.id));
+  const pendingTranslate = new Set(untranslated.map((s) => s.episodeId));
 
   return episodes.map((e) => ({
     id: e.id,
@@ -171,6 +189,7 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
       // cho từng beat, nên đếm Scene sẽ tưởng tập mới có dàn ý là đã viết xong.
       // `draftText` cũng đúng là thứ AUDIO_EDIT đòi.
       hasDraft: hasDraft.has(e.id),
+      needsTranslate: pendingTranslate.has(e.id),
       blocksTotal: e._count.blocks,
       blocksWithAudio: e.blocks.length,
       hasSummary: Boolean(e.summary),

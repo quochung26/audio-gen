@@ -11,7 +11,9 @@ episodes.get("/:id", async (c) => {
   const ep = await prisma.episode.findUniqueOrThrow({
     where: { id: c.req.param("id") },
     include: {
-      series: { select: { id: true, title: true, genre: true } },
+      // `language`/`draftLanguage`: trang tập cần biết bộ có bước chuyển ngữ
+      // không, để hiện đúng chỗ và không mời duyệt bản thảo chưa viết lại.
+      series: { select: { id: true, title: true, genre: true, language: true, draftLanguage: true } },
       scenes: { orderBy: { order: "asc" } },
       blocks: { orderBy: { order: "asc" } },
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
@@ -146,6 +148,19 @@ episodes.post("/:id/audio-script", async (c) => {
     throw new UserError((err as Error).message);
   }
   await enqueue({ type: "AUDIO_EDIT", episodeId, payload: { episodeId } });
+  return c.json({ ok: true });
+});
+
+/**
+ * Viết lại bản thảo sang ngôn ngữ đầu ra.
+ *
+ * `force=1` dịch lại từ bản thảo gốc đã giữ ở `Scene.sourceText` — dùng sau khi
+ * sửa prompt chuyển ngữ. Không có nó thì job chỉ đụng những cảnh chưa dịch.
+ */
+episodes.post("/:id/translate", async (c) => {
+  const episodeId = c.req.param("id");
+  const force = c.req.query("force") === "1";
+  await enqueue({ type: "TRANSLATE", episodeId, payload: { episodeId, force } });
   return c.json({ ok: true });
 });
 

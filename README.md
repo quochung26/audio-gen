@@ -405,7 +405,23 @@ Truyện **tiếng Anh** thì câu thứ hai bị bỏ đi: chỉ dẫn và đ�
 
 Prompt viết bằng tiếng Anh còn vì lý do khác: model mở cỡ 7–14B được huấn luyện chủ yếu trên tiếng Anh, và chỉ dẫn tiếng Anh được tuân thủ chặt hơn hẳn. Riêng **dữ liệu người viết nhập** — ý tưởng, thể loại và mô tả thể loại, thiết lập thế giới, tên nhân vật — giữ nguyên như đã gõ; đó là nội dung, không phải chỉ dẫn.
 
-Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible dài hàng nghìn chữ, chỉ thị nằm dưới là chìm nghỉm. Cả sáu bước gọi model đều được chèn.
+Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible dài hàng nghìn chữ, chỉ thị nằm dưới là chìm nghỉm. Mọi bước gọi model đều được chèn.
+
+### Viết nháp bằng tiếng khác rồi chuyển ngữ
+
+Model viết văn hay nhất không phải lúc nào cũng viết được thứ tiếng đầu ra: một finetune sáng tác dựng trên Mistral Small viết tiếng Anh rất khá và tiếng Việt gần như không dùng được. `Series.draftLanguage` cho phép viết nháp bằng tiếng nó mạnh, rồi bước **`TRANSLATE`** viết lại sang `Series.language`. Để trống là viết thẳng, không có bước nào ở giữa — mặc định vẫn là chuỗi cũ.
+
+Bốn quyết định đáng nhớ:
+
+**Chỉ bước `WRITE_SCENE` đổi tiếng.** Dàn ý vẫn dựng bằng ngôn ngữ đầu ra, nên Bible đã sẵn tên nhân vật và địa danh đúng tiếng — model viết văn tiếng Anh với tên Việt có sẵn. Để nó tự đặt tên thì được Sarah với John, dịch mãi không hết.
+
+**Chuyển ngữ chạy TRƯỚC chốt duyệt.** Duyệt bản thảo ở thứ tiếng không phát ra loa thì chốt chặn không còn chặn được gì: thứ người đọc gật đầu và thứ người nghe nhận được là hai văn bản khác nhau.
+
+**`Scene.text` luôn là bản dùng thật**, bản trước chuyển ngữ nằm ở `Scene.sourceText`. Nhờ vậy tóm tắt, sự kiện truy hồi, embedding và `Character.state` tự động chạy trên bản đầu ra mà không phải sửa gì — `summarize` vốn đọc `scriptText ?? draftText`. `sourceText` null cũng chính là dấu để biết cảnh nào còn phải chuyển ngữ, nên viết lại một cảnh giữa chừng là nó tự quay lại hàng đợi.
+
+**Model chuyển ngữ nên là model KHÁC** với model viết — thứ viết tiếng Anh hay nhất thường là thứ viết tiếng Việt dở nhất. Đặt ở `Prompt.model` của bước `TRANSLATE`; `resolveModel` ba tầng lo phần còn lại.
+
+Nó không sửa được chuyện dịch máy làm mất chất giọng, nhất là **xưng hô** — tiếng Anh chỉ có I/you nên quan hệ và vai vế bị xoá ngay ở bản gốc, và model chuyển ngữ phải tự dựng lại. Đóng đinh chúng vào `glossary` của Story Bible ("Tài ↔ ông Bảy: gọi *chú*, xưng *cháu*"): `glossary` được nạp vào Bible mọi lượt, và prompt chuyển ngữ nhận Bible.
 
 **Giọng đọc lọc theo ngôn ngữ ở mọi tầng**, kể cả casting người viết đặt tay. Giọng tiếng Việt đọc văn tiếng Anh ra thứ không ai nghe được — và hỏng kiểu đó *không báo lỗi*, nó chỉ lộ ra khi ngồi nghe lại cả tập. Nên casting sai tiếng bị bỏ qua, và nếu không còn giọng nào đọc được thứ tiếng đó thì job dừng hẳn với thông báo nói rõ thiếu tiếng gì và có bao nhiêu giọng khác tiếng đang nằm đó.
 
@@ -417,7 +433,7 @@ Chỉ thị đặt **lên trước** Story Bible chứ không phải sau: Bible 
 
 ## Prompt
 
-`/prompts` — sáu bước gọi model, mỗi bước một prompt. **Prompt viết bằng tiếng Anh**; ngôn ngữ đầu ra do bộ truyện quyết, xem mục [Ngôn ngữ](#ngôn-ngữ).
+`/prompts` — tám bước gọi model, mỗi bước một prompt. **Prompt viết bằng tiếng Anh**; ngôn ngữ đầu ra do bộ truyện quyết, xem mục [Ngôn ngữ](#ngôn-ngữ).
 
 Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể loại, và có thể thêm **biến thể theo thể loại**. Biến thể luôn thắng bản mặc định khi bộ đúng thể loại đó; cùng thể loại thì `version` cao thắng. Tạo biến thể là chép từ bản mặc định — sửa từ bản đang chạy tốt an toàn hơn viết lại từ trang trắng.
 

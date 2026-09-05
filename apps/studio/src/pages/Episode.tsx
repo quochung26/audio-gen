@@ -3,12 +3,15 @@ import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
+import { languageLabel } from "@/components/LanguagePicker";
 
 interface Scene {
   id: string;
   order: number;
   beat: string;
   text: string | null;
+  /** Bản thảo trước chuyển ngữ. Null = cảnh này chưa qua bước đó. */
+  sourceText: string | null;
 }
 interface Block {
   id: string;
@@ -30,7 +33,7 @@ interface Ep {
   summary: string | null;
   humanReviewed: boolean;
   reviewedAt: string | null;
-  series: { id: string; title: string };
+  series: { id: string; title: string; language: string; draftLanguage: string };
   scenes: Scene[];
   blocks: Block[];
   renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
@@ -49,6 +52,10 @@ export function Episode() {
   const written = ep.scenes.filter((s) => s.text).length;
   const allWritten = written === ep.scenes.length && ep.scenes.length > 0;
   const active = ep.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
+  // Bộ viết thẳng thì `draftLanguage` rỗng và cả khối chuyển ngữ biến mất.
+  const untranslated = ep.series.draftLanguage
+    ? ep.scenes.filter((s) => s.text && !s.sourceText).length
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -110,8 +117,32 @@ export function Episode() {
         </div>
       </Section>
 
+      {/* Viết nháp bằng tiếng khác thì phải viết lại TRƯỚC khi duyệt: duyệt bản
+          thảo ở thứ tiếng không phát ra loa thì chốt chặn không chặn được gì. */}
+      {ep.series.draftLanguage && allWritten && (
+        <Section
+          title="Chuyển ngữ"
+          action={
+            !active ? (
+              <ActionButton
+                path={`/api/episodes/${ep.id}/translate${untranslated > 0 ? "" : "?force=1"}`}
+                variant={untranslated > 0 ? "primary" : "default"}
+              >
+                {untranslated > 0 ? "viết lại" : "làm lại"}
+              </ActionButton>
+            ) : null
+          }
+        >
+          <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-400">
+            {untranslated > 0
+              ? `Bản thảo đang là ${languageLabel(ep.series.draftLanguage)}. Còn ${untranslated}/${ep.scenes.length} cảnh chưa viết lại sang ${languageLabel(ep.series.language)}.`
+              : `Đã viết lại toàn bộ sang ${languageLabel(ep.series.language)}. Bản thảo ${languageLabel(ep.series.draftLanguage)} vẫn được giữ, sửa prompt rồi làm lại được.`}
+          </p>
+        </Section>
+      )}
+
       {/* Chốt chặn không cho bản thảo thô đi tiếp. */}
-      {allWritten && (
+      {allWritten && untranslated === 0 && (
         <Section title="Duyệt bản thảo">
           <div className="rounded border border-neutral-800 p-4">
             {ep.humanReviewed ? (

@@ -68,6 +68,33 @@ export function languageDirective(code: LanguageCode): string {
   return parts.join(" ");
 }
 
+export interface DraftPlan {
+  /** Viết bản thảo bằng tiếng này. */
+  draft: LanguageCode;
+  /** Ngôn ngữ đầu ra — thứ người nghe nhận được. */
+  output: LanguageCode;
+  /** Có phải chạy bước chuyển ngữ sau khi viết không. */
+  translate: boolean;
+}
+
+/**
+ * Bộ này viết nháp bằng tiếng gì, và có cần chuyển ngữ không.
+ *
+ * Sinh ra vì model viết hay nhất không phải lúc nào cũng viết được thứ tiếng
+ * đầu ra: một finetune sáng tác dựng trên Mistral Small viết tiếng Anh rất
+ * khá và tiếng Việt gần như không dùng được. Viết nháp bằng tiếng nó mạnh rồi
+ * viết lại sang tiếng đầu ra cho kết quả tốt hơn là ép nó viết thẳng.
+ *
+ * Hàm THUẦN và mặc định là KHÔNG chuyển ngữ: `draftLanguage` rỗng, sai mã, hay
+ * trùng luôn với ngôn ngữ đầu ra đều cho `translate: false`. Bước thừa ở giữa
+ * chuỗi viết là bước làm hỏng văn mà chẳng được gì.
+ */
+export function planDraft(language: unknown, draftLanguage: unknown): DraftPlan {
+  const output = toLanguage(language);
+  const draft = isLanguage(draftLanguage) ? draftLanguage : output;
+  return { draft, output, translate: draft !== output };
+}
+
 /**
  * Ghép chỉ thị ngôn ngữ vào system prompt sẵn có.
  *

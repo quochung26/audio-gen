@@ -63,6 +63,9 @@ enum JobType {
   OUTLINE
   NEXT_EPISODE
   WRITE_SCENE
+  /// Viết lại bản thảo sang ngôn ngữ đầu ra. Chỉ chạy khi Series.draftLanguage
+  /// khác Series.language — xem packages/core/src/language.ts.
+  TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
   ARC_SUMMARY
@@ -117,6 +120,8 @@ enum PromptStep {
   /// Dựng dàn ý cho MỘT tập tiếp theo, dựa trên những tập đã có.
   NEXT_EPISODE
   WRITE_SCENE
+  /// Viết lại bản thảo sang ngôn ngữ đầu ra.
+  TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
   ARC_SUMMARY
@@ -174,6 +179,17 @@ model Series {
   /// Gắn với BỘ chứ không gắn với từng tập: trộn tiếng giữa các tập thì tóm tắt
   /// cung truyện, tên nhân vật và giọng đọc đều loạn.
   language    String       @default("vi")
+
+  /// Viết BẢN THẢO bằng tiếng này rồi mới chuyển ngữ sang `language`.
+  ///
+  /// Rỗng = viết thẳng bằng `language`, không có bước chuyển ngữ. Đặt giá trị
+  /// khi model viết hay nhất lại không viết được thứ tiếng đầu ra — ví dụ một
+  /// finetune sáng tác tiếng Anh dùng cho truyện tiếng Việt.
+  ///
+  /// Chỉ đổi ngôn ngữ của bước WRITE_SCENE. Dàn ý vẫn dựng bằng `language` để
+  /// tên nhân vật và địa danh là tên đúng tiếng ngay từ đầu — model viết văn
+  /// tiếng Anh với tên Việt có sẵn, thay vì đẻ ra Sarah rồi dịch mãi không hết.
+  draftLanguage String     @default("")
 
   /// Luật thế giới, bối cảnh, giọng văn. Nhân vật KHÔNG để ở đây — xem model Character.
   storyBible Json?
@@ -302,7 +318,13 @@ model Scene {
 
   order Int
   beat  String
+  /// Bản dùng thật — luôn ở ngôn ngữ đầu ra của bộ.
   text  String?
+
+  /// Bản thảo trước khi chuyển ngữ, giữ lại để sửa prompt rồi chạy lại bước
+  /// TRANSLATE mà không phải viết lại cảnh. Null = cảnh chưa qua chuyển ngữ,
+  /// và đó cũng là dấu hiệu bước TRANSLATE dùng để biết còn gì phải làm.
+  sourceText String?
 
   /// Số hiệu các tập cũ mà cảnh này gọi lại.
   /// Chỉ những tập được liệt kê ở đây mới được nạp tóm tắt ĐẦY ĐỦ — thay vì

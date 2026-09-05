@@ -15,6 +15,8 @@ export interface EpisodeProgress {
   humanReviewed: boolean;
   /** Đã viết cảnh chưa. */
   hasDraft: boolean;
+  /** Bộ có bước chuyển ngữ VÀ tập này còn cảnh chưa được viết lại. */
+  needsTranslate: boolean;
   /** Đã tách block kịch bản audio chưa. */
   blocksTotal: number;
   /** Bao nhiêu block đã có file audio. */
@@ -40,6 +42,11 @@ export type BatchStep =
 
 export function nextStep(ep: EpisodeProgress, opts: BatchOptions): BatchStep {
   if (!ep.hasDraft) return { kind: "job", type: "WRITE_SCENE" };
+
+  // Chuyển ngữ TRƯỚC chốt duyệt. Duyệt bản thảo ở thứ tiếng không phát ra loa
+  // thì chốt chặn không còn chặn được gì: thứ người đọc gật đầu và thứ người
+  // nghe nhận được là hai văn bản khác nhau.
+  if (ep.needsTranslate) return { kind: "job", type: "TRANSLATE" };
 
   // Chốt chặn: bản thảo thô không được đi tiếp khi chưa có người đọc.
   // Chạy hàng loạt KHÔNG được phép lách chỗ này — `autoApprove` là lựa chọn có

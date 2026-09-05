@@ -1,9 +1,10 @@
-import { countWords, estimateDurationMs, renderContext, toLanguage, withLanguage } from "@audio/core";
+import { countWords, planDraft, renderContext, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_MAX_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
+import { syncEpisodeDraft } from "../services/episode-draft";
 import { buildSceneContext } from "../services/story-context";
 
 /**
@@ -60,7 +61,11 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 
       result = await llm.generate({
         model,
-        system: withLanguage(toLanguage(context.language), context.bible),
+        // Ngôn ngữ BẢN THẢO, không phải ngôn ngữ đầu ra: bộ nào viết nháp bằng
+        // tiếng khác thì bước TRANSLATE mới đưa về tiếng đầu ra. Dàn ý vẫn dựng
+        // bằng tiếng đầu ra, nên Bible đã sẵn tên riêng đúng tiếng — model viết
+        // văn tiếng Anh với tên Việt, thay vì đẻ ra Sarah rồi dịch mãi không hết.
+        system: withLanguage(planDraft(context.language, context.draftLanguage).draft, context.bible),
         prompt: renderTemplate(prompt.content, {
           context: renderContext({
             bible: context.bible,
@@ -88,7 +93,10 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     await recordRun(ctx, result);
 
     const text = result.text.trim();
-    await prisma.scene.update({ where: { id: scene.id }, data: { text } });
+    // `sourceText` về null: cảnh vừa được viết lại nên bản chuyển ngữ cũ (nếu
+    // có) không còn ứng với nội dung nào cả, và null cũng là dấu để bước
+    // TRANSLATE biết cảnh này phải làm lại.
+    await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
     written.push(text);
 
     logger.info(
@@ -98,26 +106,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     await setProgress(Math.round(((index + 1) / scenes.length) * 90));
   }
 
-  // Ghép các cảnh thành bản thảo tập
-  const all = await prisma.scene.findMany({
-    where: { episodeId: targetEpisodeId },
-    orderBy: { order: "asc" },
-  });
-  const complete = all.every((s) => s.text);
-  const draftText = all.map((s) => s.text ?? "").join("\n\n");
-  const words = countWords(draftText);
-
-  await prisma.episode.update({
-    where: { id: targetEpisodeId },
-    data: {
-      draftText,
-      wordCount: words,
-      durationMs: estimateDurationMs(words),
-      // Chỉ chuyển sang DRAFTED khi mọi cảnh đã có nội dung — còn thiếu thì
-      // vẫn là DRAFTING để Studio biết công việc chưa xong.
-      status: complete ? EpisodeStatus.DRAFTED : EpisodeStatus.DRAFTING,
-    },
-  });
+  const { complete, words } = await syncEpisodeDraft(targetEpisodeId);
 
   await setProgress(100);
 

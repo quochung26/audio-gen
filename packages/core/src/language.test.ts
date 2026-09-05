@@ -5,6 +5,7 @@ import {
   isLanguage,
   languageDirective,
   languageLabel,
+  planDraft,
   toLanguage,
   withLanguage,
 } from "./language";
@@ -99,5 +100,33 @@ describe("withLanguage", () => {
     expect(withLanguage("vi")).toBe(languageDirective("vi"));
     expect(withLanguage("vi", "")).toBe(languageDirective("vi"));
     expect(withLanguage("vi", "   ")).toBe(languageDirective("vi"));
+  });
+});
+
+describe("planDraft", () => {
+  it("không đặt ngôn ngữ bản thảo thì viết thẳng", () => {
+    expect(planDraft("vi", "")).toEqual({ draft: "vi", output: "vi", translate: false });
+  });
+
+  it("đặt khác thì viết nháp bằng tiếng đó rồi chuyển ngữ", () => {
+    expect(planDraft("vi", "en")).toEqual({ draft: "en", output: "vi", translate: true });
+  });
+
+  it("đặt TRÙNG ngôn ngữ đầu ra thì KHÔNG dựng bước chuyển ngữ", () => {
+    // Dịch từ tiếng này sang chính nó là một lượt gọi model làm hỏng văn mà
+    // chẳng được gì.
+    expect(planDraft("en", "en").translate).toBe(false);
+  });
+
+  it("mã rác lùi về viết thẳng, không làm chết job", () => {
+    // Cột `draftLanguage` sửa tay được trong DB, và hàng cũ từ bản trước không
+    // có cột này. Mặc định phải là chuỗi bước cũ.
+    expect(planDraft("vi", "klingon").translate).toBe(false);
+    expect(planDraft("vi", null).translate).toBe(false);
+    expect(planDraft("vi", undefined).translate).toBe(false);
+  });
+
+  it("ngôn ngữ đầu ra rác vẫn lùi về mặc định", () => {
+    expect(planDraft("rác", "en")).toEqual({ draft: "en", output: "vi", translate: true });
   });
 });

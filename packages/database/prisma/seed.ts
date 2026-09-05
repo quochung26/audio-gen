@@ -16,6 +16,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "OUTLINE", file: "outline.md" },
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
+  { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
   { step: "ARC_SUMMARY", file: "arc-summary.md" },
@@ -28,6 +29,9 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // Ngữ cảnh rộng hơn OUTLINE vì phải nạp cả tóm tắt các tập cũ.
   NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
   WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.12, numCtx: 16384, maxTokens: 1800 },
+  // Thấp hơn viết cảnh vì tình tiết đã chốt, cao hơn biên tập audio vì vẫn
+  // là viết văn: 0.4 cho ra bản dịch phẳng, đọc lên nghe như bản tin.
+  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 2000 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.5, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
   ARC_SUMMARY: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 800 },

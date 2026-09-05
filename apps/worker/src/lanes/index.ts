@@ -4,6 +4,7 @@ import { mockJob } from "../jobs/mock.job";
 import { nextEpisodeJob } from "../jobs/next-episode.job";
 import { outlineJob } from "../jobs/outline.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
+import { translateJob } from "../jobs/translate.job";
 import { audioEditJob } from "../jobs/audio-edit.job";
 import { summarizeJob } from "../jobs/summarize.job";
 import { arcSummaryJob } from "../jobs/arc-summary.job";
@@ -25,6 +26,7 @@ export function startLanes() {
       [JobType.OUTLINE]: outlineJob,
       [JobType.NEXT_EPISODE]: nextEpisodeJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
+      [JobType.TRANSLATE]: translateJob,
       [JobType.AUDIO_EDIT]: audioEditJob,
       [JobType.SUMMARIZE]: summarizeJob,
       [JobType.ARC_SUMMARY]: arcSummaryJob,

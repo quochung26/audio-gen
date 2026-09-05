@@ -3,7 +3,7 @@ import { useApi } from "@/lib/api";
 import { Form } from "@/components/Form";
 import { Field } from "@/components/Field";
 import { ModelPicker } from "@/components/ModelPicker";
-import { LanguagePicker } from "@/components/LanguagePicker";
+import { DraftLanguagePicker, LanguagePicker } from "@/components/LanguagePicker";
 import { TagPicker } from "@/components/TagPicker";
 
 
@@ -71,6 +71,7 @@ export function SeriesNew() {
             )}
           </label>
           <LanguagePicker />
+          <DraftLanguagePicker />
         </div>
 
         <label className="block">

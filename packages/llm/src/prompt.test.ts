@@ -56,6 +56,7 @@ describe("prompt mặc định trong repo", () => {
     ["OUTLINE", "outline.md"],
     ["NEXT_EPISODE", "next-episode.md"],
     ["WRITE_SCENE", "write-scene.md"],
+    ["TRANSLATE", "translate.md"],
     ["AUDIO_EDIT", "audio-edit.md"],
     ["SUMMARIZE", "summarize.md"],
     ["ARC_SUMMARY", "arc-summary.md"],
@@ -69,7 +70,7 @@ describe("prompt mặc định trong repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("khai báo đủ cả 7 bước", () => {
+  it("khai báo đủ cả 8 bước", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

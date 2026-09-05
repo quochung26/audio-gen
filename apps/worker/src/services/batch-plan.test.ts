@@ -4,6 +4,7 @@ import { isEpisodeComplete, nextStep, type BatchOptions, type EpisodeProgress } 
 const fresh: EpisodeProgress = {
   humanReviewed: false,
   hasDraft: false,
+  needsTranslate: false,
   blocksTotal: 0,
   blocksWithAudio: 0,
   hasSummary: false,
@@ -30,6 +31,7 @@ describe("chuỗi bước đầy đủ", () => {
       if (s.kind === "approve") e = { ...e, humanReviewed: true };
       else if (s.kind === "wait-review") throw new Error("autoApprove bật mà vẫn đòi duyệt tay");
       else if (s.type === "WRITE_SCENE") e = { ...e, hasDraft: true };
+      else if (s.type === "TRANSLATE") e = { ...e, needsTranslate: false };
       else if (s.type === "AUDIO_EDIT") e = { ...e, blocksTotal: 12 };
       else if (s.type === "SUMMARIZE") e = { ...e, hasSummary: true };
       else if (s.type === "TTS") e = { ...e, blocksWithAudio: e.blocksTotal };
@@ -69,6 +71,68 @@ describe("chốt duyệt bản thảo", () => {
       kind: "job",
       type: "AUDIO_EDIT",
     });
+  });
+});
+
+describe("bước chuyển ngữ", () => {
+  const drafted = ep({ hasDraft: true, needsTranslate: true });
+
+  it("chạy NGAY SAU khi viết xong, trước chốt duyệt", () => {
+    // Duyệt bản thảo ở thứ tiếng không phát ra loa thì chốt chặn không chặn
+    // được gì: thứ người đọc gật đầu khác thứ người nghe nhận được.
+    expect(nextStep(drafted, manual)).toEqual({ kind: "job", type: "TRANSLATE" });
+    expect(nextStep(drafted, auto)).toEqual({ kind: "job", type: "TRANSLATE" });
+  });
+
+  it("autoApprove KHÔNG lách qua nó", () => {
+    expect(nextStep(drafted, auto)).not.toEqual({ kind: "approve" });
+  });
+
+  it("chưa viết xong thì viết trước đã", () => {
+    expect(nextStep(ep({ needsTranslate: true }), auto)).toEqual({
+      kind: "job",
+      type: "WRITE_SCENE",
+    });
+  });
+
+  it("chuyển ngữ xong mới tới lượt duyệt", () => {
+    expect(nextStep(ep({ hasDraft: true, needsTranslate: false }), manual)).toEqual({
+      kind: "wait-review",
+    });
+  });
+
+  it("bộ viết thẳng thì không có bước này trong cả chuỗi", () => {
+    // `needsTranslate` luôn false với bộ không đặt ngôn ngữ bản thảo — bước này
+    // không được xen vào chuỗi cũ ở bất kỳ chỗ nào.
+    const seen: string[] = [];
+    let e = ep();
+    for (let i = 0; i < 10; i++) {
+      const s = nextStep(e, auto);
+      if (s.kind === "done") break;
+      seen.push(s.kind === "job" ? s.type : s.kind);
+      if (s.kind === "approve") e = { ...e, humanReviewed: true };
+      else if (s.kind === "job" && s.type === "WRITE_SCENE") e = { ...e, hasDraft: true };
+      else if (s.kind === "job" && s.type === "AUDIO_EDIT") e = { ...e, blocksTotal: 4 };
+      else if (s.kind === "job" && s.type === "SUMMARIZE") e = { ...e, hasSummary: true };
+      else if (s.kind === "job" && s.type === "TTS") e = { ...e, blocksWithAudio: e.blocksTotal };
+      else if (s.kind === "job" && s.type === "MIX") e = { ...e, hasMp3: true };
+    }
+    expect(seen).not.toContain("TRANSLATE");
+  });
+
+  it("tập còn cảnh chưa chuyển ngữ thì CHƯA xong, dù đã đủ audio", () => {
+    // Viết lại một cảnh giữa chừng làm `sourceText` về null; lượt chạy phải
+    // quay lại chuyển ngữ chứ không được coi tập là đã khép.
+    const e = ep({
+      hasDraft: true,
+      humanReviewed: true,
+      needsTranslate: true,
+      blocksTotal: 6,
+      blocksWithAudio: 6,
+      hasSummary: true,
+      hasMp3: true,
+    });
+    expect(isEpisodeComplete(e, auto)).toBe(false);
   });
 });
 

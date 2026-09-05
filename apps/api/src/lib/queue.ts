@@ -33,6 +33,7 @@ const LANE_OF: Record<string, JobLane> = {
   OUTLINE: JobLane.LLM,
   NEXT_EPISODE: JobLane.LLM,
   WRITE_SCENE: JobLane.LLM,
+  TRANSLATE: JobLane.LLM,
   AUDIO_EDIT: JobLane.LLM,
   SUMMARIZE: JobLane.LLM,
   ARC_SUMMARY: JobLane.LLM,

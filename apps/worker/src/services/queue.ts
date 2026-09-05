@@ -21,6 +21,7 @@ const LANE_OF: Record<JobType, Lane> = {
   OUTLINE: "LLM",
   NEXT_EPISODE: "LLM",
   WRITE_SCENE: "LLM",
+  TRANSLATE: "LLM",
   AUDIO_EDIT: "LLM",
   SUMMARIZE: "LLM",
   ARC_SUMMARY: "LLM",

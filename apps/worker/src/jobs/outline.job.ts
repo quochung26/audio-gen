@@ -6,6 +6,7 @@ import {
   outlineSchema,
   planScenes,
   parseWorld,
+  planDraft,
   renderWorldForOutline,
   slugify,
   suggestSceneCount,
@@ -46,6 +47,11 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   // Ngôn ngữ chọn lúc tạo bộ; không chọn thì lấy mặc định ở trang Model.
   const language = toLanguage(job.data.language, await getDefaultLanguage());
+
+  // Ngôn ngữ bản thảo: để rỗng nếu không đặt, hoặc đặt trùng luôn ngôn ngữ đầu
+  // ra — dựng một bước chuyển ngữ chỉ để dịch từ tiếng này sang chính nó là
+  // thêm một lượt gọi model làm hỏng văn mà chẳng được gì.
+  const draft = planDraft(language, job.data.draftLanguage);
 
   const sceneCount = suggestSceneCount(EPISODE_TARGET_WORDS);
   const prompt = await loadPrompt("OUTLINE", genre);
@@ -104,6 +110,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       genre: outline.genre,
       tags,
       language,
+      draftLanguage: draft.translate ? draft.draft : "",
       status: SeriesStatus.DRAFT,
       storyBible: {
         raw: outline,

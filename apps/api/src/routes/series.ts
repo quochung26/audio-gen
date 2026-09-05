@@ -5,6 +5,7 @@ import {
   isLanguage,
   parseTags,
   parseWorld,
+  planDraft,
   seriesBible,
   worldSetupSchema,
   type StoryBibleRecord,
@@ -85,11 +86,20 @@ series.post("/", async (c) => {
   const language = field(body, "language");
   if (language && !isLanguage(language)) throw new UserError(`Ngôn ngữ không hợp lệ: "${language}"`);
 
+  // Ngôn ngữ BẢN THẢO thì ngược lại, đổi lúc nào cũng được (xem PUT
+  // /:id/draft-language): nó chỉ quyết định lượt viết kế tiếp, còn cảnh đã dịch
+  // xong thì nằm yên đó.
+  const draftLanguage = field(body, "draftLanguage");
+  if (draftLanguage && !isLanguage(draftLanguage)) {
+    throw new UserError(`Ngôn ngữ bản thảo không hợp lệ: "${draftLanguage}"`);
+  }
+
   const job = await enqueue({
     type: "OUTLINE",
     payload: {
       idea,
       language: language || (await getDefaultLanguage()),
+      draftLanguage,
       genre: field(body, "genre") || "kinh dị",
       tags: field(body, "tags"),
       // Luôn dựng ĐÚNG MỘT tập. Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8
@@ -183,6 +193,32 @@ series.get("/:id/world", async (c) => {
  * hai thứ này tách nhau nên sửa luật thế giới không làm mất dàn ý, và sinh lại
  * dàn ý không làm mất luật thế giới.
  */
+/**
+ * Đổi ngôn ngữ BẢN THẢO của một bộ.
+ *
+ * Khác `Series.language`, cái này đổi giữa chừng được: nó chỉ quyết định lượt
+ * viết cảnh kế tiếp, còn cảnh đã viết và đã chuyển ngữ thì không đụng tới. Tắt
+ * đi (chuỗi rỗng) là từ đó viết thẳng bằng ngôn ngữ đầu ra.
+ */
+series.put("/:id/draft-language", async (c) => {
+  const body = await c.req.parseBody();
+  const value = field(body, "draftLanguage");
+  if (value && !isLanguage(value)) throw new UserError(`Ngôn ngữ không hợp lệ: "${value}"`);
+
+  const updated = await prisma.series.update({
+    where: { id: c.req.param("id") },
+    data: { draftLanguage: value },
+    select: { language: true, draftLanguage: true },
+  });
+  const plan = planDraft(updated.language, updated.draftLanguage);
+
+  return c.json({
+    ok: plan.translate
+      ? `Bản thảo viết bằng "${plan.draft}", rồi viết lại sang "${plan.output}".`
+      : `Viết thẳng bằng "${plan.output}", không qua bước chuyển ngữ.`,
+  });
+});
+
 series.put("/:id/world", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.parseBody();

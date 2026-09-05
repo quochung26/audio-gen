@@ -35,6 +35,11 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // Cả ngữ cảnh gộp thành MỘT biến: Story Bible, tóm tắt cung truyện, sự kiện
   // truy hồi, cảnh trước, beat, số từ đích — xem `renderContext` ở @audio/core.
   WRITE_SCENE: ["context"],
+  // Chỉ Bible và chính đoạn cần viết lại: chuyển ngữ KHÔNG được nhìn tóm tắt
+  // hay sự kiện cũ. Cho nó ngữ cảnh câu chuyện là mời nó "kể lại cho hay hơn",
+  // mà việc của nó là giữ nguyên từng tình tiết. Bible vào để lấy tên riêng,
+  // thuật ngữ và cách xưng hô — đúng những thứ không được tự đặt lại.
+  TRANSLATE: ["bible", "text"],
   AUDIO_EDIT: ["characters", "draft"],
   SUMMARIZE: ["characters", "text"],
   ARC_SUMMARY: ["maxWords", "previousArc", "summaries"],

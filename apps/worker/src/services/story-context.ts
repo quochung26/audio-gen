@@ -1,12 +1,14 @@
 import { EPISODE_TARGET_WORDS } from "@audio/config";
 import { parseWorld, seriesBible, type StoryBibleRecord } from "@audio/core";
-import { prisma } from "@audio/database";
+import { Prisma, prisma } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 
 export interface SceneContext {
   genre: string;
-  /** Ngôn ngữ của bộ — quyết định model viết bằng tiếng gì. */
+  /** Ngôn ngữ của bộ — thứ tiếng người nghe nhận được. */
   language: string;
+  /** Viết bản thảo bằng tiếng này rồi mới chuyển ngữ. Rỗng = viết thẳng. */
+  draftLanguage: string;
   bible: string;
   /** Tóm tắt cung truyện — các tập cũ đã nén lại. */
   arcSummary?: string;
@@ -52,29 +54,7 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const { episode } = scene;
   const { series } = episode;
 
-  // Dựng lại Story Bible từ dữ liệu MỚI NHẤT thay vì dùng bản đã render sẵn.
-  // Lý do: người viết có thể vừa sửa luật thế giới hoặc thêm nhân vật ở Studio;
-  // dùng bản cache cũ thì cảnh viết ra sẽ trái với thứ vừa sửa.
-  const stored = (series.storyBible ?? {}) as StoryBibleRecord;
-  const world = parseWorld(stored.world);
-
-  // Mô tả của đúng những thể loại bộ này dùng. Một truy vấn, đổi lại model
-  // hiểu "kinh dị" theo nghĩa người viết định.
-  const genreNotes = await prisma.genre.findMany({
-    where: { name: { in: [series.genre, ...series.tags] } },
-    select: { name: true, description: true },
-  });
-
-  const bible = seriesBible({
-    title: series.title,
-    genre: series.genre,
-    tags: series.tags,
-    genreNotes,
-    description: series.description,
-    world,
-    characters: series.characters,
-    episodes: stored.raw?.episodes,
-  });
+  const bible = await renderBibleFor(series);
 
   // Mục lục: mỗi tập một dòng ~15 từ. Rẻ, và là thứ duy nhất còn lại của các
   // tập đã bị nén — không có nó thì hệ thống "quên" là tập đó từng tồn tại.
@@ -117,6 +97,7 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   return {
     genre: series.genre,
     language: series.language,
+    draftLanguage: series.draftLanguage,
     bible,
     arcSummary: series.arcSummary ?? undefined,
     arcThroughEpisode: series.arcThroughEpisode ?? undefined,
@@ -127,4 +108,49 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     previousScene: previousScene?.text ?? undefined,
     targetWords: Math.round(EPISODE_TARGET_WORDS / Math.max(1, sceneCount)),
   };
+}
+
+type SeriesForBible = Prisma.SeriesGetPayload<{ include: { characters: true } }>;
+
+/**
+ * Dựng Story Bible từ dữ liệu MỚI NHẤT của bộ, không dùng bản đã render sẵn.
+ *
+ * Người viết có thể vừa sửa luật thế giới hoặc thêm nhân vật ở Studio; dùng bản
+ * cache cũ thì cảnh viết ra sẽ trái với thứ vừa sửa.
+ */
+async function renderBibleFor(series: SeriesForBible): Promise<string> {
+  const stored = (series.storyBible ?? {}) as StoryBibleRecord;
+
+  // Mô tả của đúng những thể loại bộ này dùng. Một truy vấn, đổi lại model
+  // hiểu "kinh dị" theo nghĩa người viết định.
+  const genreNotes = await prisma.genre.findMany({
+    where: { name: { in: [series.genre, ...series.tags] } },
+    select: { name: true, description: true },
+  });
+
+  return seriesBible({
+    title: series.title,
+    genre: series.genre,
+    tags: series.tags,
+    genreNotes,
+    description: series.description,
+    world: parseWorld(stored.world),
+    characters: series.characters,
+    episodes: stored.raw?.episodes,
+  });
+}
+
+/**
+ * Story Bible của một bộ, cho bước chỉ cần Bible chứ không cần cả ngữ cảnh cảnh.
+ *
+ * Bước chuyển ngữ là ca dùng: nó cần tên riêng, thuật ngữ và cách xưng hô, mà
+ * KHÔNG được nhìn tóm tắt hay sự kiện cũ — cho nó ngữ cảnh câu chuyện là mời nó
+ * kể lại cho hay hơn, trong khi việc của nó là giữ nguyên từng tình tiết.
+ */
+export async function buildSeriesBible(seriesId: string): Promise<string> {
+  const series = await prisma.series.findUniqueOrThrow({
+    where: { id: seriesId },
+    include: { characters: { orderBy: [{ isNarrator: "desc" }, { name: "asc" }] } },
+  });
+  return renderBibleFor(series);
 }
