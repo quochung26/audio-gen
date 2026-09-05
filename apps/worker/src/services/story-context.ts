@@ -1,5 +1,14 @@
 import { EPISODE_TARGET_WORDS } from "@audio/config";
-import { parseWorld, seriesBible, type StoryBibleRecord } from "@audio/core";
+import {
+  mergeOverrides,
+  parseEpisodeSetup,
+  parseSceneSetup,
+  parseWorld,
+  renderEpisodeSetup,
+  renderOverrides,
+  seriesBible,
+  type StoryBibleRecord,
+} from "@audio/core";
 import { Prisma, prisma } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 
@@ -23,6 +32,11 @@ export interface SceneContext {
   /** Tình tiết bỏ ngỏ — luôn nạp, bất kể tương đồng. */
   openThreads: Array<{ episodeNumber: number; text: string }>;
   previousScene?: string;
+  /** Khối chỉ dẫn riêng của chương, đã render. Rỗng nếu chương không đặt gì. */
+  chapter: string;
+  /** Ghi đè nhân vật cho đúng cảnh này — chương gộp với cảnh, cảnh thắng. */
+  overrides: string;
+  sceneNote: string;
   targetWords: number;
 }
 
@@ -94,6 +108,11 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
 
   const sceneCount = await prisma.scene.count({ where: { episodeId: episode.id } });
 
+  // Ba tầng chỉ dẫn về nhân vật: Story Bible (cả bộ) → chương → cảnh. Gộp theo
+  // TỪNG Ô nên cảnh chỉ cần nói phần khác đi.
+  const chapterSetup = parseEpisodeSetup(episode.setup);
+  const sceneSetup = parseSceneSetup(scene.setup);
+
   return {
     genre: series.genre,
     language: series.language,
@@ -106,6 +125,9 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     facts,
     openThreads: threads,
     previousScene: previousScene?.text ?? undefined,
+    chapter: renderEpisodeSetup(chapterSetup),
+    overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
+    sceneNote: sceneSetup.note,
     targetWords: Math.round(EPISODE_TARGET_WORDS / Math.max(1, sceneCount)),
   };
 }

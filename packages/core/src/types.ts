@@ -15,7 +15,9 @@ export const characterSchema = z.object({
   role: z.string().describe("Role in the story, age, occupation — one short line"),
   appearance: z
     .string()
-    .describe("What they look like: build, apparent age, how they dress, one detail you would recognise them by"),
+    .describe(
+      "Permanent looks: build, apparent age, face, scars — things that do not change across the series. NOT clothing; what they wear is set per chapter.",
+    ),
   speech: z
     .string()
     .describe(
@@ -163,6 +165,12 @@ export interface StoryContext {
   openThreads?: Array<{ episodeNumber: number; text: string }>;
   /** Toàn văn cảnh liền trước, để nối mạch tự nhiên */
   previousScene?: string;
+  /** Khối chỉ dẫn riêng của chương — xem renderEpisodeSetup */
+  chapter?: string;
+  /** Ghi đè nhân vật cho cảnh này (chương + cảnh đã gộp) — xem renderOverrides */
+  overrides?: string;
+  /** Ghi chú riêng cảnh này */
+  sceneNote?: string;
   /** Yêu cầu nội dung cho cảnh đang viết */
   beat: string;
   /** Số từ mục tiêu */

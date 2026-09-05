@@ -102,11 +102,33 @@ Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong 
 |---|---|
 | Tính cách | **hành động** và lựa chọn của nhân vật |
 | Cách nói | **lời thoại** — thứ giữ cho một người nghe giống nhau qua hàng chục tập |
-| Ngoại hình | phần **tả**, và là căn cứ cho `coverPrompt` khi làm ảnh bìa |
+| Ngoại hình | phần **tả** — chỉ thứ KHÔNG đổi suốt bộ: dáng, mặt, tuổi, sẹo |
 
 Gộp chung thì model tả quần áo giữa một đoạn đang cần giọng nói. Trong Story Bible chúng nằm ba dòng, hai dòng sau có nhãn `Speech:` và `Appearance:` riêng.
 
+**Trang phục KHÔNG nằm ở ngoại hình.** Story Bible là phần cố định suốt bộ, nên ghim quần áo vào đó là nhân vật mặc đúng bộ ấy tới tập 40. Trang phục đặt ở [thiết lập chương](#thiết-lập-chương).
+
 `voiceHint` là chuyện khác hẳn: chất giọng để ghép với giọng TTS lúc casting, và **model không hề đọc nó** — nó không vào Bible.
+
+### Thiết lập chương
+
+Ba tầng chỉ dẫn, tầng hẹp hơn thắng tầng rộng hơn:
+
+| Tầng | Ở đâu | Nói gì |
+|---|---|---|
+| Bộ | `Series.storyBible.world` + Story Bible | bối cảnh, luật, giọng, nhân vật nói chung |
+| **Chương** | `Episode.setup` | chương hướng về đâu, giọng riêng, việc phải xảy ra, điều cấm, **ghi đè nhân vật** |
+| **Cảnh** | `Scene.beat` + `Scene.setup` | việc xảy ra, ghi chú riêng, **ghi đè nhân vật** |
+
+Trước đây tầng giữa hổng hẳn: bộ có thiết lập thế giới, cảnh có beat, còn chương không mang được gì — muốn cả chương chậm lại thì chỉ còn cách chép câu đó vào từng beat.
+
+**Ghi đè nhân vật** gõ mỗi dòng một người, dạng `Tên: mặc gì | ghi chú`:
+
+> `Tài: áo mưa rách, ủng cao su | tay trái băng kín`
+
+Cảnh đè lên chương **theo từng ô**, không thay cả người: cảnh chỉ ghi `Tài: đã cởi áo mưa` thì ghi chú "tay trái băng kín" của chương vẫn còn. Thay cả người thì mỗi lần đổi áo lại phải chép lại mọi thứ khác, mà quên một dòng là nhân vật lành lặn trở lại giữa chương.
+
+Khối này nạp **ngay sát cảnh cần viết** và nói thẳng ra là nó đè lên Story Bible. Không nói thì model gặp hai mô tả khác nhau về cùng một người rồi tự chọn — thường là chọn cái đọc trước, tức là Bible, tức là bỏ qua đúng thứ vừa đặt.
 
 **Thẻ không phải liên kết sống.** Mang thẻ vào một bộ là **chép nội dung** nó; từ đó nhân vật sống đời sống riêng trong bộ. Sửa thẻ không đụng tới bộ đã dùng, và sửa nhân vật trong bộ không đụng ngược lên thẻ. Đây là chỗ người ta mặc định hiểu ngược lại, nên nói thẳng: một bộ đang viết dở mà tự đổi theo thư viện là kiểu hỏng không ai thấy — văn ở tập sau đổi đi, và chẳng có gì trong bộ đó ghi lại là vì sao. `Character.cardId` chỉ ghi **xuất xứ**.
 

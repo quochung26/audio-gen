@@ -196,7 +196,7 @@ export function CastPicker() {
                 value={r.appearance}
                 onChange={(e) => edit(r.key, { appearance: e.target.value })}
                 rows={2}
-                placeholder="Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần tả, không phải lời thoại."
+                placeholder="Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục đặt ở thiết lập chương."
                 className={input}
               />
 

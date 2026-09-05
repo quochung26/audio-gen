@@ -255,9 +255,9 @@ function CharacterFields({ c }: { c?: Character }) {
       <Textarea
         name="appearance"
         label="Ngoại hình"
-        hint="Dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần TẢ — và là căn cứ cho mô tả ảnh bìa."
+        hint="Thứ KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục thì không để đây — nó đặt ở thiết lập chương, vì mỗi chương một khác."
         defaultValue={c?.appearance ?? ""}
-        placeholder="Gầy, da sạm. Áo sơ mi bạc màu xắn tay. Vết sẹo dài ở cổ tay trái."
+        placeholder="Gầy, da sạm, tóc muối tiêu cắt cao. Vết sẹo dài ở cổ tay trái."
         rows={2}
       />
 

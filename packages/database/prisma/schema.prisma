@@ -232,6 +232,14 @@ model Episode {
 
   outline Json?
 
+  /// Thiết lập riêng của CHƯƠNG — tầng giữa giữa `Series.storyBible.world` và
+  /// `Scene.beat`.
+  ///
+  /// Chương này hướng về điều gì, giọng riêng, việc phải xảy ra, điều cấm, và
+  /// ghi đè nhân vật (mặc gì, đang bị thương…). Ghi đè ở đây thắng Story Bible,
+  /// và `Scene.setup` lại thắng nó. Xem packages/core/src/episode-setup.ts.
+  setup Json?
+
   draftText  String?
   scriptText String?
   summary    String?
@@ -296,11 +304,14 @@ model Character {
   /// chất giọng để ghép giọng TTS và model không hề đọc nó.
   speech String?
 
-  /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
+  /// Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo.
   ///
   /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
   /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
   /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  ///
+  /// TRANG PHỤC không để đây: nó đổi theo chương, mà Bible thì cố định cả bộ —
+  /// ghim vào đây là nhân vật mặc đúng bộ đồ ấy tới tập 40. Xem Episode.setup.
   appearance String?
 
   isNarrator Boolean @default(false)
@@ -396,6 +407,11 @@ model Scene {
   /// TRANSLATE mà không phải viết lại cảnh. Null = cảnh chưa qua chuyển ngữ,
   /// và đó cũng là dấu hiệu bước TRANSLATE dùng để biết còn gì phải làm.
   sourceText String?
+
+  /// Thiết lập riêng của CẢNH: ghi chú, và ghi đè nhân vật cho riêng cảnh này.
+  /// Đè lên `Episode.setup` theo TỪNG Ô — cảnh chỉ nói "đã thay áo mưa" thì ghi
+  /// chú "đang băng tay" của chương vẫn còn.
+  setup Json?
 
   /// Số hiệu các tập cũ mà cảnh này gọi lại.
   /// Chỉ những tập được liệt kê ở đây mới được nạp tóm tắt ĐẦY ĐỦ — thay vì

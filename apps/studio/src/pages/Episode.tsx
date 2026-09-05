@@ -1,14 +1,33 @@
 import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
+import { Field } from "@/components/Field";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
 import { languageLabel } from "@/components/LanguagePicker";
+
+interface CharacterOverride {
+  name: string;
+  outfit: string;
+  note: string;
+}
+interface SceneSetup {
+  note: string;
+  characters: CharacterOverride[];
+}
+interface EpisodeSetup {
+  focus: string;
+  tone: string;
+  mustHappen: string[];
+  constraints: string[];
+  characters: CharacterOverride[];
+}
 
 interface Scene {
   id: string;
   order: number;
   beat: string;
+  setup: SceneSetup | null;
   text: string | null;
   /** Bản thảo trước chuyển ngữ. Null = cảnh này chưa qua bước đó. */
   sourceText: string | null;
@@ -33,10 +52,18 @@ interface Ep {
   summary: string | null;
   humanReviewed: boolean;
   reviewedAt: string | null;
+  setup: EpisodeSetup | null;
   series: { id: string; title: string; language: string; draftLanguage: string };
   scenes: Scene[];
   blocks: Block[];
   renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
+}
+
+/** Ghi đè nhân vật hiện lại thành dạng dòng đúng như lúc gõ vào. */
+function renderOverrides(list: CharacterOverride[] | undefined): string {
+  return (list ?? [])
+    .map((c) => `${c.name}: ${c.outfit}${c.note ? ` | ${c.note}` : ""}`)
+    .join("\n");
 }
 
 function formatDuration(ms: number): string {
@@ -96,6 +123,61 @@ export function Episode() {
           </Form>
         )}
 
+        <details className="mb-4 rounded border border-neutral-800">
+          <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
+            Thiết lập chương{" "}
+            <span className="text-neutral-600">— áp cho mọi cảnh của chương này</span>
+          </summary>
+          <div className="border-t border-neutral-800 px-4 py-4">
+            <p className="mb-3 text-xs text-neutral-500">
+              Tầng giữa: bộ có <strong className="text-neutral-400">Thiết lập thế giới</strong>,
+              cảnh có <strong className="text-neutral-400">beat</strong>, còn đây là thứ đúng cho
+              riêng chương này. Ghi đè nhân vật ở đây thắng Story Bible; ghi đè ở từng cảnh lại
+              thắng ở đây.
+            </p>
+            <Form path={`/api/episodes/${ep.id}/setup`} method="PUT" submit="Lưu" className="space-y-3">
+              <Field
+                name="focus"
+                label="Chương này hướng về điều gì"
+                hint="Câu hỏi chương phải trả lời, hoặc cảm giác nó phải để lại."
+                placeholder="Tài phải chọn: nói thật với bà Tư, hay giữ lời hứa với người đã chết."
+                rows={2}
+                defaultValue={ep.setup?.focus ?? ""}
+              />
+              <Field
+                name="tone"
+                label="Giọng riêng chương này"
+                hint="Đè lên giọng của cả bộ. Bỏ trống thì giữ nguyên."
+                placeholder="Chậm hơn thường lệ. Mưa suốt chương, tiếng mưa lấp gần hết lời thoại."
+                rows={2}
+                defaultValue={ep.setup?.tone ?? ""}
+              />
+              <Field
+                name="mustHappen"
+                label="Việc phải xảy ra — mỗi dòng một việc"
+                placeholder={"Tài quay lại Bến Cũ\nBà Tư nhắc tới cái tên chưa ai nói ra"}
+                rows={2}
+                defaultValue={(ep.setup?.mustHappen ?? []).join("\n")}
+              />
+              <Field
+                name="constraints"
+                label="Điều cấm riêng chương — mỗi dòng một điều"
+                placeholder="Không cho ông Bảy xuất hiện"
+                rows={2}
+                defaultValue={(ep.setup?.constraints ?? []).join("\n")}
+              />
+              <Field
+                name="characters"
+                label="Ghi đè nhân vật — mỗi dòng một người"
+                hint="Dạng: Tên: mặc gì | ghi chú. Đè lên Story Bible cho riêng chương này."
+                placeholder={"Tài: áo mưa rách, ủng cao su | tay trái băng kín\nBà Tư: áo bà ba nâu"}
+                rows={3}
+                defaultValue={renderOverrides(ep.setup?.characters)}
+              />
+            </Form>
+          </div>
+        </details>
+
         <div className="space-y-3">
           {ep.scenes.map((scene) => (
             <div key={scene.id} className="rounded border border-neutral-800">
@@ -112,6 +194,42 @@ export function Episode() {
               <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
                 {scene.text ?? <span className="text-neutral-600">chưa viết</span>}
               </div>
+
+              <details className="border-t border-neutral-900">
+                <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
+                  Chỉ dẫn cho cảnh này
+                </summary>
+                <div className="border-t border-neutral-900 px-4 py-3">
+                  <Form
+                    path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                    method="PUT"
+                    submit="Lưu chỉ dẫn"
+                    className="space-y-3"
+                  >
+                    <Field
+                      name="beat"
+                      label="Beat — việc xảy ra trong cảnh"
+                      rows={2}
+                      defaultValue={scene.beat}
+                    />
+                    <Field
+                      name="note"
+                      label="Ghi chú riêng cảnh"
+                      placeholder="Cảnh này không có thoại. Chỉ tiếng mưa và tiếng bước chân."
+                      rows={2}
+                      defaultValue={scene.setup?.note ?? ""}
+                    />
+                    <Field
+                      name="characters"
+                      label="Ghi đè nhân vật cho riêng cảnh này"
+                      hint="Dạng: Tên: mặc gì | ghi chú. Đè lên thiết lập chương, theo TỪNG Ô — chỉ ghi phần khác đi."
+                      placeholder="Tài: đã cởi áo mưa"
+                      rows={2}
+                      defaultValue={renderOverrides(scene.setup?.characters)}
+                    />
+                  </Form>
+                </div>
+              </details>
             </div>
           ))}
         </div>

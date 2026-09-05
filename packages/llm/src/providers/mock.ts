@@ -210,7 +210,7 @@ function fakeString(base: string, desc: string, index: number): string {
     ]!;
   }
   if (base === "appearance") {
-    return ["Gầy, da sạm, áo sơ mi bạc màu xắn tay.", "Áo dài trắng, tóc phủ kín mặt.", "Lưng còng, đội nón cối cũ."][
+    return ["Gầy, da sạm, tóc muối tiêu.", "Nhỏ người, tóc dài phủ kín mặt.", "Lưng còng, tay run."][
       index % 3
     ]!;
   }

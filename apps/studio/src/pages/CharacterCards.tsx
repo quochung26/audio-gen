@@ -152,8 +152,8 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
       <Field
         name="appearance"
         label="Ngoại hình"
-        hint="Dáng, tuổi nhìn ra, cách ăn mặc, một chi tiết dễ nhận. Lái phần TẢ chứ không phải lời thoại."
-        placeholder="Gầy, da sạm. Áo sơ mi bạc màu xắn tay. Vết sẹo dài ở cổ tay trái."
+        hint="Thứ KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục đặt ở thiết lập chương, không để đây."
+        placeholder="Gầy, da sạm, tóc muối tiêu cắt cao. Vết sẹo dài ở cổ tay trái."
         rows={2}
         defaultValue={card?.appearance ?? ""}
       />

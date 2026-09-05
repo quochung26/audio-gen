@@ -1,9 +1,15 @@
 import { Hono } from "hono";
 import { AudioTrackKind, EpisodeStatus, prisma } from "@audio/database";
-import { assertTransition, syncState } from "@audio/core";
+import {
+  assertTransition,
+  episodeSetupSchema,
+  sceneSetupSchema,
+  syncState,
+  type CharacterOverride,
+} from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { enqueue } from "../lib/queue";
-import { field, UserError } from "../lib/http";
+import { field, splitLines, UserError } from "../lib/http";
 
 export const episodes = new Hono();
 
@@ -92,13 +98,66 @@ episodes.post("/:id/scenes/:sceneId/rewrite", async (c) => {
   return c.json({ ok: true });
 });
 
+/**
+ * Đọc ghi đè nhân vật từ ô nhập nhiều dòng, mỗi dòng `Tên: mặc gì | ghi chú`.
+ *
+ * Dạng dòng chứ không phải hàng chục ô rời, cùng lý do với luật thế giới: số
+ * nhân vật thay đổi tuỳ chương, mà `FormData` phẳng thì tên trường phải mang
+ * theo chỉ số và chỗ nào cũng phải tự ghép lại.
+ */
+function parseOverrides(value: unknown): CharacterOverride[] {
+  return splitLines(value)
+    .map((line) => {
+      const at = line.indexOf(":");
+      if (at < 0) return null;
+      const name = line.slice(0, at).trim();
+      const rest = line.slice(at + 1);
+      const [outfit = "", note = ""] = rest.split("|");
+      return name ? { name, outfit: outfit.trim(), note: note.trim() } : null;
+    })
+    .filter((c): c is CharacterOverride => Boolean(c));
+}
+
+/**
+ * Thiết lập riêng của chương — tầng giữa giữa thiết lập thế giới và beat.
+ *
+ * Ghi đè ở đây thắng Story Bible, và `Scene.setup` lại thắng nó.
+ */
+episodes.put("/:id/setup", async (c) => {
+  const body = await c.req.parseBody();
+  const setup = episodeSetupSchema.parse({
+    focus: field(body, "focus"),
+    tone: field(body, "tone"),
+    mustHappen: splitLines(body.mustHappen),
+    constraints: splitLines(body.constraints),
+    characters: parseOverrides(body.characters),
+  });
+
+  await prisma.episode.update({ where: { id: c.req.param("id") }, data: { setup } });
+  return c.json({ ok: "Đã lưu. Áp cho mọi cảnh của chương này, từ lượt viết kế tiếp." });
+});
+
 episodes.put("/:id/scenes/:sceneId", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody();
-  await prisma.scene.update({
-    where: { id: c.req.param("sceneId") },
-    data: { text: String(body.text ?? "") },
-  });
+
+  // Mỗi ô chỉ ghi khi form CÓ gửi nó lên. Trang tập có hai form riêng — một để
+  // sửa bản thảo, một để sửa chỉ dẫn — và ghi bừa cả hai thì lưu chỉ dẫn là xoá
+  // trắng bản thảo.
+  const data: Record<string, unknown> = {};
+  if ("text" in body) data.text = String(body.text ?? "");
+  if ("beat" in body) data.beat = field(body, "beat");
+  if ("note" in body || "characters" in body) {
+    data.setup = sceneSetupSchema.parse({
+      note: field(body, "note"),
+      characters: parseOverrides(body.characters),
+    });
+  }
+
+  await prisma.scene.update({ where: { id: c.req.param("sceneId") }, data });
+
+  // Chỉ sửa chỉ dẫn thì bản thảo không đổi — khỏi ghép lại.
+  if (!("text" in body)) return c.json({ ok: "Đã lưu chỉ dẫn cho cảnh này." });
 
   // Bản thảo là các cảnh nối lại. Cập nhật luôn để bước sau không phải ghép lại.
   const scenes = await prisma.scene.findMany({ where: { episodeId }, orderBy: { order: "asc" } });

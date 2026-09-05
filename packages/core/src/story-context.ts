@@ -155,11 +155,20 @@ export function renderContext(ctx: StoryContext): string {
     );
   }
 
+  // Chỉ dẫn riêng của chương đặt SAU phần lịch sử, TRƯỚC cảnh: nó là ràng buộc
+  // cho thứ sắp viết, không phải bối cảnh để đọc rồi quên.
+  if (ctx.chapter) parts.push(ctx.chapter);
+
   if (ctx.previousScene) {
     parts.push(`## The previous scene, in full\n${ctx.previousScene}`);
   }
 
+  // Ghi đè nhân vật nằm sát cảnh nhất: nó mâu thuẫn có chủ đích với Story
+  // Bible, và model theo cái đọc gần chỗ phải hành động.
+  if (ctx.overrides) parts.push(ctx.overrides);
+
   parts.push(`## The scene to write\n${ctx.beat}`);
+  if (ctx.sceneNote) parts.push(`Note for this scene: ${ctx.sceneNote}`);
   parts.push(`Target length: about ${ctx.targetWords} words.`);
 
   return parts.join("\n\n");
