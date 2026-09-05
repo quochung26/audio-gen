@@ -8,6 +8,7 @@ import { loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import { UserError } from "./lib/http";
 import { audio } from "./routes/audio";
+import { characterCards } from "./routes/character-cards";
 import { comments } from "./routes/comments";
 import { episodes } from "./routes/episodes";
 import { jobs } from "./routes/jobs";
@@ -41,6 +42,7 @@ app.get("/health", async (c) => {
 
 app.route("/api/series", series);
 app.route("/api/genres", genres);
+app.route("/api/character-cards", characterCards);
 app.route("/api/episodes", episodes);
 app.route("/api/prompts", prompts);
 app.route("/api/tracks", tracks);

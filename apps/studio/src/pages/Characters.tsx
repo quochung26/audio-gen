@@ -21,7 +21,14 @@ interface Character {
   isNarrator: boolean;
   voiceId: string | null;
   voice: Voice | null;
+  /** Thẻ đã dùng để dựng nhân vật này. Chỉ là xuất xứ, không phải liên kết sống. */
+  cardId: string | null;
   _count: { blocks: number };
+}
+
+interface Card {
+  id: string;
+  name: string;
 }
 
 export function Characters() {
@@ -32,6 +39,7 @@ export function Characters() {
     defaultVoiceId: string | null;
     title: string;
   }>(`/api/series/${id}/characters`);
+  const { data: library } = useApi<{ cards: Card[] }>("/api/character-cards");
   if (isLoading || !data) return <Loading />;
 
   const { characters, voices } = data;
@@ -139,7 +147,18 @@ export function Characters() {
                 </label>
               </Form>
 
-              <div className="mt-4 border-t border-neutral-900 pt-3">
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-900 pt-3">
+                {/* Đưa bản đã sửa NGƯỢC lên thư viện. Phải bấm chứ không tự
+                    động: "Tài lúc này đã biết mình bị lừa" đúng với bộ đang
+                    viết và sai với mọi bộ khác. */}
+                <ActionButton path={`/api/series/${id}/characters/${c.id}/save-card`}>
+                  {c.cardId ? "cập nhật thẻ" : "lưu vào thư viện"}
+                </ActionButton>
+                {c.cardId && (
+                  <ActionButton path={`/api/series/${id}/characters/${c.id}/save-card?asNew=1`}>
+                    tách thành thẻ mới
+                  </ActionButton>
+                )}
                 <ActionButton
                   path={`/api/series/${id}/characters/${c.id}`}
                   method="DELETE"
@@ -157,6 +176,29 @@ export function Characters() {
           </details>
         ))}
       </div>
+
+      {(library?.cards ?? []).length > 0 && (
+        <Section title="Thêm từ thư viện thẻ">
+          <div className="flex flex-wrap gap-2">
+            {(library?.cards ?? [])
+              // Thẻ đã có mặt trong bộ thì bỏ khỏi danh sách: bấm vào chỉ nhận
+              // được lỗi trùng tên.
+              .filter((card) => !characters.some((c) => c.name === card.name))
+              .map((card) => (
+                <Form
+                  key={card.id}
+                  path={`/api/series/${id}/characters/from-card`}
+                  submit={card.name}
+                >
+                  <input type="hidden" name="cardId" value={card.id} />
+                </Form>
+              ))}
+          </div>
+          <p className="mt-2 text-xs text-neutral-600">
+            Chép nội dung thẻ vào bộ này. Sửa về sau không đụng tới thẻ.
+          </p>
+        </Section>
+      )}
 
       <details className="rounded border border-dashed border-neutral-700">
         <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">

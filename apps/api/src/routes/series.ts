@@ -4,8 +4,10 @@ import {
   checkTags,
   isLanguage,
   parseTags,
+  normalizeCast,
   parseWorld,
   planDraft,
+  type CastMember,
   seriesBible,
   worldSetupSchema,
   type StoryBibleRecord,
@@ -66,6 +68,54 @@ series.get("/:id", async (c) => {
 /**
  * Tạo truyện mới — đẩy job dàn ý và trả id job để giao diện chuyển tới trang theo dõi.
  */
+/**
+ * Đọc dàn nhân vật gửi kèm form tạo truyện.
+ *
+ * Giao diện gửi MỘT trường `cast` dạng JSON thay vì hàng chục ô rời: danh sách
+ * dài ngắn tuỳ lúc, mà `FormData` phẳng thì tên trường phải mang theo chỉ số và
+ * chỗ nào cũng phải tự ghép lại.
+ *
+ * Thẻ được tra lại từ DB để lấy `voiceId` và điền vào ô người viết bỏ trống —
+ * nhưng ô nào người viết có gõ thì bản gõ thắng, vì đó chính là điểm của việc
+ * "sửa mà không lưu vào thẻ".
+ */
+async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]> {
+  const raw = field(body, "cast");
+  if (!raw) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new UserError("Dàn nhân vật gửi lên không đọc được.");
+  }
+  if (!Array.isArray(parsed)) throw new UserError("Dàn nhân vật gửi lên không đọc được.");
+
+  const rows = parsed as Array<Record<string, unknown>>;
+  const cardIds = rows.map((r) => String(r.cardId ?? "")).filter(Boolean);
+  const cards = cardIds.length
+    ? await prisma.characterCard.findMany({ where: { id: { in: cardIds } } })
+    : [];
+  const byId = new Map(cards.map((c) => [c.id, c]));
+
+  const cast = rows.map((r) => {
+    const card = byId.get(String(r.cardId ?? ""));
+    const text = (key: string) => (typeof r[key] === "string" ? (r[key] as string).trim() : "");
+    return {
+      // Thẻ đã bị xoá giữa chừng thì bỏ liên kết chứ không bỏ nhân vật: người
+      // viết đã gõ tên vào form rồi, mất cả người là mất công vô cớ.
+      cardId: card?.id ?? null,
+      name: text("name") || card?.name || "",
+      role: text("role") || card?.role || null,
+      description: text("description") || card?.description || null,
+      voiceHint: text("voiceHint") || card?.voiceHint || null,
+      isNarrator: r.isNarrator === true || r.isNarrator === "true",
+    };
+  });
+
+  return normalizeCast(cast);
+}
+
 series.post("/", async (c) => {
   const body = await c.req.parseBody();
   const idea = field(body, "idea");
@@ -94,12 +144,19 @@ series.post("/", async (c) => {
     throw new UserError(`Ngôn ngữ bản thảo không hợp lệ: "${draftLanguage}"`);
   }
 
+  // Dàn nhân vật chọn trước: thẻ lấy từ thư viện, cộng nhân vật gõ riêng cho bộ
+  // này. Giải thẻ ra thành dữ liệu phẳng NGAY TẠI ĐÂY để worker không phải biết
+  // tới bảng thẻ — nó chỉ nhận một danh sách nhân vật, chọn từ đâu không quan
+  // trọng. Bản gửi lên đã mang sẵn phần người viết sửa tay, và bản sửa đó thắng.
+  const cast = await resolveCast(body);
+
   const job = await enqueue({
     type: "OUTLINE",
     payload: {
       idea,
       language: language || (await getDefaultLanguage()),
       draftLanguage,
+      cast,
       genre: field(body, "genre") || "kinh dị",
       tags: field(body, "tags"),
       // Luôn dựng ĐÚNG MỘT tập. Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8
@@ -446,6 +503,91 @@ series.put("/:id/characters/:characterId", async (c) => {
   await prisma.character.update({ where: { id }, data: input });
   if (input.isNarrator) await ensureSingleNarrator(seriesId, id);
   return c.json({ ok: true });
+});
+
+/**
+ * Thêm nhân vật vào bộ từ một thẻ có sẵn.
+ *
+ * Chép NỘI DUNG thẻ chứ không tham chiếu: từ lúc này nhân vật sống đời sống
+ * riêng trong bộ, sửa thẻ về sau không đụng tới nó.
+ */
+series.post("/:id/characters/from-card", async (c) => {
+  const seriesId = c.req.param("id");
+  const cardId = field(await c.req.parseBody(), "cardId");
+  if (!cardId) throw new UserError("Chưa chọn thẻ nào");
+
+  const card = await prisma.characterCard.findUniqueOrThrow({ where: { id: cardId } });
+
+  const existing = await prisma.character.findFirst({
+    where: { seriesId, name: card.name },
+    select: { id: true },
+  });
+  if (existing) throw new UserError(`Bộ này đã có nhân vật tên "${card.name}".`);
+
+  const created = await prisma.character.create({
+    data: {
+      seriesId,
+      cardId: card.id,
+      name: card.name,
+      role: card.role,
+      description: card.description,
+      voiceHint: card.voiceHint,
+      voiceId: card.voiceId,
+      isNarrator: card.isNarrator,
+    },
+  });
+  if (card.isNarrator) await ensureSingleNarrator(seriesId, created.id);
+
+  return c.json({ ok: `Đã thêm "${card.name}" từ thẻ.` });
+});
+
+/**
+ * Đưa bản đã sửa trong bộ NGƯỢC lên thư viện thẻ.
+ *
+ * Thao tác riêng và phải bấm, vì sửa nhân vật trong một bộ là chuyện của bộ đó:
+ * "Tài lúc này đã biết mình bị lừa" đúng với bộ đang viết và sai với mọi bộ
+ * khác. Chỉ khi người viết thấy bản sửa đáng mang đi thì mới có việc này.
+ *
+ * Nhân vật đến từ một thẻ thì ghi đè thẻ đó; chưa có thẻ thì tạo thẻ mới.
+ * `asNew=1` ép tạo thẻ mới kể cả khi đã có — tách một biến thể ra khỏi thẻ gốc.
+ */
+series.post("/:id/characters/:characterId/save-card", async (c) => {
+  const character = await prisma.character.findUniqueOrThrow({
+    where: { id: c.req.param("characterId") },
+  });
+  const asNew = c.req.query("asNew") === "1";
+
+  const data = {
+    name: character.name,
+    role: character.role,
+    description: character.description,
+    voiceHint: character.voiceHint,
+    voiceId: character.voiceId,
+    isNarrator: character.isNarrator,
+  };
+
+  if (character.cardId && !asNew) {
+    await prisma.characterCard.update({ where: { id: character.cardId }, data });
+    return c.json({ ok: `Đã cập nhật thẻ "${data.name}" trong thư viện.` });
+  }
+
+  // Tên thẻ là duy nhất. Báo rõ thay vì để lỗi Prisma lộ ra — và gợi luôn lối
+  // ra, vì "trùng tên" ở đây thường là muốn sửa thẻ cũ chứ không phải tạo mới.
+  const clash = await prisma.characterCard.findUnique({
+    where: { name: data.name },
+    select: { id: true },
+  });
+  if (clash) {
+    throw new UserError(
+      `Thư viện đã có thẻ tên "${data.name}". Đổi tên nhân vật, hoặc sửa thẳng thẻ đó ở trang Thẻ nhân vật.`,
+    );
+  }
+
+  const card = await prisma.characterCard.create({ data });
+  // Gắn xuất xứ để lần lưu sau ghi đè đúng thẻ này thay vì đòi tạo thêm.
+  await prisma.character.update({ where: { id: character.id }, data: { cardId: card.id } });
+
+  return c.json({ ok: `Đã lưu "${card.name}" thành thẻ mới trong thư viện.` });
 });
 
 series.delete("/:id/characters/:characterId", async (c) => {

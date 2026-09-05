@@ -4,6 +4,9 @@ import { Link, NavLink } from "react-router";
 /** Việc hằng ngày: nội dung của bạn. */
 const NAV = [
   ["/series", "Truyện"],
+  // Thẻ nhân vật đứng cùng thư viện nhạc chứ không nằm dưới Cài đặt: cả hai là
+  // NGUYÊN LIỆU bạn gom dần rồi mang vào từng bộ, không phải cách máy chạy.
+  ["/the-nhan-vat", "Thẻ nhân vật"],
   ["/tracks", "Thư viện nhạc"],
   ["/thong-ke", "Thống kê"],
   ["/binh-luan", "Bình luận"],

@@ -7,5 +7,6 @@ export * from "./story-context";
 export * from "./world";
 export * from "./password";
 export * from "./sync-state";
+export * from "./cast";
 export * from "./language";
 export * from "./tags";

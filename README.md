@@ -92,6 +92,26 @@ Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong 
 
 `Genre` là bảng chỉ-ở-máy, không đồng bộ sang Player.
 
+### Thẻ nhân vật
+
+`/the-nhan-vat` — nhân vật dùng lại được giữa các bộ: tên, vai, tính cách và cách nói, gợi ý chất giọng, giọng ưa dùng.
+
+**Thẻ không phải liên kết sống.** Mang thẻ vào một bộ là **chép nội dung** nó; từ đó nhân vật sống đời sống riêng trong bộ. Sửa thẻ không đụng tới bộ đã dùng, và sửa nhân vật trong bộ không đụng ngược lên thẻ. Đây là chỗ người ta mặc định hiểu ngược lại, nên nói thẳng: một bộ đang viết dở mà tự đổi theo thư viện là kiểu hỏng không ai thấy — văn ở tập sau đổi đi, và chẳng có gì trong bộ đó ghi lại là vì sao. `Character.cardId` chỉ ghi **xuất xứ**.
+
+Ba lối vào:
+
+| Ở đâu | Làm gì |
+|---|---|
+| Màn tạo truyện, mục *Dàn nhân vật trước* | Bấm thẻ để thêm, sửa lại ngay tại chỗ cho hợp bộ này, hoặc gõ hẳn một nhân vật riêng. Bỏ trống thì AI tự nghĩ như cũ. |
+| Trang Nhân vật của một bộ | *Thêm từ thư viện thẻ* — chép một thẻ vào bộ đang viết. |
+| Trang Nhân vật, từng nhân vật | *lưu vào thư viện* / *cập nhật thẻ* — đưa bản đã sửa ngược lên thư viện. *tách thành thẻ mới* giữ nguyên thẻ gốc. |
+
+Chọn dàn trước thì prompt dàn ý nhận thêm khối `{{cast}}` (`renderCastForOutline`), song song với `{{world}}`: AI **phải** dùng đúng những người đó, đúng tên, và được thêm người mới nếu truyện cần. Người viết gõ gì thì thắng cái đó; ô nào để trống mới lấy phần model gợi ý — chọn một thẻ mới có mỗi cái tên vẫn ra nhân vật dùng được.
+
+Đúng **một** người dẫn truyện, luôn luôn: người viết chỉ định thì model không được đổi, không ai được đánh dấu thì người đầu tiên nhận vai. Bộ không có người dẫn thì bước biên tập audio không tra ra ai cho các block dẫn truyện, và cả tập rơi về giọng mặc định mà không báo gì.
+
+Xoá thẻ **không** bị chặn dù có bộ đang dùng — `Character` đã mang bản sao đầy đủ. Khác `Genre`: xoá thể loại là các bộ mất phần mô tả trong Bible, nên chỗ đó phải chặn.
+
 ### Thể loại chính và thể loại phụ
 
 Một truyện có nhiều thể loại, chỉ khác nhau cái nào chính cái nào phụ. Hệ thống chia làm hai vì chúng làm hai việc khác nhau:

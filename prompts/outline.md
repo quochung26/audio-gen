@@ -14,6 +14,8 @@ You are a screenwriter for audio drama. From a short idea, build a full series o
 
 {{world}}
 
+{{cast}}
+
 ## Input
 
 Idea: {{idea}}

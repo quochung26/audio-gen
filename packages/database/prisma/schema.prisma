@@ -147,13 +147,13 @@ enum LicenseType {
 /// Loại sự kiện. Quan trọng vì cách truy hồi khác nhau:
 /// OPEN_THREAD được nạp BẤT KỂ độ tương đồng — đó là món nợ truyện phải trả.
 enum FactKind {
-  EVENT        // việc đã xảy ra
-  REVELATION   // điều nhân vật phát hiện ra
-  PROMISE      // lời thề, lời hứa, cam kết
-  RELATION     // quan hệ giữa các nhân vật thay đổi
-  OBJECT       // vật phẩm quan trọng
-  PLACE        // địa điểm có ý nghĩa
-  OPEN_THREAD  // tình tiết bỏ ngỏ, chưa có lời giải
+  EVENT // việc đã xảy ra
+  REVELATION // điều nhân vật phát hiện ra
+  PROMISE // lời thề, lời hứa, cam kết
+  RELATION // quan hệ giữa các nhân vật thay đổi
+  OBJECT // vật phẩm quan trọng
+  PLACE // địa điểm có ý nghĩa
+  OPEN_THREAD // tình tiết bỏ ngỏ, chưa có lời giải
 }
 
 enum ModerationStatus {
@@ -178,7 +178,7 @@ model Series {
   /// Truyện viết bằng tiếng gì — "vi" hoặc "en". Xem packages/core/src/language.ts.
   /// Gắn với BỘ chứ không gắn với từng tập: trộn tiếng giữa các tập thì tóm tắt
   /// cung truyện, tên nhân vật và giọng đọc đều loạn.
-  language    String       @default("vi")
+  language String @default("vi")
 
   /// Viết BẢN THẢO bằng tiếng này rồi mới chuyển ngữ sang `language`.
   ///
@@ -189,7 +189,7 @@ model Series {
   /// Chỉ đổi ngôn ngữ của bước WRITE_SCENE. Dàn ý vẫn dựng bằng `language` để
   /// tên nhân vật và địa danh là tên đúng tiếng ngay từ đầu — model viết văn
   /// tiếng Anh với tên Việt có sẵn, thay vì đẻ ra Sarah rồi dịch mãi không hết.
-  draftLanguage String     @default("")
+  draftLanguage String @default("")
 
   /// Luật thế giới, bối cảnh, giọng văn. Nhân vật KHÔNG để ở đây — xem model Character.
   storyBible Json?
@@ -204,9 +204,9 @@ model Series {
   /// Tóm tắt cung truyện — nén các tập cũ lại thành một khối.
   /// Không có nó, tóm tắt từng tập tích luỹ tuyến tính và tràn ngữ cảnh
   /// khoảng tập 35. Xem docs/database.md mục 2.9.
-  arcSummary         String?
+  arcSummary        String?
   /// Đã nén tới hết tập số mấy.
-  arcThroughEpisode  Int?
+  arcThroughEpisode Int?
 
   episodes       Episode[]
   characters     Character[]
@@ -294,13 +294,21 @@ model Character {
   /// Trạng thái hiện tại: đang ở đâu, biết gì, quan hệ đã đổi thế nào.
   /// KHÁC `description` (tính cách, cách nói — tĩnh, do người viết đặt):
   /// `state` thay đổi theo mạch truyện và được cập nhật sau mỗi tập.
-  state          String?
+  state               String?
   /// Trạng thái phản ánh tới hết tập số mấy.
   stateThroughEpisode Int?
 
   voiceHint String?
   voiceId   String?
   voice     Voice?  @relation(fields: [voiceId], references: [id])
+
+  /// Thẻ nhân vật đã dùng để dựng nhân vật này, nếu có.
+  ///
+  /// Chỉ là XUẤT XỨ, không phải liên kết sống: sửa nhân vật trong một bộ không
+  /// đụng tới thẻ, và sửa thẻ không đụng tới các bộ đã dùng nó. Đưa bản sửa
+  /// ngược lên thẻ là một thao tác riêng, người viết phải bấm.
+  cardId String?
+  card   CharacterCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
   blocks Block[]
 
@@ -309,6 +317,41 @@ model Character {
 
   @@unique([seriesId, name])
   @@index([seriesId, isNarrator])
+  @@index([cardId])
+}
+
+/// Thẻ nhân vật — nhân vật dùng lại được giữa các bộ truyện.
+///
+/// Vì sao tách khỏi `Character`: `Character` gắn với MỘT bộ và mang trạng thái
+/// theo mạch truyện của bộ đó (`state`, `stateThroughEpisode`, block đã render).
+/// Thẻ thì không có mạch truyện nào cả — nó là bản mô tả gốc để mang sang bộ
+/// khác. Trộn chung thì "người dẫn giọng khàn" của bộ này kéo theo cả việc anh
+/// ta đã chết ở tập 12 của bộ kia.
+///
+/// Không đồng bộ sang Player: đây là bảng chỉ-ở-máy, như `Genre` và `Prompt`.
+model CharacterCard {
+  id String @id @default(cuid())
+
+  /// Duy nhất để báo trùng cho rõ ràng thay vì đẻ ra hai thẻ trông giống hệt.
+  name        String  @unique
+  role        String?
+  description String?
+  voiceHint   String?
+
+  /// Thẻ này vốn là người dẫn truyện. Chỉ là giá trị mặc định lúc mang vào bộ —
+  /// mỗi bộ vẫn chỉ được có đúng một người dẫn, và đó là luật của bộ.
+  isNarrator Boolean @default(false)
+
+  /// Giọng ưa dùng. `Voice` là bảng dùng chung nên mang được sang bộ khác.
+  voiceId String?
+  voice   Voice?  @relation(fields: [voiceId], references: [id])
+
+  characters Character[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
 }
 
 model Scene {
@@ -418,15 +461,16 @@ model Voice {
 
   /// Giọng này đọc được tiếng gì. Giọng tiếng Việt đọc văn tiếng Anh ra thứ
   /// không ai nghe được, nên đây là điều kiện lọc chứ không phải ghi chú.
-  language  String  @default("vi")
+  language String @default("vi")
 
   licenseType  LicenseType @default(UNKNOWN)
   commercialOk Boolean     @default(false)
 
   enabled Boolean @default(true)
 
-  characters     Character[]
-  seriesAsDefault Series[]   @relation("SeriesDefaultVoice")
+  characters      Character[]
+  characterCards  CharacterCard[]
+  seriesAsDefault Series[]        @relation("SeriesDefaultVoice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

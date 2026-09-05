@@ -5,8 +5,12 @@ import {
   withLanguage,
   outlineSchema,
   planScenes,
+  mergeCast,
+  normalizeCast,
   parseWorld,
   planDraft,
+  renderCastForOutline,
+  type CastMember,
   renderWorldForOutline,
   slugify,
   suggestSceneCount,
@@ -42,6 +46,10 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const world = parseWorld(job.data.world);
   // Thể loại phụ do người viết chọn lúc tạo — vào Bible để lái cả bộ.
   const tags = parseTags(String(job.data.tags ?? ""));
+
+  // Dàn nhân vật chọn trước từ thẻ, hoặc gõ riêng cho bộ này. Rỗng thì AI tự
+  // nghĩ ra nhân vật như cũ.
+  const cast = normalizeCast(Array.isArray(job.data.cast) ? (job.data.cast as CastMember[]) : []);
 
   if (!idea.trim()) throw new Error("Thiếu ý tưởng (payload.idea)");
 
@@ -84,6 +92,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
         tags: tags.length > 0 ? tags.join(", ") : "(none)",
         world: renderWorldForOutline(world),
+        cast: renderCastForOutline(cast),
       }),
       ...(params as object),
     });
@@ -120,13 +129,18 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         bible: buildBible(outline, world, tags),
       },
       characters: {
-        // Khử trùng tên: ràng buộc (seriesId, name) là duy nhất, và model —
-        // cả thật lẫn giả lập — thỉnh thoảng trả về hai nhân vật cùng tên.
-        create: dedupeByName(outline.characters).map((c) => ({
+        // Dàn người viết chọn thắng dàn model trả về, và model tự thêm ai thì
+        // giữ lại người đó. `mergeCast` cũng khử trùng tên: ràng buộc
+        // (seriesId, name) là duy nhất, mà model — cả thật lẫn giả lập — thỉnh
+        // thoảng trả về hai nhân vật cùng tên.
+        create: mergeCast(cast, outline.characters).map((c) => ({
           name: c.name,
           role: c.role,
+          description: c.description,
           voiceHint: c.voiceHint,
-          isNarrator: c.isNarrator,
+          isNarrator: c.isNarrator ?? false,
+          // Xuất xứ, không phải liên kết sống: sửa nhân vật ở đây không đụng thẻ.
+          cardId: c.cardId ?? null,
         })),
       },
     },
@@ -161,26 +175,3 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
     tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
   };
 };
-
-/**
- * Giữ lại bản ghi đầu tiên cho mỗi tên, và đảm bảo đúng một người dẫn truyện.
- */
-function dedupeByName<T extends { name: string; isNarrator: boolean }>(items: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const item of items) {
-    const key = item.name.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(item);
-  }
-  // Không có người dẫn truyện thì lấy người đầu tiên; có nhiều thì giữ người đầu.
-  let narratorSeen = false;
-  for (const item of out) {
-    if (item.isNarrator && !narratorSeen) narratorSeen = true;
-    else if (item.isNarrator) item.isNarrator = false;
-  }
-  if (!narratorSeen && out[0]) out[0].isNarrator = true;
-  return out;
-}
-

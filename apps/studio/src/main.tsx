@@ -12,6 +12,7 @@ import { Episode } from "@/pages/Episode";
 import { EpisodeAudio } from "@/pages/EpisodeAudio";
 import { Facts } from "@/pages/Facts";
 import { Genres } from "@/pages/Genres";
+import { CharacterCards } from "@/pages/CharacterCards";
 import { Job } from "@/pages/Job";
 import { Models } from "@/pages/Models";
 import { NotFound } from "@/pages/NotFound";
@@ -55,6 +56,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/binh-luan" element={<Comments />} />
             <Route path="/model" element={<Models />} />
             <Route path="/the-loai" element={<Genres />} />
+            <Route path="/the-nhan-vat" element={<CharacterCards />} />
             <Route path="/thong-ke" element={<Stats />} />
             <Route path="/prompts" element={<Prompts />} />
             <Route path="/prompts/:id" element={<Prompt />} />

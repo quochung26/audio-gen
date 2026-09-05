@@ -5,6 +5,7 @@ import { Field } from "@/components/Field";
 import { ModelPicker } from "@/components/ModelPicker";
 import { DraftLanguagePicker, LanguagePicker } from "@/components/LanguagePicker";
 import { TagPicker } from "@/components/TagPicker";
+import { CastPicker } from "@/components/CastPicker";
 
 
 export function SeriesNew() {
@@ -87,6 +88,20 @@ export function SeriesNew() {
         </label>
 
         <ModelPicker />
+
+        <details className="rounded border border-neutral-800">
+          <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
+            Dàn nhân vật trước{" "}
+            <span className="text-neutral-600">— tuỳ chọn, lấy từ thẻ hoặc gõ riêng</span>
+          </summary>
+          <div className="space-y-4 border-t border-neutral-800 px-4 py-4">
+            <p className="text-xs text-neutral-500">
+              Bỏ trống thì AI tự nghĩ ra nhân vật. Chọn trước thì AI buộc phải dùng đúng những
+              người này — hợp khi bạn đã có một dàn ưng ý và muốn mang sang bộ mới.
+            </p>
+            <CastPicker />
+          </div>
+        </details>
 
         <details className="rounded border border-neutral-800">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
