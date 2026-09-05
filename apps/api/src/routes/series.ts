@@ -108,6 +108,7 @@ async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]>
       name: text("name") || card?.name || "",
       role: text("role") || card?.role || null,
       description: text("description") || card?.description || null,
+      speech: text("speech") || card?.speech || null,
       appearance: text("appearance") || card?.appearance || null,
       voiceHint: text("voiceHint") || card?.voiceHint || null,
       isNarrator: r.isNarrator === true || r.isNarrator === "true",
@@ -449,6 +450,7 @@ function characterInput(body: Record<string, unknown>) {
     name: field(body, "name"),
     role: field(body, "role") || null,
     description: field(body, "description") || null,
+    speech: field(body, "speech") || null,
     appearance: field(body, "appearance") || null,
     // `state` do job tóm tắt tự cập nhật sau mỗi tập, nhưng sửa tay được —
     // AI đọc sai tình tiết thì phải chữa được, không thì sai lan sang tập sau.
@@ -533,6 +535,7 @@ series.post("/:id/characters/from-card", async (c) => {
       name: card.name,
       role: card.role,
       description: card.description,
+      speech: card.speech,
       appearance: card.appearance,
       voiceHint: card.voiceHint,
       voiceId: card.voiceId,
@@ -564,6 +567,7 @@ series.post("/:id/characters/:characterId/save-card", async (c) => {
     name: character.name,
     role: character.role,
     description: character.description,
+    speech: character.speech,
     appearance: character.appearance,
     voiceHint: character.voiceHint,
     voiceId: character.voiceId,

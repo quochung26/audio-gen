@@ -289,6 +289,13 @@ model Character {
   role        String?
   description String?
 
+  /// Cách nói: nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động.
+  ///
+  /// Tách khỏi `description` vì đây là thứ model bám vào khi viết LỜI THOẠI,
+  /// còn tính cách lái hành động và lựa chọn. Cũng KHÁC `voiceHint`: cái kia là
+  /// chất giọng để ghép giọng TTS và model không hề đọc nó.
+  speech String?
+
   /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
   ///
   /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
@@ -343,6 +350,13 @@ model CharacterCard {
   name        String  @unique
   role        String?
   description String?
+
+  /// Cách nói: nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động.
+  ///
+  /// Tách khỏi `description` vì đây là thứ model bám vào khi viết LỜI THOẠI,
+  /// còn tính cách lái hành động và lựa chọn. Cũng KHÁC `voiceHint`: cái kia là
+  /// chất giọng để ghép giọng TTS và model không hề đọc nó.
+  speech String?
 
   /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
   ///

@@ -7,6 +7,7 @@ interface Card {
   name: string;
   role: string | null;
   description: string | null;
+  speech: string | null;
   appearance: string | null;
   voiceHint: string | null;
   isNarrator: boolean;
@@ -25,6 +26,7 @@ interface Row {
   name: string;
   role: string;
   description: string;
+  speech: string;
   appearance: string;
   voiceHint: string;
   isNarrator: boolean;
@@ -36,6 +38,7 @@ const blank = (over: Partial<Row> = {}): Row => ({
   name: "",
   role: "",
   description: "",
+  speech: "",
   appearance: "",
   voiceHint: "",
   isNarrator: false,
@@ -82,6 +85,7 @@ export function CastPicker() {
         name: card.name,
         role: card.role ?? "",
         description: card.description ?? "",
+        speech: card.speech ?? "",
         appearance: card.appearance ?? "",
         voiceHint: card.voiceHint ?? "",
         // Người dẫn của thẻ chỉ là mặc định; bộ vẫn chỉ được có một, nên thẻ
@@ -176,7 +180,15 @@ export function CastPicker() {
                 value={r.description}
                 onChange={(e) => edit(r.key, { description: e.target.value })}
                 rows={2}
-                placeholder="Tính cách và cách nói — thứ giữ cho lời thoại của người này nghe giống nhau qua hàng chục tập."
+                placeholder="Tính cách — thứ lái hành động và lựa chọn của người này."
+                className={input}
+              />
+
+              <textarea
+                value={r.speech}
+                onChange={(e) => edit(r.key, { speech: e.target.value })}
+                rows={2}
+                placeholder="Cách nói: nhịp, thói quen dùng từ, cách xưng hô. Thứ giữ cho lời thoại nghe giống nhau qua hàng chục tập."
                 className={input}
               />
 

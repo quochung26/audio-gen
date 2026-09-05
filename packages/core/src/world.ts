@@ -92,6 +92,7 @@ export function renderBible(input: {
     name: string;
     role?: string | null;
     description?: string | null;
+    speech?: string | null;
     appearance?: string | null;
     isNarrator: boolean;
   }>;
@@ -154,6 +155,9 @@ export function renderBible(input: {
     // Mô tả tính cách và cách nói đặt thụt vào — đây là thứ giữ cho lời thoại
     // của một nhân vật nghe giống nhau qua hàng chục tập.
     if (c.description?.trim()) parts.push(`  ${c.description.trim()}`);
+    // Cách nói tách riêng khỏi tính cách: model bám vào đây khi viết LỜI THOẠI,
+    // còn dòng trên lái hành động và lựa chọn.
+    if (c.speech?.trim()) parts.push(`  Speech: ${c.speech.trim()}`);
     // Ngoại hình có nhãn riêng, không gộp vào dòng trên: nó lái phần TẢ, còn
     // dòng trên lái LỜI THOẠI. Gộp chung thì model tả quần áo giữa một đoạn
     // đang cần giọng nói.

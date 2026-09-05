@@ -57,23 +57,27 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).toContain("tài xế");
   });
 
-  it("ngoại hình có NHÃN RIÊNG, không gộp vào dòng tính cách", () => {
-    // Tính cách lái lời thoại, ngoại hình lái phần tả. Gộp chung thì model tả
-    // quần áo giữa một đoạn đang cần giọng nói.
+  it("cách nói và ngoại hình có NHÃN RIÊNG, không gộp vào dòng tính cách", () => {
+    // Ba việc khác nhau: tính cách lái hành động, cách nói lái lời thoại,
+    // ngoại hình lái phần tả. Gộp chung thì model tả quần áo giữa một đoạn
+    // đang cần giọng nói.
     const b = seriesBible({
       ...series,
       characters: [
         {
           name: "Hùng",
           isNarrator: true,
-          description: "ít nói",
+          description: "lì",
+          speech: "cộc lốc",
           appearance: "gầy, da sạm",
           state: null,
         },
       ],
     });
+    expect(b).toContain("Speech: cộc lốc");
     expect(b).toContain("Appearance: gầy, da sạm");
-    expect(b.indexOf("ít nói")).toBeLessThan(b.indexOf("Appearance:"));
+    expect(b.indexOf("lì")).toBeLessThan(b.indexOf("Speech:"));
+    expect(b.indexOf("Speech:")).toBeLessThan(b.indexOf("Appearance:"));
   });
 
   it("nhân vật không có mô tả lẫn trạng thái thì không sinh dòng rỗng", () => {
@@ -83,6 +87,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     });
     expect(b).toContain("Hùng");
     expect(b).not.toContain("Current state:");
+    expect(b).not.toContain("Speech:");
     expect(b).not.toContain("Appearance:");
   });
 

@@ -15,6 +15,7 @@ interface Card {
   name: string;
   role: string | null;
   description: string | null;
+  speech: string | null;
   appearance: string | null;
   voiceHint: string | null;
   isNarrator: boolean;
@@ -88,6 +89,7 @@ export function CharacterCards() {
                 {card.description && (
                   <p className="mt-1 text-sm text-neutral-500">{card.description}</p>
                 )}
+                {card.speech && <p className="mt-1 text-sm text-neutral-500">{card.speech}</p>}
                 {card.appearance && (
                   <p className="mt-1 text-sm text-neutral-600">{card.appearance}</p>
                 )}
@@ -131,11 +133,20 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
 
       <Field
         name="description"
-        label="Tính cách và cách nói"
-        hint="Model đọc câu này mỗi lần viết — thứ giữ cho LỜI THOẠI của người này nghe giống nhau qua hàng chục tập."
-        placeholder="Ít nói, trả lời cộc lốc. Chỉ dài lời khi nhắc tới con gái."
+        label="Tính cách"
+        hint="Con người này ra sao — thứ lái hành động và lựa chọn của họ."
+        placeholder="Lì, không kêu ca. Tin vào điềm nhưng không nói ra."
         rows={2}
         defaultValue={card?.description ?? ""}
+      />
+
+      <Field
+        name="speech"
+        label="Cách nói"
+        hint="Nhịp, thói quen dùng từ, cách xưng hô. Thứ giữ cho lời thoại nghe giống nhau qua hàng chục tập."
+        placeholder="Trả lời cộc lốc. Chỉ dài lời khi nhắc tới con gái."
+        rows={2}
+        defaultValue={card?.speech ?? ""}
       />
 
       <Field

@@ -22,6 +22,7 @@ export interface SeriesBibleInput {
     name: string;
     role?: string | null;
     description?: string | null;
+    speech?: string | null;
     appearance?: string | null;
     isNarrator: boolean;
     /** Tình trạng ở cuối tập gần nhất. */
@@ -65,6 +66,7 @@ export function seriesBible(input: SeriesBibleInput): string {
     characters: input.characters.map((c) => ({
       name: c.name,
       role: c.role,
+      speech: c.speech,
       appearance: c.appearance,
       description: [c.description, c.state ? `Current state: ${c.state}` : null]
         .filter(Boolean)

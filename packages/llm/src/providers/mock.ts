@@ -204,6 +204,11 @@ function fakeString(base: string, desc: string, index: number): string {
   if (base === "genre") return "kinh dị";
   if (base === "setting") return "Quốc lộ miền Trung, thập niên 1970, những chuyến xe đêm.";
   if (base === "role") return index === 0 ? "tài xế xe khách, 45 tuổi" : "hành khách bí ẩn";
+  if (base === "speech") {
+    return ["Cộc lốc, hay bỏ lửng câu.", "Nói chậm, kéo dài cuối câu.", "Xưng \"tui\", gọi ai cũng là \"cô chú\"."][
+      index % 3
+    ]!;
+  }
   if (base === "appearance") {
     return ["Gầy, da sạm, áo sơ mi bạc màu xắn tay.", "Áo dài trắng, tóc phủ kín mặt.", "Lưng còng, đội nón cối cũ."][
       index % 3

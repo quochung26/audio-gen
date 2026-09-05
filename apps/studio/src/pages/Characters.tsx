@@ -15,6 +15,7 @@ interface Character {
   name: string;
   role: string | null;
   description: string | null;
+  speech: string | null;
   appearance: string | null;
   state: string | null;
   stateThroughEpisode: number | null;
@@ -235,11 +236,20 @@ function CharacterFields({ c }: { c?: Character }) {
 
       <Textarea
         name="description"
-        label="Tính cách và cách nói"
-        hint="Thứ quyết định LỜI THOẠI có nhất quán không qua hàng chục tập. Càng cụ thể càng tốt."
+        label="Tính cách"
+        hint="Con người này ra sao — thứ lái HÀNH ĐỘNG và lựa chọn của họ."
         defaultValue={c?.description ?? ""}
-        placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
+        placeholder="Lì, không kêu ca. Tin vào điềm nhưng không nói ra. Sợ nhất là mắc nợ ai."
         rows={3}
+      />
+
+      <Textarea
+        name="speech"
+        label="Cách nói"
+        hint="Nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động. Thứ giữ cho LỜI THOẠI nghe giống nhau qua hàng chục tập."
+        defaultValue={c?.speech ?? ""}
+        placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
+        rows={2}
       />
 
       <Textarea

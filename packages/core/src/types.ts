@@ -16,6 +16,11 @@ export const characterSchema = z.object({
   appearance: z
     .string()
     .describe("What they look like: build, apparent age, how they dress, one detail you would recognise them by"),
+  speech: z
+    .string()
+    .describe(
+      "How they talk: rhythm, verbal habits, what they call people, what happens to their speech under stress",
+    ),
   voiceHint: z
     .string()
     .describe("Casting hint for the voice: gender, age, vocal quality. E.g. middle-aged man, hoarse voice"),

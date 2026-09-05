@@ -44,19 +44,21 @@ describe("renderCastForOutline", () => {
     expect(renderCastForOutline([{ name: " " }])).toBe("");
   });
 
-  it("nêu tên, vai, tính cách, ngoại hình và chất giọng", () => {
+  it("nêu tên, vai, tính cách, cách nói, ngoại hình và chất giọng", () => {
     const out = renderCastForOutline([
       {
         name: "Tài",
         role: "tài xế",
-        description: "ít nói",
+        description: "lì",
+        speech: "cộc lốc",
         appearance: "gầy, da sạm",
         voiceHint: "nam trung niên",
       },
     ]);
     expect(out).toContain("Tài");
     expect(out).toContain("tài xế");
-    expect(out).toContain("ít nói");
+    expect(out).toContain("lì");
+    expect(out).toContain("cộc lốc");
     expect(out).toContain("gầy, da sạm");
     expect(out).toContain("nam trung niên");
   });
