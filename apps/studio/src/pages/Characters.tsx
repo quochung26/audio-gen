@@ -16,6 +16,7 @@ interface Character {
   role: string | null;
   description: string | null;
   speech: string | null;
+  outfit: string | null;
   appearance: string | null;
   state: string | null;
   stateThroughEpisode: number | null;
@@ -249,6 +250,15 @@ function CharacterFields({ c }: { c?: Character }) {
         hint="Nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động. Thứ giữ cho LỜI THOẠI nghe giống nhau qua hàng chục tập."
         defaultValue={c?.speech ?? ""}
         placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
+        rows={2}
+      />
+
+      <Textarea
+        name="outfit"
+        label="Trang phục thường thấy"
+        hint="Trang phục thường thấy. Đây là MẶC ĐỊNH — thiết lập chương và từng cảnh đè lên được, nên cứ ghi bộ đồ hay gặp nhất."
+        defaultValue={c?.outfit ?? ""}
+        placeholder="Áo sơ mi bạc màu xắn tay, quần vải sẫm, dép nhựa."
         rows={2}
       />
 

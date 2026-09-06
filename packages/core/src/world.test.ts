@@ -70,6 +70,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
           description: "lì",
           speech: "cộc lốc",
           appearance: "gầy, da sạm",
+          outfit: "áo sơ mi bạc màu",
           state: null,
         },
       ],
@@ -78,6 +79,9 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).toContain("Appearance: gầy, da sạm");
     expect(b.indexOf("lì")).toBeLessThan(b.indexOf("Speech:"));
     expect(b.indexOf("Speech:")).toBeLessThan(b.indexOf("Appearance:"));
+    // Trang phục là MẶC ĐỊNH, đứng sau ngoại hình — chương và cảnh đè lên được.
+    expect(b).toContain("Usually wears: áo sơ mi bạc màu");
+    expect(b.indexOf("Appearance:")).toBeLessThan(b.indexOf("Usually wears:"));
   });
 
   it("nhân vật không có mô tả lẫn trạng thái thì không sinh dòng rỗng", () => {
@@ -89,6 +93,7 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).not.toContain("Current state:");
     expect(b).not.toContain("Speech:");
     expect(b).not.toContain("Appearance:");
+    expect(b).not.toContain("Usually wears:");
   });
 
   it("mô tả bộ truyện thành logline", () => {

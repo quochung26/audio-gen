@@ -99,6 +99,7 @@ export function renderBible(input: {
     role?: string | null;
     description?: string | null;
     speech?: string | null;
+    outfit?: string | null;
     appearance?: string | null;
     isNarrator: boolean;
   }>;
@@ -200,6 +201,9 @@ export function renderBible(input: {
     // dòng trên lái LỜI THOẠI. Gộp chung thì model tả quần áo giữa một đoạn
     // đang cần giọng nói.
     if (c.appearance?.trim()) parts.push(`  Appearance: ${c.appearance.trim()}`);
+    // Trang phục MẶC ĐỊNH. Thiết lập chương và cảnh đè lên được — khối ghi đè
+    // nói thẳng ra điều đó, nên hai chỗ mâu thuẫn không làm model phân vân.
+    if (c.outfit?.trim()) parts.push(`  Usually wears: ${c.outfit.trim()}`);
   }
 
   if (input.episodes && input.episodes.length > 0) {

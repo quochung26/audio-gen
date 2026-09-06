@@ -151,6 +151,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
           role: c.role,
           description: c.description,
           speech: c.speech,
+          outfit: c.outfit,
           appearance: c.appearance,
           voiceHint: c.voiceHint,
           isNarrator: c.isNarrator ?? false,

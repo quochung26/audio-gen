@@ -316,14 +316,23 @@ model Character {
   /// chất giọng để ghép giọng TTS và model không hề đọc nó.
   speech String?
 
+  /// Trang phục THƯỜNG THẤY — mặc định, không phải bất biến.
+  ///
+  /// Tầng gốc của chuỗi đè: mặc định ở đây → `Episode.setup` → `Scene.setup`.
+  /// Thiếu tầng này thì bộ nào chưa điền thiết lập chương là model chẳng có
+  /// thông tin quần áo nào, và mỗi chương nó bịa một kiểu.
+  ///
+  /// Khác `appearance` ở chỗ ĐÈ ĐƯỢC: `appearance` là dáng, mặt, sẹo — thứ
+  /// không đổi suốt bộ và không tầng nào đè lên.
+  outfit String?
+
   /// Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo.
   ///
   /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
   /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
   /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
   ///
-  /// TRANG PHỤC không để đây: nó đổi theo chương, mà Bible thì cố định cả bộ —
-  /// ghim vào đây là nhân vật mặc đúng bộ đồ ấy tới tập 40. Xem Episode.setup.
+  /// Trang phục thì để ở `outfit`, vì nó đổi theo chương còn cái này thì không.
   appearance String?
 
   isNarrator Boolean @default(false)
@@ -381,11 +390,23 @@ model CharacterCard {
   /// chất giọng để ghép giọng TTS và model không hề đọc nó.
   speech String?
 
-  /// Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc, chi tiết dễ nhận.
+  /// Trang phục THƯỜNG THẤY — mặc định, không phải bất biến.
+  ///
+  /// Tầng gốc của chuỗi đè: mặc định ở đây → `Episode.setup` → `Scene.setup`.
+  /// Thiếu tầng này thì bộ nào chưa điền thiết lập chương là model chẳng có
+  /// thông tin quần áo nào, và mỗi chương nó bịa một kiểu.
+  ///
+  /// Khác `appearance` ở chỗ ĐÈ ĐƯỢC: `appearance` là dáng, mặt, sẹo — thứ
+  /// không đổi suốt bộ và không tầng nào đè lên.
+  outfit String?
+
+  /// Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo.
   ///
   /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
   /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
   /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  ///
+  /// Trang phục thì để ở `outfit`, vì nó đổi theo chương còn cái này thì không.
   appearance String?
   voiceHint  String?
 

@@ -52,6 +52,7 @@ describe("renderCastForOutline", () => {
         description: "lì",
         speech: "cộc lốc",
         appearance: "gầy, da sạm",
+        outfit: "áo sơ mi bạc",
         voiceHint: "nam trung niên",
       },
     ]);
@@ -60,6 +61,7 @@ describe("renderCastForOutline", () => {
     expect(out).toContain("lì");
     expect(out).toContain("cộc lốc");
     expect(out).toContain("gầy, da sạm");
+    expect(out).toContain("áo sơ mi bạc");
     expect(out).toContain("nam trung niên");
   });
 

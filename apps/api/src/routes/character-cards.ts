@@ -21,6 +21,7 @@ function cardInput(body: Record<string, unknown>) {
     role: field(body, "role") || null,
     description: field(body, "description") || null,
     speech: field(body, "speech") || null,
+    outfit: field(body, "outfit") || null,
     appearance: field(body, "appearance") || null,
     voiceHint: field(body, "voiceHint") || null,
     voiceId: field(body, "voiceId") || null,

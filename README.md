@@ -109,10 +109,16 @@ Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong 
 | Tính cách | **hành động** và lựa chọn của nhân vật |
 | Cách nói | **lời thoại** — thứ giữ cho một người nghe giống nhau qua hàng chục tập |
 | Ngoại hình | phần **tả** — chỉ thứ KHÔNG đổi suốt bộ: dáng, mặt, tuổi, sẹo |
+| Trang phục | bộ đồ **thường thấy** — mặc định, chương và cảnh đè lên được |
 
 Gộp chung thì model tả quần áo giữa một đoạn đang cần giọng nói. Trong Story Bible chúng nằm ba dòng, hai dòng sau có nhãn `Speech:` và `Appearance:` riêng.
 
-**Trang phục KHÔNG nằm ở ngoại hình.** Story Bible là phần cố định suốt bộ, nên ghim quần áo vào đó là nhân vật mặc đúng bộ ấy tới tập 40. Trang phục đặt ở [thiết lập chương](#thiết-lập-chương).
+**Trang phục có ô riêng, và là MẶC ĐỊNH.** Nó không nằm trong ngoại hình vì ngoại hình thì không đổi còn quần áo thì đổi; nhưng nó vẫn phải có mặt ở thẻ nhân vật, vì đó là tầng gốc của chuỗi đè:
+
+    thẻ / nhân vật  →  Episode.setup  →  Scene.setup
+    "thường mặc"       "chương này"      "cảnh này"
+
+Thiếu tầng gốc thì bộ nào chưa điền thiết lập chương là model chẳng có thông tin quần áo nào, và mỗi chương nó bịa một kiểu. Trong Bible nó hiện thành `Usually wears:`, và [khối ghi đè](#thiết-lập-chương) nói thẳng là nó đè lên Bible.
 
 `voiceHint` là chuyện khác hẳn: chất giọng để ghép với giọng TTS lúc casting, và **model không hề đọc nó** — nó không vào Bible.
 

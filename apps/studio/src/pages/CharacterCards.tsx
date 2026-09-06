@@ -16,6 +16,7 @@ interface Card {
   role: string | null;
   description: string | null;
   speech: string | null;
+  outfit: string | null;
   appearance: string | null;
   voiceHint: string | null;
   isNarrator: boolean;
@@ -90,6 +91,7 @@ export function CharacterCards() {
                   <p className="mt-1 text-sm text-neutral-500">{card.description}</p>
                 )}
                 {card.speech && <p className="mt-1 text-sm text-neutral-500">{card.speech}</p>}
+                {card.outfit && <p className="mt-1 text-sm text-neutral-600">{card.outfit}</p>}
                 {card.appearance && (
                   <p className="mt-1 text-sm text-neutral-600">{card.appearance}</p>
                 )}
@@ -147,6 +149,15 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         placeholder="Trả lời cộc lốc. Chỉ dài lời khi nhắc tới con gái."
         rows={2}
         defaultValue={card?.speech ?? ""}
+      />
+
+      <Field
+        name="outfit"
+        label="Trang phục thường thấy"
+        hint="Trang phục thường thấy. Đây là MẶC ĐỊNH — thiết lập chương và từng cảnh đè lên được, nên cứ ghi bộ đồ hay gặp nhất."
+        placeholder="Áo sơ mi bạc màu xắn tay, quần vải sẫm, dép nhựa."
+        rows={2}
+        defaultValue={card?.outfit ?? ""}
       />
 
       <Field

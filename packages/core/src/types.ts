@@ -13,6 +13,11 @@ import { z } from "zod";
 export const characterSchema = z.object({
   name: z.string().min(1).describe("Character name"),
   role: z.string().describe("Role in the story, age, occupation — one short line"),
+  outfit: z
+    .string()
+    .describe(
+      "What they usually wear. A default only — each chapter can dress them differently.",
+    ),
   appearance: z
     .string()
     .describe(
