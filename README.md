@@ -620,6 +620,15 @@ Studio + worker ──► DATABASE_URL         (local, đầy đủ — KHÔNG r
 Player          ──► PLAYER_DATABASE_URL  (hosted, chỉ nội dung đã xuất bản)
 ```
 
+**Xoá cả bộ truyện** ở cuối trang bộ, mục *Vùng nguy hiểm*. Cascade của Prisma lo phần DB; phần file phải tự dọn, và audio của block **dùng chung theo `cacheKey`** nên chỉ xoá file khi không còn block nào khác trỏ tới — đếm lại từ `Block` chứ không trừ dần `refCount`, vì cột đó xưa nay chỉ được cộng.
+
+Hai chỗ bị chặn, vì xoá xong sẽ để lại rác không dọn được bằng tay:
+
+| Chặn khi | Vì sao |
+|---|---|
+| Còn job `QUEUED`/`RUNNING` | Hàng trong DB bị cascade xoá, job trong Redis vẫn chạy rồi chết vì không tra ra tập — lỗi đó chẳng nói gì về việc bộ vừa bị xoá |
+| Còn tập đang xuất bản | DB local sạch nhưng DB hosted giữ nguyên, và từ đó không còn đường nào gỡ chúng xuống |
+
 DB local giữ bản thảo, Story Bible, prompt, telemetry, sự kiện truy hồi. Bấm **Xuất bản** ở Studio thì job `PUBLISH` đẩy sang DB hosted đúng những gì `packages/database/src/publish-scope.ts` cho phép. Gỡ xuất bản thì gỡ luôn khỏi hosted.
 
 | | |

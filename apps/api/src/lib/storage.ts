@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { loadEnv } from "@audio/config";
 
@@ -54,4 +54,27 @@ export function safeFileName(name: string): string {
     .slice(0, 60);
 
   return `${base || "track"}${ext ? `.${ext}` : ""}`;
+}
+
+/**
+ * Xoá file trong kho theo KHOÁ. Không có file thì coi như xong.
+ *
+ * Bỏ qua mọi thứ không phải khoá local: `http(s)://` là ảnh bìa người dùng dán
+ * vào, và với `STORAGE_DRIVER=r2` thì file không nằm trên đĩa này. Không có
+ * chốt đó thì dọn dẹp sẽ ném lỗi giữa chừng và để lại một nửa đã xoá.
+ *
+ * Trả về true nếu thật sự có xoá gì đó — để chỗ gọi đếm và báo lại cho người dùng.
+ */
+export async function removeLocal(key: string): Promise<boolean> {
+  if (!key || /^[a-z]+:\/\//i.test(key)) return false;
+  if (loadEnv().STORAGE_DRIVER !== "local") return false;
+
+  const root = storageRoot();
+  const path = join(root, key);
+  // Cùng chốt chặn với `putLocal`: khoá tới từ DB, và một khoá hỏng không được
+  // phép xoá thứ nằm ngoài kho.
+  if (path !== root && !path.startsWith(root + "/")) return false;
+
+  await rm(path, { force: true });
+  return true;
 }

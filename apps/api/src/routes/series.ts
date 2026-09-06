@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { BatchStatus, prisma } from "@audio/database";
+import { BatchStatus, JobStatus, prisma } from "@audio/database";
 import {
   checkTags,
   isLanguage,
@@ -18,7 +18,7 @@ import { checkCover, ffprobe } from "@audio/audio";
 import { loadEnv } from "@audio/config";
 import { getDefaultLanguage } from "@audio/llm";
 import { enqueue } from "../lib/queue";
-import { putLocal, safeFileName, storageRoot } from "../lib/storage";
+import { putLocal, removeLocal, safeFileName, storageRoot } from "../lib/storage";
 import { field, splitLines, UserError } from "../lib/http";
 
 export const series = new Hono();
@@ -374,6 +374,86 @@ series.put("/:id/cover", async (c) => {
     warnings: check.warnings,
     width: probe?.width,
     height: probe?.height,
+  });
+});
+
+/**
+ * Xoá cả bộ truyện.
+ *
+ * Không hỏi lại ở API — Studio đã bắt xác nhận. Nhưng CHẶN hai tình huống mà
+ * xoá xong sẽ để lại rác không dọn được bằng tay:
+ *
+ *  1. Còn job trong hàng đợi. Hàng trong DB bị cascade xoá, còn job trong Redis
+ *     vẫn chạy rồi chết vì không tra ra tập — và lỗi đó chẳng nói gì về việc bộ
+ *     truyện vừa bị xoá.
+ *  2. Còn tập đang xuất bản. DB local xoá sạch nhưng DB hosted giữ nguyên, và
+ *     từ lúc đó không còn đường nào gỡ chúng xuống nữa.
+ *
+ * Cascade của Prisma lo phần DB (tập, cảnh, block, nhân vật, sự kiện, bản
+ * xuất…). Phần FILE thì phải tự dọn: audio của block dùng chung theo `cacheKey`
+ * nên chỉ xoá file khi không còn block nào khác trỏ tới.
+ */
+series.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const s = await prisma.series.findUniqueOrThrow({
+    where: { id },
+    select: { id: true, title: true, coverUrl: true },
+  });
+
+  const running = await prisma.renderJob.count({
+    where: {
+      episode: { seriesId: id },
+      status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
+    },
+  });
+  if (running > 0) {
+    throw new UserError(
+      `${running} job đang chạy hoặc đang chờ cho bộ này. Đợi xong (hoặc dừng lượt chạy hàng loạt) rồi xoá.`,
+    );
+  }
+
+  const published = await prisma.episode.count({
+    where: { seriesId: id, publishedAt: { not: null } },
+  });
+  if (published > 0) {
+    throw new UserError(
+      `${published} tập đang xuất bản. Gỡ xuất bản trước — xoá thẳng ở đây thì bản trên DB hosted không còn đường nào gỡ xuống.`,
+    );
+  }
+
+  // Gom khoá file TRƯỚC khi xoá hàng: xoá xong là không tra lại được nữa.
+  const [blocks, exports] = await Promise.all([
+    prisma.block.findMany({
+      where: { episode: { seriesId: id }, audioAssetId: { not: null } },
+      select: { audioAssetId: true },
+    }),
+    prisma.export.findMany({ where: { episode: { seriesId: id } }, select: { url: true } }),
+  ]);
+  const assetIds = [...new Set(blocks.map((b) => b.audioAssetId!))];
+
+  await prisma.series.delete({ where: { id } });
+
+  // Audio của block dùng chung theo `cacheKey` — hai tập đọc cùng một câu bằng
+  // cùng một giọng thì dùng chung một file. Đếm lại từ Block CÒN LẠI thay vì
+  // trừ dần `refCount`: cột đó xưa nay chỉ được cộng, chưa từng được trừ, nên
+  // tin vào nó là xoá nhầm file tập khác đang dùng.
+  let filesRemoved = 0;
+  for (const assetId of assetIds) {
+    const stillUsed = await prisma.block.count({ where: { audioAssetId: assetId } });
+    if (stillUsed > 0) {
+      await prisma.audioAsset.update({ where: { id: assetId }, data: { refCount: stillUsed } });
+      continue;
+    }
+    const asset = await prisma.audioAsset.delete({ where: { id: assetId } });
+    if (await removeLocal(asset.url)) filesRemoved++;
+  }
+
+  // Bản xuất và ảnh bìa chỉ thuộc về bộ này, xoá thẳng.
+  for (const e of exports) if (await removeLocal(e.url)) filesRemoved++;
+  if (s.coverUrl && (await removeLocal(s.coverUrl))) filesRemoved++;
+
+  return c.json({
+    ok: `Đã xoá "${s.title}"${filesRemoved > 0 ? ` và ${filesRemoved} file audio/ảnh` : ""}.`,
   });
 });
 

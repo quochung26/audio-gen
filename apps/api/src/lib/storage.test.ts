@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { safeFileName } from "./storage";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { resetEnvCache } from "@audio/config";
+import { removeLocal, safeFileName, storageRoot } from "./storage";
 
 describe("safeFileName", () => {
   it("bỏ dấu tiếng Việt, giữ đuôi file", () => {
@@ -32,5 +33,41 @@ describe("safeFileName", () => {
 
   it("tên không có đuôi thì không bịa ra đuôi", () => {
     expect(safeFileName("nhac nen")).toBe("nhac-nen");
+  });
+});
+
+describe("removeLocal", () => {
+  // `removeLocal` đọc `STORAGE_DRIVER` và `STORAGE_LOCAL_DIR`, mà `loadEnv`
+  // kiểm cả file .env đầy đủ. Test chạy không có DB nên phải điền tối thiểu.
+  beforeAll(() => {
+    resetEnvCache();
+    process.env.DATABASE_URL ??= "postgresql://x/x";
+    process.env.REDIS_URL ??= "redis://x";
+  });
+  afterAll(() => resetEnvCache());
+
+  it("bỏ qua URL ngoài — ảnh bìa dán vào không nằm trên đĩa này", async () => {
+    expect(await removeLocal("https://example.com/cover.jpg")).toBe(false);
+    expect(await removeLocal("http://example.com/a.mp3")).toBe(false);
+  });
+
+  it("khoá rỗng thì không làm gì", async () => {
+    expect(await removeLocal("")).toBe(false);
+  });
+
+  it("KHÔNG xoá thứ nằm ngoài kho", async () => {
+    // Khoá tới từ DB. Một khoá hỏng — hoặc sửa tay — không được phép với ra
+    // ngoài thư mục kho.
+    expect(await removeLocal("../../../etc/passwd")).toBe(false);
+    expect(await removeLocal("../secrets.env")).toBe(false);
+  });
+
+  it("file không tồn tại thì coi như xong, không ném", async () => {
+    // Dọn dẹp chạy sau khi đã xoá hàng trong DB. Ném ở giữa là để lại một nửa.
+    await expect(removeLocal("series/khong-co-that/blocks/x.wav")).resolves.toBe(true);
+  });
+
+  it("gốc kho nằm trong cây dự án", () => {
+    expect(storageRoot()).toMatch(/worker/);
   });
 });

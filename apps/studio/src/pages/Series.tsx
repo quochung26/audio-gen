@@ -355,6 +355,25 @@ export function Series() {
           ))}
         </div>
       </Section>
+
+      {/* Cuối trang, không phải cạnh nút chạy: xoá cả bộ là việc hiếm và không
+          hoàn tác được, đặt nó gần nút bấm hằng ngày là mời bấm nhầm. */}
+      <Section title="Vùng nguy hiểm">
+        <div className="flex flex-wrap items-center gap-3 rounded border border-red-950 bg-red-950/20 p-4">
+          <ActionButton
+            path={`/api/series/${s.id}`}
+            method="DELETE"
+            confirmText={`Xoá "${s.title}" cùng ${s.episodes.length} tập, toàn bộ bản thảo, nhân vật và audio đã dựng? Không hoàn tác được.`}
+            onDone={() => nav("/series")}
+          >
+            Xoá cả bộ truyện
+          </ActionButton>
+          <span className="text-xs text-neutral-500">
+            Xoá luôn tập, cảnh, nhân vật, sự kiện và file audio chỉ bộ này dùng. Tập đang xuất bản
+            thì phải gỡ xuất bản trước.
+          </span>
+        </div>
+      </Section>
     </div>
   );
 }
