@@ -64,6 +64,15 @@ async function seedPrompts() {
  * Giọng thật thêm ở Phase 3 bằng scripts/seed-voices.
  */
 /**
+ * Ghi đè nội dung đã có trong DB thay vì chỉ tạo cái còn thiếu.
+ *
+ * Có để những thứ seed mang theo — mô tả thể loại chẳng hạn — cập nhật được ở
+ * máy đã cài từ trước. Không có nó thì bản mô tả mới chỉ tới được DB mới toanh,
+ * còn máy đang dùng thì mãi giữ bản đầu tiên.
+ */
+const OVERWRITE = process.env.SEED_OVERWRITE === "1";
+
+/**
  * Thể loại khởi đầu.
  *
  * Mô tả viết như CHỈ DẪN cho model, không phải định nghĩa từ điển: nó được nhét
@@ -104,16 +113,35 @@ async function seedGenres() {
     },
   ];
 
+  const before = await prisma.genre.findMany({ select: { name: true } });
+  const have = new Set(before.map((g) => g.name));
+
   for (const g of genres) {
     await prisma.genre.upsert({
       where: { name: g.name },
-      // Không ghi đè mô tả đã sửa tay: đây là thứ người viết chỉnh theo giọng
-      // của mình, chạy lại seed mà mất là rất khó chịu.
-      update: {},
+      // Mặc định KHÔNG ghi đè mô tả đã có: đây là thứ người viết chỉnh theo
+      // giọng của mình, chạy lại seed mà mất là rất khó chịu. Chỉ ghi đè khi
+      // được bảo thẳng — xem OVERWRITE.
+      //
+      // `enabled` không đụng tới kể cả khi ghi đè: thể loại đã ẩn đi mà seed
+      // bật lại thì nó hiện lại ở ô chọn, và chẳng ai hiểu vì sao.
+      update: OVERWRITE ? { description: g.description } : {},
       create: g,
     });
   }
-  console.log(`✔ ${genres.length} thể loại`);
+
+  // Nói rõ đã làm gì. Bản trước luôn in "✔ 5 thể loại" kể cả khi không đụng
+  // hàng nào — chạy lại để lấy mô tả mới mà tưởng là xong.
+  const created = genres.filter((g) => !have.has(g.name)).length;
+  const kept = genres.length - created;
+  console.log(
+    `✔ thể loại: ${created} mới` +
+      (kept > 0
+        ? OVERWRITE
+          ? `, ${kept} ghi đè mô tả`
+          : `, ${kept} giữ nguyên (SEED_OVERWRITE=1 để nạp mô tả mới)`
+        : ""),
+  );
 }
 
 async function seedVoices() {

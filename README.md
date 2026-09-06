@@ -90,6 +90,8 @@ Vài chỗ chặn:
 
 Trang cũng nêu thể loại đang có truyện dùng nhưng **chưa có trong danh mục** (gõ tay ở ô thể loại phụ, hoặc dữ liệu cũ): model không được dặn gì về chúng.
 
+**`pnpm db:seed` không ghi đè mô tả đã có** — nó chỉ tạo thể loại còn thiếu, để lần chạy sau không xoá mất câu bạn vừa chỉnh. Muốn nạp lại bản mô tả mặc định mới thì `SEED_OVERWRITE=1 pnpm db:seed`; nó ghi đè `description` và **không** đụng `enabled`, nên thể loại đang ẩn vẫn ẩn.
+
 `Genre` là bảng chỉ-ở-máy, không đồng bộ sang Player.
 
 ### Thẻ nhân vật
