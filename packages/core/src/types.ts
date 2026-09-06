@@ -31,7 +31,9 @@ export const characterSchema = z.object({
   voiceHint: z
     .string()
     .describe("Casting hint for the voice: gender, age, vocal quality. E.g. middle-aged man, hoarse voice"),
-  isNarrator: z.boolean().describe("Whether this character is the narrator"),
+  // KHÔNG hỏi model ai là người dẫn truyện: đó là ô casting cho khâu audio —
+  // chọn giọng nào đọc phần dẫn — và khâu đó có thể không bao giờ chạy. Người
+  // viết đặt ở trang Nhân vật khi nào cần dựng audio.
 });
 
 export const episodePlanSchema = z.object({

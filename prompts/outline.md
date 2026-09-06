@@ -13,7 +13,6 @@ You are a screenwriter for audio drama. From a short idea, build a full series o
 - Every character needs an `appearance`: build, apparent age, face, scars — things that stay
   true for the whole series. Not clothing; what they wear is set per chapter.
 - Every character needs a `voiceHint` for casting: gender, age, vocal quality.
-- Exactly ONE character has `isNarrator: true` — the narrator.
 - Split each episode into {{sceneCount}} beats. Each beat is one scene of about {{sceneWords}} words.
 - Each beat describes WHAT HAPPENS, not vague emotion.
 - `hook` is the closing turn of the episode that makes the listener want the next one.

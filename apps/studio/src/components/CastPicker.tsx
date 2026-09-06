@@ -212,14 +212,19 @@ export function CastPicker() {
                 className={input}
               />
 
+              {/* Bấm lại để bỏ chọn: không ai đọc phần dẫn là chuyện bình
+                  thường, phần dẫn khi đó dùng giọng mặc định của bộ. Radio
+                  thường không bỏ chọn được, nên bắt click thay vì change. */}
               <label className="flex items-center gap-2 text-xs text-neutral-400">
                 <input
                   type="radio"
                   name="castNarrator"
                   checked={r.isNarrator}
-                  onChange={() => edit(r.key, { isNarrator: true })}
+                  onChange={() => {}}
+                  onClick={() => edit(r.key, { isNarrator: !r.isNarrator })}
                 />
-                Người dẫn truyện
+                Đọc phần dẫn truyện
+                <span className="text-neutral-600">— tuỳ chọn, bấm lại để bỏ</span>
               </label>
             </div>
           ))}

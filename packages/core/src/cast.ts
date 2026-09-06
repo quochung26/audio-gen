@@ -72,7 +72,7 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
   ];
 
   for (const c of people) {
-    parts.push(`- ${c.name}${c.isNarrator ? " (the narrator)" : ""}${c.role ? ` — ${c.role}` : ""}`);
+    parts.push(`- ${c.name}${c.role ? ` — ${c.role}` : ""}`);
     if (c.description) parts.push(`  ${c.description}`);
     if (c.speech) parts.push(`  Speech: ${c.speech}`);
     if (c.appearance) parts.push(`  Appearance: ${c.appearance}`);
@@ -83,9 +83,6 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
   parts.push(
     "",
     "Return every character above in `characters`, with these exact names.",
-    people.some((c) => c.isNarrator)
-      ? "The narrator is already chosen above — that character, and only that one, gets `isNarrator: true`."
-      : "None of them is the narrator yet, so pick one of them or add one, and give exactly that character `isNarrator: true`.",
     "You may add more characters if the story needs them.",
   );
 
@@ -102,9 +99,15 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
  *
  * Nhân vật model tự thêm được giữ lại: dàn chọn trước là sàn, không phải trần.
  *
- * Kết quả LUÔN có đúng một người dẫn: không ai được đánh dấu thì người đầu tiên
- * nhận vai. Bộ không có người dẫn thì bước biên tập audio không tra ra ai cho
- * các block dẫn truyện, và cả tập rơi về giọng mặc định mà không báo gì.
+ * KHÔNG tự gán người dẫn truyện. Người dẫn là một ô casting cho khâu audio —
+ * chọn giọng nào đọc phần dẫn — chứ không phải một quyết định của khâu dàn ý,
+ * mà khâu audio thì có thể không bao giờ chạy. Không ai được đánh dấu thì
+ * không ai là người dẫn, và phần dẫn truyện đọc bằng giọng mặc định của bộ.
+ *
+ * Bản trước gán bừa người đầu tiên. Người đầu tiên là ai thì tuỳ thứ tự model
+ * trả về, nên cả bộ có thể được dẫn bằng giọng nữ trẻ mà chẳng ai quyết điều
+ * đó. Văn lại là ngôi thứ ba, nên gọi một nhân vật là "người dẫn" còn đẩy model
+ * sang kiểu người đó kể chuyện.
  */
 export function mergeCast(
   chosen: readonly CastMember[],
@@ -112,12 +115,6 @@ export function mergeCast(
 ): CastMember[] {
   const extra = normalizeCast(generated);
   const byName = new Map(extra.map((c) => [c.name.toLowerCase(), c]));
-
-  // Người viết đã chỉ định người dẫn thì model không được chỉ định lại. Không
-  // chốt chỗ này thì model gán cờ cho một người khác trong dàn, và vì hàm khử
-  // trùng giữ người ĐẦU TIÊN, người thắng lại phụ thuộc thứ tự — im lặng và
-  // đổi giữa các lần chạy.
-  const hasNarrator = chosen.some((c) => c.isNarrator);
 
   const filled = chosen.map((c) => {
     const g = byName.get((c.name ?? "").trim().toLowerCase());
@@ -129,13 +126,10 @@ export function mergeCast(
       outfit: c.outfit?.trim() || g.outfit,
       appearance: c.appearance?.trim() || g.appearance,
       voiceHint: c.voiceHint?.trim() || g.voiceHint,
-      isNarrator: c.isNarrator || (!hasNarrator && Boolean(g.isNarrator)),
     };
   });
 
-  const merged = normalizeCast([...filled, ...extra]);
-  if (merged.length > 0 && !merged.some((c) => c.isNarrator)) merged[0]!.isNarrator = true;
-  return merged;
+  return normalizeCast([...filled, ...extra]);
 }
 
 /**

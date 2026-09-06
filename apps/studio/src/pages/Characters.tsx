@@ -64,9 +64,11 @@ export function Characters() {
       </div>
 
       {narrators.length === 0 && characters.length > 0 && (
-        <p className="rounded border border-amber-900 bg-amber-950/40 p-3 text-sm text-amber-200">
-          Chưa có người dẫn truyện. Bước biên tập audio sẽ không gán được lời dẫn cho ai — đánh dấu
-          một nhân vật là người dẫn truyện.
+        <p className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
+          Chưa chọn ai đọc phần dẫn truyện — phần dẫn sẽ đọc bằng{" "}
+          <strong className="text-neutral-200">giọng mặc định của bộ</strong>. Đây là lựa chọn của
+          khâu audio, không bắt buộc: đánh dấu một nhân vật nếu bạn muốn phần dẫn mang đúng giọng
+          của người đó.
         </p>
       )}
 

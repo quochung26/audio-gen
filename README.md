@@ -164,7 +164,11 @@ Ba lối vào:
 
 Chọn dàn trước thì prompt dàn ý nhận thêm khối `{{cast}}` (`renderCastForOutline`), song song với `{{world}}`: AI **phải** dùng đúng những người đó, đúng tên, và được thêm người mới nếu truyện cần. Người viết gõ gì thì thắng cái đó; ô nào để trống mới lấy phần model gợi ý — chọn một thẻ mới có mỗi cái tên vẫn ra nhân vật dùng được.
 
-Đúng **một** người dẫn truyện, luôn luôn: người viết chỉ định thì model không được đổi, không ai được đánh dấu thì người đầu tiên nhận vai. Bộ không có người dẫn thì bước biên tập audio không tra ra ai cho các block dẫn truyện, và cả tập rơi về giọng mặc định mà không báo gì.
+**Người dẫn truyện là lựa chọn của khâu AUDIO, không phải khâu dàn ý.** Nó là một ô casting — chọn giọng nào đọc các block dẫn truyện — và khâu audio thì có thể không bao giờ chạy. Nên dàn ý không hỏi model ai là người dẫn, và hệ thống **không tự gán** ai cả.
+
+Không chọn ai là chuyện bình thường: phần dẫn đọc bằng **giọng mặc định của bộ** (`Series.defaultVoiceId`), audio vẫn dựng đúng. Chọn khi bạn muốn phần dẫn mang đúng giọng của một nhân vật, ở trang Nhân vật hoặc ngay lúc chọn dàn.
+
+Bản trước gán bừa người đầu tiên khi không ai được đánh dấu. Hai chỗ hỏng: người đầu tiên là ai thì tuỳ thứ tự model trả về, nên cả bộ có thể được dẫn bằng giọng nữ trẻ mà chẳng ai quyết điều đó; và văn là **ngôi thứ ba**, nên nói với model rằng một nhân vật là "người dẫn" đẩy nó sang kiểu người đó kể chuyện. Nhiều nhất vẫn là một người — người viết đánh dấu người thứ hai thì người cũ bị gỡ cờ.
 
 Xoá thẻ **không** bị chặn dù có bộ đang dùng — `Character` đã mang bản sao đầy đủ. Khác `Genre`: xoá thể loại là các bộ mất phần mô tả trong Bible, nên chỗ đó phải chặn.
 

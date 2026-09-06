@@ -101,7 +101,8 @@ export function renderBible(input: {
     speech?: string | null;
     outfit?: string | null;
     appearance?: string | null;
-    isNarrator: boolean;
+    /** Chưa chọn ai đọc phần dẫn thì bỏ trống — Bible không in gì cả. */
+    isNarrator?: boolean;
   }>;
   episodes?: Array<{ number: number; title: string; beats: string[] }>;
   /**

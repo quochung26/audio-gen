@@ -69,15 +69,11 @@ describe("renderCastForOutline", () => {
     expect(renderCastForOutline([tai])).toMatch(/Do not rename/i);
   });
 
-  it("đã có người dẫn thì chốt luôn, không mời model chọn lại", () => {
-    const out = renderCastForOutline([tai]);
-    expect(out).toContain("(the narrator)");
-    expect(out).toMatch(/only that one/i);
-  });
-
-  it("chưa ai làm người dẫn thì bảo model chọn một", () => {
-    const out = renderCastForOutline([{ name: "Tài" }]);
-    expect(out).toMatch(/pick one of them or add one/i);
+  it("KHÔNG nhắc gì tới người dẫn truyện", () => {
+    // Ai đọc phần dẫn là việc của khâu audio, mà khâu đó có thể không bao giờ
+    // chạy. Nói với model rằng một nhân vật là "người dẫn" còn đẩy nó sang kiểu
+    // người đó kể chuyện, trong khi write-scene bảo viết ngôi thứ ba.
+    expect(renderCastForOutline([tai])).not.toMatch(/narrator/i);
   });
 
   it("vẫn cho thêm nhân vật mới — dàn chọn trước là sàn, không phải trần", () => {
@@ -113,8 +109,10 @@ describe("mergeCast", () => {
     expect(mergeCast([{ name: "Tài", cardId: "card_1" }], generated)[0]!.cardId).toBe("card_1");
   });
 
-  it("chưa chỉ định người dẫn thì nhận theo model", () => {
-    expect(mergeCast([{ name: "Tài" }], generated)[0]!.isNarrator).toBe(true);
+  it("model đánh dấu người dẫn thì KHÔNG được nhận", () => {
+    // Dàn ý không còn quyết ai đọc phần dẫn. Dữ liệu cũ hoặc model bướng vẫn
+    // có thể trả về cờ đó, và nó phải bị bỏ qua.
+    expect(mergeCast([{ name: "Tài" }], generated)[0]!.isNarrator).toBe(false);
   });
 
   it("người viết đã chỉ định người dẫn thì model KHÔNG được đổi", () => {
@@ -128,12 +126,17 @@ describe("mergeCast", () => {
     expect(out.filter((c) => c.isNarrator)).toHaveLength(1);
   });
 
-  it("KHÔNG ai làm người dẫn thì người đầu tiên nhận vai", () => {
-    // Bộ không có người dẫn thì bước biên tập audio không tra ra ai cho block
-    // dẫn truyện, và cả tập rơi về giọng mặc định mà không báo gì.
+  it("KHÔNG tự gán người dẫn khi không ai được chọn", () => {
+    // Người dẫn là ô casting của khâu audio. Gán bừa người đầu tiên thì cả bộ
+    // có thể được dẫn bằng giọng nữ trẻ mà chẳng ai quyết điều đó — thứ tự phụ
+    // thuộc model trả về cái gì trước.
     const out = mergeCast([], [{ name: "Tài" }, { name: "Hạnh" }]);
-    expect(out[0]!.isNarrator).toBe(true);
-    expect(out.filter((c) => c.isNarrator)).toHaveLength(1);
+    expect(out.some((c) => c.isNarrator)).toBe(false);
+  });
+
+  it("người viết chọn thì vẫn giữ đúng một người", () => {
+    const out = mergeCast([{ name: "Tài", isNarrator: true }], [{ name: "Hạnh" }]);
+    expect(out.filter((c) => c.isNarrator).map((c) => c.name)).toEqual(["Tài"]);
   });
 
   it("dàn rỗng hoàn toàn thì trả về rỗng, không ném", () => {
