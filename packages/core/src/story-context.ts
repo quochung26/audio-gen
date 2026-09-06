@@ -17,7 +17,7 @@ export interface SeriesBibleInput {
    * Bible lặng lẽ thiếu mất phần định hướng, văn đổi đi ở lượt viết sau mà
    * không có gì báo. Đã mất một lần vì `tags` như thế rồi.
    */
-  genreNotes: Array<{ name: string; description: string }>;
+  genreNotes: Array<{ name: string; promptName?: string; description: string }>;
   characters: Array<{
     name: string;
     role?: string | null;
@@ -41,10 +41,7 @@ export interface SeriesBibleInput {
  * Thêm một trường vào Bible thì phải nhớ sửa cả hai, mà quên một chỗ thì không
  * có gì báo: Bible vẫn dựng được, chỉ là thiếu mất một phần định hướng.
  */
-function sortGenreNotes(
-  main: string,
-  notes: Array<{ name: string; description: string }>,
-): Array<{ name: string; description: string }> {
+function sortGenreNotes<T extends { name: string }>(main: string, notes: T[]): T[] {
   const key = main.trim().toLowerCase();
   return [...notes].sort((a, b) => {
     const am = a.name.trim().toLowerCase() === key ? 0 : 1;

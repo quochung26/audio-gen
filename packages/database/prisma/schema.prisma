@@ -104,8 +104,20 @@ enum ExportType {
 model Genre {
   id   String @id @default(cuid())
   /// Đúng chuỗi nằm ở `Series.genre` và trong `Series.tags`.
+  ///
+  /// Vừa là KHOÁ tra cứu, vừa là NHÃN người nghe nhìn thấy: trang chủ Player
+  /// lọc theo nó, trang bộ truyện in nó, và nó vào `itunes:keywords` của feed
+  /// RSS. Nên nó giữ tiếng của người nghe, không đổi sang tiếng Anh.
   name String @unique
 
+  /// Tên đưa cho MODEL đọc, thay cho `name`. Rỗng thì dùng luôn `name`.
+  ///
+  /// Tách ra vì hai việc kéo hai hướng: `kinh dị` là thứ người nghe tìm, còn
+  /// `horror` là thứ model 7–14B có liên tưởng dày hơn hẳn — nó thấy nhãn đó
+  /// hàng triệu lần lúc huấn luyện. Gộp một ô thì phải hy sinh một bên.
+  promptName String @default("")
+
+  /// Nghĩa của thể loại, viết như CHỈ DẪN cho model. Xem seed.ts.
   description String
 
   /// Tắt thì không hiện ở ô chọn nữa, nhưng bộ đang dùng vẫn giữ nguyên.

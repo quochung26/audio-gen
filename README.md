@@ -79,6 +79,10 @@ Tiếng Anh vì mô tả là **chỉ dẫn**, không phải nội dung: nó nằ
 
 **TÊN** thể loại thì gõ tiếng gì cũng được và nên giữ nguyên: đó là khoá tra cứu (`Series.genre`) và là khoá chọn biến thể prompt, nên đổi tên là các bộ đang dùng tên cũ lặng lẽ mất phần mô tả trong Bible.
 
+**Tên hiển thị và tên cho model tách làm hai ô.** Cùng một thể loại kéo hai hướng: `kinh dị` là thứ **người nghe** nhìn thấy — trang chủ Player lọc theo nó, trang bộ truyện in nó, và nó vào `itunes:keywords` của feed RSS; còn `horror` là thứ **model** có liên tưởng dày hơn hẳn, vì nó gặp nhãn đó hàng triệu lần lúc huấn luyện. Gộp một ô thì phải hy sinh một bên.
+
+`Genre.name` giữ nhãn người nghe và vẫn là khoá tra cứu (`Series.genre`, `Series.tags`, `Prompt.genre` không đổi gì). `Genre.promptName` là tên thay vào **mọi chỗ model đọc**: dòng `Genre:` và `Sub-genres:` trong Story Bible, tiêu đề mỗi mô tả, và hai dòng `Main genre:` / `Sub-genres:` trong prompt dàn ý. Bỏ trống thì model đọc luôn `name` — thể loại gõ tay không có trong danh mục vẫn chạy như cũ.
+
 Thể loại **chính đứng đầu** danh sách mô tả, vì model đọc tuần tự — truy vấn DB trả về thứ tự tuỳ ý nên phải sắp lại.
 
 Vài chỗ chặn:

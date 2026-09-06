@@ -32,12 +32,21 @@ genres.get("/", async (c) => {
   });
 });
 
-function readInput(body: Record<string, unknown>): { name: string; description: string } {
+function readInput(body: Record<string, unknown>): {
+  name: string;
+  promptName: string;
+  description: string;
+} {
   const name = field(body, "name").trim().replace(/\s+/g, " ");
+  // Rỗng là hợp lệ: không đặt thì model đọc luôn `name`.
+  const promptName = field(body, "promptName").trim().replace(/\s+/g, " ");
   const description = field(body, "description").trim();
 
   if (!name) throw new UserError("Thiếu tên thể loại");
   if (name.length > MAX_NAME) throw new UserError(`Tên thể loại tối đa ${MAX_NAME} ký tự`);
+  if (promptName.length > MAX_NAME) {
+    throw new UserError(`Tên cho model tối đa ${MAX_NAME} ký tự`);
+  }
   if (!description) {
     // Mô tả rỗng thì bản ghi này chẳng làm gì cả — thể loại vốn đã dùng được
     // mà không cần có mặt trong danh mục.
@@ -46,7 +55,7 @@ function readInput(body: Record<string, unknown>): { name: string; description: 
   if (description.length > MAX_DESCRIPTION) {
     throw new UserError(`Mô tả tối đa ${MAX_DESCRIPTION} ký tự — nó nằm trong mọi lần gọi model.`);
   }
-  return { name, description };
+  return { name, promptName, description };
 }
 
 genres.post("/", async (c) => {

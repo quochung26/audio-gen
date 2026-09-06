@@ -153,7 +153,7 @@ async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Pro
   // hiểu "kinh dị" theo nghĩa người viết định.
   const genreNotes = await prisma.genre.findMany({
     where: { name: { in: [series.genre, ...series.tags] } },
-    select: { name: true, description: true },
+    select: { name: true, promptName: true, description: true },
   });
 
   return seriesBible({

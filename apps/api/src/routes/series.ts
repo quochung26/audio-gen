@@ -309,7 +309,7 @@ series.put("/:id/world", async (c) => {
           tags: s.tags,
           genreNotes: await prisma.genre.findMany({
             where: { name: { in: [s.genre, ...s.tags] } },
-            select: { name: true, description: true },
+            select: { name: true, promptName: true, description: true },
           }),
           description: s.description,
           world,

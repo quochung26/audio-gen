@@ -84,8 +84,14 @@ export function renderBible(input: {
   genre: string;
   /** Thể loại phụ — "tình cảm", "hành động"… Xem packages/core/src/tags.ts. */
   tags?: string[];
-  /** Mô tả từng thể loại, để model hiểu chúng theo nghĩa người viết định. */
-  genreNotes?: Array<{ name: string; description: string }>;
+  /**
+   * Mô tả từng thể loại, để model hiểu chúng theo nghĩa người viết định.
+   *
+   * `promptName` là tên đưa cho model đọc thay cho `name` — `name` là nhãn
+   * người nghe nhìn thấy, `promptName` là nhãn model có liên tưởng dày hơn.
+   * Rỗng thì dùng luôn `name`.
+   */
+  genreNotes?: Array<{ name: string; promptName?: string; description: string }>;
   logline?: string;
   world: WorldSetup;
   characters: Array<{
@@ -106,10 +112,20 @@ export function renderBible(input: {
    */
   spotlight?: string[];
 }): string {
-  const parts: string[] = [`# ${input.title}`, ``, `Genre: ${input.genre}`];
+  // Tên dành cho model, tra theo nhãn hiển thị. Không có thẻ thể loại nào khớp
+  // thì giữ nguyên thứ người viết gõ — thể loại dùng được mà không cần có trong
+  // danh mục, và bỏ nó đi thì dòng thể loại trống trơn.
+  const forModel = new Map(
+    (input.genreNotes ?? [])
+      .filter((g) => g.promptName?.trim())
+      .map((g) => [g.name.trim().toLowerCase(), g.promptName!.trim()]),
+  );
+  const modelName = (label: string) => forModel.get(label.trim().toLowerCase()) ?? label;
+
+  const parts: string[] = [`# ${input.title}`, ``, `Genre: ${modelName(input.genre)}`];
 
   // Ngay dưới thể loại: đây là thứ lái giọng văn, phải nằm chỗ model đọc trước.
-  const tagLine = renderTags(input.tags ?? []);
+  const tagLine = renderTags((input.tags ?? []).map(modelName));
   if (tagLine) parts.push(tagLine);
 
   if (input.logline) parts.push(`Logline: ${input.logline}`);
@@ -121,7 +137,7 @@ export function renderBible(input: {
     parts.push(
       ``,
       `## What these genres mean here`,
-      ...notes.map((g) => `- **${g.name}**: ${g.description.trim()}`),
+      ...notes.map((g) => `- **${modelName(g.name)}**: ${g.description.trim()}`),
     );
   }
 

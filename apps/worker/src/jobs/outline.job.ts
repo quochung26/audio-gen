@@ -62,6 +62,18 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   // thêm một lượt gọi model làm hỏng văn mà chẳng được gì.
   const draft = planDraft(language, job.data.draftLanguage);
 
+  // Tên thể loại dành cho model. `Series.genre` giữ nhãn tiếng Việt vì người
+  // nghe nhìn thấy nó ở trang chủ và trong từ khoá RSS; chỉ bản đưa vào prompt
+  // mới đổi. Xem Genre.promptName.
+  const known = await prisma.genre.findMany({
+    where: { name: { in: [genre, ...tags] } },
+    select: { name: true, promptName: true },
+  });
+  const forModel = new Map(
+    known.filter((g) => g.promptName.trim()).map((g) => [g.name.toLowerCase(), g.promptName.trim()]),
+  );
+  const modelName = (label: string) => forModel.get(label.trim().toLowerCase()) ?? label;
+
   const sceneCount = suggestSceneCount(EPISODE_TARGET_WORDS);
   const prompt = await loadPrompt("OUTLINE", genre);
   const params = prompt.params;
@@ -87,11 +99,11 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       schema: outlineSchema,
       prompt: renderTemplate(prompt.content, {
         idea,
-        genre,
+        genre: modelName(genre),
         episodeCount,
         sceneCount,
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
-        tags: tags.length > 0 ? tags.join(", ") : "(none)",
+        tags: tags.length > 0 ? tags.map(modelName).join(", ") : "(none)",
         world: renderWorldForOutline(world),
         cast: renderCastForOutline(cast),
       }),

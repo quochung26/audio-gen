@@ -5,6 +5,7 @@ import { ActionButton, Form, Loading } from "@/components/Form";
 interface G {
   id: string;
   name: string;
+  promptName: string;
   description: string;
   enabled: boolean;
   /** Bao nhiêu bộ đang dùng, tính cả làm thể loại chính lẫn phụ. */
@@ -34,14 +35,33 @@ export function Genres() {
 
       <Section title="Thêm thể loại">
         <Form path="/api/genres" submit="Thêm" resetOnSuccess className="space-y-3 rounded border border-neutral-800 p-4">
-          <label className="block">
-            <span className="mb-1 block text-xs text-neutral-500">Tên</span>
-            <input
-              name="name"
-              placeholder="kiếm hiệp"
-              className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
-            />
-          </label>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex-1">
+              <span className="mb-1 block text-xs text-neutral-500">Tên — người nghe nhìn thấy</span>
+              <input
+                name="name"
+                placeholder="kiếm hiệp"
+                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-600">
+                Hiện ở trang nghe và trong từ khoá RSS — giữ tiếng của người nghe.
+              </span>
+            </label>
+            <label className="flex-1">
+              <span className="mb-1 block text-xs text-neutral-500">
+                Tên cho model <span className="text-neutral-600">— tuỳ chọn</span>
+              </span>
+              <input
+                name="promptName"
+                placeholder="wuxia"
+                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-600">
+                Bỏ trống thì model đọc luôn tên bên trái. Đặt tên tiếng Anh thì model 7–14B có
+                liên tưởng dày hơn hẳn.
+              </span>
+            </label>
+          </div>
           <label className="block">
             <span className="mb-1 block text-xs text-neutral-500">Mô tả — model sẽ đọc câu này</span>
             <textarea
@@ -53,7 +73,7 @@ export function Genres() {
             <span className="mt-1 block text-xs text-neutral-600">
               Viết <strong className="text-neutral-400">bằng tiếng Anh</strong>, như đang dặn
               người viết thuê: nói rõ cái gì nên và cái gì tránh. Câu này là chỉ dẫn cho model
-              và nằm cùng khối prompt tiếng Anh — tên thể loại thì gõ tiếng gì cũng được.
+              và nằm cùng khối prompt tiếng Anh, cạnh “tên cho model”.
             </span>
           </label>
         </Form>
@@ -89,7 +109,15 @@ export function Genres() {
                 <input
                   name="name"
                   defaultValue={g.name}
+                  title="Tên người nghe nhìn thấy"
                   className="rounded border border-neutral-700 bg-neutral-900 p-1.5 text-sm"
+                />
+                <input
+                  name="promptName"
+                  defaultValue={g.promptName}
+                  placeholder="tên cho model"
+                  title="Tên đưa cho model đọc. Bỏ trống thì dùng tên bên trái."
+                  className="rounded border border-neutral-800 bg-neutral-900 p-1.5 text-sm text-neutral-400"
                 />
                 {g.usedBy > 0 ? (
                   <Badge tone="green">{g.usedBy} bộ đang dùng</Badge>

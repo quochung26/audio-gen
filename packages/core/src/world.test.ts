@@ -135,6 +135,42 @@ describe("mô tả thể loại trong Bible", () => {
     expect(b).toContain("**tình cảm**");
   });
 
+  it("tên cho model thay nhãn hiển thị ở MỌI chỗ model đọc", () => {
+    // Nhãn `kinh dị` là thứ người nghe tìm; `horror` là thứ model 7–14B có
+    // liên tưởng dày hơn. Thiếu một chỗ là model gặp cả hai tên cho cùng một
+    // thể loại và tưởng là hai định hướng khác nhau.
+    const b = seriesBible({
+      ...base,
+      genre: "kinh dị",
+      tags: ["tình cảm"],
+      genreNotes: [
+        { name: "kinh dị", promptName: "horror", description: "Fear from the unexplained." },
+        { name: "tình cảm", promptName: "romance", description: "A relationship changing." },
+      ],
+    });
+    expect(b).toContain("Genre: horror");
+    expect(b).toContain("Sub-genres: romance");
+    expect(b).toContain("**horror**");
+    expect(b).not.toContain("kinh dị");
+    expect(b).not.toContain("tình cảm");
+  });
+
+  it("không đặt tên cho model thì giữ nguyên nhãn", () => {
+    const b = seriesBible({
+      ...base,
+      genre: "kiếm hiệp",
+      genreNotes: [{ name: "kiếm hiệp", description: "Võ và đạo nghĩa giang hồ." }],
+    });
+    expect(b).toContain("Genre: kiếm hiệp");
+  });
+
+  it("thể loại không có trong danh mục vẫn hiện, không bị bỏ trống", () => {
+    // Thể loại dùng được mà không cần có mặt trong danh mục — gõ tay ở ô thể
+    // loại phụ chẳng hạn.
+    const b = seriesBible({ ...base, genre: "ngôn tình", genreNotes: [] });
+    expect(b).toContain("Genre: ngôn tình");
+  });
+
   it("không có mô tả nào thì không sinh mục trống", () => {
     expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
     expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");

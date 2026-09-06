@@ -88,26 +88,31 @@ async function seedGenres() {
   const genres = [
     {
       name: "kinh dị",
+      promptName: "horror",
       description:
         "Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.",
     },
     {
       name: "tình cảm",
+      promptName: "romance",
       description:
         "The subject is a relationship between two people, and how it changes. Feeling shows through action and through silence, not through long interior monologue. Avoid sentimentality and dialogue that explains itself.",
     },
     {
       name: "trinh thám",
+      promptName: "detective fiction",
       description:
         "The listener must be given enough clues to work it out. Never withhold a fact just to reveal it at the last minute. Each episode closes one small question and opens a larger one.",
     },
     {
       name: "đời thường",
+      promptName: "slice of life",
       description:
         "Nothing dramatic happens. The weight sits in small detail and in what the characters do not say. Keep the tone level and let the listener see it for themselves.",
     },
     {
       name: "kỳ ảo",
+      promptName: "fantasy",
       description:
         "The supernatural must run on clear rules, and those rules must never be broken to get a character out of a corner. Show the rules through scenes, not through narration.",
     },
@@ -125,7 +130,7 @@ async function seedGenres() {
       //
       // `enabled` không đụng tới kể cả khi ghi đè: thể loại đã ẩn đi mà seed
       // bật lại thì nó hiện lại ở ô chọn, và chẳng ai hiểu vì sao.
-      update: OVERWRITE ? { description: g.description } : {},
+      update: OVERWRITE ? { description: g.description, promptName: g.promptName } : {},
       create: g,
     });
   }
