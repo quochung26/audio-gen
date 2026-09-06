@@ -140,3 +140,46 @@ describe("mô tả thể loại trong Bible", () => {
     expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
   });
 });
+
+describe("spotlight — chỉ tả đầy đủ người có mặt trong cảnh", () => {
+  const cast = [
+    { name: "Hùng", isNarrator: true, role: "tài xế", description: "lì", state: null },
+    { name: "Bảy", isNarrator: false, role: "gác bến", description: "hay cười", state: null },
+  ];
+  const base = {
+    title: "Đường về",
+    genre: "kinh dị",
+    tags: [],
+    description: null,
+    world: EMPTY_WORLD,
+    genreNotes: [],
+    characters: cast,
+  };
+
+  it("không đặt thì tả đầy đủ tất cả — hành vi cũ", () => {
+    const b = seriesBible(base);
+    expect(b).toContain("lì");
+    expect(b).toContain("hay cười");
+  });
+
+  it("đặt rồi thì người ngoài danh sách chỉ còn tên và vai", () => {
+    const b = seriesBible({ ...base, spotlight: ["Hùng"] });
+    expect(b).toContain("lì");
+    expect(b).not.toContain("hay cười");
+    // Vẫn phải thấy tên: model không được đẻ ra một người trùng tên.
+    expect(b).toContain("Bảy");
+    expect(b).toContain("gác bến");
+  });
+
+  it("nói rõ vì sao phần còn lại bị rút gọn", () => {
+    expect(seriesBible({ ...base, spotlight: ["Hùng"] })).toMatch(/Full detail is given only/i);
+  });
+
+  it("so tên không phân biệt hoa thường và khoảng trắng thừa", () => {
+    expect(seriesBible({ ...base, spotlight: [" hùng "] })).toContain("lì");
+  });
+
+  it("danh sách rỗng coi như không đặt", () => {
+    expect(seriesBible({ ...base, spotlight: [] })).toBe(seriesBible(base));
+  });
+});

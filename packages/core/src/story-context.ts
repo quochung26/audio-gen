@@ -29,6 +29,8 @@ export interface SeriesBibleInput {
     state?: string | null;
   }>;
   episodes?: Array<{ number: number; title: string; beats: string[] }>;
+  /** Tên người có mặt trong cảnh sắp viết. Rỗng = tả đầy đủ tất cả. */
+  spotlight?: string[];
 }
 
 /**
@@ -74,6 +76,7 @@ export function seriesBible(input: SeriesBibleInput): string {
       isNarrator: c.isNarrator,
     })),
     episodes: input.episodes,
+    spotlight: input.spotlight,
   });
 }
 

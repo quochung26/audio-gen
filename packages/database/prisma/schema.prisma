@@ -408,6 +408,17 @@ model Scene {
   /// và đó cũng là dấu hiệu bước TRANSLATE dùng để biết còn gì phải làm.
   sourceText String?
 
+  /// Ai có mặt trong cảnh này. RỖNG nghĩa là "chưa biết" chứ không phải "không
+  /// ai" — lúc đó Story Bible nạp đầy đủ mọi nhân vật, đúng hành vi cũ.
+  ///
+  /// Có danh sách thì chỉ những người này được tả đầy đủ trong Bible; người còn
+  /// lại chỉ còn tên và vai. Ngữ cảnh nhờ vậy không phình theo cỡ dàn — dàn 20
+  /// người mà cảnh có 2 người thì 18 mô tả kia là token trả tiền vô ích.
+  ///
+  /// Mặc định là "chưa biết" có chủ đích: đoán hụt một người thì chỉ mất phần
+  /// lọc, chứ không phải model viết cảnh mà thiếu mô tả của chính người trong đó.
+  characterIds String[] @default([])
+
   /// Thiết lập riêng của CẢNH: ghi chú, và ghi đè nhân vật cho riêng cảnh này.
   /// Đè lên `Episode.setup` theo TỪNG Ô — cảnh chỉ nói "đã thay áo mưa" thì ghi
   /// chú "đang băng tay" của chương vẫn còn.

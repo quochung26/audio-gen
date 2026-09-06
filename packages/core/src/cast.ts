@@ -132,3 +132,24 @@ export function mergeCast(
   if (merged.length > 0 && !merged.some((c) => c.isNarrator)) merged[0]!.isNarrator = true;
   return merged;
 }
+
+/**
+ * Dò xem beat nhắc tới những nhân vật nào.
+ *
+ * Dùng để đoán trước ai có mặt trong cảnh, thay vì bắt người viết tick tay cho
+ * từng cảnh. Đoán HỤT không sao — `Scene.characterIds` rỗng nghĩa là "chưa
+ * biết" và Bible nạp đầy đủ như cũ. Đoán THỪA mới đáng ngại, nên chỉ khớp khi
+ * tên xuất hiện nguyên vẹn, không cắt gọt.
+ *
+ * Tên dài xét trước: có "ông Bảy" trong dàn thì beat nhắc "ông Bảy" phải ra
+ * người đó, chứ không phải ra thêm một "Bảy" nào khác.
+ */
+export function namesMentionedIn(text: string, names: readonly string[]): string[] {
+  const haystack = text.toLowerCase();
+  return [...names]
+    .sort((a, b) => b.length - a.length)
+    .filter((n) => {
+      const needle = n.trim().toLowerCase();
+      return needle.length > 0 && haystack.includes(needle);
+    });
+}

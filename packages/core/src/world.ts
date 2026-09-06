@@ -97,6 +97,14 @@ export function renderBible(input: {
     isNarrator: boolean;
   }>;
   episodes?: Array<{ number: number; title: string; beats: string[] }>;
+  /**
+   * Tên những người CÓ MẶT trong cảnh sắp viết.
+   *
+   * Rỗng = chưa biết, và khi đó mọi người đều được tả đầy đủ. Có danh sách thì
+   * người ngoài danh sách chỉ còn tên và vai: ngữ cảnh không phình theo cỡ dàn,
+   * mà model vẫn biết họ tồn tại nên không đẻ ra một người trùng tên.
+   */
+  spotlight?: string[];
 }): string {
   const parts: string[] = [`# ${input.title}`, ``, `Genre: ${input.genre}`];
 
@@ -149,9 +157,23 @@ export function renderBible(input: {
     );
   }
 
+  const spotlight = new Set(
+    (input.spotlight ?? []).map((n) => n.trim().toLowerCase()).filter(Boolean),
+  );
+
   parts.push(``, `## Characters`);
+  if (spotlight.size > 0) {
+    parts.push(
+      `Full detail is given only for the characters in the scene you are about to write. The rest are listed by name so you do not invent someone new with the same name.`,
+    );
+  }
+
   for (const c of input.characters) {
     parts.push(`- ${c.name}${c.isNarrator ? " (narrator)" : ""}: ${c.role ?? ""}`);
+
+    // Ngoài danh sách thì dừng ở tên và vai — bỏ luôn phần dài nhất.
+    if (spotlight.size > 0 && !spotlight.has(c.name.trim().toLowerCase())) continue;
+
     // Mô tả tính cách và cách nói đặt thụt vào — đây là thứ giữ cho lời thoại
     // của một nhân vật nghe giống nhau qua hàng chục tập.
     if (c.description?.trim()) parts.push(`  ${c.description.trim()}`);

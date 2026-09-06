@@ -130,6 +130,16 @@ Trước đây tầng giữa hổng hẳn: bộ có thiết lập thế giới, 
 
 Cảnh đè lên chương **theo từng ô**, không thay cả người: cảnh chỉ ghi `Tài: đã cởi áo mưa` thì ghi chú "tay trái băng kín" của chương vẫn còn. Thay cả người thì mỗi lần đổi áo lại phải chép lại mọi thứ khác, mà quên một dòng là nhân vật lành lặn trở lại giữa chương.
 
+### Ai có mặt trong cảnh
+
+`Scene.characterIds` — chọn ở trang tập, mục *Chỉ dẫn cho cảnh này*.
+
+Story Bible nạp vào **mọi** lượt viết cảnh. Dàn 5 người thì không sao; dàn 20 người — mà thẻ nhân vật làm việc đó dễ hơn hẳn — thì mỗi cảnh đều mang theo 20 mô tả đầy đủ trong khi cảnh chỉ có 2 người. Chọn rồi thì chỉ những người đó được tả đầy đủ; số còn lại **vẫn hiện tên và vai**, để model không đẻ ra một người trùng tên.
+
+**Rỗng nghĩa là "chưa biết", không phải "không ai"** — lúc đó Bible nạp đầy đủ tất cả, đúng hành vi cũ. Mặc định nghiêng về phía nạp thừa có chủ đích: đoán hụt một người thì chỉ mất phần lọc, còn đoán thiếu theo hướng kia là model viết cảnh mà không có mô tả của chính người trong đó — và không có gì báo.
+
+Danh sách được **đoán sẵn lúc dựng dàn ý** bằng cách dò tên nhân vật trong beat (`namesMentionedIn`), rồi người viết sửa lại. Dò hụt thì cảnh giữ danh sách rỗng, tức là về đúng hành vi cũ.
+
 Khối này nạp **ngay sát cảnh cần viết** và nói thẳng ra là nó đè lên Story Bible. Không nói thì model gặp hai mô tả khác nhau về cùng một người rồi tự chọn — thường là chọn cái đọc trước, tức là Bible, tức là bỏ qua đúng thứ vừa đặt.
 
 **Thẻ không phải liên kết sống.** Mang thẻ vào một bộ là **chép nội dung** nó; từ đó nhân vật sống đời sống riêng trong bộ. Sửa thẻ không đụng tới bộ đã dùng, và sửa nhân vật trong bộ không đụng ngược lên thẻ. Đây là chỗ người ta mặc định hiểu ngược lại, nên nói thẳng: một bộ đang viết dở mà tự đổi theo thư viện là kiểu hỏng không ai thấy — văn ở tập sau đổi đi, và chẳng có gì trong bộ đó ghi lại là vì sao. `Character.cardId` chỉ ghi **xuất xứ**.

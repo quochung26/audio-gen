@@ -68,7 +68,13 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const { episode } = scene;
   const { series } = episode;
 
-  const bible = await renderBibleFor(series);
+  // Ai có mặt trong cảnh này — người ngoài danh sách chỉ còn tên và vai trong
+  // Bible. Rỗng thì tả đầy đủ tất cả, đúng hành vi cũ.
+  const inScene = series.characters
+    .filter((c) => scene.characterIds.includes(c.id))
+    .map((c) => c.name);
+
+  const bible = await renderBibleFor(series, inScene);
 
   // Mục lục: mỗi tập một dòng ~15 từ. Rẻ, và là thứ duy nhất còn lại của các
   // tập đã bị nén — không có nó thì hệ thống "quên" là tập đó từng tồn tại.
@@ -140,7 +146,7 @@ type SeriesForBible = Prisma.SeriesGetPayload<{ include: { characters: true } }>
  * Người viết có thể vừa sửa luật thế giới hoặc thêm nhân vật ở Studio; dùng bản
  * cache cũ thì cảnh viết ra sẽ trái với thứ vừa sửa.
  */
-async function renderBibleFor(series: SeriesForBible): Promise<string> {
+async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Promise<string> {
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
 
   // Mô tả của đúng những thể loại bộ này dùng. Một truy vấn, đổi lại model
@@ -159,6 +165,7 @@ async function renderBibleFor(series: SeriesForBible): Promise<string> {
     world: parseWorld(stored.world),
     characters: series.characters,
     episodes: stored.raw?.episodes,
+    spotlight,
   });
 }
 

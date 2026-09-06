@@ -6,6 +6,7 @@ import {
   outlineSchema,
   planScenes,
   mergeCast,
+  namesMentionedIn,
   normalizeCast,
   parseWorld,
   planDraft,
@@ -150,6 +151,16 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(80);
 
+  // Đoán trước ai có mặt trong từng cảnh, để Bible chỉ tả đầy đủ những người
+  // đó. Đoán hụt thì cảnh giữ danh sách rỗng và Bible nạp đầy đủ như cũ — người
+  // viết sửa lại ở trang tập.
+  const roster = await prisma.character.findMany({
+    where: { seriesId: series.id },
+    select: { id: true, name: true },
+  });
+  const idOfName = new Map(roster.map((c) => [c.name, c.id]));
+  const names = roster.map((c) => c.name);
+
   for (const plan of outline.episodes) {
     const scenes = planScenes(plan.beats);
     await prisma.episode.create({
@@ -161,7 +172,13 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         status: EpisodeStatus.OUTLINED,
         outline: plan,
         scenes: {
-          create: scenes.map((s) => ({ order: s.order, beat: s.beat })),
+          create: scenes.map((s) => ({
+            order: s.order,
+            beat: s.beat,
+            characterIds: namesMentionedIn(s.beat, names)
+              .map((n) => idOfName.get(n))
+              .filter((id): id is string => Boolean(id)),
+          })),
         },
       },
     });

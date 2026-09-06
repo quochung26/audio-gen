@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeCast, normalizeCast, renderCastForOutline } from "./cast";
+import { mergeCast, namesMentionedIn, normalizeCast, renderCastForOutline } from "./cast";
 
 const tai = { name: "Tài", role: "tài xế xe khách", isNarrator: true };
 
@@ -140,5 +140,35 @@ describe("mergeCast", () => {
 
   it("không chọn ai thì y như cũ: chỉ có dàn model sinh", () => {
     expect(mergeCast([], generated).map((c) => c.name)).toEqual(["Tài", "Cô gái áo trắng"]);
+  });
+});
+
+describe("namesMentionedIn — đoán ai có mặt trong beat", () => {
+  const names = ["Tài", "ông Bảy", "Cô gái áo trắng"];
+
+  it("bắt tên xuất hiện trong beat", () => {
+    const out = namesMentionedIn("Tài quay lại Bến Cũ và gặp ông Bảy.", names);
+    expect(out).toContain("Tài");
+    expect(out).toContain("ông Bảy");
+  });
+
+  it("không phân biệt hoa thường", () => {
+    expect(namesMentionedIn("TÀI dừng xe.", names)).toContain("Tài");
+  });
+
+  it("beat không nhắc ai thì trả về rỗng — cảnh giữ 'chưa biết'", () => {
+    // Rỗng nghĩa là Bible nạp đầy đủ như cũ. Đoán hụt chỉ mất phần lọc, không
+    // làm model viết cảnh mà thiếu mô tả người trong đó.
+    expect(namesMentionedIn("Mưa suốt đêm ngoài quốc lộ.", names)).toEqual([]);
+  });
+
+  it("xét tên DÀI trước", () => {
+    // Dàn có cả "ông Bảy" thì beat nhắc "ông Bảy" phải ra đúng người đó trước.
+    const out = namesMentionedIn("ông Bảy gác bến.", ["Bảy", "ông Bảy"]);
+    expect(out[0]).toBe("ông Bảy");
+  });
+
+  it("danh sách nhân vật rỗng thì không ném", () => {
+    expect(namesMentionedIn("Tài dừng xe.", [])).toEqual([]);
   });
 });

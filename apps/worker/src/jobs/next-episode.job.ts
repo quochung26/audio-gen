@@ -1,4 +1,5 @@
 import {
+  namesMentionedIn,
   nextEpisodePlanSchema,
   planScenes,
   renderEpisodeContext,
@@ -100,6 +101,15 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   const plan = result.data;
   const scenes = planScenes(plan.beats);
 
+  // Đoán trước ai có mặt trong từng cảnh — xem outline.job. Rỗng thì Bible nạp
+  // đầy đủ mọi nhân vật, đúng hành vi cũ.
+  const roster = await prisma.character.findMany({
+    where: { seriesId },
+    select: { id: true, name: true },
+  });
+  const idOfName = new Map(roster.map((c) => [c.name, c.id]));
+  const names = roster.map((c) => c.name);
+
   const episode = await prisma.episode.create({
     data: {
       seriesId,
@@ -109,7 +119,15 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
       status: EpisodeStatus.OUTLINED,
       // Ghi lại kèm số tập server đã chốt, để trang tập hiện đúng dàn ý.
       outline: { ...plan, number: episodeNumber },
-      scenes: { create: scenes.map((s) => ({ order: s.order, beat: s.beat })) },
+      scenes: {
+        create: scenes.map((s) => ({
+          order: s.order,
+          beat: s.beat,
+          characterIds: namesMentionedIn(s.beat, names)
+            .map((n) => idOfName.get(n))
+            .filter((id): id is string => Boolean(id)),
+        })),
+      },
     },
   });
 

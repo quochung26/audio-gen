@@ -19,7 +19,20 @@ episodes.get("/:id", async (c) => {
     include: {
       // `language`/`draftLanguage`: trang tập cần biết bộ có bước chuyển ngữ
       // không, để hiện đúng chỗ và không mời duyệt bản thảo chưa viết lại.
-      series: { select: { id: true, title: true, genre: true, language: true, draftLanguage: true } },
+      series: {
+        select: {
+          id: true,
+          title: true,
+          genre: true,
+          language: true,
+          draftLanguage: true,
+          // Để trang tập dựng ô chọn "ai có mặt trong cảnh này".
+          characters: {
+            orderBy: [{ isNarrator: "desc" }, { name: "asc" }],
+            select: { id: true, name: true, isNarrator: true },
+          },
+        },
+      },
       scenes: { orderBy: { order: "asc" } },
       blocks: { orderBy: { order: "asc" } },
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
@@ -147,6 +160,10 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
   const data: Record<string, unknown> = {};
   if ("text" in body) data.text = String(body.text ?? "");
   if ("beat" in body) data.beat = field(body, "beat");
+  // Rỗng là hợp lệ và có nghĩa: "chưa biết ai có mặt" → Bible nạp đầy đủ.
+  if ("characterIds" in body) {
+    data.characterIds = field(body, "characterIds").split(",").map((v) => v.trim()).filter(Boolean);
+  }
   if ("note" in body || "characters" in body) {
     data.setup = sceneSetupSchema.parse({
       note: field(body, "note"),

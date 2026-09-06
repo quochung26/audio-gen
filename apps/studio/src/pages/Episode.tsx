@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { Field } from "@/components/Field";
+import { ScenePeoplePicker } from "@/components/ScenePeoplePicker";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
 import { languageLabel } from "@/components/LanguagePicker";
@@ -27,6 +28,7 @@ interface Scene {
   id: string;
   order: number;
   beat: string;
+  characterIds: string[];
   setup: SceneSetup | null;
   text: string | null;
   /** Bản thảo trước chuyển ngữ. Null = cảnh này chưa qua bước đó. */
@@ -53,7 +55,13 @@ interface Ep {
   humanReviewed: boolean;
   reviewedAt: string | null;
   setup: EpisodeSetup | null;
-  series: { id: string; title: string; language: string; draftLanguage: string };
+  series: {
+    id: string;
+    title: string;
+    language: string;
+    draftLanguage: string;
+    characters: Array<{ id: string; name: string; isNarrator: boolean }>;
+  };
   scenes: Scene[];
   blocks: Block[];
   renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
@@ -211,6 +219,10 @@ export function Episode() {
                       label="Beat — việc xảy ra trong cảnh"
                       rows={2}
                       defaultValue={scene.beat}
+                    />
+                    <ScenePeoplePicker
+                      characters={ep.series.characters}
+                      initial={scene.characterIds}
                     />
                     <Field
                       name="note"
