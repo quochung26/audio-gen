@@ -63,6 +63,8 @@ Hoặc dùng giao diện: `http://localhost:3000/series/new`.
 
 Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng cảnh → [người duyệt] → kịch bản audio + tách block → tóm tắt**.
 
+**Viết từng cảnh một.** Trang tập có hai lối: *Viết cả N cảnh còn lại* chạy một job liền mạch, và nút *viết cảnh này* ở từng cảnh. Một cảnh 600–900 từ đã mất vài chục giây trên GPU thật, nên viết cả tập là một lần chờ dài mà không xem được gì — viết từng cảnh cho phép đọc cảnh 1 rồi sửa beat trước khi tốn thời gian cho cảnh 2. Cùng một job `WRITE_SCENE`, chỉ khác nó nhận `sceneId` thay vì `episodeId`.
+
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.
 
 ### Danh mục thể loại

@@ -125,10 +125,15 @@ export function Episode() {
         {!allWritten && !active && (
           <Form
             path={`/api/episodes/${ep.id}/write-scenes`}
-            submit={`Viết ${ep.scenes.length - written} cảnh còn lại`}
+            submit={`Viết cả ${ep.scenes.length - written} cảnh còn lại`}
             className="max-w-md rounded border border-neutral-800 p-4"
           >
             <ModelPicker />
+            <p className="mt-2 text-xs text-neutral-600">
+              Một job liền mạch, và phải đợi hết mới đọc được. Muốn xem sớm thì bấm{" "}
+              <strong className="text-neutral-400">viết cảnh này</strong> ở từng cảnh bên dưới —
+              đọc cảnh 1 rồi sửa beat trước khi tốn thời gian cho cảnh 2.
+            </p>
           </Form>
         )}
 
@@ -194,9 +199,13 @@ export function Episode() {
                 <span className="text-xs text-neutral-500">
                   Cảnh {scene.order} · {scene.beat}
                 </span>
-                {scene.text && !active && (
-                  <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/rewrite`}>
-                    viết lại
+                {/* Viết từng cảnh một: cảnh 600–900 từ đã mất vài chục giây
+                    trên GPU thật, nên cả tập là một lần chờ dài mà không xem
+                    được gì. Cùng một endpoint — đặt `text` về null rồi đẩy
+                    WRITE_SCENE cho đúng cảnh đó, nên cảnh chưa viết cũng chạy. */}
+                {!active && (
+                  <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
+                    {scene.text ? "viết lại" : "viết cảnh này"}
                   </ActionButton>
                 )}
               </div>

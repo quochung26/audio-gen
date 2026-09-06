@@ -99,7 +99,18 @@ episodes.post("/:id/write-scenes", async (c) => {
   return c.json({ ok: true });
 });
 
-episodes.post("/:id/scenes/:sceneId/rewrite", async (c) => {
+/**
+ * Viết MỘT cảnh — cảnh chưa có nội dung, hoặc viết đè lên bản cũ.
+ *
+ * Một cảnh 600–900 từ đã mất vài chục giây trên GPU thật, nên viết cả tập là
+ * một lần chờ dài mà không xem được gì. Viết từng cảnh cho phép đọc cảnh 1 rồi
+ * sửa beat trước khi tốn thời gian cho cảnh 2.
+ *
+ * Đặt `text` về null trước khi đẩy job: `write-scene` lấy cảnh theo `sceneId`
+ * nên không bắt buộc, nhưng để vậy thì giao diện hiện ngay "chưa viết" thay vì
+ * để bản cũ nằm đó tới lúc job xong.
+ */
+episodes.post("/:id/scenes/:sceneId/write", async (c) => {
   const episodeId = c.req.param("id");
   const sceneId = c.req.param("sceneId");
   const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
