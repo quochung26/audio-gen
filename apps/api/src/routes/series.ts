@@ -18,7 +18,8 @@ import { checkCover, ffprobe } from "@audio/audio";
 import { loadEnv } from "@audio/config";
 import { getDefaultLanguage } from "@audio/llm";
 import { enqueue } from "../lib/queue";
-import { putLocal, removeLocal, safeFileName, storageRoot } from "../lib/storage";
+import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
+import { putLocal, safeFileName, storageRoot } from "../lib/storage";
 import { field, splitLines, UserError } from "../lib/http";
 
 export const series = new Hono();
@@ -433,28 +434,14 @@ series.delete("/:id", async (c) => {
 
   await prisma.series.delete({ where: { id } });
 
-  // Audio của block dùng chung theo `cacheKey` — hai tập đọc cùng một câu bằng
-  // cùng một giọng thì dùng chung một file. Đếm lại từ Block CÒN LẠI thay vì
-  // trừ dần `refCount`: cột đó xưa nay chỉ được cộng, chưa từng được trừ, nên
-  // tin vào nó là xoá nhầm file tập khác đang dùng.
-  let filesRemoved = 0;
-  for (const assetId of assetIds) {
-    const stillUsed = await prisma.block.count({ where: { audioAssetId: assetId } });
-    if (stillUsed > 0) {
-      await prisma.audioAsset.update({ where: { id: assetId }, data: { refCount: stillUsed } });
-      continue;
-    }
-    const asset = await prisma.audioAsset.delete({ where: { id: assetId } });
-    if (await removeLocal(asset.url)) filesRemoved++;
-  }
-
-  // Bản xuất và ảnh bìa chỉ thuộc về bộ này, xoá thẳng.
-  for (const e of exports) if (await removeLocal(e.url)) filesRemoved++;
-  if (s.coverUrl && (await removeLocal(s.coverUrl))) filesRemoved++;
-
-  return c.json({
-    ok: `Đã xoá "${s.title}"${filesRemoved > 0 ? ` và ${filesRemoved} file audio/ảnh` : ""}.`,
+  // Bản xuất và ảnh bìa chỉ thuộc về bộ này nên xoá thẳng; audio của block thì
+  // dùng chung, `cleanupAudio` lo phần đó.
+  const files = await cleanupAudio({
+    assetIds,
+    urls: [...exports.map((e) => e.url), ...(s.coverUrl ? [s.coverUrl] : [])],
   });
+
+  return c.json({ ok: `Đã xoá "${s.title}"${filesRemovedNote(files)}.` });
 });
 
 series.delete("/:id/cover", async (c) => {

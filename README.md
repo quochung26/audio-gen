@@ -629,6 +629,13 @@ Hai chỗ bị chặn, vì xoá xong sẽ để lại rác không dọn được
 | Còn job `QUEUED`/`RUNNING` | Hàng trong DB bị cascade xoá, job trong Redis vẫn chạy rồi chết vì không tra ra tập — lỗi đó chẳng nói gì về việc bộ vừa bị xoá |
 | Còn tập đang xuất bản | DB local sạch nhưng DB hosted giữ nguyên, và từ đó không còn đường nào gỡ chúng xuống |
 
+**Xoá một tập lẻ** ở cuối trang tập. Cùng hai chốt chặn như trên, cộng hai điều riêng của tập:
+
+- **Xoá luôn sự kiện của tập.** Quan hệ khai `onDelete: SetNull` nên mặc định chúng sống sót — mà đó đúng là thứ phải đi: sự kiện được truy hồi bằng vector vào mọi cảnh viết sau, nên bỏ một tập hỏng mà để lại sự kiện của nó là tập 8 vẫn bị lái bởi tình tiết của một tập không còn tồn tại.
+- **Không đánh số lại các tập sau.** Số tập nằm trong slug, trong `StoryFact`, trong mục lục và trong tóm tắt cung truyện; đánh lại là sai hết những chỗ đó. Xoá tập giữa để lại lỗ, và `NEXT_EPISODE` lấy số lớn nhất + 1 nên vẫn chạy đúng.
+
+Hai thứ **không lùi lại được**, và giao diện nói thẳng ra sau khi xoá: trạng thái nhân vật (`Character.state`) và tóm tắt cung truyện vẫn giữ những gì tập đó để lại. Sửa tay ở trang Nhân vật và Story Bible nếu cần.
+
 DB local giữ bản thảo, Story Bible, prompt, telemetry, sự kiện truy hồi. Bấm **Xuất bản** ở Studio thì job `PUBLISH` đẩy sang DB hosted đúng những gì `packages/database/src/publish-scope.ts` cho phép. Gỡ xuất bản thì gỡ luôn khỏi hosted.
 
 | | |

@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { Field } from "@/components/Field";
@@ -81,6 +81,7 @@ function formatDuration(ms: number): string {
 
 export function Episode() {
   const { id } = useParams();
+  const nav = useNavigate();
   const { data: ep, isLoading } = useApi<Ep>(`/api/episodes/${id}`, { refetchMs: 3000 });
   if (isLoading || !ep) return <Loading />;
 
@@ -364,6 +365,24 @@ export function Episode() {
           </p>
         </Section>
       )}
+
+      {/* Cuối trang, tách khỏi mọi nút hằng ngày: xoá tập không hoàn tác được. */}
+      <Section title="Vùng nguy hiểm">
+        <div className="flex flex-wrap items-center gap-3 rounded border border-red-950 bg-red-950/20 p-4">
+          <ActionButton
+            path={`/api/episodes/${ep.id}`}
+            method="DELETE"
+            confirmText={`Xoá tập ${ep.number} "${ep.title}" cùng bản thảo, kịch bản, audio và sự kiện của tập? Không hoàn tác được.`}
+            onDone={() => nav(`/series/${ep.seriesId}`)}
+          >
+            Xoá tập này
+          </ActionButton>
+          <span className="text-xs text-neutral-500">
+            Xoá luôn sự kiện của tập, để các tập sau không còn bị lái theo nó. Số tập không đánh
+            lại — dãy sẽ khuyết số {ep.number}.
+          </span>
+        </div>
+      </Section>
     </div>
   );
 }

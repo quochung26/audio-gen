@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { AudioTrackKind, EpisodeStatus, prisma } from "@audio/database";
+import { AudioTrackKind, EpisodeStatus, JobStatus, prisma } from "@audio/database";
 import {
   assertTransition,
   episodeSetupSchema,
@@ -8,6 +8,7 @@ import {
   type CharacterOverride,
 } from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
+import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
 import { enqueue } from "../lib/queue";
 import { field, splitLines, UserError } from "../lib/http";
 
@@ -186,6 +187,75 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     },
   });
   return c.json({ ok: true });
+});
+
+/**
+ * Xoá một tập.
+ *
+ * Chặn cùng hai tình huống với xoá cả bộ: còn job trong hàng đợi, và tập đang
+ * xuất bản. Xem `DELETE /api/series/:id`.
+ *
+ * Xoá luôn SỰ KIỆN của tập. Quan hệ khai `onDelete: SetNull` nên mặc định
+ * chúng sống sót — mà đó đúng là thứ phải đi: sự kiện được truy hồi bằng vector
+ * vào mọi cảnh viết sau, nên bỏ một tập hỏng mà để lại sự kiện của nó là tập 8
+ * vẫn bị lái bởi tình tiết của một tập không còn tồn tại.
+ *
+ * KHÔNG đánh số lại các tập sau. Số tập nằm trong slug, trong `StoryFact`,
+ * trong mục lục và trong tóm tắt cung truyện; đánh lại là sai hết những chỗ đó.
+ * Xoá tập giữa thì để lại lỗ, và `NEXT_EPISODE` lấy số lớn nhất + 1 nên vẫn
+ * chạy đúng.
+ */
+episodes.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const ep = await prisma.episode.findUniqueOrThrow({
+    where: { id },
+    select: { id: true, number: true, title: true, seriesId: true, publishedAt: true },
+  });
+
+  const running = await prisma.renderJob.count({
+    where: { episodeId: id, status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] } },
+  });
+  if (running > 0) {
+    throw new UserError(`${running} job đang chạy hoặc đang chờ cho tập này. Đợi xong rồi xoá.`);
+  }
+
+  if (ep.publishedAt) {
+    throw new UserError(
+      "Tập này đang xuất bản. Gỡ xuất bản trước — xoá thẳng ở đây thì bản trên DB hosted không còn đường nào gỡ xuống.",
+    );
+  }
+
+  const [blocks, exports] = await Promise.all([
+    prisma.block.findMany({
+      where: { episodeId: id, audioAssetId: { not: null } },
+      select: { audioAssetId: true },
+    }),
+    prisma.export.findMany({ where: { episodeId: id }, select: { url: true } }),
+  ]);
+
+  // Trước khi xoá tập: `SetNull` sẽ để lại sự kiện mồ côi mà vẫn mang
+  // `episodeNumber`, và chúng vẫn được truy hồi như thường.
+  const facts = await prisma.storyFact.deleteMany({ where: { episodeId: id } });
+
+  await prisma.episode.delete({ where: { id } });
+
+  const files = await cleanupAudio({
+    assetIds: [...new Set(blocks.map((b) => b.audioAssetId!))],
+    urls: exports.map((e) => e.url),
+  });
+
+  return c.json({
+    ok:
+      `Đã xoá tập ${ep.number}${filesRemovedNote(files)}` +
+      (facts.count > 0 ? `, cùng ${facts.count} sự kiện của tập` : "") +
+      ".",
+    // Những thứ KHÔNG lùi lại được. Nói ra chứ đừng để người viết tưởng đã sạch:
+    // tập sau vẫn viết dựa trên chúng.
+    warnings: [
+      "Trạng thái nhân vật và tóm tắt cung truyện vẫn giữ những gì tập này để lại — sửa tay ở trang Nhân vật và Story Bible nếu cần.",
+      `Số tập không đánh lại: các tập sau giữ nguyên số, nên dãy sẽ khuyết số ${ep.number}.`,
+    ],
+  });
 });
 
 /** Duyệt bản thảo — chốt chặn ngăn bản thảo thô đi tiếp. */
