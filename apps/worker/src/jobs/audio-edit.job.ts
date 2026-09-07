@@ -7,25 +7,26 @@ import { logger } from "../lib/logger";
 import { resolveVoice } from "../services/voice-resolver";
 
 /**
- * Bước 0c — biến bản thảo thành kịch bản đọc thành tiếng, đồng thời tách
- * block và gán người nói. Đầu ra nối thẳng vào bước TTS, không cần tách tay.
+ * Step 0c — turn the draft into a script meant to be read aloud, splitting it into blocks
+ * and assigning speakers at the same time. The output feeds straight into TTS, with no
+ * manual splitting.
  *
- * Đây là chỗ chốt chặn duyệt có hiệu lực: bản thảo chưa được người đọc duyệt
- * thì không được đi tiếp.
+ * This is where the approval gate bites: a draft nobody has read and approved cannot go
+ * any further.
  */
 export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
 
   const episode = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
     include: { series: { include: { characters: true } } },
   });
 
-  if (!episode.draftText) throw new Error("Tập chưa có bản thảo");
+  if (!episode.draftText) throw new Error("This episode has no draft");
   if (!episode.humanReviewed) {
     throw new Error(
-      "Bản thảo chưa được duyệt. Đọc và đánh dấu đã duyệt trước khi tạo kịch bản audio.",
+      "The draft is not approved. Read it and mark it approved before making the audio script.",
     );
   }
 
@@ -44,7 +45,7 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
 
   let result;
   try {
-    // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+    // Three tiers: the model chosen for this run → the prompt's model → the default.
     // Xem packages/llm/src/model-settings.ts.
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -72,11 +73,11 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
   await recordRun(ctx, result);
   await setProgress(70);
 
-  // Ánh xạ tên người nói → Character. So khớp không phân biệt hoa thường vì
-  // model hay trả về khác chữ hoa so với danh sách.
+  // Map speaker names → Character. Matched case-insensitively, because the model often
+  // returns different capitalisation from the list.
   const byName = new Map(characters.map((c) => [c.name.toLowerCase(), c]));
 
-  // Giải giọng MỘT lần cho cả tập nếu chưa làm đa giọng — tránh truy vấn lặp.
+  // Resolve the voice ONCE for the episode while it is single-voice — avoids repeated queries.
   const voiceCache = new Map<string, Awaited<ReturnType<typeof resolveVoice>>>();
   async function voiceFor(characterVoiceId: string | null | undefined) {
     const key = characterVoiceId ?? "__default__";
@@ -103,8 +104,8 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
       text: b.text.trim(),
       speakerLabel: isNarrator ? "narrator" : b.speaker,
       characterId: character?.id ?? null,
-      // Bản chụp lúc render: engine và externalVoiceId THẬT, không hardcode.
-      // Đổi casting về sau không làm sai audio đã render.
+      // A snapshot at render time: the REAL engine and externalVoiceId, never hardcoded.
+      // Changing the casting later does not invalidate audio already rendered.
       ttsEngine: voice.engine,
       voiceId: voice.externalVoiceId,
       pauseAfter: b.pauseAfter || DEFAULT_PAUSE_AFTER_MS,
@@ -113,12 +114,12 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
   }
 
   const voicesUsed = [...new Set([...voiceCache.values()].map((v) => v.name))];
-  logger.info(`[audio-edit] giọng dùng: ${voicesUsed.join(", ")}`);
+  logger.info(`[audio-edit] voices used: ${voicesUsed.join(", ")}`);
 
   const unmatched = blocks.filter((b) => b.speakerLabel !== "narrator" && !b.characterId);
   if (unmatched.length > 0) {
     logger.warn(
-      `[audio-edit] ${unmatched.length} block có người nói không khớp nhân vật nào: ` +
+      `[audio-edit] ${unmatched.length} blocks have a speaker matching no character: ` +
         [...new Set(unmatched.map((b) => b.speakerLabel))].join(", "),
     );
   }
@@ -136,7 +137,7 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
   ]);
 
   await setProgress(100);
-  logger.info(`[audio-edit] tạo ${blocks.length} block cho tập "${episode.title}"`);
+  logger.info(`[audio-edit] created ${blocks.length} blocks for episode "${episode.title}"`);
 
   return {
     episodeId,

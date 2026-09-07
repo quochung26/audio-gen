@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Chọn giọng đọc — và quan trọng nhất là KHÔNG chọn giọng sai tiếng.
+ * Choosing a voice — and above all NOT choosing one in the wrong language.
  *
- * Giọng tiếng Việt đọc văn tiếng Anh ra thứ không ai nghe được, mà hỏng kiểu đó
- * không báo lỗi: nó chỉ lộ ra khi ngồi nghe lại cả tập.
+ * A Vietnamese voice reading English prose is unlistenable, and that kind of failure
+ * raises no error: it only shows up when listening back to a whole episode.
  */
 interface Row {
   id: string;
@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("resolveVoice", () => {
-  it("casting của nhân vật thắng giọng mặc định của bộ", async () => {
+  it("the character's casting beats the story's default voice", async () => {
     const r = await resolveVoice({
       characterVoiceId: "vi-2",
       seriesDefaultVoiceId: "vi-1",
@@ -65,50 +65,50 @@ describe("resolveVoice", () => {
     expect(r.externalVoiceId).toBe("ext-vi-2");
   });
 
-  it("không casting riêng thì lấy giọng mặc định của bộ", async () => {
+  it("with no casting of their own it takes the story's default", async () => {
     const r = await resolveVoice({ seriesDefaultVoiceId: "vi-1", language: "vi" });
     expect(r.externalVoiceId).toBe("ext-vi-1");
   });
 
-  it("chưa casting gì thì lấy giọng đầu tiên ĐÚNG TIẾNG", async () => {
+  it("with no casting at all it takes the first voice in the RIGHT LANGUAGE", async () => {
     expect((await resolveVoice({ language: "en" })).externalVoiceId).toBe("ext-en-1");
     expect((await resolveVoice({ language: "vi" })).externalVoiceId).toBe("ext-vi-1");
   });
 
-  it("BỎ QUA casting sai tiếng, kể cả khi người viết đặt tay", async () => {
-    // Giọng tiếng Việt đọc văn tiếng Anh là hỏng âm thầm — thà bỏ qua lựa chọn
-    // của người viết còn hơn xuất ra một tập không nghe được.
+  it("SKIPS wrong-language casting, even one the writer set by hand", async () => {
+    // A Vietnamese voice reading English prose fails silently — better to skip the
+    // writer's choice than to ship an unlistenable episode.
     const r = await resolveVoice({ characterVoiceId: "vi-1", language: "en" });
     expect(r.externalVoiceId).toBe("ext-en-1");
   });
 
-  it("giọng bị tắt thì không dùng", async () => {
+  it("a disabled voice is not used", async () => {
     rows = [voice({ id: "vi-1", enabled: false }), voice({ id: "vi-2" })];
     expect((await resolveVoice({ characterVoiceId: "vi-1", language: "vi" })).externalVoiceId).toBe(
       "ext-vi-2",
     );
   });
 
-  it("không có giọng nào đúng tiếng thì DỪNG, và nói rõ tiếng nào thiếu", async () => {
+  it("with no voice in the right language it STOPS, naming the missing language", async () => {
     rows = [voice({ id: "vi-1" })];
     await expect(resolveVoice({ language: "en" })).rejects.toThrow(/"en"/);
   });
 
-  it("báo luôn là có giọng khác tiếng, để khỏi tưởng bảng Voice rỗng", async () => {
+  it("also says there are voices in other languages, so the Voice table does not look empty", async () => {
     rows = [voice({ id: "vi-1" }), voice({ id: "vi-2" })];
-    await expect(resolveVoice({ language: "en" })).rejects.toThrow(/2 giọng khác tiếng/);
+    await expect(resolveVoice({ language: "en" })).rejects.toThrow(/2 voices in other languages/);
   });
 
-  it("bảng Voice rỗng thì chỉ nhắc chạy seed, không nói câu thừa", async () => {
+  it("an empty Voice table only suggests running the seed, with nothing superfluous", async () => {
     rows = [];
     await expect(resolveVoice({ language: "vi" })).rejects.toThrow(/db:seed/);
-    await expect(resolveVoice({ language: "vi" })).rejects.not.toThrow(/giọng khác tiếng/);
+    await expect(resolveVoice({ language: "vi" })).rejects.not.toThrow(/voices in other languages/);
   });
 
-  it("engine lấy từ bản ghi Voice, không hardcode", async () => {
+  it("the engine comes from the Voice record, never hardcoded", async () => {
+
     rows = [voice({ id: "k-1", engine: "KOKORO", language: "en" })];
-    // Không có giọng MOCK nào cho "en" nên phải lỗi, chứ không được lặng lẽ
-    // dùng giọng của engine khác.
+    // voice from another engine.
     await expect(resolveVoice({ language: "en" })).rejects.toThrow();
   });
 });

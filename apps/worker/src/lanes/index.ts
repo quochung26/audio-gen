@@ -14,10 +14,10 @@ import { batchJob } from "../jobs/batch.job";
 import { publishJob } from "../jobs/publish.job";
 
 /**
- * Bốn làn theo tài nguyên (PLAN.md mục 3):
+ * Four lanes by resource (PLAN.md section 3):
  *   LLM      — GPU, concurrency 1
- *   TTS_CPU  — CPU (Kokoro ONNX), concurrency = số nhân / 2
- *   TTS_GPU  — GPU (clone giọng), concurrency 1
+ *   TTS_CPU  — CPU (Kokoro ONNX), concurrency = cores / 2
+ *   TTS_GPU  — GPU (voice cloning), concurrency 1
  *   FFMPEG   — CPU + NVENC, concurrency 2
  */
 export function startLanes() {
@@ -31,16 +31,16 @@ export function startLanes() {
       [JobType.SUMMARIZE]: summarizeJob,
       [JobType.ARC_SUMMARY]: arcSummaryJob,
       [JobType.MOCK]: mockJob,
-      // Chỉ đọc DB rồi đẩy hàng đợi, khai VRAM 0 — không tranh chỗ với LLM.
+      // Only reads the DB and queues work, declares 0 VRAM — never competes with the LLM.
       [JobType.BATCH]: batchJob,
     }),
-    // Kokoro chạy CPU nên làn này không đụng VRAM của LLM — chạy song song được.
+    // Kokoro runs on CPU, so this lane never touches the LLM's VRAM — they run in parallel.
     createLane("TTS_CPU", { [JobType.TTS]: ttsJob, [JobType.MOCK]: mockJob }),
     createLane("TTS_GPU", { [JobType.MOCK]: mockJob }),
     createLane("FFMPEG", {
       [JobType.MIX]: mixJob,
-      // Không tốn CPU lẫn GPU, nhưng để cùng làn MIX cho tuần tự: đồng bộ ngay
-      // sau khi ghép xong thì chắc chắn bản xuất đã có trong DB.
+      // Uses neither CPU nor GPU, but shares the MIX lane to stay sequential: syncing right
+      // after the mix guarantees the export is already in the DB.
       [JobType.PUBLISH]: publishJob,
       [JobType.MOCK]: mockJob,
     }),

@@ -17,19 +17,19 @@ import { freeSlug } from "../services/slug";
 import { logger } from "../lib/logger";
 
 /**
- * Dựng dàn ý cho MỘT tập viết tiếp.
+ * Outline ONE more episode.
  *
- * Tách khỏi OUTLINE vì hai việc khác hẳn nhau: OUTLINE dựng cả bộ từ một dòng ý
- * tưởng, còn đây là viết tiếp một bộ đang chạy — phải bám vào những gì đã xảy
- * ra, dùng đúng nhân vật đã có, và không được viết trái tập cũ.
+ * Separate from OUTLINE because the two jobs are quite different: OUTLINE builds a whole
+ * story from one line of idea, while this continues a running story — it has to follow
+ * what has happened, use the characters that exist, and not contradict earlier episodes.
  *
- * Số tập do SERVER quyết theo tập lớn nhất đang có, không để model tự đánh:
- * model hay đánh lại từ 1 hoặc nhảy số, mà `(seriesId, number)` là ràng buộc
- * duy nhất nên trùng số là job chết.
+ * The episode number is decided by the SERVER from the highest existing one, never by the
+ * model: models restart at 1 or skip numbers, and `(seriesId, number)` is unique, so a
+ * duplicate kills the job.
  */
 export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   const seriesId = String(job.data.seriesId ?? "");
-  if (!seriesId) throw new Error("Thiếu seriesId");
+  if (!seriesId) throw new Error("seriesId is required");
 
   const series = await prisma.series.findUniqueOrThrow({ where: { id: seriesId } });
 
@@ -103,8 +103,8 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   const plan = result.data;
   const chapters = planChapters(plan.chapters);
 
-  // Đoán trước ai có mặt trong từng cảnh — xem outline.job. Rỗng thì Bible nạp
-  // đầy đủ mọi nhân vật, đúng hành vi cũ.
+  // Guess who is present in each scene — see outline.job. Empty makes the Bible load every
+  // character in full, which is the old behaviour.
   const roster = await prisma.character.findMany({
     where: { seriesId },
     select: { id: true, name: true },
@@ -119,7 +119,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
       title: plan.title,
       slug: await freeSlug(`${series.title} tap ${episodeNumber}`),
       status: EpisodeStatus.OUTLINED,
-      // Ghi lại kèm số tập server đã chốt, để trang tập hiện đúng dàn ý.
+      // Recorded with the episode number the server settled on, so the episode page shows the right outline.
       outline: { ...plan, number: episodeNumber },
       chapters: {
         create: chapters.map((ch) => ({
@@ -141,8 +141,8 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(100);
   logger.info(
-    `[next-episode] tập ${episodeNumber} "${plan.title}" — ${chapters.length} chương, ` +
-      `${chapters.reduce((n, ch) => n + ch.scenes.length, 0)} cảnh`,
+    `[next-episode] episode ${episodeNumber} "${plan.title}" — ${chapters.length} chapters, ` +
+      `${chapters.reduce((n, ch) => n + ch.scenes.length, 0)} scenes`,
   );
 
   return {

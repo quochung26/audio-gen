@@ -33,39 +33,39 @@ import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 
 /**
- * Bước 0a — từ một dòng ý tưởng dựng dàn ý, rồi tạo sẵn Series, Character,
- * Episode và Scene (mới có `beat`, chưa có nội dung).
+ * Step 0a — turn one line of idea into an outline, then create the Series, Characters,
+ * Episode and Scenes (with a `beat` and no content yet).
  *
- * Ép JSON theo schema ở tầng API chứ không nhắc bằng lời: model 14B trả JSON
- * hỏng khá thường xuyên nếu chỉ được dặn trong prompt.
+ * JSON is forced by schema at the API layer rather than asked for in words: 14B models
+ * return malformed JSON fairly often when only told in the prompt.
  */
 export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const idea = String(job.data.idea ?? "");
   const genre = String(job.data.genre ?? "kinh dị");
   const episodeCount = Number(job.data.episodeCount ?? 1);
-  // Thiết lập thế giới do người viết đặt TRƯỚC — nếu có, AI phải bám theo
-  // thay vì tự nghĩ ra bối cảnh riêng.
+  // World setup the writer laid down FIRST — given one, the AI has to follow it rather
+  // than inventing a setting of its own.
   const world = parseWorld(job.data.world);
-  // Thể loại phụ do người viết chọn lúc tạo — vào Bible để lái cả bộ.
+  // Sub-genre tags the writer chose at creation — into the Bible, steering the story.
   const tags = parseTags(String(job.data.tags ?? ""));
 
-  // Dàn nhân vật chọn trước từ thẻ, hoặc gõ riêng cho bộ này. Rỗng thì AI tự
-  // nghĩ ra nhân vật như cũ.
+  // The cast picked up front from cards, or typed just for this story. Empty means the AI
+  // invents the characters as before.
   const cast = normalizeCast(Array.isArray(job.data.cast) ? (job.data.cast as CastMember[]) : []);
 
-  if (!idea.trim()) throw new Error("Thiếu ý tưởng (payload.idea)");
+  if (!idea.trim()) throw new Error("An idea is required (payload.idea)");
 
-  // Ngôn ngữ chọn lúc tạo bộ; không chọn thì lấy mặc định ở trang Model.
+  // The language chosen at creation; unset falls back to the Models page default.
   const language = toLanguage(job.data.language, await getDefaultLanguage());
 
-  // Ngôn ngữ bản thảo: để rỗng nếu không đặt, hoặc đặt trùng luôn ngôn ngữ đầu
-  // ra — dựng một bước chuyển ngữ chỉ để dịch từ tiếng này sang chính nó là
-  // thêm một lượt gọi model làm hỏng văn mà chẳng được gì.
+  // The draft language: left blank when unset, or set to the output language itself —
+  // building a rewrite step just to translate a language into itself is one more model
+  // call that damages the prose for nothing.
   const draft = planDraft(language, job.data.draftLanguage);
 
-  // Tên thể loại dành cho model. `Series.genre` giữ nhãn tiếng Việt vì người
-  // nghe nhìn thấy nó ở trang chủ và trong từ khoá RSS; chỉ bản đưa vào prompt
-  // mới đổi. Xem Genre.promptName.
+  // The genre name for the model. `Series.genre` keeps the Vietnamese label because
+  // listeners see it on the home page and in the RSS keywords; only the version that goes
+  // into the prompt changes. See Genre.promptName.
   const known = await prisma.genre.findMany({
     where: { name: { in: [genre, ...tags] } },
     select: { name: true, promptName: true },
@@ -87,7 +87,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   let result;
   try {
-    // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+    // Three tiers: the model chosen for this run → the prompt's model → the default.
     // Xem packages/llm/src/model-settings.ts.
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -121,9 +121,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(60);
 
   const outline = result.data;
-  logger.info(`[outline] "${outline.title}" — ${outline.episodes.length} tập`);
+  logger.info(`[outline] "${outline.title}" — ${outline.episodes.length} episodes`);
 
-  // Truyện ngắn cũng thuộc một Series (xem docs/database.md mục 2.1)
+  // A short story also belongs to a Series (see docs/database.md section 2.1)
   const kind = outline.episodes.length > 1 ? SeriesKind.LONG : SeriesKind.SHORT;
 
   const series = await prisma.series.create({
@@ -139,16 +139,16 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       status: SeriesStatus.DRAFT,
       storyBible: {
         raw: outline,
-        // Người viết chưa đặt bối cảnh thì lấy phần AI sinh làm điểm khởi đầu,
-        // để trang Story Bible có sẵn nội dung mà sửa.
+        // With no setting from the writer, the AI's becomes the starting point, so the
+        // Story Bible page has something to edit.
         world: { ...world, setting: world.setting.trim() || outline.setting },
         bible: buildBible(outline, world, tags),
       },
       characters: {
-        // Dàn người viết chọn thắng dàn model trả về, và model tự thêm ai thì
-        // giữ lại người đó. `mergeCast` cũng khử trùng tên: ràng buộc
-        // (seriesId, name) là duy nhất, mà model — cả thật lẫn giả lập — thỉnh
-        // thoảng trả về hai nhân vật cùng tên.
+        // The writer's cast beats the model's, and anyone the model added is kept.
+        // `mergeCast` also de-duplicates names: the (seriesId, name) constraint is
+        // unique, and models — real and mock alike — occasionally return two characters
+        // with one name.
         create: mergeCast(cast, outline.characters).map((c) => ({
           name: c.name,
           role: c.role,
@@ -158,7 +158,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
           appearance: c.appearance,
           voiceHint: c.voiceHint,
           isNarrator: c.isNarrator ?? false,
-          // Xuất xứ, không phải liên kết sống: sửa nhân vật ở đây không đụng thẻ.
+          // Provenance, not a live link: editing the character here does not touch the card.
           cardId: c.cardId ?? null,
         })),
       },
@@ -167,9 +167,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(80);
 
-  // Đoán trước ai có mặt trong từng cảnh, để Bible chỉ tả đầy đủ những người
-  // đó. Đoán hụt thì cảnh giữ danh sách rỗng và Bible nạp đầy đủ như cũ — người
-  // viết sửa lại ở trang tập.
+  // Guess who is present in each scene, so the Bible only describes those in full.
+  // Guessing short leaves the scene with an empty list and the Bible loads in full as
+  // before — the writer fixes it on the episode page.
   const roster = await prisma.character.findMany({
     where: { seriesId: series.id },
     select: { id: true, name: true },

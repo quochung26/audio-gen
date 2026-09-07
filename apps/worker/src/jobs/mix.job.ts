@@ -9,17 +9,17 @@ import { getStorage } from "../services/storage";
 import { logger } from "../lib/logger";
 
 /**
- * Bước 4–5 — ghép block thành tập, chuẩn hoá loudness, xuất MP3.
+ * Steps 4–5 — join the blocks into an episode, normalise loudness, export MP3.
  *
- * Chạy ở làn FFMPEG (CPU), `vramMb = 0`, nên chồng lấn được với LLM đang viết
- * tập sau — xem PLAN.md mục 3 điểm 3.
+ * Runs on the FFMPEG lane (CPU) with `vramMb = 0`, so it overlaps with the LLM writing
+ * the next episode — see PLAN.md section 3, point 3.
  *
- * Nhạc nền là tuỳ chọn: tập nào chọn track ở Studio thì trộn kèm ducking, tập
- * nào không thì đi thẳng từ block ghép sang chuẩn hoá.
+ * Background music is optional: an episode with a track chosen in Studio gets it mixed
+ * in with ducking; one without goes straight from joined blocks to normalisation.
  */
 export const mixJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
 
   const episode = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
@@ -37,10 +37,10 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   const missing = episode.blocks.filter((b) => !b.audioAsset);
-  if (episode.blocks.length === 0) throw new Error("Tập chưa có block nào");
+  if (episode.blocks.length === 0) throw new Error("This episode has no blocks yet");
   if (missing.length > 0) {
     throw new Error(
-      `Còn ${missing.length}/${episode.blocks.length} block chưa có audio. Chạy job TTS trước.`,
+      `${missing.length}/${episode.blocks.length} blocks have no audio. Run the TTS job first.`,
     );
   }
 
@@ -50,8 +50,8 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
   try {
     await setProgress(10);
 
-    // Trong DB là khoá trong kho; `storage.resolve` đổi thành đường dẫn cục bộ
-    // (driver local) hoặc URL http (driver R2, phải tải về trước khi ffmpeg đọc).
+    // The DB holds store keys; `storage.resolve` turns them into a local path (local
+    // driver) or an http URL (R2 driver, which must be downloaded before ffmpeg reads it).
     const blockPaths = await Promise.all(
       episode.blocks.map(async (b, i) => ({
         path: await localPath(b.audioAsset!.url, workDir, `block-${String(i).padStart(4, "0")}.wav`),
@@ -67,25 +67,25 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       outPath: rawPath,
       workDir,
     });
-    logger.info(`[mix] ghép ${blockPaths.length} block → ${(durationMs / 1000).toFixed(1)}s`);
+    logger.info(`[mix] joined ${blockPaths.length} blocks → ${(durationMs / 1000).toFixed(1)}s`);
 
     await setProgress(45);
 
-    // Hiệu ứng chèn TRƯỚC nhạc nền: ducking lấy bản lời làm tín hiệu điều
-    // khiển, nên hiệu ứng nằm trong bản lời thì tiếng động cũng kéo nhạc xuống.
+    // Effects go in BEFORE the music: ducking uses the speech track as its control
+    // signal, so an effect inside that track pulls the music down too.
     let voicePath = rawPath;
     const cues = await sfxCues(episode.blocks, workDir);
     if (cues.length > 0) {
       voicePath = join(workDir, "with-sfx.wav");
       await mixSfx({ voicePath: rawPath, cues, outPath: voicePath });
-      logger.info(`[mix] chèn ${cues.length} hiệu ứng`);
+      logger.info(`[mix] inserted ${cues.length} effects`);
     }
 
     await setProgress(50);
 
-    // Nhạc nền trộn TRƯỚC khi chuẩn hoá, không phải sau: loudnorm phải đo được
-    // bản hoàn chỉnh. Chuẩn hoá lời rồi mới chồng nhạc lên là đẩy tập vượt mức
-    // đã chuẩn hoá, đúng bằng phần nhạc thêm vào.
+    // Music is mixed BEFORE normalisation, not after: loudnorm has to measure the
+    // finished thing. Normalising the speech and then layering music on top pushes the
+    // episode past the level it was normalised to, by exactly the music added.
     let mixedPath = voicePath;
     if (episode.bgmTrack) {
       const bgmPath = await localPath(
@@ -101,13 +101,13 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
         volume: episode.bgmVolume,
       });
       logger.info(
-        `[mix] trộn nhạc nền "${episode.bgmTrack.title}" ở ${Math.round(episode.bgmVolume * 100)}%`,
+        `[mix] mixed in background music "${episode.bgmTrack.title}" at ${Math.round(episode.bgmVolume * 100)}%`,
       );
     }
 
     await setProgress(60);
 
-    // Chuẩn hoá -16 LUFS cho web. Hai lượt loudnorm nằm trong normalizeLoudness.
+    // Normalised to -16 LUFS for web. The two loudnorm passes live in normalizeLoudness.
     const normPath = join(workDir, "normalized.wav");
     await normalizeLoudness({ inPath: mixedPath, outPath: normPath, target: "web" });
 
@@ -132,8 +132,8 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       "audio/mpeg",
     );
 
-    // `Export` là bảng riêng chứ không phải cột URL trên Episode — để chứa được
-    // nhiều file cùng loại (TikTok cắt nhiều phần). docs/database.md mục 2.8.
+    // `Export` is its own table rather than a URL column on Episode — so it can hold
+    // several files of one type (a TikTok cut into parts). docs/database.md section 2.8.
     await prisma.export.upsert({
       where: {
         episodeId_type_part: { episodeId, type: ExportType.AUDIO_MP3, part: 1 },
@@ -162,8 +162,8 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
       },
     });
 
-    // Tập ĐANG xuất bản thì giữ nguyên trạng thái và đẩy lại sang hosted —
-    // xuất lại MP3 xong mà live vẫn trỏ tới bản cũ là kiểu lệch không ai thấy.
+    // A PUBLISHED episode keeps its status and gets re-pushed to hosted — re-exporting
+    // the MP3 while live still points at the old one is drift nobody would notice.
     const wasPublished = episode.status === EpisodeStatus.PUBLISHED;
 
     await prisma.episode.update({
@@ -176,18 +176,18 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
 
     if (wasPublished) {
       await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
-      logger.info(`[mix] tập đang xuất bản — đã đẩy job đồng bộ lại`);
+      logger.info(`[mix] episode is published — queued a re-sync job`);
     }
 
     await setProgress(100);
     logger.info(
-      `[mix] tập ${episode.number} xong: ${(mp3.durationMs / 1000 / 60).toFixed(1)} phút, ` +
+      `[mix] episode ${episode.number} done: ${(mp3.durationMs / 1000 / 60).toFixed(1)} minutes, ` +
         `${(mp3.sizeBytes / 1024 / 1024).toFixed(1)} MB`,
     );
 
     return {
       episodeId,
-      // Người gọi cần đường dẫn mở được ngay, khác với thứ đem lưu.
+      // The caller needs a path it can open right away, unlike what gets stored.
       url: stored.url,
       durationMs: mp3.durationMs,
       sizeBytes: mp3.sizeBytes,
@@ -199,15 +199,15 @@ export const mixJob: JobHandler = async ({ job, setProgress }) => {
 };
 
 /**
- * Mốc thời gian để chèn từng hiệu ứng, tính từ đầu tập.
+ * The timestamp for each effect, measured from the start of the episode.
  *
- * `concatBlocks` xếp: block[0], lặng(pauseAfter[0]), block[1], … nên mốc bắt
- * đầu của block i là tổng độ dài các block trước cộng tổng khoảng lặng trước
- * đó. Phải khớp CHÍNH XÁC cách ghép, lệch một khoảng lặng là mọi hiệu ứng sau
- * đó rơi sai chỗ.
+ * `concatBlocks` lays out block[0], silence(pauseAfter[0]), block[1], … so block i starts
+ * at the total length of the preceding blocks plus the total preceding silence. It has to
+ * match the joining EXACTLY — one silence out and every effect after it lands in the
+ * wrong place.
  *
- * Hiệu ứng chèn ở ĐẦU block — `sfxHint` trong kịch bản mô tả tiếng động đi kèm
- * đoạn đó, không phải tiếng động sau khi đoạn đó đọc xong.
+ * Effects are placed at the START of a block — `sfxHint` in the script describes the
+ * sound accompanying that passage, not a sound after it has been read.
  */
 async function sfxCues(
   blocks: Array<{
@@ -232,25 +232,25 @@ async function sfxCues(
       });
     }
     atMs += b.audioAsset?.durationMs ?? 0;
-    // Khoảng lặng sau block CUỐI không được chèn — xem concatBlocks.
+    // The silence after the LAST block is not inserted — see concatBlocks.
     if (b.pauseAfter > 0 && i < blocks.length - 1) atMs += b.pauseAfter;
   }
   return cues;
 }
 
-/** Đuôi file lấy từ URL — ffmpeg đoán định dạng tốt hơn khi có đuôi đúng. */
+/** The file extension from a URL — ffmpeg guesses the format better with the right one. */
 function extensionOf(url: string): string {
   const ext = /\.([a-z0-9]{2,4})(?:[?#]|$)/i.exec(url)?.[1];
   return ext ? `.${ext.toLowerCase()}` : ".mp3";
 }
 
-/** Trả về đường dẫn cục bộ cho ffmpeg đọc, tải về nếu là URL http. */
+/** Returns a local path for ffmpeg to read, downloading first when it is an http URL. */
 async function localPath(ref: string, workDir: string, filename: string): Promise<string> {
   const url = getStorage().resolve(ref);
   if (!url.startsWith("http")) return url;
 
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Không tải được ${url}: HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Could not download ${url}: HTTP ${res.status}`);
   const dest = join(workDir, filename);
   const { writeFile } = await import("node:fs/promises");
   await writeFile(dest, Buffer.from(await res.arrayBuffer()));

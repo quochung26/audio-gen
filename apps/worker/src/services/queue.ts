@@ -15,7 +15,7 @@ export function getQueue(lane: Lane): Queue {
   return q;
 }
 
-/** Job nào chạy ở làn nào. */
+/** Which job runs on which lane. */
 const LANE_OF: Record<JobType, Lane> = {
   BATCH: "LLM",
   OUTLINE: "LLM",
@@ -35,16 +35,16 @@ const LANE_OF: Record<JobType, Lane> = {
 };
 
 /**
- * Ghi RenderJob vào Postgres TRƯỚC rồi mới đẩy vào Redis.
- * Thứ tự này quan trọng: Redis là hàng đợi tạm, Postgres là nguồn sự thật.
- * Mất Redis thì vẫn biết job nào dang dở mà xếp lại.
+ * Writes the RenderJob to Postgres FIRST, then pushes to Redis.
+ * The order matters: Redis is the transient queue, Postgres is the source of truth.
+ * Lose Redis and it is still known which jobs were in flight, so they can be requeued.
  */
 export async function enqueue(input: {
   type: JobType;
   episodeId?: string;
   payload?: Record<string, unknown>;
   lane?: Lane;
-  /** Ghi đè chi phí VRAM — dùng để thử người gác, hoặc khi model đổi kích thước. */
+  /** Override the VRAM cost — for exercising the gatekeeper, or when a model changes size. */
   vramMb?: number;
 }) {
   const lane = input.lane ?? LANE_OF[input.type];
@@ -82,8 +82,8 @@ export async function closeQueues() {
 }
 
 /**
- * Dùng cho script chạy một lần: đóng hàng đợi VÀ kết nối Redis dùng chung.
- * Không đóng `connection` thì tiến trình treo — ioredis giữ event loop sống.
+ * For one-shot scripts: closes the queues AND the shared Redis connection.
+ * Without closing `connection` the process hangs — ioredis keeps the event loop alive.
  */
 export async function shutdownQueueClient() {
   await closeQueues();
@@ -91,10 +91,10 @@ export async function shutdownQueueClient() {
 }
 
 /**
- * Chi phí VRAM của một job, xét cả provider đang bật.
+ * A job's VRAM cost, taking the active provider into account.
  *
- * Bảng `getJobVramCost` chỉ biết loại job, không biết ai sẽ chạy — mà cùng một
- * WRITE_SCENE tốn 12 GB khi chạy Ollama và 0 khi gọi OpenRouter.
+ * The `getJobVramCost` table only knows the job type, not who will run it — and the same
+ * WRITE_SCENE costs 12 GB on Ollama and 0 through OpenRouter.
  */
 async function vramCostFor(type: JobType): Promise<number> {
   const base = getJobVramCost()[type] ?? 0;

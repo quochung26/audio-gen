@@ -1,7 +1,7 @@
 /**
- * Xem chi tiết một bộ truyện đã sinh — để kiểm tra dữ liệu thật sự nằm đúng chỗ.
+ * Inspect a generated story — to check the data really landed where it should.
  *   pnpm --filter @audio/worker inspect <seriesId>
- *   pnpm --filter @audio/worker inspect            (lấy bộ mới nhất)
+ *   pnpm --filter @audio/worker inspect            (takes the newest story)
  */
 import { prisma } from "@audio/database";
 import { formatDuration } from "@audio/core";
@@ -44,40 +44,40 @@ const series = id
 
 console.log(`\n═══ ${series.title} ═══`);
 console.log(`${series.kind} · ${series.genre} · ${series.status} · slug: ${series.slug}`);
-console.log(`\nNhân vật (${series.characters.length}):`);
+console.log(`\nCharacters (${series.characters.length}):`);
 for (const c of series.characters) {
   console.log(
     `  ${c.isNarrator ? "▸" : "·"} ${c.name} — ${c.role ?? ""}` +
-      `\n      giọng gợi ý: ${c.voiceHint ?? "—"}` +
-      `\n      đã casting : ${c.voice?.name ?? "chưa"}`,
+      `\n      voice hint : ${c.voiceHint ?? "—"}` +
+      `\n      cast as    : ${c.voice?.name ?? "nothing yet"}`,
   );
 }
 
 for (const ep of series.episodes) {
-  console.log(`\n─── Tập ${ep.number}: ${ep.title} [${ep.status}] ───`);
+  console.log(`\n─── Episode ${ep.number}: ${ep.title} [${ep.status}] ───`);
   console.log(
-    `${ep.wordCount ?? 0} từ · ~${formatDuration(ep.durationMs ?? 0)} · ` +
-      `duyệt: ${ep.humanReviewed ? "rồi" : "chưa"}`,
+    `${ep.wordCount ?? 0} words · ~${formatDuration(ep.durationMs ?? 0)} · ` +
+      `approved: ${ep.humanReviewed ? "yes" : "no"}`,
   );
 
   const sceneCount = ep.chapters.reduce((n, ch) => n + ch.scenes.length, 0);
-  console.log(`\nChương (${ep.chapters.length}) · cảnh (${sceneCount}):`);
+  console.log(`\nChapters (${ep.chapters.length}) · scenes (${sceneCount}):`);
   for (const ch of ep.chapters) {
-    console.log(`  ${ch.order}. ${ch.title ?? "(chưa đặt tên)"}`);
+    console.log(`  ${ch.order}. ${ch.title ?? "(untitled)"}`);
     for (const s of ch.scenes) {
       const preview = (s.text ?? "").replace(/\s+/g, " ").slice(0, 70);
       console.log(`     ${ch.order}.${s.order} [${s.beat.slice(0, 45)}]`);
-      console.log(`        ${preview}${preview ? "…" : "(chưa viết)"}`);
+      console.log(`        ${preview}${preview ? "…" : "(not written)"}`);
     }
   }
 
   if (ep.blocks.length > 0) {
     console.log(`\nBlock audio (${ep.blocks.length}):`);
     for (const b of ep.blocks) {
-      const who = b.speakerLabel === "narrator" ? "dẫn truyện" : b.speakerLabel;
-      const link = b.characterId ? "✓" : "✗ chưa khớp nhân vật";
+      const who = b.speakerLabel === "narrator" ? "narration" : b.speakerLabel;
+      const link = b.characterId ? "✓" : "✗ no matching character";
       console.log(
-        `  ${String(b.order).padStart(2)}. [${who}] ${link}  nghỉ ${b.pauseAfter}ms` +
+        `  ${String(b.order).padStart(2)}. [${who}] ${link}  pause ${b.pauseAfter}ms` +
           `${b.sfxHint ? `  sfx: ${b.sfxHint}` : ""}`,
       );
       console.log(`      "${b.text.replace(/\s+/g, " ").slice(0, 66)}…"`);
@@ -85,7 +85,7 @@ for (const ep of series.episodes) {
   }
 
   if (ep.summary) {
-    console.log(`\nTóm tắt: ${ep.summary.replace(/\s+/g, " ").slice(0, 140)}…`);
+    console.log(`\nSummary: ${ep.summary.replace(/\s+/g, " ").slice(0, 140)}…`);
   }
 }
 
@@ -94,7 +94,7 @@ const runs = await prisma.llmRun.findMany({
   orderBy: { createdAt: "asc" },
 });
 if (runs.length > 0) {
-  console.log(`\n─── Telemetry LLM (${runs.length} lần gọi) ───`);
+  console.log(`\n─── LLM telemetry (${runs.length} calls) ───`);
   for (const r of runs) {
     console.log(
       `  ${r.step.padEnd(12)} ${r.model.padEnd(10)} ` +
@@ -103,7 +103,7 @@ if (runs.length > 0) {
     );
   }
   const total = runs.reduce((a, r) => a + r.durationMs, 0);
-  console.log(`  ${"".padEnd(24)}tổng thời gian: ${(total / 1000).toFixed(1)}s`);
+  console.log(`  ${"".padEnd(24)}total time: ${(total / 1000).toFixed(1)}s`);
 }
 console.log();
 

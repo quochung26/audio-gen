@@ -14,44 +14,44 @@ import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 
 export interface SceneContext {
   genre: string;
-  /** Ngôn ngữ của bộ — thứ tiếng người nghe nhận được. */
+  /** The story's language — what the listener receives. */
   language: string;
-  /** Viết bản thảo bằng tiếng này rồi mới chuyển ngữ. Rỗng = viết thẳng. */
+  /** Write the draft in this language, then rewrite. Blank = write directly. */
   draftLanguage: string;
   bible: string;
-  /** Tóm tắt cung truyện — các tập cũ đã nén lại. */
+  /** The arc summary — old episodes compressed. */
   arcSummary?: string;
-  /** Tới hết tập số mấy thì `arcSummary` bao phủ. */
+  /** Which episode number `arcSummary` covers up to. */
   arcThroughEpisode?: number;
-  /** Mục lục truyện: mỗi tập một dòng. Luôn có, kể cả tập đã nén. */
+  /** The story index: one line per episode. Always present, compressed ones too. */
   episodeIndex: Array<{ number: number; title: string; gist: string }>;
-  /** Tóm tắt nguyên văn — chỉ tập liền trước, để nối mạch. */
+  /** The verbatim summary — of the previous episode only, to pick up the thread. */
   previousSummaries: Array<{ number: number; summary: string }>;
-  /** Sự kiện cũ truy hồi theo ngữ nghĩa cho đúng beat này. */
+  /** Old facts retrieved by meaning for this particular beat. */
   facts: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
-  /** Tình tiết bỏ ngỏ — luôn nạp, bất kể tương đồng. */
+  /** Open threads — always loaded, whatever the similarity. */
   openThreads: Array<{ episodeNumber: number; text: string }>;
   previousScene?: string;
-  /** Khối chỉ dẫn riêng của chương, đã render. Rỗng nếu chương không đặt gì. */
+  /** The chapter's own instruction block, rendered. Empty when the chapter set nothing. */
   chapter: string;
-  /** Ghi đè nhân vật cho đúng cảnh này — chương gộp với cảnh, cảnh thắng. */
+  /** Character overrides for this exact scene — chapter merged with scene, scene winning. */
   overrides: string;
   sceneNote: string;
   targetWords: number;
 }
 
 /**
- * Gom ngữ cảnh cho một lần viết cảnh — phân tầng để không tràn khi bộ dài ra.
+ * Gather the context for one scene write — tiered so it does not overflow as the story grows.
  *
- * Bốn tầng, theo thứ tự từ ổn định nhất tới biến động nhất:
+ * Four tiers, from the most stable to the most volatile:
  *
- *   1. Story Bible      — thế giới, luật, nhân vật + TRẠNG THÁI hiện tại (cố định)
- *   2. Tóm tắt cung     — các tập cũ đã nén (trần ~400 từ)
- *   3. Tóm tắt gần đây  — RECENT_SUMMARY_COUNT tập gần nhất, nguyên văn
- *   4. Cảnh liền trước  — toàn văn, để nối mạch tự nhiên
+ *   1. Story Bible       — world, rules, characters + their CURRENT state (fixed)
+ *   2. Arc summary       — old episodes compressed (~400 word ceiling)
+ *   3. Recent summaries  — the last RECENT_SUMMARY_COUNT episodes, verbatim
+ *   4. Previous scene    — in full, so the prose carries on naturally
  *
- * Không tầng nào tăng theo số tập, nên bộ 80 tập cũng vừa num_ctx. Bản trước
- * nạp TẤT CẢ tóm tắt và tràn quanh tập 35 — đo được bằng số thật.
+ * No tier grows with the episode count, so an 80-episode story still fits num_ctx.
+ * The previous version loaded ALL summaries and overflowed around episode 35 — measured, not guessed.
  */
 export async function buildSceneContext(sceneId: string): Promise<SceneContext> {
   const scene = await prisma.scene.findUniqueOrThrow({
@@ -75,45 +75,45 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const { episode } = chapter;
   const { series } = episode;
 
-  // Ai có mặt trong cảnh này — người ngoài danh sách chỉ còn tên và vai trong
-  // Bible. Rỗng thì tả đầy đủ tất cả, đúng hành vi cũ.
+  // Who is present in this scene — anyone outside the list keeps only name and role
+  // in the Bible. Empty describes everyone in full, which is the old behaviour.
   const inScene = series.characters
     .filter((c) => scene.characterIds.includes(c.id))
     .map((c) => c.name);
 
   const bible = await renderBibleFor(series, inScene);
 
-  // Mục lục: mỗi tập một dòng ~15 từ. Rẻ, và là thứ duy nhất còn lại của các
-  // tập đã bị nén — không có nó thì hệ thống "quên" là tập đó từng tồn tại.
+  // The index: one ~15-word line per episode. Cheap, and all that survives of the
+  // compressed ones — without it the system "forgets" those episodes ever existed.
   const indexRows = await prisma.episode.findMany({
     where: { seriesId: series.id, number: { lt: episode.number }, gist: { not: null } },
     orderBy: { number: "asc" },
     select: { number: true, title: true, gist: true },
   });
 
-  // Chỉ tóm tắt ĐẦY ĐỦ của tập liền trước. Các tập xa hơn không nạp nguyên
-  // khối nữa — thay bằng truy hồi sự kiện đúng thứ beat này cần.
+  // Only the previous episode's FULL summary. Older ones are no longer loaded whole —
+  // fact retrieval for what this beat needs takes their place.
   const previous = await prisma.episode.findFirst({
     where: { seriesId: series.id, number: episode.number - 1, summary: { not: null } },
     select: { number: true, summary: true },
   });
 
-  // Truy hồi bằng vector, có ngưỡng tương đồng — không lấy top-K vô điều kiện.
+  // Vector retrieval with a similarity floor — not an unconditional top-K.
   const [retrieved, threads, pinned] = await Promise.all([
     retrieveFacts({ seriesId: series.id, beforeEpisode: episode.number, query: scene.beat }),
     openThreads({ seriesId: series.id, beforeEpisode: episode.number }),
     pinnedFacts(series.id, episode.number),
   ]);
 
-  // Sự kiện được ghim đứng cùng sự kiện truy hồi, đánh dấu similarity = 1.
+  // Pinned facts sit alongside the retrieved ones, marked similarity = 1.
   const facts = [
     ...pinned.map((p) => ({ ...p, kind: String(p.kind), similarity: 1 })),
     ...retrieved.filter((r) => !pinned.some((p) => p.text === r.text)),
   ];
 
-  // Cảnh liền trước tính theo thứ tự ĐỌC của cả tập, không theo `order` trong
-  // chương: cảnh trước cảnh 1 của chương 2 là cảnh CUỐI của chương 1. Xét theo
-  // `order` thôi thì mở đầu mỗi chương đều mất mạch nối, mà không có gì báo.
+  // The previous scene follows the episode's READING order, not `order` within the
+  // chapter: the scene before chapter 2's scene 1 is the LAST scene of chapter 1. Go
+  // by `order` alone and every chapter opening loses its thread, with nothing to say so.
   const ordered = await prisma.scene.findMany({
     where: { chapter: { episodeId: episode.id } },
     orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
@@ -124,8 +124,8 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
 
   const sceneCount = ordered.length;
 
-  // Ba tầng chỉ dẫn về nhân vật: Story Bible (cả bộ) → chương → cảnh. Gộp theo
-  // TỪNG Ô nên cảnh chỉ cần nói phần khác đi.
+  // Three tiers of character instruction: Story Bible (whole story) → chapter → scene.
+  // Merged FIELD BY FIELD, so a scene only has to state what differs.
   const chapterSetup = parseChapterSetup(chapter.setup);
   const sceneSetup = parseSceneSetup(scene.setup);
 
@@ -151,16 +151,16 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
 type SeriesForBible = Prisma.SeriesGetPayload<{ include: { characters: true } }>;
 
 /**
- * Dựng Story Bible từ dữ liệu MỚI NHẤT của bộ, không dùng bản đã render sẵn.
+ * Build the Story Bible from the story's LATEST data, never from a pre-rendered copy.
  *
- * Người viết có thể vừa sửa luật thế giới hoặc thêm nhân vật ở Studio; dùng bản
- * cache cũ thì cảnh viết ra sẽ trái với thứ vừa sửa.
+ * The writer may have just edited a world rule or added a character in Studio; using a
+ * stale cache writes scenes that contradict what was just changed.
  */
 async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Promise<string> {
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
 
-  // Mô tả của đúng những thể loại bộ này dùng. Một truy vấn, đổi lại model
-  // hiểu "kinh dị" theo nghĩa người viết định.
+  // Descriptions for exactly the genres this story uses. One query, in exchange for the
+  // model reading "kinh dị" the way the writer means it.
   const genreNotes = await prisma.genre.findMany({
     where: { name: { in: [series.genre, ...series.tags] } },
     select: { name: true, promptName: true, description: true },
@@ -180,11 +180,11 @@ async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Pro
 }
 
 /**
- * Story Bible của một bộ, cho bước chỉ cần Bible chứ không cần cả ngữ cảnh cảnh.
+ * A story's Story Bible, for a step that needs the Bible without the scene context.
  *
- * Bước chuyển ngữ là ca dùng: nó cần tên riêng, thuật ngữ và cách xưng hô, mà
- * KHÔNG được nhìn tóm tắt hay sự kiện cũ — cho nó ngữ cảnh câu chuyện là mời nó
- * kể lại cho hay hơn, trong khi việc của nó là giữ nguyên từng tình tiết.
+ * The rewrite step is the use case: it needs proper nouns, terminology and forms of
+ * address, but must NOT see summaries or old facts — giving it story context invites it
+ * to retell the story better, when its job is to preserve every detail.
  */
 export async function buildSeriesBible(seriesId: string): Promise<string> {
   const series = await prisma.series.findUniqueOrThrow({

@@ -15,19 +15,19 @@ import { saveFacts } from "../services/fact-store";
 import { logger } from "../lib/logger";
 
 /**
- * Bước 0d — tóm tắt tập VÀ cập nhật trạng thái nhân vật, trong một lần gọi.
+ * Step 0d — summarise the episode AND update character state, in one call.
  *
- * Gộp hai việc vào một lần gọi vì cả hai đều cần đọc trọn nội dung tập; tách
- * ra thành hai job thì đọc hai lần, tốn gấp đôi thời gian mà chẳng được gì.
+ * Both jobs in one call because both have to read the episode's whole content; split into
+ * two jobs it would be read twice, for double the time and no gain.
  *
- * Vì sao cần trạng thái nhân vật riêng: tóm tắt tập là văn xuôi, và khi bộ dài
- * ra thì các tóm tắt cũ bị nén lại (xem arc-summary.job) — thông tin kiểu "nhân
- * vật này đã chết ở tập 12" rất dễ bị nén mất. Trường `state` giữ nó tách bạch
- * và luôn phản ánh tình trạng mới nhất.
+ * Why character state is separate: the episode summary is prose, and as the story grows
+ * old summaries get compressed (see arc-summary.job) — something like "this character died
+ * in episode 12" is easily compressed away. The `state` field keeps it apart and always
+ * reflecting the latest.
  */
 export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
 
   const episode = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
@@ -35,7 +35,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   const text = episode.scriptText ?? episode.draftText;
-  if (!text) throw new Error("Tập chưa có nội dung để tóm tắt");
+  if (!text) throw new Error("This episode has no content to summarise");
 
   const prompt = await loadPrompt("SUMMARIZE", episode.series.genre);
   const ctx = { step: "SUMMARIZE" as const, episodeId, promptId: prompt.id, params: prompt.params };
@@ -44,7 +44,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
 
   let result;
   try {
-    // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+    // Three tiers: the model chosen for this run → the prompt's model → the default.
     // Xem packages/llm/src/model-settings.ts.
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -70,7 +70,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   await recordRun(ctx, result);
   await setProgress(70);
 
-  // Ánh xạ tên → nhân vật, bỏ qua tên model bịa ra không có trong danh sách.
+  // Map names → characters, skipping any the model invented that is not on the list.
   const byName = new Map(episode.series.characters.map((c) => [c.name.toLowerCase(), c]));
   const updates = result.data.characters
     .map((cs) => ({ character: byName.get(cs.name.trim().toLowerCase()), state: cs.state.trim() }))
@@ -81,7 +81,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   const unknown = result.data.characters.filter((cs) => !byName.has(cs.name.trim().toLowerCase()));
   if (unknown.length > 0) {
     logger.warn(
-      `[summarize] bỏ qua ${unknown.length} tên không có trong danh sách nhân vật: ` +
+      `[summarize] skipped ${unknown.length} names not on the character list: ` +
         unknown.map((u) => u.name).join(", "),
     );
   }
@@ -99,7 +99,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
     ),
   ]);
 
-  // Sự kiện đi vào vector store — sống độc lập với việc nén tóm tắt về sau.
+  // Facts go into the vector store — living independently of later summary compression.
   const factCount = await saveFacts({
     seriesId: episode.seriesId,
     episodeId,
@@ -108,13 +108,13 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   logger.info(
-    `[summarize] tập ${episode.number}: tóm tắt + ${updates.length} trạng thái nhân vật + ` +
-      `${factCount} sự kiện`,
+    `[summarize] episode ${episode.number}: summary + ${updates.length} character states + ` +
+      `${factCount} facts`,
   );
 
   await setProgress(90);
 
-  // Đủ nhiều tóm tắt thì nén phần cũ lại — nếu không, ngữ cảnh tràn quanh tập 35.
+  // Enough summaries means compressing the old ones — otherwise context overflows around episode 35.
   const pending = await countPendingSummaries(episode.seriesId, episode.series.arcThroughEpisode);
   if (pending > ARC_COMPRESS_THRESHOLD) {
     await enqueue({
@@ -122,7 +122,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
       episodeId,
       payload: { seriesId: episode.seriesId },
     });
-    logger.info(`[summarize] ${pending} tóm tắt chưa nén → xếp job ARC_SUMMARY`);
+    logger.info(`[summarize] ${pending} summaries uncompressed → queued an ARC_SUMMARY job`);
   }
 
   await setProgress(100);
@@ -135,7 +135,7 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
   };
 };
 
-/** Số tóm tắt còn nguyên văn, chưa được gộp vào tóm tắt cung truyện. */
+/** How many summaries are still verbatim, not yet folded into the arc summary. */
 async function countPendingSummaries(seriesId: string, arcThrough: number | null): Promise<number> {
   return prisma.episode.count({
     where: {

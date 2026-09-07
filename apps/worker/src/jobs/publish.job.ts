@@ -3,26 +3,26 @@ import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 
 /**
- * Đồng bộ một tập đã xuất bản sang DB hosted mà Player đọc.
+ * Sync a published episode to the hosted DB the Player reads.
  *
- * MỘT CHIỀU, local → hosted. Không bao giờ đọc ngược: dữ liệu người nghe sinh ra
- * (tiến độ nghe, bình luận) chỉ tồn tại ở hosted, kéo về là trộn hai nguồn sự thật.
+ * ONE WAY, local → hosted. Never read back: listener-generated data (playback progress,
+ * comments) exists only on hosted, and pulling it back merges two sources of truth.
  *
- * Đẩy đúng những gì publish-scope.ts cho phép. Mặc định là KHÔNG đẩy — thêm
- * bảng mới vào schema thì nó không tự lọt ra ngoài.
+ * Pushes exactly what publish-scope.ts allows. The default is NOT to push — adding a
+ * new table to the schema does not leak it outward.
  *
- * Chạy được nhiều lần cho cùng một tập: toàn upsert.
+ * Safe to run repeatedly for one episode: everything is an upsert.
  */
 export const publishJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
   const remove = Boolean(job.data.remove);
 
   if (!playerDbIsSeparate) {
-    // Chạy chung một DB thì không có gì để đồng bộ. Không coi là lỗi — đây là
-    // chế độ chạy tại chỗ hợp lệ.
-    logger.info("[publish] PLAYER_DATABASE_URL trống — chung một DB, bỏ qua đồng bộ");
-    return { episodeId, skipped: "chung một DB" };
+    // On a single shared DB there is nothing to sync. Not an error — this is a valid
+    // local mode.
+    logger.info("[publish] PLAYER_DATABASE_URL is blank — one shared DB, skipping sync");
+    return { episodeId, skipped: "one shared DB" };
   }
 
   if (remove) return unpublish(episodeId);
@@ -37,13 +37,13 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   if (episode.status !== "PUBLISHED") {
-    throw new Error(`Tập ${episode.number} chưa xuất bản (${episode.status}), không đồng bộ.`);
+    throw new Error(`Episode ${episode.number} is not published (${episode.status}), not syncing.`);
   }
 
   await setProgress(20);
 
-  // Thứ tự bắt buộc: Series trước, rồi Character và Episode (cùng trỏ về
-  // Series), cuối cùng Export (trỏ về Episode).
+  // The order is mandatory: Series first, then Character and Episode (both pointing at
+  // Series), and Export last (pointing at Episode).
   const { characters, ...series } = episode.series;
   const seriesRow = forPublish("Series", series);
   await prismaPlayer.series.upsert({
@@ -73,8 +73,8 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
     update: epRow as never,
   });
 
-  // Lời truyện — Block phải đi SAU Episode vì trỏ về nó. Đây là thứ trang nghe
-  // dùng cho mục "Đọc lời truyện".
+  // The story's lines — Block goes AFTER Episode because it points at it. This is what
+  // the player uses for "Read the transcript".
   for (const b of blocks) {
     const row = forPublish("Block", b);
     await prismaPlayer.block.upsert({
@@ -83,8 +83,8 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
       update: row as never,
     });
   }
-  // Kịch bản dựng lại thì block cũ phải biến mất, nếu không trang nghe hiện
-  // lẫn lời cũ với lời mới.
+  // When the script is rebuilt the old blocks have to disappear, or the player shows the
+  // old lines mixed in with the new.
   const keptBlocks = blocks.map((b) => b.id);
   await prismaPlayer.block.deleteMany({
     where: { episodeId, id: { notIn: keptBlocks.length > 0 ? keptBlocks : ["-"] } },
@@ -101,20 +101,20 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
     });
   }
 
-  // Bản xuất bị xoá ở local thì cũng phải biến mất ở hosted, nếu không Player
-  // còn trỏ tới file đã dựng lại.
+  // An export deleted locally has to disappear on hosted too, or the Player keeps
+  // pointing at a file that has been rebuilt.
   const keep = exports.map((e) => e.id);
   const stale = await prismaPlayer.export.deleteMany({
     where: { episodeId, id: { notIn: keep.length > 0 ? keep : ["-"] } },
   });
 
-  // Đóng dấu thời điểm đồng bộ. Studio so mốc này với `updatedAt` của tập,
-  // block và bản xuất để biết live có đang lệch không.
+  // Stamp the sync time. Studio compares it against the episode's, the blocks' and the
+  // exports' `updatedAt` to tell whether live has drifted.
   //
-  // Đặt `updatedAt` BẰNG CHÍNH `syncedAt`: chính thao tác ghi này cũng đụng
-  // `updatedAt`, nên nếu để Prisma tự đặt thì hai mốc lệch nhau vài mili-giây
-  // và tập vừa đồng bộ xong lại tự báo "đã lệch". Ép bằng nhau thì so sánh
-  // dùng được dấu lớn-hơn tuyệt đối, không cần đệm che mất sửa đổi thật.
+  // Sets `updatedAt` EQUAL to `syncedAt`: this very write touches `updatedAt`, so
+  // letting Prisma set it leaves the two milliseconds apart and a freshly synced episode
+  // reports itself "out of date". Forcing them equal lets the comparison use a strict
+  // greater-than, with no tolerance hiding real edits.
   const now = new Date();
   await prisma.episode.update({
     where: { id: episodeId },
@@ -123,9 +123,9 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(100);
   logger.info(
-    `[publish] tập ${episode.number} → DB hosted: ${characters.length} nhân vật, ` +
-      `${blocks.length} block lời, ${exports.length} bản xuất` +
-      `${stale.count > 0 ? `, xoá ${stale.count} bản cũ` : ""}`,
+    `[publish] episode ${episode.number} → hosted DB: ${characters.length} characters, ` +
+      `${blocks.length} transcript blocks, ${exports.length} exports` +
+      `${stale.count > 0 ? `, removed ${stale.count} stale` : ""}`,
   );
 
   return {
@@ -137,10 +137,10 @@ export const publishJob: JobHandler = async ({ job, setProgress }) => {
 };
 
 /**
- * Gỡ một tập khỏi DB hosted.
+ * Remove an episode from the hosted DB.
  *
- * Giữ lại Series và Character nếu bộ còn tập khác đang xuất bản — xoá đi thì
- * các tập còn lại mất chỗ trỏ về.
+ * Keeps Series and Character when the story still has other published episodes — deleting
+ * them would leave the remaining ones with nothing to point at.
  */
 async function unpublish(episodeId: string): Promise<unknown> {
   const existing = await prismaPlayer.episode.findUnique({
@@ -162,8 +162,8 @@ async function unpublish(episodeId: string): Promise<unknown> {
   await prisma.episode.update({ where: { id: episodeId }, data: { syncedAt: null } });
 
   logger.info(
-    `[publish] gỡ tập ${existing.number} khỏi DB hosted` +
-      (left === 0 ? " (bộ không còn tập nào, xoá cả bộ)" : ` (bộ còn ${left} tập)`),
+    `[publish] removed episode ${existing.number} from the hosted DB` +
+      (left === 0 ? " (no episodes left, story removed too)" : ` (${left} episodes left)`),
   );
   return { episodeId, removed: true, seriesRemoved: left === 0 };
 }

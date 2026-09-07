@@ -8,23 +8,23 @@ import { openSceneStream } from "../services/stream";
 import { buildSeriesBible } from "../services/story-context";
 
 /**
- * Viết lại bản thảo sang ngôn ngữ đầu ra của bộ.
+ * Rewrite the draft into the story's output language.
  *
- * Chỉ chạy khi `Series.draftLanguage` khác `Series.language`. Lý do bước này
- * tồn tại: model viết văn hay nhất không phải lúc nào cũng viết được thứ tiếng
- * đầu ra — một finetune sáng tác dựng trên Mistral Small viết tiếng Anh rất khá
- * và tiếng Việt gần như không dùng được. Viết nháp bằng tiếng nó mạnh rồi viết
- * lại cho kết quả tốt hơn là ép nó viết thẳng.
+ * Only runs when `Series.draftLanguage` differs from `Series.language`. Why this step
+ * exists: the model that writes best cannot always write the output language — a creative
+ * finetune on Mistral Small writes very decent English and near-unusable Vietnamese.
+ * Drafting in its strong language and rewriting afterwards beats forcing it to write
+ * directly.
  *
- * Chạy TRƯỚC chốt duyệt (xem batch-plan.ts): duyệt bản thảo ở thứ tiếng không
- * phát ra loa thì chỗ chốt chặn không còn chặn được gì.
+ * Runs BEFORE the approval gate (see batch-plan.ts): approving a draft in a language that
+ * never reaches the speakers makes the gate meaningless.
  *
- * Đơn vị là CẢNH chứ không phải cả tập, cùng lý do với bước viết: một tập là
- * vài nghìn từ, viết lại một lượt thì model bỏ đoạn giữa mà không báo.
+ * The unit is a SCENE rather than a whole episode, for the same reason as writing: an
+ * episode is a few thousand words, and rewriting it in one go drops the middle silently.
  */
 export const translateJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
 
   const episode = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
@@ -35,24 +35,24 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
 
   if (!plan.translate) {
     throw new Error(
-      `Bộ "${series.title}" viết thẳng bằng "${plan.output}", không có bước chuyển ngữ. ` +
-        "Đặt ngôn ngữ bản thảo ở trang bộ truyện nếu muốn viết nháp bằng tiếng khác.",
+      `Story "${series.title}" writes directly in "${plan.output}", with no rewrite step. ` +
+        "Set a draft language on the story page to draft in another language.",
     );
   }
 
-  // Chạy lại có `force` thì dịch lại từ bản gốc đã giữ, không chồng lên bản đã
-  // dịch — dịch bản dịch là mỗi lượt lại trôi xa bản thảo thêm một quãng.
+  // A rerun with `force` rewrites from the original that was kept, never on top of an
+  // already-rewritten scene — rewriting a rewrite drifts further from the draft each time.
   const force = job.data.force === true;
 
   const scenes = await prisma.scene.findMany({
-    // `sourceText` null nghĩa là cảnh chưa qua chuyển ngữ. Nhờ vậy chạy lại job
-    // trên tập đã dịch xong là không có gì để làm, thay vì dịch lại lần nữa.
+    // A null `sourceText` means the scene has not been rewritten. So rerunning the job on
+    // a finished episode has nothing to do, rather than rewriting it again.
     where: { chapter: { episodeId }, text: { not: null }, ...(force ? {} : { sourceText: null }) },
     orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
   });
 
   if (scenes.length === 0) {
-    logger.info(`[translate] tập ${episode.number}: không còn cảnh nào cần chuyển ngữ`);
+    logger.info(`[translate] episode ${episode.number}: no scenes left to rewrite`);
     return { episodeId, scenesTranslated: 0 };
   }
 
@@ -74,8 +74,8 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
 
     let result;
     try {
-      // Model của bước này thường KHÁC model viết: thứ viết tiếng Anh hay nhất
-      // là thứ viết tiếng Việt dở nhất. Đặt ở `Prompt.model` của bước TRANSLATE.
+      // This step's model is usually DIFFERENT from the writing one: what writes the best
+      // English writes the worst Vietnamese. Set it in the TRANSLATE step's `Prompt.model`.
       const model = await resolveModel({
         requested: typeof job.data.model === "string" ? job.data.model : null,
         prompt: prompt.model,
@@ -99,15 +99,15 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
 
     await recordRun(ctx, result);
 
-    // Ghi bản gốc VÀ bản mới trong một lần: đứt giữa hai lệnh ghi thì cảnh mất
-    // bản thảo gốc mà vẫn mang dấu đã dịch, và không cách nào dựng lại.
+    // Writes the original AND the new version together: a break between two writes would
+    // lose the scene's original draft while still marking it rewritten, unrecoverably.
     await prisma.scene.update({
       where: { id: scene.id },
       data: { text: result.text.trim(), sourceText: source },
     });
 
     logger.info(
-      `[translate] cảnh ${scene.order}: ${plan.draft} → ${plan.output}, ` +
+      `[translate] scene ${scene.order}: ${plan.draft} → ${plan.output}, ` +
         `${result.tokensPerSec.toFixed(1)} tok/s`,
     );
     await setProgress(Math.round(((index + 1) / scenes.length) * 90));

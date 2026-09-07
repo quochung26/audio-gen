@@ -1,5 +1,5 @@
 /**
- * Xem trạng thái hàng đợi: bản ghi trong Postgres + ngân sách VRAM.
+ * Show the queue's state: the Postgres rows + the VRAM budget.
  *   pnpm --filter @audio/worker queue:status
  */
 import { prisma } from "@audio/database";
@@ -12,15 +12,15 @@ const jobs = await prisma.renderJob.findMany({
 
 const vram = getVramBudget();
 console.log(
-  `\nNgân sách VRAM: ${vram.usableMb}MB dùng được ` +
-    `(${vram.totalMb}MB tổng − ${vram.reservedMb}MB hệ điều hành giữ)\n`,
+  `\nVRAM budget: ${vram.usableMb}MB usable ` +
+    `(${vram.totalMb}MB total − ${vram.reservedMb}MB held by the OS)\n`,
 );
 
 if (jobs.length === 0) {
-  console.log("Chưa có job nào. Chạy `pnpm job:mock` để thử.\n");
+  console.log("No jobs yet. Run `pnpm job:mock` to try it.\n");
 } else {
-  console.log("RenderJob gần nhất:");
-  console.log("  trạng thái  làn       loại        vram    %    thời gian  ghi chú");
+  console.log("Most recent RenderJobs:");
+  console.log("  status      lane      type        vram    %    time       note");
   console.log("  " + "─".repeat(74));
   for (const j of jobs.reverse()) {
     const ms =
@@ -42,7 +42,7 @@ if (jobs.length === 0) {
     acc[j.status] = (acc[j.status] ?? 0) + 1;
     return acc;
   }, {});
-  console.log(`\nTổng ${jobs.length}: ${JSON.stringify(byStatus)}\n`);
+  console.log(`\nTotal ${jobs.length}: ${JSON.stringify(byStatus)}\n`);
 }
 
 await prisma.$disconnect();

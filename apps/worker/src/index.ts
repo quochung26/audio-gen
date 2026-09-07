@@ -10,28 +10,28 @@ async function main() {
   const env = loadEnv();
   const vram = getVramBudget();
 
-  logger.info("── worker khởi động ──");
+  logger.info("── worker starting ──");
   logger.info(`LLM provider : ${env.LLM_PROVIDER}`);
   logger.info(`TTS provider : ${env.TTS_PROVIDER}`);
-  logger.info(`VRAM         : ${vram.usableMb}MB dùng được / ${vram.totalMb}MB tổng`);
+  logger.info(`VRAM         : ${vram.usableMb}MB usable / ${vram.totalMb}MB total`);
 
   await prisma.$queryRaw`SELECT 1`;
-  logger.info("Postgres     : kết nối được");
+  logger.info("Postgres     : reachable");
 
-  // Kiểm tra sớm: thiếu ffmpeg thì job MIX chết giữa đường, khó truy hơn nhiều.
+  // An early check: without ffmpeg the MIX job dies mid-run, which is far harder to trace.
   const ff = await checkFfmpeg();
   logger.info(
-    `ffmpeg       : ${ff.ok ? "đủ filter cần dùng" : "THIẾU " + ff.missing.join(", ")}`,
+    `ffmpeg       : ${ff.ok ? "has every filter needed" : "MISSING " + ff.missing.join(", ")}`,
   );
 
   const workers = startLanes();
 
   const shutdown = async (signal: string) => {
-    logger.warn(`nhận ${signal} — đang dừng, chờ job hiện tại xong…`);
+    logger.warn(`got ${signal} — shutting down, waiting for the current job…`);
     await Promise.all(workers.map((w) => w.close()));
     await shutdownQueueClient();
     await prisma.$disconnect();
-    logger.info("đã dừng sạch");
+    logger.info("shut down cleanly");
     process.exit(0);
   };
 
@@ -45,6 +45,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  logger.error("worker chết khi khởi động", err);
+  logger.error("the worker died at startup", err);
   process.exit(1);
 });

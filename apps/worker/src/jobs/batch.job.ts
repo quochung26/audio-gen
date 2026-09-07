@@ -4,22 +4,22 @@ import { step } from "../services/batch";
 import { logger } from "../lib/logger";
 
 /**
- * Đẩy một lượt chạy hàng loạt sang bước kế tiếp.
+ * Advance a batch run to its next step.
  *
- * Job này tồn tại để Studio KHÔNG phải mang theo logic điều phối: Studio chỉ
- * đẩy `BATCH` vào hàng đợi, còn quyết định bước nào chạy tiếp nằm trọn ở worker.
+ * This job exists so Studio does NOT have to carry the orchestration logic: Studio only
+ * queues `BATCH`, and deciding which step runs next lives entirely in the worker.
  *
- * Không gắn `episodeId`, nên `advanceBatch` chạy sau khi job này xong sẽ tự bỏ
- * qua — tránh đẩy hai bước cùng lúc.
+ * It carries no `episodeId`, so the `advanceBatch` that runs after it finishes skips it —
+ * avoiding two steps being queued at once.
  */
 export const batchJob: JobHandler = async ({ job }) => {
   const runId = String(job.data.runId ?? "");
-  if (!runId) throw new Error("Thiếu runId");
+  if (!runId) throw new Error("runId is required");
 
   const run = await prisma.batchRun.findUniqueOrThrow({ where: { id: runId } });
 
   if (run.status !== BatchStatus.RUNNING && run.status !== BatchStatus.WAITING_REVIEW) {
-    logger.info(`[batch] ${runId}: đã ${run.status}, không đẩy tiếp`);
+    logger.info(`[batch] ${runId}: already ${run.status}, not advancing`);
     return { runId, status: run.status, skipped: true };
   }
 

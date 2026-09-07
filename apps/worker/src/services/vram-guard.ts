@@ -2,14 +2,14 @@ import { canFit, getVramBudget } from "@audio/config";
 import { logger } from "../lib/logger";
 
 /**
- * Người gác VRAM.
+ * The VRAM gatekeeper.
  *
- * Vấn đề nó giải: tràn VRAM không ném lỗi. Driver âm thầm đẩy phần thừa sang
- * RAM hệ thống, mọi thứ vẫn "chạy" nhưng chậm đi khoảng 10 lần — và không có
- * gì để bắt trong try/catch. Nên phải tự đếm trước khi nạp, không nạp bừa.
+ * The problem it solves: overrunning VRAM raises no error. The driver quietly spills the
+ * excess into system RAM, everything still "works" but about ten times slower — and there
+ * is nothing to catch in a try/catch. So it counts before loading, rather than loading and hoping.
  *
- * Đây là bộ đếm trong tiến trình: nó chỉ biết những gì worker này cấp phát.
- * VRAM do Windows desktop chiếm được trừ sẵn qua VRAM_RESERVED_MB.
+ * This is an in-process counter: it only knows what this worker allocated.
+ * VRAM taken by the Windows desktop is subtracted up front via VRAM_RESERVED_MB.
  */
 class VramGuard {
   #inUseMb = 0;
@@ -24,8 +24,8 @@ class VramGuard {
   }
 
   /**
-   * Giữ chỗ `mb`. Chờ tới khi đủ chỗ thay vì ném lỗi — job đã vào hàng đợi
-   * thì nên đợi, không nên hỏng.
+   * Reserve `mb`. Waits for room rather than throwing — a job already in the queue should
+   * wait, not fail.
    */
   async reserve(holderId: string, mb: number, timeoutMs = 10 * 60_000): Promise<void> {
     if (mb === 0) return;
@@ -39,11 +39,11 @@ class VramGuard {
 
       if (Date.now() > deadline) {
         throw new Error(
-          `Hết thời gian chờ VRAM sau ${Math.round(timeoutMs / 1000)}s: ${check.reason}`,
+          `Timed out waiting for VRAM after ${Math.round(timeoutMs / 1000)}s: ${check.reason}`,
         );
       }
       if (!waited) {
-        logger.warn(`[vram] ${holderId} đợi VRAM — ${check.reason}`);
+        logger.warn(`[vram] ${holderId} waiting for VRAM — ${check.reason}`);
         waited = true;
       }
       await new Promise((r) => setTimeout(r, 1000));
@@ -52,7 +52,7 @@ class VramGuard {
     this.#inUseMb += mb;
     this.#holders.set(holderId, mb);
     logger.debug(
-      `[vram] +${mb}MB cho ${holderId} → dùng ${this.#inUseMb}/${getVramBudget().usableMb}MB`,
+      `[vram] +${mb}MB for ${holderId} → using ${this.#inUseMb}/${getVramBudget().usableMb}MB`,
     );
   }
 
@@ -62,7 +62,7 @@ class VramGuard {
     this.#holders.delete(holderId);
     this.#inUseMb -= mb;
     logger.debug(
-      `[vram] -${mb}MB từ ${holderId} → dùng ${this.#inUseMb}/${getVramBudget().usableMb}MB`,
+      `[vram] -${mb}MB from ${holderId} → using ${this.#inUseMb}/${getVramBudget().usableMb}MB`,
     );
   }
 

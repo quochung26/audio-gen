@@ -1,25 +1,25 @@
 import type { JobType } from "@audio/database";
 
 /**
- * Quyết định bước kế tiếp cho một tập trong lượt chạy hàng loạt.
+ * Decide the next step for an episode in a batch run.
  *
- * Tách thành hàm THUẦN, không đụng DB: đây là chỗ dễ sai nhất của cả tính năng
- * (bỏ sót một điều kiện là lượt chạy kẹt hoặc chạy lại vô hạn) và cũng là chỗ
- * khó dựng tình huống nhất nếu phải qua DB thật.
+ * Split out as a PURE function that never touches the DB: it is the easiest place in the
+ * whole feature to get wrong (miss one condition and the run stalls or loops forever) and
+ * also the hardest to set up situations for if it had to go through a real DB.
  *
- * Xét theo DỮ LIỆU đã có chứ không theo `Episode.status`: status có thể lệch khi
- * người dùng bấm tay trong Studio giữa chừng, còn "có block chưa" thì luôn đúng.
+ * Judged on the DATA that exists rather than on `Episode.status`: status can drift when
+ * the user clicks something in Studio mid-run, while "are there blocks" is always true.
  */
 
 export interface EpisodeProgress {
   humanReviewed: boolean;
-  /** Đã viết cảnh chưa. */
+  /** Whether the scenes have been written. */
   hasDraft: boolean;
-  /** Bộ có bước chuyển ngữ VÀ tập này còn cảnh chưa được viết lại. */
+  /** The story has a rewrite step AND this episode still has scenes not rewritten. */
   needsTranslate: boolean;
-  /** Đã tách block kịch bản audio chưa. */
+  /** Whether the audio script has been split into blocks. */
   blocksTotal: number;
-  /** Bao nhiêu block đã có file audio. */
+  /** How many blocks already have an audio file. */
   blocksWithAudio: number;
   hasSummary: boolean;
   hasMp3: boolean;
@@ -31,26 +31,26 @@ export interface BatchOptions {
 }
 
 export type BatchStep =
-  /** Đẩy job này vào hàng đợi. */
+  /** Queue this job. */
   | { kind: "job"; type: JobType }
-  /** Tự duyệt rồi tính lại (chỉ khi autoApprove). */
+  /** Auto-approve and recompute (only with autoApprove). */
   | { kind: "approve" }
-  /** Dừng lại chờ người đọc duyệt bản thảo. */
+  /** Stop and wait for a person to approve the draft. */
   | { kind: "wait-review" }
-  /** Tập này xong. */
+  /** This episode is done. */
   | { kind: "done" };
 
 export function nextStep(ep: EpisodeProgress, opts: BatchOptions): BatchStep {
   if (!ep.hasDraft) return { kind: "job", type: "WRITE_SCENE" };
 
-  // Chuyển ngữ TRƯỚC chốt duyệt. Duyệt bản thảo ở thứ tiếng không phát ra loa
-  // thì chốt chặn không còn chặn được gì: thứ người đọc gật đầu và thứ người
-  // nghe nhận được là hai văn bản khác nhau.
+  // The rewrite comes BEFORE the approval gate. Approving a draft in a language that never
+  // reaches the speakers makes the gate meaningless: what the reader nodded at and what the
+  // listener receives are two different texts.
   if (ep.needsTranslate) return { kind: "job", type: "TRANSLATE" };
 
-  // Chốt chặn: bản thảo thô không được đi tiếp khi chưa có người đọc.
-  // Chạy hàng loạt KHÔNG được phép lách chỗ này — `autoApprove` là lựa chọn có
-  // ý thức của người dùng, không phải mặc định.
+  // The gate: a raw draft must not go further without a person reading it.
+  // A batch run is NOT allowed to slip past this — `autoApprove` is the user's deliberate
+  // choice, never a default.
   if (!ep.humanReviewed) {
     return opts.autoApprove ? { kind: "approve" } : { kind: "wait-review" };
   }
@@ -58,8 +58,8 @@ export function nextStep(ep: EpisodeProgress, opts: BatchOptions): BatchStep {
   if (ep.blocksTotal === 0) return { kind: "job", type: "AUDIO_EDIT" };
   if (!ep.hasSummary) return { kind: "job", type: "SUMMARIZE" };
 
-  // Dừng sau kịch bản: dùng khi muốn đọc lại toàn bộ bản thảo trước khi tốn
-  // thời gian TTS cho cả bộ.
+  // Stop after the script: for when you want to reread the whole draft before spending
+  // TTS time on the entire story.
   if (!opts.withAudio) return { kind: "done" };
 
   if (ep.blocksWithAudio < ep.blocksTotal) return { kind: "job", type: "TTS" };
@@ -68,7 +68,7 @@ export function nextStep(ep: EpisodeProgress, opts: BatchOptions): BatchStep {
   return { kind: "done" };
 }
 
-/** Tập đã đi hết chuỗi chưa (theo lựa chọn của lượt chạy). */
+/** Whether the episode has been through the whole chain (per the run's options). */
 export function isEpisodeComplete(ep: EpisodeProgress, opts: BatchOptions): boolean {
   return nextStep(ep, opts).kind === "done";
 }

@@ -1,11 +1,11 @@
 /**
- * Chạy trọn chuỗi Phase 2 từ dòng lệnh:
- *   ý tưởng → dàn ý → viết cảnh → (duyệt) → kịch bản audio → tóm tắt
+ * Run the whole Phase 2 chain from the command line:
+ *   idea → outline → write scenes → (approve) → audio script → summary
  *
- *   pnpm story "một tài xế xe khách đêm chở phải hành khách đã chết"
+ *   pnpm story "a night bus driver picks up a passenger who is already dead"
  *   pnpm story "..." --genre="kinh dị" --episodes=2
  *
- * Cần worker đang chạy ở terminal khác.
+ * Needs the worker running in another terminal.
  */
 import { prisma } from "@audio/database";
 import { enqueue, shutdownQueueClient } from "../services/queue";
@@ -17,11 +17,11 @@ const episodeCount = Number(args.find((a) => a.startsWith("--episodes="))?.split
 const autoApprove = args.includes("--auto-approve");
 
 if (!idea) {
-  console.error('Thiếu ý tưởng. Ví dụ: pnpm story "một tài xế xe khách đêm..."');
+  console.error('An idea is required. For example: pnpm story "a night bus driver..."');
   process.exit(1);
 }
 
-/** Chờ một RenderJob kết thúc, in tiến độ trong lúc chờ. */
+/** Wait for a RenderJob to finish, printing progress while it runs. */
 async function waitFor(jobId: string, label: string): Promise<Record<string, unknown>> {
   process.stdout.write(`  ${label}… `);
   let lastProgress = -1;
@@ -39,19 +39,19 @@ async function waitFor(jobId: string, label: string): Promise<Record<string, unk
     }
     if (job.status === "FAILED") {
       console.log("✖");
-      throw new Error(`${label} thất bại: ${job.error}`);
+      throw new Error(`${label} failed: ${job.error}`);
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`${label} quá thời gian chờ`);
+  throw new Error(`${label} timed out`);
 }
 
-console.log(`\ný tưởng: "${idea}"`);
-console.log(`thể loại: ${genre} · ${episodeCount} tập\n`);
+console.log(`\nidea: "${idea}"`);
+console.log(`genre: ${genre} · ${episodeCount} episodes\n`);
 
-// 1. Dàn ý
+// 1. Outline
 const outlineJob = await enqueue({ type: "OUTLINE", payload: { idea, genre, episodeCount } });
-const outlineResult = await waitFor(outlineJob.id, "dàn ý");
+const outlineResult = await waitFor(outlineJob.id, "outline");
 const seriesId = String(outlineResult.seriesId);
 
 const series = await prisma.series.findUniqueOrThrow({
@@ -60,27 +60,27 @@ const series = await prisma.series.findUniqueOrThrow({
 });
 
 console.log(`\n  "${series.title}" (${series.kind})`);
-console.log(`  nhân vật: ${series.characters.map((c) => c.name).join(", ")}`);
-console.log(`  tập: ${series.episodes.length}\n`);
+console.log(`  characters: ${series.characters.map((c) => c.name).join(", ")}`);
+console.log(`  episodes: ${series.episodes.length}\n`);
 
-// 2–4. Với mỗi tập: viết cảnh → duyệt → kịch bản → tóm tắt
+// 2–4. For each episode: write scenes → approve → script → summary
 for (const episode of series.episodes) {
-  console.log(`Tập ${episode.number}: ${episode.title}`);
+  console.log(`Episode ${episode.number}: ${episode.title}`);
 
   const writeJob = await enqueue({
     type: "WRITE_SCENE",
     episodeId: episode.id,
     payload: { episodeId: episode.id },
   });
-  const written = await waitFor(writeJob.id, "viết cảnh");
-  console.log(`    ${written.totalWords} từ / ${written.scenesWritten} cảnh`);
+  const written = await waitFor(writeJob.id, "write scenes");
+  console.log(`    ${written.totalWords} words / ${written.scenesWritten} scenes`);
 
   if (!autoApprove) {
     console.log(
-      "\n  Dừng ở đây — bản thảo cần người đọc duyệt trước khi tạo kịch bản audio.",
+      "\n  Stopping here — the draft needs a person to approve it before the audio script.",
     );
-    console.log(`  Mở http://localhost:3000/episode/${episode.id} để đọc và duyệt,`);
-    console.log("  hoặc chạy lại với --auto-approve để bỏ qua (chỉ dùng khi thử).\n");
+    console.log(`  Open http://localhost:3000/episode/${episode.id} to read and approve,`);
+    console.log("  or rerun with --auto-approve to skip it (testing only).\n");
     continue;
   }
 
@@ -94,7 +94,7 @@ for (const episode of series.episodes) {
     episodeId: episode.id,
     payload: { episodeId: episode.id },
   });
-  const edited = await waitFor(editJob.id, "kịch bản audio");
+  const edited = await waitFor(editJob.id, "audio script");
   console.log(`    ${edited.blocks} block`);
 
   const sumJob = await enqueue({
@@ -102,8 +102,8 @@ for (const episode of series.episodes) {
     episodeId: episode.id,
     payload: { episodeId: episode.id },
   });
-  const sum = await waitFor(sumJob.id, "tóm tắt");
-  console.log(`    ${sum.factsStored ?? 0} sự kiện vào vector store`);
+  const sum = await waitFor(sumJob.id, "summary");
+  console.log(`    ${sum.factsStored ?? 0} facts into the vector store`);
 
   if (!args.includes("--no-audio")) {
     const ttsJob = await enqueue({
@@ -111,17 +111,17 @@ for (const episode of series.episodes) {
       episodeId: episode.id,
       payload: { episodeId: episode.id },
     });
-    const tts = await waitFor(ttsJob.id, "đọc audio");
-    console.log(`    ${tts.rendered} block đọc mới, ${tts.fromCache} từ cache`);
+    const tts = await waitFor(ttsJob.id, "read audio");
+    console.log(`    ${tts.rendered} blocks newly read, ${tts.fromCache} from cache`);
 
     const mixJob = await enqueue({
       type: "MIX",
       episodeId: episode.id,
       payload: { episodeId: episode.id },
     });
-    const mix = await waitFor(mixJob.id, "ghép + xuất MP3");
+    const mix = await waitFor(mixJob.id, "mix + export MP3");
     console.log(
-      `    MP3: ${((mix.durationMs as number) / 1000 / 60).toFixed(1)} phút, ` +
+      `    MP3: ${((mix.durationMs as number) / 1000 / 60).toFixed(1)} minutes, ` +
         `${((mix.sizeBytes as number) / 1024 / 1024).toFixed(1)} MB`,
     );
     console.log(`    ${mix.url}`);
@@ -129,7 +129,7 @@ for (const episode of series.episodes) {
   console.log();
 }
 
-console.log(`Xong. Xem ở http://localhost:3000/series/${seriesId}\n`);
+console.log(`Done. See it at http://localhost:3000/series/${seriesId}\n`);
 
 await shutdownQueueClient();
 await prisma.$disconnect();

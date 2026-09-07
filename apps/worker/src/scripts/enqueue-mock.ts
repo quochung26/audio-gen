@@ -1,12 +1,12 @@
 /**
- * Đẩy job giả lập để kiểm chứng khung hàng đợi.
+ * Queue mock jobs to exercise the queue framework.
  *
- *   pnpm job:mock                         3 job ở làn LLM
+ *   pnpm job:mock                         3 jobs on the LLM lane
  *   pnpm job:mock 5                       5 job
- *   pnpm job:mock 3 --fail                job cuối cố tình lỗi
+ *   pnpm job:mock 3 --fail                the last job fails deliberately
  *   pnpm job:mock 2 --lane=FFMPEG --vram=8000
- *       → làn FFMPEG cho chạy 2 job song song, nhưng 2×8000MB vượt ngân sách
- *         14336MB nên người gác VRAM phải ép chúng chạy lần lượt.
+ *       → the FFMPEG lane allows 2 jobs in parallel, but 2×8000MB exceeds the
+ *         14336MB budget, so the VRAM gatekeeper has to force them to run in sequence.
  */
 import { prisma } from "@audio/database";
 import type { Lane } from "@audio/config";
@@ -35,9 +35,9 @@ for (let i = 0; i < count; i++) {
   );
 }
 
-console.log(`Đã đẩy ${jobs.length} job vào làn ${lane}:`);
+console.log(`Queued ${jobs.length} jobs on lane ${lane}:`);
 for (const j of jobs) console.log(`  ${j.id}  vram=${j.vramMb}MB`);
-console.log("\nXem terminal đang chạy `pnpm worker`, rồi `pnpm queue:status`.");
+console.log("\nWatch the terminal running `pnpm worker`, then run `pnpm queue:status`.");
 
 await shutdownQueueClient();
 await prisma.$disconnect();

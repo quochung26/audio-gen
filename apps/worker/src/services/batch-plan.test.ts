@@ -17,8 +17,8 @@ const manual: BatchOptions = { autoApprove: false, withAudio: true };
 const auto: BatchOptions = { autoApprove: true, withAudio: true };
 const noAudio: BatchOptions = { autoApprove: true, withAudio: false };
 
-describe("chuỗi bước đầy đủ", () => {
-  it("đi đúng thứ tự từ tập trắng tới MP3", () => {
+describe("the full step chain", () => {
+  it("runs in the right order from an empty episode to an MP3", () => {
     const seen: string[] = [];
     let e = ep();
 
@@ -27,9 +27,9 @@ describe("chuỗi bước đầy đủ", () => {
       if (s.kind === "done") break;
       seen.push(s.kind === "job" ? s.type : s.kind);
 
-      // Mô phỏng kết quả của từng bước.
+      // Simulate the outcome of each step.
       if (s.kind === "approve") e = { ...e, humanReviewed: true };
-      else if (s.kind === "wait-review") throw new Error("autoApprove bật mà vẫn đòi duyệt tay");
+      else if (s.kind === "wait-review") throw new Error("autoApprove is on but it still asked for manual approval");
       else if (s.type === "WRITE_SCENE") e = { ...e, hasDraft: true };
       else if (s.type === "TRANSLATE") e = { ...e, needsTranslate: false };
       else if (s.type === "AUDIO_EDIT") e = { ...e, blocksTotal: 12 };
@@ -50,23 +50,23 @@ describe("chuỗi bước đầy đủ", () => {
   });
 });
 
-describe("chốt duyệt bản thảo", () => {
-  it("dừng chờ người đọc khi không bật autoApprove", () => {
+describe("the draft approval gate", () => {
+  it("stops and waits for a reader when autoApprove is off", () => {
     expect(nextStep(ep({ hasDraft: true }), manual)).toEqual({ kind: "wait-review" });
   });
 
-  it("KHÔNG bao giờ nhảy qua bước duyệt khi autoApprove tắt", () => {
-    // Dù mọi thứ khác đã sẵn sàng, chưa duyệt là vẫn phải dừng. Đây là chốt
-    // chặn duy nhất ngăn bản thảo thô thành audio.
+  it("NEVER skips the approval step while autoApprove is off", () => {
+    // Even with everything else ready, unapproved means stop. This is the only gate
+    // standing between a raw draft and audio.
     const e = ep({ hasDraft: true, blocksTotal: 5, hasSummary: true });
     expect(nextStep(e, manual)).toEqual({ kind: "wait-review" });
   });
 
-  it("bật autoApprove thì tự duyệt rồi đi tiếp", () => {
+  it("with autoApprove on it approves and carries on", () => {
     expect(nextStep(ep({ hasDraft: true }), auto)).toEqual({ kind: "approve" });
   });
 
-  it("đã duyệt tay rồi thì không hỏi lại", () => {
+  it("already approved by hand is not asked again", () => {
     expect(nextStep(ep({ hasDraft: true, humanReviewed: true }), manual)).toEqual({
       kind: "job",
       type: "AUDIO_EDIT",
@@ -74,36 +74,36 @@ describe("chốt duyệt bản thảo", () => {
   });
 });
 
-describe("bước chuyển ngữ", () => {
+describe("the rewrite step", () => {
   const drafted = ep({ hasDraft: true, needsTranslate: true });
 
-  it("chạy NGAY SAU khi viết xong, trước chốt duyệt", () => {
-    // Duyệt bản thảo ở thứ tiếng không phát ra loa thì chốt chặn không chặn
-    // được gì: thứ người đọc gật đầu khác thứ người nghe nhận được.
+  it("runs RIGHT AFTER writing, before the approval gate", () => {
+    // Approving a draft in a language that never reaches the speakers makes the gate
+    // meaningless: what the reader nodded at differs from what the listener receives.
     expect(nextStep(drafted, manual)).toEqual({ kind: "job", type: "TRANSLATE" });
     expect(nextStep(drafted, auto)).toEqual({ kind: "job", type: "TRANSLATE" });
   });
 
-  it("autoApprove KHÔNG lách qua nó", () => {
+  it("autoApprove does NOT slip past it", () => {
     expect(nextStep(drafted, auto)).not.toEqual({ kind: "approve" });
   });
 
-  it("chưa viết xong thì viết trước đã", () => {
+  it("unwritten scenes are written first", () => {
     expect(nextStep(ep({ needsTranslate: true }), auto)).toEqual({
       kind: "job",
       type: "WRITE_SCENE",
     });
   });
 
-  it("chuyển ngữ xong mới tới lượt duyệt", () => {
+  it("approval comes only after the rewrite", () => {
     expect(nextStep(ep({ hasDraft: true, needsTranslate: false }), manual)).toEqual({
       kind: "wait-review",
     });
   });
 
-  it("bộ viết thẳng thì không có bước này trong cả chuỗi", () => {
-    // `needsTranslate` luôn false với bộ không đặt ngôn ngữ bản thảo — bước này
-    // không được xen vào chuỗi cũ ở bất kỳ chỗ nào.
+  it("a story that writes directly never has this step in the chain", () => {
+    // `needsTranslate` is always false for a story with no draft language — this step
+    // must not slip into the old chain anywhere.
     const seen: string[] = [];
     let e = ep();
     for (let i = 0; i < 10; i++) {
@@ -120,9 +120,9 @@ describe("bước chuyển ngữ", () => {
     expect(seen).not.toContain("TRANSLATE");
   });
 
-  it("tập còn cảnh chưa chuyển ngữ thì CHƯA xong, dù đã đủ audio", () => {
-    // Viết lại một cảnh giữa chừng làm `sourceText` về null; lượt chạy phải
-    // quay lại chuyển ngữ chứ không được coi tập là đã khép.
+  it("an episode with scenes still un-rewritten is NOT done, however much audio it has", () => {
+    // Rewriting one scene midway nulls `sourceText`; the run has to go back to the
+    // rewrite rather than treating the episode as closed.
     const e = ep({
       hasDraft: true,
       humanReviewed: true,
@@ -139,50 +139,50 @@ describe("bước chuyển ngữ", () => {
 describe("withAudio", () => {
   const scripted = ep({ hasDraft: true, humanReviewed: true, blocksTotal: 8, hasSummary: true });
 
-  it("tắt thì dừng sau tóm tắt, không chạy TTS", () => {
+  it("off, it stops after the summary and never runs TTS", () => {
     expect(nextStep(scripted, noAudio)).toEqual({ kind: "done" });
     expect(isEpisodeComplete(scripted, noAudio)).toBe(true);
   });
 
-  it("bật thì chạy tiếp TTS", () => {
+  it("on, it carries on into TTS", () => {
     expect(nextStep(scripted, auto)).toEqual({ kind: "job", type: "TTS" });
     expect(isEpisodeComplete(scripted, auto)).toBe(false);
   });
 });
 
-describe("TTS dở dang", () => {
+describe("a partial TTS run", () => {
   const base = { hasDraft: true, humanReviewed: true, hasSummary: true, blocksTotal: 10 };
 
-  it("còn block chưa có audio thì chạy lại TTS", () => {
+  it("blocks still without audio mean TTS runs again", () => {
     expect(nextStep(ep({ ...base, blocksWithAudio: 7 }), auto)).toEqual({
       kind: "job",
       type: "TTS",
     });
   });
 
-  it("đủ audio thì sang MIX", () => {
+  it("with all the audio it moves to MIX", () => {
     expect(nextStep(ep({ ...base, blocksWithAudio: 10 }), auto)).toEqual({
       kind: "job",
       type: "MIX",
     });
   });
 
-  it("đã có MP3 thì xong", () => {
+  it("with an MP3 it is done", () => {
     expect(nextStep(ep({ ...base, blocksWithAudio: 10, hasMp3: true }), auto)).toEqual({
       kind: "done",
     });
   });
 });
 
-describe("xét theo dữ liệu, không theo status", () => {
-  it("có kịch bản nhưng chưa có tóm tắt thì làm tóm tắt, không viết lại cảnh", () => {
-    // Tình huống thật: người dùng bấm tay AUDIO_EDIT trong Studio rồi mới bật
-    // chạy hàng loạt. Không được viết đè lên bản thảo đã có.
+describe("judged on data, not on status", () => {
+  it("a script with no summary summarises rather than rewriting the scenes", () => {
+    // A real situation: the user ran AUDIO_EDIT by hand in Studio and only then started
+    // a batch run. It must not overwrite the draft that already exists.
     const e = ep({ hasDraft: true, humanReviewed: true, blocksTotal: 20 });
     expect(nextStep(e, auto)).toEqual({ kind: "job", type: "SUMMARIZE" });
   });
 
-  it("tập đã xong hoàn toàn thì bỏ qua", () => {
+  it("a fully finished episode is skipped", () => {
     const e = ep({
       hasDraft: true,
       humanReviewed: true,
@@ -195,9 +195,9 @@ describe("xét theo dữ liệu, không theo status", () => {
     expect(isEpisodeComplete(e, manual)).toBe(true);
   });
 
-  it("tập chưa có block nào KHÔNG bị coi là đã xong", () => {
-    // blocksWithAudio >= blocksTotal cũng đúng khi cả hai bằng 0 — nếu chỉ so
-    // hai số đó thì tập chưa tách block sẽ bị tưởng là đọc xong rồi.
+  it("an episode with no blocks is NOT treated as done", () => {
+    // blocksWithAudio >= blocksTotal is also true when both are 0 — comparing only those
+    // two numbers would read an episode with no blocks yet as fully read.
     const e = ep({ hasDraft: true, humanReviewed: true, hasSummary: true });
     expect(nextStep(e, auto)).toEqual({ kind: "job", type: "AUDIO_EDIT" });
   });

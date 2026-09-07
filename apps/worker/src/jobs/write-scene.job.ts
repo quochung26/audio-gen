@@ -9,20 +9,20 @@ import { openSceneStream } from "../services/stream";
 import { buildSceneContext } from "../services/story-context";
 
 /**
- * Bước 0b — viết một cảnh.
+ * Step 0b — write one scene.
  *
- * Đơn vị sinh là CẢNH chứ không phải cả tập: chất lượng model 14B tụt rõ sau
- * khoảng 1.500 token liên tục, và viết theo cảnh cho phép sinh lại từng phần
- * thay vì bỏ cả tập. Xem PLAN.md bước 0b.
+ * The unit of generation is a SCENE rather than a whole episode: a 14B model's quality
+ * drops noticeably past about 1,500 continuous tokens, and writing per scene lets one
+ * part be regenerated instead of discarding the episode. See PLAN.md step 0b.
  *
- * Job nhận `sceneId` để viết một cảnh, hoặc `episodeId` để viết mọi cảnh chưa có.
+ * The job takes a `sceneId` to write one scene, or an `episodeId` to write all empty ones.
  */
 export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   const sceneId = job.data.sceneId ? String(job.data.sceneId) : undefined;
   const episodeId = job.data.episodeId ? String(job.data.episodeId) : undefined;
 
-  // Cảnh thuộc về CHƯƠNG, nên lọc theo tập phải đi qua chương — và thứ tự viết
-  // là chương trước, cảnh trong chương sau.
+  // Scenes belong to a CHAPTER, so filtering by episode goes through the chapter — and
+  // the writing order is chapter first, then scene within it.
   const where = sceneId ? { id: sceneId } : { chapter: { episodeId }, text: null };
   const scenes = await prisma.scene.findMany({
     where,
@@ -30,7 +30,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     include: { chapter: { select: { episodeId: true, order: true } } },
   });
 
-  if (scenes.length === 0) throw new Error("Không tìm thấy cảnh nào cần viết");
+  if (scenes.length === 0) throw new Error("No scenes found that need writing");
 
   const targetEpisodeId = scenes[0]!.chapter.episodeId;
   await prisma.episode.update({
@@ -52,8 +52,8 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
       params: prompt.params,
     };
 
-    // Chữ chảy về Studio trong lúc model đang viết. Cảnh 800 từ mất 40–70 giây
-    // trên GPU thật; không có nó thì cả phút đó là màn hình trắng.
+    // Text streams back to Studio while the model writes. An 800-word scene takes 40–70
+    // seconds on a real GPU; without this, that minute is a blank screen.
     const stream = openSceneStream({
       episodeId: scene.chapter.episodeId,
       sceneId: scene.id,
@@ -62,7 +62,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 
     let result;
     try {
-      // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
+      // Three tiers: the model chosen for this run → the prompt's model → the default.
       // Xem packages/llm/src/model-settings.ts.
       const model = await resolveModel({
         requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -72,10 +72,11 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 
       result = await llm.generate({
         model,
-        // Ngôn ngữ BẢN THẢO, không phải ngôn ngữ đầu ra: bộ nào viết nháp bằng
-        // tiếng khác thì bước TRANSLATE mới đưa về tiếng đầu ra. Dàn ý vẫn dựng
-        // bằng tiếng đầu ra, nên Bible đã sẵn tên riêng đúng tiếng — model viết
-        // văn tiếng Anh với tên Việt, thay vì đẻ ra Sarah rồi dịch mãi không hết.
+        // The DRAFT language, not the output language: a story drafting in another
+        // language gets there via the TRANSLATE step. The outline is still built in the
+        // output language, so the Bible already holds proper nouns in the right language
+        // — the model writes English prose around Vietnamese names, rather than inventing
+        // a Sarah you then translate forever.
         system: withLanguage(planDraft(context.language, context.draftLanguage).draft, context.bible),
         prompt: renderTemplate(prompt.content, {
           context: renderContext({
@@ -103,31 +104,31 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
       throw err;
     }
 
-    // Xoá nháp ngay: từ đây bản chính thức nằm trong DB, để hai bản cùng tồn
-    // tại là trang tập có lúc hiện bản cũ hơn thứ vừa lưu.
+    // Clear the streaming draft at once: from here the real version lives in the DB, and
+    // keeping both means the episode page sometimes shows something older than what was saved.
     await stream.finish();
 
     await recordRun(ctx, result);
 
     const text = result.text.trim();
-    // `sourceText` về null: cảnh vừa được viết lại nên bản chuyển ngữ cũ (nếu
-    // có) không còn ứng với nội dung nào cả, và null cũng là dấu để bước
-    // TRANSLATE biết cảnh này phải làm lại.
+    // `sourceText` back to null: the scene has just been rewritten, so any earlier
+    // rewrite no longer corresponds to anything, and null is also the marker telling the
+    // TRANSLATE step this scene has to be done again.
     await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
     written.push(text);
 
-    // So với số từ đích chứ không chỉ in ra: cảnh ngắn hơn nửa mục tiêu thường
-    // là model hiểu beat quá hẹp, và đó là thứ chỉ lộ ra khi ngồi đọc lại cả tập.
+    // Compared against the target rather than just printed: a scene under half the target
+    // usually means the model read the beat too narrowly, and that only shows up listening back.
     const words = countWords(text);
     const target = Math.min(SCENE_MAX_WORDS, context.targetWords);
     logger.info(
-      `[write-scene] chương ${scene.chapter.order} cảnh ${scene.order} — ` +
-        `${words}/${target} từ, ${result.tokensPerSec.toFixed(1)} tok/s`,
+      `[write-scene] chapter ${scene.chapter.order} scene ${scene.order} — ` +
+        `${words}/${target} words, ${result.tokensPerSec.toFixed(1)} tok/s`,
     );
     if (words < target * 0.5) {
       logger.warn(
-        `[write-scene] cảnh ${scene.chapter.order}.${scene.order} chỉ ${words} từ, ` +
-          `chưa tới nửa mục tiêu ${target}. Beat có thể quá hẹp, hoặc model cắt sớm.`,
+        `[write-scene] scene ${scene.chapter.order}.${scene.order} came to only ${words} words, ` +
+          `under half the ${target} target. The beat may be too narrow, or the model stopped early.`,
       );
     }
     await setProgress(Math.round(((index + 1) / scenes.length) * 90));

@@ -8,7 +8,7 @@ import { vramGuard } from "../services/vram-guard";
 import { advanceBatch } from "../services/batch";
 
 export interface JobPayload {
-  /** Khoá bản ghi RenderJob trong Postgres — Redis chỉ giữ hàng đợi. */
+  /** The RenderJob row's key in Postgres — Redis only holds the queue. */
   renderJobId: string;
   vramMb: number;
   [key: string]: unknown;
@@ -16,16 +16,16 @@ export interface JobPayload {
 
 export interface JobContext {
   job: Job<JobPayload>;
-  /** Cập nhật tiến độ ở cả BullMQ lẫn Postgres để Studio đọc được. */
+  /** Update progress in both BullMQ and Postgres so Studio can read it. */
   setProgress: (percent: number) => Promise<void>;
 }
 
 export type JobHandler = (ctx: JobContext) => Promise<unknown>;
 
 /**
- * Một làn = một BullMQ Worker riêng, có concurrency và ngân sách VRAM riêng.
- * Bốn làn: LLM và TTS_GPU tranh VRAM; TTS_CPU và FFMPEG thì không.
- * Xem PLAN.md mục 3.
+ * One lane = its own BullMQ Worker, with its own concurrency and VRAM budget.
+ * Four lanes: LLM and TTS_GPU compete for VRAM; TTS_CPU and FFMPEG do not.
+ * See PLAN.md section 3.
  */
 export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Worker<JobPayload> {
   const concurrency = resolveConcurrency(lane);
@@ -34,7 +34,7 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
     lane,
     async (job) => {
       const handler = handlers[job.name];
-      if (!handler) throw new Error(`Làn ${lane} không có handler cho job "${job.name}"`);
+      if (!handler) throw new Error(`Lane ${lane} has no handler for job "${job.name}"`);
 
       const { renderJobId, vramMb } = job.data;
       const holderId = `${lane}:${job.id}`;
@@ -56,14 +56,14 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
 
         await markDone(renderJobId, result);
         logger.info(`[${lane}] ✔ ${job.name} (${renderJobId})`);
-        // SAU khi có kết quả nhưng TRƯỚC khi nhả VRAM cũng được — chỉ ghi DB
-        // và đẩy hàng đợi, không chạy job. Đặt ở đây để job hỏng đi đường
-        // `worker.on("failed")` chứ không lẫn vào đây.
+        // AFTER the result but BEFORE releasing VRAM is fine too — it only writes to the
+        // DB and queues work, it runs no job. Placed here so a failed job goes down the
+        // `worker.on("failed")` path rather than mixing in here.
         await advanceBatch(renderJobId);
         return result;
       } finally {
-        // finally, không phải sau markDone: job lỗi cũng phải nhả VRAM,
-        // nếu không lần chạy sau sẽ treo mãi ở bước chờ.
+        // In finally, not after markDone: a failed job has to release VRAM too,
+        // otherwise the next run hangs forever at the waiting step.
         vramGuard.release(holderId);
       }
     },
@@ -76,26 +76,26 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
       return;
     }
 
-    // BullMQ bắn "failed" sau MỖI lần thử, không phải chỉ lần cuối. Chỉ lần
-    // cuối mới là hỏng thật — báo hỏng sớm sẽ giết lượt chạy hàng loạt trong
-    // khi job vẫn còn cơ hội chạy lại.
+    // BullMQ fires "failed" after EVERY attempt, not only the last. Only the last is a
+    // real failure — reporting early would kill a batch run while the job still has
+    // retries left.
     const maxAttempts = job.opts.attempts ?? 1;
     const isFinal = job.attemptsMade >= maxAttempts;
 
     if (!isFinal) {
       logger.warn(
-        `[${lane}] ⟳ ${job.name} lần ${job.attemptsMade}/${maxAttempts} hỏng, sẽ thử lại — ${err.message}`,
+        `[${lane}] ⟳ ${job.name} attempt ${job.attemptsMade}/${maxAttempts} failed, will retry — ${err.message}`,
       );
       return;
     }
 
     logger.error(`[${lane}] ✖ ${job.name} — ${err.message}`);
     await markFailed(job.data.renderJobId, err.message);
-    // Hỏng hẳn thì dừng cả lượt chạy hàng loạt đang chờ nó.
+    // A real failure stops the batch run waiting on it.
     await advanceBatch(job.data.renderJobId);
   });
 
-  logger.info(`[${lane}] sẵn sàng — concurrency ${concurrency}`);
+  logger.info(`[${lane}] ready — concurrency ${concurrency}`);
   return worker;
 }
 

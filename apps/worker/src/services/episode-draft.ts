@@ -2,22 +2,22 @@ import { countWords, estimateDurationMs } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 
 export interface DraftSync {
-  /** Mọi cảnh đã có nội dung. */
+  /** Every scene has content. */
   complete: boolean;
   words: number;
 }
 
 /**
- * Ghép các cảnh thành bản thảo tập, rồi cập nhật số từ và thời lượng ước tính.
+ * Join the scenes into the episode draft, then update the word count and estimated duration.
  *
- * HAI bước ghi `Scene.text` — viết cảnh và chuyển ngữ — và cả hai đều phải dựng
- * lại `Episode.draftText`. Để mỗi bước tự ghép thì bước sau quên cập nhật số từ
- * là tập mang thời lượng của bản thảo cũ, mà chẳng có gì báo: `draftText` vẫn
- * có nội dung, chỉ là nội dung của bản trước.
+ * TWO steps write `Scene.text` — writing scenes and rewriting — and both have to rebuild
+ * `Episode.draftText`. Left to each step, the later one forgetting to update the word count
+ * leaves the episode carrying the old draft's duration with nothing to say so: `draftText`
+ * still has content, just the previous version's.
  */
 export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
-  // Thứ tự ĐỌC của một tập là chương trước, cảnh trong chương sau. Sắp chỉ theo
-  // `order` của cảnh thì cảnh 1 của mọi chương đứng cạnh nhau.
+  // An episode's READING order is chapter first, then scene within it. Sorted by scene
+  // `order` alone, every chapter's scene 1 would sit together.
   const scenes = await prisma.scene.findMany({
     where: { chapter: { episodeId } },
     orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
@@ -34,8 +34,8 @@ export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
       draftText,
       wordCount: words,
       durationMs: estimateDurationMs(words),
-      // Chỉ chuyển sang DRAFTED khi mọi cảnh đã có nội dung — còn thiếu thì
-      // vẫn là DRAFTING để Studio biết công việc chưa xong.
+      // Only moves to DRAFTED once every scene has content — while any is missing it stays
+      // DRAFTING so Studio knows the work is unfinished.
       status: complete ? EpisodeStatus.DRAFTED : EpisodeStatus.DRAFTING,
     },
   });

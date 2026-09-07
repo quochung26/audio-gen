@@ -12,19 +12,19 @@ import { getStorage } from "../services/storage";
 import { logger } from "../lib/logger";
 
 /**
- * Bước 3 — đọc từng block thành audio.
+ * Step 3 — read each block into audio.
  *
- * Trục chính là CACHE. Khoá là `sha256(text + engine + voice + speed + pitch)`,
- * lưu ở bảng `AudioAsset` dùng chung mọi tập — nên intro/outro cố định chỉ đọc
- * một lần cho cả bộ, và sửa một block chỉ render lại đúng block đó
- * (docs/database.md mục 2.6).
+ * The CACHE is the spine. The key is `sha256(text + engine + voice + speed + pitch)`,
+ * stored in the `AudioAsset` table shared across every episode — so a fixed intro/outro is
+ * read once for the whole story, and editing one block re-renders only that block
+ * (docs/database.md section 2.6).
  */
 export const ttsJob: JobHandler = async ({ job, setProgress }) => {
   const episodeId = String(job.data.episodeId ?? "");
   const onlyBlockId = job.data.blockId ? String(job.data.blockId) : undefined;
   const force = job.data.force === true;
 
-  if (!episodeId) throw new Error("Thiếu episodeId");
+  if (!episodeId) throw new Error("episodeId is required");
 
   const episode = await prisma.episode.findUniqueOrThrow({
     where: { id: episodeId },
@@ -41,10 +41,10 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   if (blocks.length === 0) {
-    return { episodeId, rendered: 0, fromCache: 0, note: "mọi block đã có audio" };
+    return { episodeId, rendered: 0, fromCache: 0, note: "every block already has audio" };
   }
 
-  // Từ điển phát âm: quy tắc riêng của bộ đè lên quy tắc chung.
+  // The pronunciation dictionary: the story's own rules override the shared ones.
   const rules = await loadPronunciation(episode.series.id);
 
   await prisma.episode.update({
@@ -66,7 +66,7 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
       pitch: block.pitch,
     });
 
-    // Tra cache trước — đây là truy vấn nóng nhất của pipeline.
+  // Cache lookup first — the hottest query in the pipeline.
     const existing = await prisma.audioAsset.findUnique({ where: { cacheKey } });
 
     if (existing) {
@@ -96,8 +96,8 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
       const asset = await prisma.audioAsset.create({
         data: {
           cacheKey,
-          // Lưu KHOÁ, không phải đường dẫn tuyệt đối: đổi tên thư mục dự án
-          // hoặc chuyển máy sẽ làm hỏng mọi tham chiếu đã ghi.
+          // Stores the KEY, not an absolute path: renaming the project directory or moving
+          // machines would break every reference already written.
           url: stored.key,
           durationMs: result.durationMs,
           sizeBytes: stored.sizeBytes,
@@ -118,7 +118,7 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
     await setProgress(Math.round(((i + 1) / blocks.length) * 95));
   }
 
-  // Cập nhật thời lượng tập từ audio thật, thay cho con số ước lượng từ số từ.
+  // Update the episode duration from the real audio, replacing the word-count estimate.
   const all = await prisma.block.findMany({
     where: { episodeId },
     orderBy: { order: "asc" },
@@ -140,7 +140,7 @@ export const ttsJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(100);
   logger.info(
-    `[tts] tập ${episode.number}: ${rendered} block đọc mới, ${fromCache} lấy từ cache`,
+    `[tts] episode ${episode.number}: ${rendered} blocks newly read, ${fromCache} from cache`,
   );
 
   return { episodeId, rendered, fromCache, complete, durationMs };
@@ -152,7 +152,7 @@ async function loadPronunciation(seriesId: string): Promise<PronunciationRule[]>
     select: { term: true, replacement: true, isRegex: true, seriesId: true },
   });
 
-  // Quy tắc riêng của bộ đè lên quy tắc chung cùng term.
+  // The story's own rules override the shared ones for the same term.
   const bySeries = new Map<string, PronunciationRule>();
   for (const r of rows) {
     const key = r.term.toLowerCase();

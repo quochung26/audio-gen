@@ -12,11 +12,11 @@ export interface RetrievedFact {
 }
 
 /**
- * Lưu sự kiện của một tập kèm vector.
+ * Store an episode's facts along with their vectors.
  *
- * Cột `embedding vector(1024)` không khai báo được trong Prisma nên phải dùng
- * `$executeRaw`. Đổi lại: pgvector nằm ngay trong Postgres đang có, không phải
- * dựng thêm service.
+ * The `embedding vector(1024)` column cannot be declared in Prisma, hence `$executeRaw`.
+ * In exchange: pgvector lives inside the Postgres already running, with no extra service
+ * to stand up.
  */
 export async function saveFacts(input: {
   seriesId: string;
@@ -26,7 +26,7 @@ export async function saveFacts(input: {
 }): Promise<number> {
   if (input.facts.length === 0) return 0;
 
-  // Viết lại tập thì thay toàn bộ sự kiện của tập đó, không chồng lên bản cũ.
+  // Rewriting an episode replaces all of its facts rather than layering over the old ones.
   await prisma.storyFact.deleteMany({
     where: { seriesId: input.seriesId, episodeNumber: input.episodeNumber, pinned: false },
   });
@@ -42,7 +42,7 @@ export async function saveFacts(input: {
     select: { id: true, text: true },
   });
 
-  // Nhúng theo lô — embedding rẻ, gọi từng câu một là tự làm chậm mình.
+  // Embedded in batches — embeddings are cheap, and one call per sentence is self-inflicted slowness.
   const vectors = await (await getEmbedding()).embed(created.map((c) => c.text));
 
   for (const [i, row] of created.entries()) {
@@ -52,18 +52,18 @@ export async function saveFacts(input: {
     `;
   }
 
-  logger.info(`[facts] tập ${input.episodeNumber}: lưu ${created.length} sự kiện + vector`);
+  logger.info(`[facts] episode ${input.episodeNumber}: stored ${created.length} facts + vectors`);
   return created.length;
 }
 
 /**
- * Truy hồi sự kiện liên quan tới beat của cảnh đang viết.
+ * Retrieve facts relevant to the beat of the scene being written.
  *
- * KHÔNG lấy top-K vô điều kiện — có ngưỡng `FACT_MIN_SIMILARITY`. Cảnh mở đầu
- * một mạch mới thì đúng ra chẳng cần sự kiện cũ nào; lấy 6 sự kiện gần nhất
- * trong trường hợp đó chỉ làm model phân tán.
+ * NOT an unconditional top-K — there is a `FACT_MIN_SIMILARITY` floor. A scene opening a
+ * new thread genuinely needs no old facts; pulling the 6 nearest in that case only
+ * distracts the model.
  *
- * Chỉ tìm trong các tập TRƯỚC tập đang viết — không để lộ tình tiết chưa xảy ra.
+ * Searches only episodes BEFORE the one being written — no leaking what has not happened yet.
  */
 export async function retrieveFacts(input: {
   seriesId: string;
@@ -73,7 +73,7 @@ export async function retrieveFacts(input: {
   const [vector] = await (await getEmbedding()).embed([input.query]);
   if (!vector) return [];
 
-  // `1 - (a <=> b)` đổi khoảng cách cosine thành độ tương đồng cho dễ đọc.
+  // `1 - (a <=> b)` turns cosine distance into a similarity that reads sensibly.
   const rows = await prisma.$queryRaw<
     Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>
   >`
@@ -91,11 +91,11 @@ export async function retrieveFacts(input: {
 }
 
 /**
- * Tình tiết bỏ ngỏ chưa có lời giải — nạp BẤT KỂ độ tương đồng.
+ * Unresolved open threads — loaded WHATEVER the similarity.
  *
- * Vì sao không để vector search lo: đây là món nợ câu chuyện phải trả. Một tình
- * tiết bỏ ngỏ ở tập 3 vẫn cần nhắc ở tập 40 dù beat hiện tại chẳng liên quan gì
- * về mặt chủ đề. Tương đồng ngữ nghĩa không bắt được loại quan hệ đó.
+ * Why not leave it to vector search: these are debts the story owes. An open thread from
+ * episode 3 still needs raising in episode 40 even when the current beat has nothing to do
+ * with it thematically. Semantic similarity cannot catch that kind of relationship.
  */
 export async function openThreads(input: {
   seriesId: string;
@@ -115,7 +115,7 @@ export async function openThreads(input: {
   return rows;
 }
 
-/** Sự kiện người viết ghim — luôn nạp. */
+/** Facts the writer pinned — always loaded. */
 export async function pinnedFacts(seriesId: string, beforeEpisode: number) {
   return prisma.storyFact.findMany({
     where: { seriesId, pinned: true, episodeNumber: { lt: beforeEpisode } },

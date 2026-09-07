@@ -2,39 +2,39 @@ import { loadEnv } from "@audio/config";
 import { prisma, type TtsEngine, type Voice } from "@audio/database";
 
 export interface ResolvedVoice {
-  /** Engine THẬT sẽ đọc — lấy từ bản ghi Voice, không hardcode. */
+  /** The REAL engine that will read it — from the Voice record, never hardcoded. */
   engine: TtsEngine;
-  /** ID mà engine hiểu (vd "vi_female_1") — KHÔNG phải cuid của bảng Voice. */
+  /** The id the engine understands (e.g. "vi_female_1") — NOT the Voice table's cuid. */
   externalVoiceId: string;
   name: string;
   commercialOk: boolean;
 }
 
 /**
- * Quyết định giọng cho một block.
+ * Decide the voice for a block.
  *
- * Hai lỗi mà hàm này tồn tại để chặn:
+ * The two bugs this function exists to stop:
  *
- *  1. Trước đây `ttsEngine` bị hardcode `MOCK`. Đổi TTS_PROVIDER sang kokoro
- *     thì block vẫn ghi MOCK, job TTS gọi lại provider mock, và ra file giả lập
- *     mà KHÔNG báo lỗi gì. Giờ engine luôn lấy từ bản ghi Voice.
+ *  1. `ttsEngine` used to be hardcoded to `MOCK`. Switching TTS_PROVIDER to kokoro still
+ *     wrote MOCK on the block, the TTS job called the mock provider again, and out came a
+ *     mock file with NO error at all. The engine now always comes from the Voice record.
  *
- *  2. `Character.voiceId` là cuid của bảng Voice, nhưng engine cần
- *     `externalVoiceId`. Mock bỏ qua nội dung voiceId nên test vẫn "chạy";
- *     engine thật thì báo không tìm thấy giọng.
+ *  2. `Character.voiceId` is the Voice table's cuid, but the engine needs
+ *     `externalVoiceId`. The mock ignores the voiceId's content so tests still "passed";
+ *     a real engine reports the voice as not found.
  *
- * Thứ tự ưu tiên: casting riêng của nhân vật → giọng mặc định của bộ →
- * giọng đầu tiên khớp engine đang cấu hình.
+ * Priority order: the character's own casting → the story's default voice →
+ * the first voice matching the configured engine.
  *
- * NGÔN NGỮ lọc ở MỌI tầng, kể cả casting người viết đặt tay. Giọng tiếng Việt
- * đọc văn tiếng Anh ra thứ không ai nghe được — và hỏng kiểu đó không báo lỗi,
- * chỉ lộ ra khi ngồi nghe lại cả tập. Thà bỏ qua casting sai tiếng rồi dừng hẳn
- * với thông báo rõ ràng.
+ * LANGUAGE filters at EVERY tier, including casting the writer set by hand. A Vietnamese
+ * voice reading English prose is unlistenable — and that kind of failure raises no error,
+ * only showing up when listening back to a whole episode. Better to skip wrong-language
+ * casting and stop outright with a clear message.
  */
 export async function resolveVoice(input: {
   seriesDefaultVoiceId?: string | null;
   characterVoiceId?: string | null;
-  /** Ngôn ngữ của bộ truyện. */
+  /** The story's language. */
   language: string;
 }): Promise<ResolvedVoice> {
   const ids = [input.characterVoiceId, input.seriesDefaultVoiceId].filter(
@@ -46,8 +46,8 @@ export async function resolveVoice(input: {
     if (v?.enabled && v.language === input.language) return toResolved(v);
   }
 
-  // Chưa casting gì (hoặc casting sai tiếng): lấy giọng đầu tiên của engine
-  // đang cấu hình, đọc được đúng thứ tiếng này.
+  // No casting yet (or casting in the wrong language): take the first voice for the
+  // configured engine that reads this language.
   const engine = loadEnv().TTS_PROVIDER.toUpperCase() as TtsEngine;
   const fallback = await prisma.voice.findFirst({
     where: { engine, enabled: true, language: input.language },
@@ -57,12 +57,12 @@ export async function resolveVoice(input: {
   if (!fallback) {
     const other = await prisma.voice.count({ where: { engine, enabled: true } });
     throw new Error(
-      `Không có giọng "${input.language}" nào cho engine "${engine}". ` +
+      `No "${input.language}" voice for engine "${engine}". ` +
         (other > 0
-          ? `Có ${other} giọng khác tiếng — giọng sai tiếng đọc ra thứ không nghe được nên không dùng thay. `
+          ? `There are ${other} voices in other languages — a wrong-language voice reads as gibberish, so none was substituted. `
           : "") +
-        `Chạy \`pnpm db:seed\` (giọng giả lập), hoặc thêm giọng thật vào bảng Voice ` +
-        `rồi gán ở trang Nhân vật của bộ truyện.`,
+        `Run \`pnpm db:seed\` (mock voices), or add real voices to the Voice table ` +
+        `and assign them on the story's Characters page.`,
     );
   }
   return toResolved(fallback);

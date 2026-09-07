@@ -5,12 +5,12 @@ import { logger } from "../lib/logger";
 
 export interface StoredFile {
   /**
-   * Khoá trong kho, ví dụ "series/abc/blocks/003.wav".
+   * The key in the store, e.g. "series/abc/blocks/003.wav".
    *
-   * ĐÂY là thứ đem lưu vào DB, không phải `url`. Xem `StorageDriver.resolve`.
+   * THIS is what goes in the DB, not `url`. See `StorageDriver.resolve`.
    */
   key: string;
-  /** URL đọc được ngay — chỉ để log và trả về cho người gọi, đừng lưu. */
+  /** A directly readable URL — for logging and returning to the caller only, never stored. */
   url: string;
   sizeBytes: number;
 }
@@ -20,27 +20,27 @@ export interface StorageDriver {
   put(key: string, data: Buffer, contentType: string): Promise<StoredFile>;
   publicUrl(key: string): string;
   /**
-   * Đổi thứ đọc từ DB thành đường dẫn/URL đọc được ngay.
+   * Turn what the DB holds into a readable path or URL.
    *
-   * Nhận ba dạng:
-   * - khoá trong kho → giải theo gốc lưu trữ hiện tại
-   * - `http(s)://…` → nguồn ngoài, trả nguyên (nhạc nền dán URL, hoặc R2)
-   * - `file:///…` → dữ liệu cũ trước khi chuyển sang lưu khoá, trả nguyên đường dẫn
+   * Accepts three forms:
+   * - a store key → resolved against the current storage root
+   * - `http(s)://…` → an external source, returned as is (pasted music URLs, or R2)
+   * - `file:///…` → old data from before keys were stored, path returned as is
    */
   resolve(ref: string): string;
 }
 
-/** Nguồn ngoài thì giữ nguyên; chỉ khoá mới cần giải theo gốc kho. */
+/** External sources pass through; only keys need resolving against the store root. */
 function isAbsoluteRef(ref: string): boolean {
   return ref.startsWith("http://") || ref.startsWith("https://") || ref.startsWith("file://");
 }
 
 /**
- * Driver local — ghi ra đĩa.
+ * The local driver — writes to disk.
  *
- * Export ra để test dựng thẳng được từng driver: `getStorage()` cache một
- * instance theo env nên không kiểm được cả hai driver trong một tiến trình. Dùng khi dựng app và khi chạy thử, để không phải
- * có tài khoản R2 mới chạy được pipeline.
+ * Exported so tests can build each driver directly: `getStorage()` caches one instance
+ * per env, so both drivers cannot be exercised in one process. Used while building the
+ * app and while testing, so running the pipeline does not require an R2 account.
  */
 export class LocalDriver implements StorageDriver {
   readonly name = "local";
@@ -69,22 +69,22 @@ export class LocalDriver implements StorageDriver {
 }
 
 /**
- * Driver R2. Cài @aws-sdk/client-s3 khi bắt đầu dùng thật (Phase 3) —
- * Phase 1 chỉ cần đúng hình dạng interface.
+ * The R2 driver. Install @aws-sdk/client-s3 when it is first used for real (Phase 3) —
+ * Phase 1 only needs the interface's shape.
  */
 export class R2Driver implements StorageDriver {
   readonly name = "r2";
   #publicUrl: string;
 
   constructor(publicUrl: string) {
-    // `/+` chứ không phải `/`: R2_PUBLIC_URL gõ thừa dấu gạch sẽ ra URL hỏng.
+    // `/+` rather than `/`: an extra slash typed into R2_PUBLIC_URL would give a broken URL.
     this.#publicUrl = publicUrl.replace(/\/+$/, "");
   }
 
   async put(): Promise<StoredFile> {
     throw new Error(
-      "Driver R2 chưa cài. Thêm @aws-sdk/client-s3 ở Phase 3, " +
-        "hoặc đặt STORAGE_DRIVER=local để chạy tại chỗ.",
+      "The R2 driver is not installed. Add @aws-sdk/client-s3 in Phase 3, " +
+        "or set STORAGE_DRIVER=local to run locally.",
     );
   }
 
@@ -108,6 +108,6 @@ export function getStorage(): StorageDriver {
     env.STORAGE_DRIVER === "r2"
       ? new R2Driver(env.R2_PUBLIC_URL)
       : new LocalDriver(env.STORAGE_LOCAL_DIR);
-  logger.debug(`[storage] dùng driver "${driver.name}"`);
+  logger.debug(`[storage] using the "${driver.name}" driver`);
   return driver;
 }

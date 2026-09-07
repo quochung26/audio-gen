@@ -5,20 +5,20 @@ import { enqueue } from "./queue";
 import { isEpisodeComplete, nextStep, type BatchOptions, type EpisodeProgress } from "./batch-plan";
 
 /**
- * Đẩy lượt chạy hàng loạt sang bước kế tiếp.
+ * Advance a batch run to its next step.
  *
- * Gọi sau MỖI job kết thúc. Điều phối bằng sự kiện chứ không bằng vòng lặp chờ:
- * một job ngồi chờ job khác sẽ chiếm chỗ trong làn suốt thời gian đó, mà làn LLM
- * chỉ có vài chỗ — hai tập cùng chờ nhau là treo cả hàng đợi.
+ * Called after EVERY job finishes. Orchestrated by events rather than a polling loop:
+ * a job sitting waiting for another holds a lane slot the whole time, and the LLM lane
+ * has only a few — two episodes waiting on each other hangs the queue.
  *
- * Hàm này KHÔNG được ném lỗi ra ngoài: nó chạy trong đường hoàn tất job, ném lỗi
- * ở đây là làm hỏng job vừa chạy xong.
+ * This function must NOT throw: it runs on the job-completion path, and throwing here
+ * breaks the job that just succeeded.
  */
 export async function advanceBatch(renderJobId: string): Promise<void> {
   try {
     await advance(renderJobId);
   } catch (err) {
-    logger.error(`[batch] lỗi khi đẩy bước kế tiếp: ${(err as Error).message}`);
+    logger.error(`[batch] error advancing to the next step: ${(err as Error).message}`);
   }
 }
 
@@ -36,10 +36,10 @@ async function advance(renderJobId: string): Promise<void> {
   });
   if (!run) return;
 
-  // Một job hỏng thì dừng cả lượt. Chạy tiếp sau lỗi chỉ chồng thêm lỗi, và
-  // tập sau thường phụ thuộc tóm tắt của tập trước.
+  // One failed job stops the whole run. Carrying on after an error only piles up more,
+  // and the next episode usually depends on the previous one's summary.
   if (job.status === JobStatus.FAILED) {
-    await finish(run.id, BatchStatus.FAILED, `Job ${job.type} thất bại: ${job.error ?? "không rõ"}`);
+    await finish(run.id, BatchStatus.FAILED, `Job ${job.type} failed: ${job.error ?? "no reason given"}`);
     return;
   }
 
@@ -47,16 +47,16 @@ async function advance(renderJobId: string): Promise<void> {
 }
 
 /**
- * Đẩy lượt chạy đúng một bước.
+ * Advance the run by exactly one step.
  *
- * `justFinished` là loại job vừa xong. Dùng để bắt tình trạng kẹt: nếu bước kế
- * tiếp lại chính là job vừa chạy xong thì tập không tiến lên được (ví dụ
- * AUDIO_EDIT chạy xong mà không sinh block nào) — đẩy lại là lặp vô hạn.
+ * `justFinished` is the kind of job that just completed. Used to catch a stall: if the
+ * next step is the very job that just finished, the episode cannot move forward (say
+ * AUDIO_EDIT completing without producing any blocks) — requeueing would loop forever.
  *
- * Chốt này nghiêng về phía DỪNG: nếu người dùng bấm tay "đọc lại" MỘT block
- * trong Studio giữa lúc lượt chạy đang chạy, job TTS đó xong mà các block khác
- * vẫn thiếu audio sẽ bị coi là kẹt và dừng lượt. Thà dừng và báo rõ còn hơn
- * quay vòng âm thầm; chạy lại lượt là tiếp tục được từ chỗ đang dở.
+ * The gate errs toward STOPPING: if the user manually re-reads ONE block in Studio
+ * while a run is going, that TTS job finishing with other blocks still missing audio
+ * counts as a stall and stops the run. Better to stop and say so than to spin silently;
+ * restarting the run picks up where it left off.
  */
 export async function step(
   runId: string,
@@ -74,7 +74,7 @@ export async function step(
 
   if (!pending) {
     await finish(runId, BatchStatus.DONE, null);
-    logger.info(`[batch] ${runId}: xong cả ${episodes.length} tập`);
+    logger.info(`[batch] ${runId}: all ${episodes.length} episodes done`);
     return;
   }
 
@@ -85,7 +85,7 @@ export async function step(
       where: { id: runId },
       data: { status: BatchStatus.WAITING_REVIEW, currentEpisodeId: pending.id },
     });
-    logger.info(`[batch] ${runId}: chờ duyệt bản thảo tập ${pending.number}`);
+    logger.info(`[batch] ${runId}: waiting for approval of episode ${pending.number}'s draft`);
     return;
   }
 
@@ -94,7 +94,7 @@ export async function step(
       where: { id: pending.id },
       data: { humanReviewed: true, reviewedAt: new Date(), reviewedBy: "batch --auto-approve" },
     });
-    // Duyệt xong chưa phải là một bước job — tính lại ngay để đẩy bước thật.
+    // Approval is not itself a job step — recompute immediately to queue the real one.
     await step(runId, seriesId, opts, justFinished);
     return;
   }
@@ -104,14 +104,14 @@ export async function step(
       await finish(
         runId,
         BatchStatus.FAILED,
-        `Tập ${pending.number} không tiến lên được sau khi ${next.type} chạy xong. ` +
-          "Kiểm tra tập này bằng tay rồi chạy lại.",
+        `Episode ${pending.number} cannot move forward after ${next.type} finished. ` +
+          "Check this episode by hand, then restart the run.",
       );
       return;
     }
 
-    // Người dùng có thể đã tự bấm chạy bước này trong Studio. Đẩy thêm một job
-    // nữa chỉ làm nó chạy hai lần trên cùng dữ liệu.
+    // The user may have run this step manually in Studio. Queueing another only makes it
+    // run twice over the same data.
     const running = await prisma.renderJob.count({
       where: {
         episodeId: pending.id,
@@ -120,7 +120,7 @@ export async function step(
       },
     });
     if (running > 0) {
-      logger.debug(`[batch] ${runId}: ${next.type} cho tập ${pending.number} đã có trong hàng đợi`);
+      logger.debug(`[batch] ${runId}: ${next.type} for episode ${pending.number} is already queued`);
       return;
     }
 
@@ -129,7 +129,7 @@ export async function step(
       data: { status: BatchStatus.RUNNING, currentEpisodeId: pending.id },
     });
     await enqueue({ type: next.type, episodeId: pending.id, payload: { episodeId: pending.id } });
-    logger.info(`[batch] ${runId}: tập ${pending.number} → ${next.type}`);
+    logger.info(`[batch] ${runId}: episode ${pending.number} → ${next.type}`);
   }
 }
 
@@ -162,12 +162,12 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
         exports: { where: { type: "AUDIO_MP3" }, select: { id: true } },
       },
     }),
-    // Truy vấn riêng thay vì `select: { draftText: true }`: bản thảo là vài
-    // nghìn từ mỗi tập, kéo cả bộ về chỉ để xét rỗng/không là phí.
+    // A separate query rather than `select: { draftText: true }`: the draft is a few
+    // thousand words per episode, and pulling a whole story just to test emptiness is waste.
     prisma.episode.findMany({ where: { seriesId, ...HAS_DRAFT }, select: { id: true } }),
-    // Cảnh đã viết mà chưa qua chuyển ngữ — `sourceText` null là dấu hiệu đó.
-    // Bộ viết thẳng thì khỏi hỏi: không có bước này thì mọi cảnh đều "chưa
-    // chuyển ngữ" và lượt chạy sẽ kẹt ở một bước không bao giờ chạy.
+    // Scenes written but not yet rewritten — a null `sourceText` is the marker. Stories
+    // that write directly skip the question: without this, every scene reads as "not
+    // rewritten" and the run stalls on a step that never runs.
     plan.translate
       ? prisma.chapter.findMany({
           where: {
@@ -188,9 +188,9 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
     number: e.number,
     progress: {
       humanReviewed: e.humanReviewed,
-      // Xét `draftText` chứ KHÔNG xét số Scene: job OUTLINE tạo sẵn Scene rỗng
-      // cho từng beat, nên đếm Scene sẽ tưởng tập mới có dàn ý là đã viết xong.
-      // `draftText` cũng đúng là thứ AUDIO_EDIT đòi.
+      // Tests `draftText` and NOT the Scene count: the OUTLINE job creates empty Scenes
+      // for each beat, so counting Scenes would read a freshly outlined episode as
+      // written. `draftText` is also exactly what AUDIO_EDIT needs.
       hasDraft: hasDraft.has(e.id),
       needsTranslate: pendingTranslate.has(e.id),
       blocksTotal: e._count.blocks,

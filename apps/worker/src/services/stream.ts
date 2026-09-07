@@ -2,31 +2,31 @@ import { connection } from "../lib/redis";
 import { logger } from "../lib/logger";
 
 /**
- * Đẩy chữ đang sinh về Studio, theo thời gian thực.
+ * Push the text being generated back to Studio, live.
  *
- * Vì sao qua Redis: worker và API là hai tiến trình. Token nằm ở worker, còn
- * Studio chỉ nói chuyện được với API. Redis đã có sẵn cho hàng đợi nên không
- * thêm hạ tầng nào.
+ * Why through Redis: the worker and the API are two processes. The tokens are in the
+ * worker, and Studio can only talk to the API. Redis is already there for the queue, so
+ * this adds no infrastructure.
  *
- * Khoá theo TẬP chứ không theo cảnh: trang tập chỉ phải hỏi một chỗ, và job
- * viết cả tập đi lần lượt qua từng cảnh vẫn dùng đúng khoá đó.
+ * Keyed by EPISODE rather than by scene: the episode page only has to poll one place, and
+ * a job writing a whole episode scene by scene keeps using that same key.
  *
- * Có HẠN GIỜ: bản nháp dở là thứ dùng xong bỏ. Worker chết giữa chừng thì khoá
- * tự hết hạn, không để lại rác mà cũng chẳng ai phải đi dọn.
+ * It EXPIRES: a partial draft is disposable. A worker dying midway leaves a key that
+ * expires on its own, with no debris and nobody having to clean up.
  *
- * KHÔNG BAO GIỜ được làm chết job. Đây là thứ trang trí — Redis trục trặc thì
- * mất phần xem trực tiếp, chứ không mất cảnh vừa viết.
+ * It must NEVER kill a job. This is decoration — Redis trouble loses the live view, not
+ * the scene just written.
  */
 const TTL_SECONDS = 300;
 
-/** Ghi tối đa hai lần mỗi giây. Ollama trả về hàng trăm mẩu nhỏ mỗi cảnh. */
+/** Writes at most twice a second. Ollama returns hundreds of small fragments per scene. */
 const WRITE_EVERY_MS = 500;
 
 export const streamKey = (episodeId: string) => `stream:episode:${episodeId}`;
 
 export interface SceneStream {
   push(chunk: string): void;
-  /** Xoá khoá khi xong — bản chính thức đã nằm trong DB, giữ nháp lại chỉ gây lệch. */
+  /** Delete the key when done — the real version is in the DB, and keeping the draft only causes drift. */
   finish(): Promise<void>;
 }
 
@@ -50,7 +50,7 @@ export function openSceneStream(input: {
         TTL_SECONDS,
       );
     } catch (err) {
-      logger.debug(`[stream] không ghi được: ${(err as Error).message}`);
+      logger.debug(`[stream] could not write: ${(err as Error).message}`);
     } finally {
       writing = false;
     }
@@ -68,7 +68,7 @@ export function openSceneStream(input: {
       try {
         await connection.del(streamKey(input.episodeId));
       } catch {
-        // Hết hạn sau TTL_SECONDS là xong, không cần làm gì thêm.
+        // Expiring after TTL_SECONDS is enough, nothing more to do.
       }
     },
   };
