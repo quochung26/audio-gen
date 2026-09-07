@@ -6,18 +6,19 @@ import { withPlayerDb } from "../lib/player-db";
 export const comments = new Hono();
 
 /**
- * Kiểm duyệt bình luận.
+ * Comment moderation.
  *
- * Bình luận nằm ở DB HOSTED (người nghe sinh ra), nên route này dùng
- * `prismaPlayer` chứ không phải `prisma` như các route khác. Chạy chung một DB
- * thì hai cái là một.
+ * Comments live in the HOSTED database (listeners create them), so this route
+ * uses `prismaPlayer` rather than `prisma` like the others. On a single-database
+ * setup the two are the same thing.
  *
- * Mặc định bình luận vào hàng chờ và KHÔNG hiện — duyệt xong mới ra trang nghe.
+ * By default a comment goes into a queue and does NOT appear — only approval
+ * puts it on the player.
  */
 comments.get("/", async (c) => {
   const status = c.req.query("status") ?? "PENDING";
   if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
-    throw new UserError("Trạng thái không hợp lệ");
+    throw new UserError("Invalid status");
   }
 
   const [rows, counts] = await withPlayerDb(() =>
@@ -42,7 +43,7 @@ comments.put("/:id", async (c) => {
   const body = await c.req.parseBody();
   const status = String(body.status ?? "");
   if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
-    throw new UserError("Trạng thái không hợp lệ");
+    throw new UserError("Invalid status");
   }
   await withPlayerDb(() =>
     prismaPlayer.comment.update({
@@ -50,10 +51,10 @@ comments.put("/:id", async (c) => {
       data: { status: status as "APPROVED" },
     }),
   );
-  return c.json({ ok: status === "APPROVED" ? "Đã duyệt." : "Đã từ chối." });
+  return c.json({ ok: status === "APPROVED" ? "Approved." : "Rejected." });
 });
 
-/** Xoá hẳn — dùng cho spam rõ ràng, khỏi để chật hàng chờ. */
+/** Delete for good — for obvious spam, so it stops cluttering the queue. */
 comments.delete("/:id", async (c) => {
   await withPlayerDb(() => prismaPlayer.comment.delete({ where: { id: c.req.param("id") } }));
   return c.json({ ok: true });

@@ -73,7 +73,7 @@ export function Bible() {
             name="glossary"
             label="Glossary"
             hint="One per line, as «term: meaning». Keeps the AI from renaming things between episodes."
-            placeholder={"Bến Cũ: an abandoned bus depot on the edge of town"}
+            placeholder={"Old Depot: an abandoned bus station on the edge of town"}
             defaultValue={world.glossary.map((g) => `${g.term}: ${g.meaning}`).join("\n")}
             rows={3}
           />

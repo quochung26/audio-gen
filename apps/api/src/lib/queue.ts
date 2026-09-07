@@ -5,8 +5,8 @@ import { getJobVramCost, loadEnv } from "@audio/config";
 import { needsLocalGpu } from "@audio/llm";
 
 /**
- * API chỉ ĐẨY job vào hàng đợi, không tự chạy LLM hay ffmpeg.
- * Nhờ vậy đóng tab trình duyệt không làm gián đoạn công việc đang chạy.
+ * The API only QUEUES jobs; it never runs an LLM or ffmpeg itself.
+ * That is why closing the browser tab does not interrupt work in progress.
  */
 const globalForQueue = globalThis as unknown as {
   redis?: Redis;
@@ -54,8 +54,8 @@ export async function enqueue(input: {
   const lane = LANE_OF[input.type] ?? JobLane.LLM;
   const vramMb = await vramCostFor(input.type);
 
-  // Ghi Postgres trước rồi mới đẩy Redis: Postgres là nguồn sự thật,
-  // Redis chỉ là hàng đợi tạm.
+  // Write to Postgres before pushing to Redis: Postgres is the source of truth,
+  // Redis is only a transient queue.
   const job = await prisma.renderJob.create({
     data: {
       type: input.type,
@@ -83,10 +83,10 @@ export async function enqueue(input: {
 }
 
 /**
- * Chi phí VRAM của một job, xét cả provider đang bật.
+ * A job's VRAM cost, taking the active provider into account.
  *
- * Bảng `getJobVramCost` chỉ biết loại job, không biết ai sẽ chạy — mà cùng một
- * WRITE_SCENE tốn 12 GB khi chạy Ollama và 0 khi gọi OpenRouter.
+ * The `getJobVramCost` table only knows the job type, not who will run it — and
+ * the same WRITE_SCENE costs 12 GB on Ollama and 0 through OpenRouter.
  */
 async function vramCostFor(type: JobType): Promise<number> {
   const base = getJobVramCost()[type] ?? 0;

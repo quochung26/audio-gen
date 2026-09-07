@@ -33,11 +33,12 @@ series.get("/", async (c) => {
 });
 
 /**
- * Thể loại các bộ ĐANG dùng — gợi ý khi tạo biến thể prompt.
+ * Genres stories ACTUALLY use — suggestions when creating a prompt variant.
  *
- * Khác `/api/genres`: chỗ này lấy từ dữ liệu thật, kể cả thể loại gõ tay chưa
- * có trong danh mục. Danh mục dùng cho ô chọn, cái này dùng cho biến thể prompt
- * — chỉ đáng tạo biến thể cho thể loại thật sự có truyện.
+ * Different from `/api/genres`: this comes from real data, including genres typed
+ * by hand that are not in the catalogue. The catalogue drives the picker, this
+ * drives prompt variants — a variant is only worth making for a genre that has
+ * stories.
  */
 series.get("/genres", async (c) => {
   const rows = await prisma.series.findMany({
@@ -67,18 +68,19 @@ series.get("/:id", async (c) => {
 });
 
 /**
- * Tạo truyện mới — đẩy job dàn ý và trả id job để giao diện chuyển tới trang theo dõi.
+ * Create a story — queue the outline job and return its id so the UI can jump to
+ * the progress page.
  */
 /**
- * Đọc dàn nhân vật gửi kèm form tạo truyện.
+ * Read the cast sent with the create-story form.
  *
- * Giao diện gửi MỘT trường `cast` dạng JSON thay vì hàng chục ô rời: danh sách
- * dài ngắn tuỳ lúc, mà `FormData` phẳng thì tên trường phải mang theo chỉ số và
- * chỗ nào cũng phải tự ghép lại.
+ * The UI sends ONE `cast` field as JSON rather than dozens of separate inputs:
+ * the list varies in length, and a flat `FormData` would need indexed field names
+ * that every reader has to reassemble.
  *
- * Thẻ được tra lại từ DB để lấy `voiceId` và điền vào ô người viết bỏ trống —
- * nhưng ô nào người viết có gõ thì bản gõ thắng, vì đó chính là điểm của việc
- * "sửa mà không lưu vào thẻ".
+ * Cards are looked up in the DB for their `voiceId` and to fill fields the writer
+ * left blank — but any field the writer did type wins, because that is the whole
+ * point of "edit without saving back to the card".
  */
 async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]> {
   const raw = field(body, "cast");
@@ -88,9 +90,9 @@ async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]>
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new UserError("Dàn nhân vật gửi lên không đọc được.");
+    throw new UserError("Could not read the cast that was sent.");
   }
-  if (!Array.isArray(parsed)) throw new UserError("Dàn nhân vật gửi lên không đọc được.");
+  if (!Array.isArray(parsed)) throw new UserError("Could not read the cast that was sent.");
 
   const rows = parsed as Array<Record<string, unknown>>;
   const cardIds = rows.map((r) => String(r.cardId ?? "")).filter(Boolean);
@@ -103,8 +105,8 @@ async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]>
     const card = byId.get(String(r.cardId ?? ""));
     const text = (key: string) => (typeof r[key] === "string" ? (r[key] as string).trim() : "");
     return {
-      // Thẻ đã bị xoá giữa chừng thì bỏ liên kết chứ không bỏ nhân vật: người
-      // viết đã gõ tên vào form rồi, mất cả người là mất công vô cớ.
+      // A card deleted mid-flight drops the link, not the character: the writer
+      // already typed the name into the form, and losing them wastes that work.
       cardId: card?.id ?? null,
       name: text("name") || card?.name || "",
       role: text("role") || card?.role || null,
@@ -123,10 +125,10 @@ async function resolveCast(body: Record<string, unknown>): Promise<CastMember[]>
 series.post("/", async (c) => {
   const body = await c.req.parseBody();
   const idea = field(body, "idea");
-  if (!idea) throw new UserError("Thiếu ý tưởng");
+  if (!idea) throw new UserError("Idea is required");
 
-  // Thiết lập thế giới là tuỳ chọn. Có thì AI phải bám theo; không có thì AI
-  // tự nghĩ ra và bạn sửa lại ở trang Story Bible sau.
+  // World setup is optional. Given one, the AI has to stick to it; without one it
+  // invents its own and you fix it on the Story Bible page later.
   const world = worldSetupSchema.parse({
     setting: field(body, "setting"),
     tone: field(body, "tone"),
@@ -135,23 +137,24 @@ series.post("/", async (c) => {
     glossary: [],
   });
 
-  // Ngôn ngữ chốt lúc TẠO BỘ và không đổi sau đó: đổi giữa chừng thì tóm tắt
-  // cung truyện, tên nhân vật và giọng đọc của các tập cũ đều lệch.
+  // Language is fixed AT CREATION and never changes: switch midway and the arc
+  // summary, the character names and the voices of earlier episodes all drift.
   const language = field(body, "language");
-  if (language && !isLanguage(language)) throw new UserError(`Ngôn ngữ không hợp lệ: "${language}"`);
+  if (language && !isLanguage(language)) throw new UserError(`Invalid language: "${language}"`);
 
-  // Ngôn ngữ BẢN THẢO thì ngược lại, đổi lúc nào cũng được (xem PUT
-  // /:id/draft-language): nó chỉ quyết định lượt viết kế tiếp, còn cảnh đã dịch
-  // xong thì nằm yên đó.
+  // The DRAFT language is the opposite — changeable at any time (see PUT
+  // /:id/draft-language): it only decides the next write, and scenes already
+  // rewritten stay as they are.
   const draftLanguage = field(body, "draftLanguage");
   if (draftLanguage && !isLanguage(draftLanguage)) {
-    throw new UserError(`Ngôn ngữ bản thảo không hợp lệ: "${draftLanguage}"`);
+    throw new UserError(`Invalid draft language: "${draftLanguage}"`);
   }
 
-  // Dàn nhân vật chọn trước: thẻ lấy từ thư viện, cộng nhân vật gõ riêng cho bộ
-  // này. Giải thẻ ra thành dữ liệu phẳng NGAY TẠI ĐÂY để worker không phải biết
-  // tới bảng thẻ — nó chỉ nhận một danh sách nhân vật, chọn từ đâu không quan
-  // trọng. Bản gửi lên đã mang sẵn phần người viết sửa tay, và bản sửa đó thắng.
+  // The cast picked up front: cards from the library, plus characters typed just
+  // for this story. Cards are flattened RIGHT HERE so the worker never has to know
+  // the card table exists — it just receives a list of characters, and where they
+  // came from does not matter. What was sent already carries the writer's hand
+  // edits, and those edits win.
   const cast = await resolveCast(body);
 
   const job = await enqueue({
@@ -163,13 +166,13 @@ series.post("/", async (c) => {
       cast,
       genre: field(body, "genre") || "kinh dị",
       tags: field(body, "tags"),
-      // Luôn dựng ĐÚNG MỘT tập. Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8
-      // trở đi chỉ là phỏng đoán của model về câu chuyện chưa được viết; viết
-      // tiếp từng tập thì mỗi tập được dựng khi đã biết tập trước kết thúc ra
-      // sao. Thêm tập bằng nút "Viết tập mới" ở trang bộ truyện.
+      // Always EXACTLY ONE episode. Outlining 10 up front from one line of idea
+      // makes episode 8 onward the model's guess at a story not yet written;
+      // episode by episode, each one is outlined knowing how the last one ended.
+      // Add episodes with "Write a new episode" on the story page.
       episodeCount: 1,
       world,
-      // Chỉ áp cho lần chạy này; để trống thì worker dùng mặc định.
+      // Applies to this run only; blank means the worker uses its default.
       model: field(body, "model") || undefined,
     },
   });
@@ -177,11 +180,11 @@ series.post("/", async (c) => {
 });
 
 /**
- * Dựng dàn ý cho tập tiếp theo.
+ * Outline the next episode.
  *
- * Chặn khi tập gần nhất chưa có tóm tắt: không có tóm tắt thì tập mới được
- * dựng mà không biết tập trước kết thúc ra sao — đúng thứ mà viết-từng-tập
- * sinh ra để tránh.
+ * Blocked while the latest episode has no summary: without one the new episode
+ * gets outlined without knowing how the last one ended — exactly what writing
+ * episode by episode exists to avoid.
  */
 series.post("/:id/episodes", async (c) => {
   const seriesId = c.req.param("id");
@@ -200,8 +203,8 @@ series.post("/:id/episodes", async (c) => {
 
   if (last && !last.summary && field(body, "force") !== "1") {
     throw new UserError(
-      `Tập ${last.number} "${last.title}" chưa có tóm tắt. Viết xong và tóm tắt tập đó trước, ` +
-        `nếu không tập mới sẽ được dựng mà không biết tập trước kết thúc ra sao.`,
+      `Episode ${last.number} "${last.title}" has no summary yet. Finish and summarise it first, ` +
+        `otherwise the new episode gets outlined without knowing how the last one ended.`,
     );
   }
 
@@ -213,11 +216,11 @@ series.post("/:id/episodes", async (c) => {
 });
 
 /**
- * Sửa thể loại phụ.
+ * Edit the sub-genre tags.
  *
- * Ăn ngay ở lượt viết tiếp theo: Story Bible được DỰNG LẠI từ dữ liệu mới nhất
- * mỗi lần viết cảnh, không dùng bản đã render sẵn. Các tập đã viết xong thì
- * không đổi — chúng đã viết bằng định hướng cũ rồi.
+ * Takes effect on the next write: the Story Bible is REBUILT from the latest data
+ * on every scene, never from a pre-rendered copy. Finished episodes do not change
+ * — they were written under the old direction.
  */
 series.put("/:id/tags", async (c) => {
   const body = await c.req.parseBody();
@@ -230,10 +233,10 @@ series.put("/:id/tags", async (c) => {
   await prisma.series.update({ where: { id: c.req.param("id") }, data: { tags } });
 
   return c.json({
-    ok: tags.length > 0 ? `Đã lưu ${tags.length} thể loại phụ.` : "Đã bỏ hết thể loại phụ.",
+    ok: tags.length > 0 ? `Saved ${tags.length} sub-genre tags.` : "All sub-genre tags removed.",
     warnings:
       tags.length > 0
-        ? ["Chỉ áp cho tập viết từ giờ. Tập đã viết xong giữ nguyên định hướng cũ."]
+        ? ["Applies to episodes written from now on. Finished ones keep the old direction."]
         : [],
   });
 });
@@ -250,21 +253,21 @@ series.get("/:id/world", async (c) => {
 });
 
 /**
- * Lưu thiết lập thế giới. Ghi đè `world`, GIỮ NGUYÊN `raw` (dàn ý AI sinh) —
- * hai thứ này tách nhau nên sửa luật thế giới không làm mất dàn ý, và sinh lại
- * dàn ý không làm mất luật thế giới.
+ * Save the world setup. Overwrites `world`, LEAVES `raw` (the AI-generated
+ * outline) alone — the two are separate so editing world rules cannot lose the
+ * outline, and regenerating the outline cannot lose the world rules.
  */
 /**
- * Đổi ngôn ngữ BẢN THẢO của một bộ.
+ * Change a story's DRAFT language.
  *
- * Khác `Series.language`, cái này đổi giữa chừng được: nó chỉ quyết định lượt
- * viết cảnh kế tiếp, còn cảnh đã viết và đã chuyển ngữ thì không đụng tới. Tắt
- * đi (chuỗi rỗng) là từ đó viết thẳng bằng ngôn ngữ đầu ra.
+ * Unlike `Series.language`, this one can change midway: it only decides the next
+ * scene written, and scenes already written and rewritten are untouched. Turning
+ * it off (empty string) writes straight in the output language from then on.
  */
 series.put("/:id/draft-language", async (c) => {
   const body = await c.req.parseBody();
   const value = field(body, "draftLanguage");
-  if (value && !isLanguage(value)) throw new UserError(`Ngôn ngữ không hợp lệ: "${value}"`);
+  if (value && !isLanguage(value)) throw new UserError(`Invalid language: "${value}"`);
 
   const updated = await prisma.series.update({
     where: { id: c.req.param("id") },
@@ -275,8 +278,8 @@ series.put("/:id/draft-language", async (c) => {
 
   return c.json({
     ok: plan.translate
-      ? `Bản thảo viết bằng "${plan.draft}", rồi viết lại sang "${plan.output}".`
-      : `Viết thẳng bằng "${plan.output}", không qua bước chuyển ngữ.`,
+      ? `Drafts are written in "${plan.draft}", then rewritten into "${plan.output}".`
+      : `Written straight in "${plan.output}", with no rewrite step.`,
   });
 });
 
@@ -325,33 +328,33 @@ series.put("/:id/world", async (c) => {
 });
 
 /**
- * Đặt ảnh bìa cho bộ truyện.
+ * Set the story's cover art.
  *
- * Kiểm chuẩn Apple Podcasts NGAY lúc tải: Apple từ chối feed sau khi nộp, chờ
- * vài ngày rồi bị trả về thì đắt hơn nhiều so với báo ngay ở đây. Nhưng chỉ
- * CHẶN khi file hỏng hoặc quá nặng — ảnh nhỏ vẫn cho đặt, kèm cảnh báo, để đặt
- * được bìa tạm trong lúc chờ ảnh thật.
+ * Checks Apple Podcasts' rules AT UPLOAD: Apple rejects a feed after submission,
+ * and waiting days for a rejection costs far more than saying so here. But it
+ * only BLOCKS on a broken or oversized file — a small image is still accepted,
+ * with a warning, so you can put a placeholder up while waiting for the real art.
  */
 series.put("/:id/cover", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.parseBody();
   const file = body.file;
 
-  if (!(file instanceof File) || file.size === 0) throw new UserError("Chưa chọn ảnh");
+  if (!(file instanceof File) || file.size === 0) throw new UserError("No image selected");
   if (loadEnv().STORAGE_DRIVER !== "local") {
-    throw new UserError("Chỉ tải ảnh lên được khi STORAGE_DRIVER=local.");
+    throw new UserError("Uploads only work with STORAGE_DRIVER=local.");
   }
 
-  // Giữ đuôi gốc: ffprobe đoán được định dạng theo nội dung, nhưng trình duyệt
-  // và Apple đọc theo đuôi file.
+  // Keep the original extension: ffprobe can infer the format from content, but
+  // browsers and Apple go by the file extension.
   const ext = extname(safeFileName(file.name)) || ".jpg";
   const key = `library/covers/${id}${ext}`;
 
-  // Ghi ra tên TẠM rồi mới kiểm, kiểm đạt mới thay vào chỗ thật.
+  // Write to a TEMP name, check it, and only then move it into place.
   //
-  // Ghi thẳng vào `key` là hỏng: tải lên một file .jpg hỏng sẽ ghi đè lên bìa
-  // .jpg đang dùng, rồi bước dọn rác xoá luôn file đó — kết quả là mất bìa cũ
-  // mà DB vẫn trỏ tới nó. Đã dính đúng lỗi này khi thử.
+  // Writing straight to `key` is broken: uploading a corrupt .jpg overwrites the
+  // .jpg cover in use, then cleanup deletes that file — leaving the old cover gone
+  // with the DB still pointing at it. This exact bug happened in testing.
   const tmpKey = `library/covers/.tmp-${id}${ext}`;
   const tmpPath = join(storageRoot(), tmpKey);
   await putLocal(tmpKey, Buffer.from(await file.arrayBuffer()));
@@ -359,19 +362,19 @@ series.put("/:id/cover", async (c) => {
   const probe = await ffprobe(tmpPath).catch(() => null);
   const check = probe
     ? checkCover(probe)
-    : { ok: false, errors: ["Không đọc được file — có phải ảnh không?"], warnings: [] };
+    : { ok: false, errors: ["Could not read the file — is it an image?"], warnings: [] };
 
   if (!check.ok) {
     await unlink(tmpPath).catch(() => {});
     throw new UserError(check.errors.join(" "));
   }
 
-  // `rename` trong cùng ổ đĩa là thao tác nguyên tử — không có khoảnh khắc nào
-  // `key` tồn tại mà nội dung dở dang.
+  // `rename` within one filesystem is atomic — there is no moment where `key`
+  // exists holding half-written content.
   await rename(tmpPath, join(storageRoot(), key));
   await prisma.series.update({ where: { id }, data: { coverUrl: key } });
   return c.json({
-    ok: check.warnings.length === 0 ? "Đã đặt ảnh bìa." : "Đã đặt ảnh bìa, nhưng:",
+    ok: check.warnings.length === 0 ? "Cover art set." : "Cover art set, but:",
     warnings: check.warnings,
     width: probe?.width,
     height: probe?.height,
@@ -379,20 +382,20 @@ series.put("/:id/cover", async (c) => {
 });
 
 /**
- * Xoá cả bộ truyện.
+ * Delete a whole story.
  *
- * Không hỏi lại ở API — Studio đã bắt xác nhận. Nhưng CHẶN hai tình huống mà
- * xoá xong sẽ để lại rác không dọn được bằng tay:
+ * No second confirmation at the API — Studio already asked. But it BLOCKS two
+ * situations that would leave debris nobody can clean up by hand:
  *
- *  1. Còn job trong hàng đợi. Hàng trong DB bị cascade xoá, còn job trong Redis
- *     vẫn chạy rồi chết vì không tra ra tập — và lỗi đó chẳng nói gì về việc bộ
- *     truyện vừa bị xoá.
- *  2. Còn tập đang xuất bản. DB local xoá sạch nhưng DB hosted giữ nguyên, và
- *     từ lúc đó không còn đường nào gỡ chúng xuống nữa.
+ *  1. Jobs still queued. The DB rows cascade away, while the Redis job still runs
+ *     and then dies because it cannot find its episode — and that error says
+ *     nothing about the story having just been deleted.
+ *  2. Episodes still published. The local DB is wiped but the hosted DB is not,
+ *     and from then on there is no way left to take them down.
  *
- * Cascade của Prisma lo phần DB (tập, cảnh, block, nhân vật, sự kiện, bản
- * xuất…). Phần FILE thì phải tự dọn: audio của block dùng chung theo `cacheKey`
- * nên chỉ xoá file khi không còn block nào khác trỏ tới.
+ * Prisma's cascade handles the DB (episodes, scenes, blocks, characters, facts,
+ * exports…). FILES have to be cleaned up here: block audio is shared by
+ * `cacheKey`, so a file is only deleted when no other block points at it.
  */
 series.delete("/:id", async (c) => {
   const id = c.req.param("id");
@@ -409,7 +412,7 @@ series.delete("/:id", async (c) => {
   });
   if (running > 0) {
     throw new UserError(
-      `${running} job đang chạy hoặc đang chờ cho bộ này. Đợi xong (hoặc dừng lượt chạy hàng loạt) rồi xoá.`,
+      `${running} jobs are running or queued for this story. Wait for them (or stop the batch run), then delete.`,
     );
   }
 
@@ -418,11 +421,11 @@ series.delete("/:id", async (c) => {
   });
   if (published > 0) {
     throw new UserError(
-      `${published} tập đang xuất bản. Gỡ xuất bản trước — xoá thẳng ở đây thì bản trên DB hosted không còn đường nào gỡ xuống.`,
+      `${published} episodes are published. Unpublish them first — deleting here leaves the hosted copies with no way to take them down.`,
     );
   }
 
-  // Gom khoá file TRƯỚC khi xoá hàng: xoá xong là không tra lại được nữa.
+  // Collect the file keys BEFORE deleting the rows: once gone, they are unreadable.
   const [blocks, exports] = await Promise.all([
     prisma.block.findMany({
       where: { episode: { seriesId: id }, audioAssetId: { not: null } },
@@ -434,20 +437,20 @@ series.delete("/:id", async (c) => {
 
   await prisma.series.delete({ where: { id } });
 
-  // Bản xuất và ảnh bìa chỉ thuộc về bộ này nên xoá thẳng; audio của block thì
-  // dùng chung, `cleanupAudio` lo phần đó.
+  // Exports and the cover belong to this story alone so they go straight away;
+  // block audio is shared, and `cleanupAudio` handles that.
   const files = await cleanupAudio({
     assetIds,
     urls: [...exports.map((e) => e.url), ...(s.coverUrl ? [s.coverUrl] : [])],
   });
 
-  return c.json({ ok: `Đã xoá "${s.title}"${filesRemovedNote(files)}.` });
+  return c.json({ ok: `Deleted "${s.title}"${filesRemovedNote(files)}.` });
 });
 
 series.delete("/:id/cover", async (c) => {
-  // File trên đĩa GIỮ NGUYÊN — tập đã xuất bản có thể đang trỏ tới nó qua RSS.
+  // The file on disk STAYS — a published episode may still point at it via RSS.
   await prisma.series.update({ where: { id: c.req.param("id") }, data: { coverUrl: null } });
-  return c.json({ ok: "Đã gỡ ảnh bìa." });
+  return c.json({ ok: "Cover art removed." });
 });
 
 series.put("/:id/arc-summary", async (c) => {
@@ -468,7 +471,7 @@ series.put("/:id/default-voice", async (c) => {
   return c.json({ ok: true });
 });
 
-// ═══════════════════ Chạy hàng loạt ═══════════════════
+// ═══════════════════ Batch runs ═══════════════════
 
 series.post("/:id/batch", async (c) => {
   const seriesId = c.req.param("id");
@@ -477,7 +480,7 @@ series.post("/:id/batch", async (c) => {
   const existing = await prisma.batchRun.findFirst({
     where: { seriesId, status: { in: [BatchStatus.RUNNING, BatchStatus.WAITING_REVIEW] } },
   });
-  if (existing) throw new UserError("Bộ này đang có một lượt chạy. Dừng lượt đó trước.");
+  if (existing) throw new UserError("This story already has a run going. Stop that one first.");
 
   const run = await prisma.batchRun.create({
     data: {
@@ -492,8 +495,8 @@ series.post("/:id/batch", async (c) => {
 });
 
 /**
- * Dừng lượt chạy. Job ĐANG chạy vẫn chạy nốt — cắt ngang giữa chừng để lại dữ
- * liệu dở dang. Chỉ là sau khi nó xong thì không bước nào được đẩy tiếp.
+ * Stop a run. The job currently RUNNING finishes — cutting it off midway leaves
+ * half-written data. It just means no further step gets queued after it.
  */
 series.delete("/:id/batch/:runId", async (c) => {
   await prisma.batchRun.update({
@@ -503,9 +506,9 @@ series.delete("/:id/batch/:runId", async (c) => {
   return c.json({ ok: true });
 });
 
-// ═══════════════════ Nhân vật ═══════════════════
+// ═══════════════════ Characters ═══════════════════
 
-/** Đúng một người dẫn truyện cho mỗi bộ. Hạ cờ của những người còn lại. */
+/** Exactly one narrator per story. Clear the flag on everyone else. */
 async function ensureSingleNarrator(seriesId: string, keepId: string) {
   await prisma.character.updateMany({
     where: { seriesId, isNarrator: true, id: { not: keepId } },
@@ -521,8 +524,9 @@ function characterInput(body: Record<string, unknown>) {
     speech: field(body, "speech") || null,
     outfit: field(body, "outfit") || null,
     appearance: field(body, "appearance") || null,
-    // `state` do job tóm tắt tự cập nhật sau mỗi tập, nhưng sửa tay được —
-    // AI đọc sai tình tiết thì phải chữa được, không thì sai lan sang tập sau.
+    // `state` is updated by the summary job after each episode, but stays editable
+    // — if the AI misread a plot point it has to be fixable, or the error spreads
+    // into the next episode.
     state: field(body, "state") || null,
     voiceHint: field(body, "voiceHint") || null,
     isNarrator: body.isNarrator === "on" || body.isNarrator === "true",
@@ -547,14 +551,14 @@ series.get("/:id/characters", async (c) => {
 series.post("/:id/characters", async (c) => {
   const seriesId = c.req.param("id");
   const input = characterInput(await c.req.parseBody());
-  if (!input.name) throw new UserError("Thiếu tên nhân vật");
+  if (!input.name) throw new UserError("Character name is required");
 
-  // Ràng buộc (seriesId, name) là duy nhất — báo rõ thay vì để lỗi Prisma lộ ra.
+  // (seriesId, name) is unique — say so plainly rather than leaking a Prisma error.
   const existing = await prisma.character.findFirst({
     where: { seriesId, name: input.name },
     select: { id: true },
   });
-  if (existing) throw new UserError(`Đã có nhân vật tên "${input.name}" trong bộ truyện này.`);
+  if (existing) throw new UserError(`This story already has a character called "${input.name}".`);
 
   const created = await prisma.character.create({ data: { ...input, seriesId } });
   if (input.isNarrator) await ensureSingleNarrator(seriesId, created.id);
@@ -565,13 +569,13 @@ series.put("/:id/characters/:characterId", async (c) => {
   const seriesId = c.req.param("id");
   const id = c.req.param("characterId");
   const input = characterInput(await c.req.parseBody());
-  if (!input.name) throw new UserError("Thiếu tên nhân vật");
+  if (!input.name) throw new UserError("Character name is required");
 
   const clash = await prisma.character.findFirst({
     where: { seriesId, name: input.name, id: { not: id } },
     select: { id: true },
   });
-  if (clash) throw new UserError(`Đã có nhân vật khác tên "${input.name}".`);
+  if (clash) throw new UserError(`Another character is already called "${input.name}".`);
 
   await prisma.character.update({ where: { id }, data: input });
   if (input.isNarrator) await ensureSingleNarrator(seriesId, id);
@@ -579,15 +583,16 @@ series.put("/:id/characters/:characterId", async (c) => {
 });
 
 /**
- * Thêm nhân vật vào bộ từ một thẻ có sẵn.
+ * Add a character to the story from an existing card.
  *
- * Chép NỘI DUNG thẻ chứ không tham chiếu: từ lúc này nhân vật sống đời sống
- * riêng trong bộ, sửa thẻ về sau không đụng tới nó.
+ * Copies the card's CONTENT rather than referencing it: from here the character
+ * lives its own life inside the story, and later edits to the card leave it
+ * alone.
  */
 series.post("/:id/characters/from-card", async (c) => {
   const seriesId = c.req.param("id");
   const cardId = field(await c.req.parseBody(), "cardId");
-  if (!cardId) throw new UserError("Chưa chọn thẻ nào");
+  if (!cardId) throw new UserError("No card selected");
 
   const card = await prisma.characterCard.findUniqueOrThrow({ where: { id: cardId } });
 
@@ -595,7 +600,7 @@ series.post("/:id/characters/from-card", async (c) => {
     where: { seriesId, name: card.name },
     select: { id: true },
   });
-  if (existing) throw new UserError(`Bộ này đã có nhân vật tên "${card.name}".`);
+  if (existing) throw new UserError(`This story already has a character called "${card.name}".`);
 
   const created = await prisma.character.create({
     data: {
@@ -614,18 +619,20 @@ series.post("/:id/characters/from-card", async (c) => {
   });
   if (card.isNarrator) await ensureSingleNarrator(seriesId, created.id);
 
-  return c.json({ ok: `Đã thêm "${card.name}" từ thẻ.` });
+  return c.json({ ok: `Added "${card.name}" from the card.` });
 });
 
 /**
- * Đưa bản đã sửa trong bộ NGƯỢC lên thư viện thẻ.
+ * Push a story's edited character BACK to the card library.
  *
- * Thao tác riêng và phải bấm, vì sửa nhân vật trong một bộ là chuyện của bộ đó:
- * "Tài lúc này đã biết mình bị lừa" đúng với bộ đang viết và sai với mọi bộ
- * khác. Chỉ khi người viết thấy bản sửa đáng mang đi thì mới có việc này.
+ * A separate, deliberate click, because editing a character inside one story is
+ * that story's business: "by now Tài knows he was tricked" is true of the story
+ * being written and false of every other. This only happens when the writer
+ * decides the edit is worth carrying across.
  *
- * Nhân vật đến từ một thẻ thì ghi đè thẻ đó; chưa có thẻ thì tạo thẻ mới.
- * `asNew=1` ép tạo thẻ mới kể cả khi đã có — tách một biến thể ra khỏi thẻ gốc.
+ * A character that came from a card overwrites that card; one without a card
+ * creates a new one. `asNew=1` forces a new card even when there is one — for
+ * splitting a variant off the original.
  */
 series.post("/:id/characters/:characterId/save-card", async (c) => {
   const character = await prisma.character.findUniqueOrThrow({
@@ -647,42 +654,43 @@ series.post("/:id/characters/:characterId/save-card", async (c) => {
 
   if (character.cardId && !asNew) {
     await prisma.characterCard.update({ where: { id: character.cardId }, data });
-    return c.json({ ok: `Đã cập nhật thẻ "${data.name}" trong thư viện.` });
+    return c.json({ ok: `Updated the card "${data.name}" in the library.` });
   }
 
-  // Tên thẻ là duy nhất. Báo rõ thay vì để lỗi Prisma lộ ra — và gợi luôn lối
-  // ra, vì "trùng tên" ở đây thường là muốn sửa thẻ cũ chứ không phải tạo mới.
+  // Card names are unique. Say so plainly rather than leaking a Prisma error —
+  // and name the way out, because a clash here usually means the writer wanted to
+  // edit the existing card, not make a new one.
   const clash = await prisma.characterCard.findUnique({
     where: { name: data.name },
     select: { id: true },
   });
   if (clash) {
     throw new UserError(
-      `Thư viện đã có thẻ tên "${data.name}". Đổi tên nhân vật, hoặc sửa thẳng thẻ đó ở trang Thẻ nhân vật.`,
+      `The library already has a card called "${data.name}". Rename the character, or edit that card directly on the Character cards page.`,
     );
   }
 
   const card = await prisma.characterCard.create({ data });
-  // Gắn xuất xứ để lần lưu sau ghi đè đúng thẻ này thay vì đòi tạo thêm.
+  // Record the origin so the next save overwrites this card instead of adding one.
   await prisma.character.update({ where: { id: character.id }, data: { cardId: card.id } });
 
-  return c.json({ ok: `Đã lưu "${card.name}" thành thẻ mới trong thư viện.` });
+  return c.json({ ok: `Saved "${card.name}" as a new card in the library.` });
 });
 
 series.delete("/:id/characters/:characterId", async (c) => {
   const id = c.req.param("characterId");
-  // Block giữ BẢN CHỤP tên người nói (`speakerLabel`), nên xoá nhân vật không
-  // làm hỏng audio đã render — chỉ mất liên kết.
+  // Blocks keep a SNAPSHOT of the speaker name (`speakerLabel`), so deleting a
+  // character does not break rendered audio — only the link is lost.
   await prisma.block.updateMany({ where: { characterId: id }, data: { characterId: null } });
   await prisma.character.delete({ where: { id } });
   return c.json({ ok: true });
 });
 
 /**
- * Casting: gán giọng cho nhân vật.
+ * Casting: assign a voice to a character.
  *
- * Đổi giọng KHÔNG làm hỏng audio đã render — `Block` giữ bản chụp voiceId, nên
- * cacheKey của block cũ vẫn trỏ đúng file cũ.
+ * Changing the voice does NOT break rendered audio — `Block` keeps a snapshot of
+ * the voiceId, so an old block's cacheKey still points at the right old file.
  */
 series.put("/:id/characters/:characterId/voice", async (c) => {
   const body = await c.req.parseBody();
@@ -693,7 +701,7 @@ series.put("/:id/characters/:characterId/voice", async (c) => {
   return c.json({ ok: true });
 });
 
-// ═══════════════════ Sự kiện truyện ═══════════════════
+// ═══════════════════ Story facts ═══════════════════
 
 series.get("/:id/facts", async (c) => {
   const seriesId = c.req.param("id");
@@ -702,8 +710,8 @@ series.get("/:id/facts", async (c) => {
       where: { seriesId },
       orderBy: [{ episodeNumber: "asc" }, { kind: "asc" }],
     }),
-    // Sự kiện chưa nhúng thì truy hồi bằng vector không thấy — đếm để biết.
-    // Cột `embedding` là kiểu Unsupported nên phải hỏi bằng SQL thô.
+    // A fact without an embedding is invisible to vector retrieval — count them so
+    // it shows. The `embedding` column is an Unsupported type, hence raw SQL.
     prisma.$queryRaw<Array<{ n: bigint }>>`
       SELECT count(*)::bigint AS n FROM "StoryFact"
       WHERE "seriesId" = ${seriesId} AND embedding IS NULL`,
@@ -712,7 +720,7 @@ series.get("/:id/facts", async (c) => {
   return c.json({ facts, missingVector: Number(missing[0]?.n ?? 0), title: meta.title });
 });
 
-/** Ghim sự kiện: luôn được nạp vào prompt, bất kể độ tương đồng. */
+/** Pin a fact: always loaded into the prompt, whatever its similarity. */
 series.put("/:id/facts/:factId/pin", async (c) => {
   const id = c.req.param("factId");
   const f = await prisma.storyFact.findUniqueOrThrow({ where: { id } });
@@ -721,8 +729,9 @@ series.put("/:id/facts/:factId/pin", async (c) => {
 });
 
 /**
- * Đánh dấu tình tiết bỏ ngỏ đã có lời giải — sau đó nó thôi được nạp mặc định.
- * Không xoá: vẫn tìm được bằng vector nếu cảnh nào cần nhắc lại.
+ * Mark an open thread as resolved — after which it stops loading by default.
+ * Not deleted: vector search can still find it if a scene needs to call back to
+ * it.
  */
 series.put("/:id/facts/:factId/resolve", async (c) => {
   const id = c.req.param("factId");

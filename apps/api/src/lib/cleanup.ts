@@ -2,26 +2,29 @@ import { prisma } from "@audio/database";
 import { removeLocal } from "./storage";
 
 /**
- * Dọn file sau khi đã xoá hàng trong DB.
+ * Clean up files after the rows are gone from the DB.
  *
- * Gom vào một chỗ vì xoá một TẬP và xoá cả BỘ dọn y hệt nhau, mà chỗ dễ sai
- * thì chỉ có một: audio của block dùng chung theo `cacheKey` — hai tập đọc cùng
- * một câu bằng cùng một giọng thì chung một file. Viết tay ở hai nơi thì sớm
- * muộn một nơi quên mất điều đó và xoá mất file tập khác đang dùng.
+ * In one place because deleting an EPISODE and deleting a STORY clean up
+ * identically, and there is exactly one way to get it wrong: block audio is
+ * shared by `cacheKey` — two episodes speaking the same line in the same voice
+ * share a file. Written by hand in two places, one of them eventually forgets
+ * that and deletes a file another episode is still using.
  *
- * Gọi SAU khi hàng đã xoá: nó đếm `Block` còn lại để biết file nào hết người dùng.
+ * Call it AFTER the rows are deleted: it counts the remaining `Block` rows to
+ * find which files nobody uses any more.
  */
 export async function cleanupAudio(input: {
-  /** Asset mà những block vừa xoá từng trỏ tới. */
+  /** Assets the just-deleted blocks pointed at. */
   assetIds: readonly string[];
-  /** Khoá file chỉ thuộc về thứ vừa xoá — bản xuất, ảnh bìa. */
+  /** File keys belonging only to what was deleted — exports, cover art. */
   urls: readonly string[];
 }): Promise<number> {
   let removed = 0;
 
   for (const assetId of input.assetIds) {
-    // Đếm lại từ Block CÒN LẠI thay vì trừ dần `refCount`: cột đó xưa nay chỉ
-    // được cộng, chưa từng được trừ, nên tin vào nó là xoá nhầm file.
+    // Count from the REMAINING blocks rather than decrementing `refCount`: that
+    // column has only ever been incremented, never decremented, so trusting it
+    // deletes the wrong file.
     const stillUsed = await prisma.block.count({ where: { audioAssetId: assetId } });
     if (stillUsed > 0) {
       await prisma.audioAsset.update({ where: { id: assetId }, data: { refCount: stillUsed } });
@@ -36,7 +39,7 @@ export async function cleanupAudio(input: {
   return removed;
 }
 
-/** Đuôi câu báo kết quả, gộp số file đã dọn. Rỗng thì không nhắc tới file. */
+/** Tail of the result message with the file count. Empty says nothing about files. */
 export function filesRemovedNote(count: number): string {
-  return count > 0 ? ` và ${count} file audio/ảnh` : "";
+  return count > 0 ? ` and ${count} audio/image files` : "";
 }

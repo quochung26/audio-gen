@@ -121,7 +121,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
     >
       <div className="flex flex-wrap gap-3">
         <div className="flex-1">
-          <TextInput name="name" label="Name" placeholder="Tài" defaultValue={card?.name ?? ""} />
+          <TextInput name="name" label="Name" placeholder="Sam" defaultValue={card?.name ?? ""} />
         </div>
         <div className="flex-1">
           <TextInput

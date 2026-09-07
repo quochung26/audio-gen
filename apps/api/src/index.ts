@@ -20,19 +20,20 @@ import { stats } from "./routes/stats";
 import { tracks } from "./routes/tracks";
 
 /**
- * API của Studio.
+ * Studio's API.
  *
- * Studio là SPA (Vite) nên mọi thứ chạm DB hay hàng đợi phải qua đây. Redis và
- * BullMQ chỉ nằm ở tiến trình này và ở worker — giao diện không biết chúng tồn tại.
+ * Studio is an SPA (Vite), so anything touching the DB or the queue goes through
+ * here. Redis and BullMQ live only in this process and in the worker — the UI
+ * does not know they exist.
  *
- * Chỉ phục vụ máy tại chỗ: không xác thực, không rate limit. Đừng mở ra internet.
+ * Local machine only: no auth, no rate limiting. Do not expose it to the internet.
  */
 const app = new Hono();
 
-// `serveStatic` của Hono giải đường dẫn theo cwd, nên phải là đường dẫn tương đối.
+// Hono's `serveStatic` resolves against cwd, so this has to be a relative path.
 const SPA_DIR = relative(process.cwd(), resolve(import.meta.dirname, "../../studio/dist")) || ".";
 
-// Vite dev server chạy cổng khác nên trình duyệt coi là cross-origin.
+// The Vite dev server runs on another port, so the browser treats it as cross-origin.
 app.use("/*", cors({ origin: (o) => o ?? "*", credentials: true }));
 
 app.get("/health", async (c) => {
@@ -53,44 +54,44 @@ app.route("/api/audio", audio);
 app.route("/api/comments", comments);
 
 /**
- * Phục vụ bản build của Studio khi chạy production — một tiến trình, một cổng.
+ * Serves Studio's build in production — one process, one port.
  *
- * Lúc dev thì Vite phục vụ giao diện và proxy `/api` sang đây, nên phần này
- * không chạy tới. `serveStatic` đặt SAU các route API để không nuốt mất chúng,
- * và mọi đường dẫn không khớp file đều trả index.html vì router nằm ở phía
- * trình duyệt — tải thẳng /prompts phải ra app chứ không phải 404.
+ * In development Vite serves the UI and proxies `/api` here, so this never runs.
+ * `serveStatic` sits AFTER the API routes so it does not swallow them, and any
+ * path not matching a file returns index.html because the router lives in the
+ * browser — loading /prompts directly must give the app, not a 404.
  */
 if (existsSync(SPA_DIR)) {
   app.use("/*", serveStatic({ root: SPA_DIR }));
   app.get("/*", serveStatic({ path: "./index.html", root: SPA_DIR }));
-  console.log(`[api] phục vụ giao diện từ ${SPA_DIR}`);
+  console.log(`[api] serving the UI from ${SPA_DIR}`);
 }
 
 app.onError((err, c) => {
   if (err instanceof UserError) return c.json({ error: err.message }, 400);
   console.error("[api]", err);
 
-  // DB cũ hơn schema: bảng (P2021) hay cột (P2022) mà code đang cần chưa có
-  // thật trong Postgres. Chỉ đọc MÃ lỗi, không lấy nguyên văn thông báo của
-  // Prisma — khối trích dẫn mã nguồn trong đó có thể chứa chuỗi kết nối kèm
-  // mật khẩu (xem lib/player-db.ts).
+  // DB older than the schema: a table (P2021) or column (P2022) the code needs
+  // is not actually in Postgres. Read only the error CODE, never Prisma's own
+  // message — the source excerpt it embeds can contain a connection string with
+  // a password (see lib/player-db.ts).
   const code = (err as { code?: unknown }).code;
   if (code === "P2021" || code === "P2022") {
     return c.json(
       {
         error:
-          "DB chưa có bảng hoặc cột mà code đang cần. Chạy `pnpm db:push` " +
-          "(hoặc `pnpm db:push:player` nếu là DB hosted) để cập nhật DB.",
+          "The database is missing a table or column the code needs. Run `pnpm db:push` " +
+          "(or `pnpm db:push:player` for the hosted one) to bring it up to date.",
       },
       500,
     );
   }
 
-  // Giấu chi tiết lỗi không lường trước, nhưng log đầy đủ ở server.
-  return c.json({ error: "Có lỗi không lường trước. Xem log của API." }, 500);
+  // Hide the detail of unexpected errors, but log it fully on the server.
+  return c.json({ error: "Something unexpected went wrong. Check the API log." }, 500);
 });
 
-app.notFound((c) => c.json({ error: "Không có endpoint này" }, 404));
+app.notFound((c) => c.json({ error: "No such endpoint" }, 404));
 
 const port = Number(process.env.API_PORT ?? 3002);
 const env = loadEnv();

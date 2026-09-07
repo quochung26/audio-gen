@@ -17,14 +17,15 @@ tracks.get("/", async (c) => {
 });
 
 /**
- * Thêm nhạc nền / hiệu ứng vào thư viện.
+ * Add background music or an effect to the library.
  *
- * Hai đường vào, vì hai driver lưu trữ khác nhau: `local` thì tải file lên và
- * API tự ghi vào kho; `r2` thì không có credential nên dán URL công khai.
+ * Two ways in, because the storage drivers differ: with `local` you upload and
+ * the API writes into the store; with `r2` there are no credentials, so you
+ * paste a public URL.
  *
- * `licenseType` được phép là UNKNOWN — không chặn ở đây mà chặn ở bước xuất bản.
- * Chặn sớm thì không nghe thử được trước khi đi tìm giấy phép; chặn muộn thì
- * không tập nào lọt ra ngoài kèm nhạc mập mờ.
+ * `licenseType` may be UNKNOWN — not blocked here, blocked at publish instead.
+ * Blocking early would stop you auditioning a track before chasing its licence;
+ * blocking late means no episode gets out with music of unclear provenance.
  */
 tracks.post("/", async (c) => {
   const body = await c.req.parseBody();
@@ -32,12 +33,12 @@ tracks.post("/", async (c) => {
   const kind = field(body, "kind") as AudioTrackKind;
   const licenseType = (field(body, "licenseType") || "UNKNOWN") as LicenseType;
 
-  if (!title) throw new UserError("Thiếu tên track");
-  if (!Object.values(AudioTrackKind).includes(kind)) throw new UserError("Loại track không hợp lệ");
-  if (!Object.values(LicenseType).includes(licenseType)) throw new UserError("Giấy phép không hợp lệ");
+  if (!title) throw new UserError("Missing track title");
+  if (!Object.values(AudioTrackKind).includes(kind)) throw new UserError("Invalid track kind");
+  if (!Object.values(LicenseType).includes(licenseType)) throw new UserError("Invalid licence");
 
-  // Cột `url` giữ KHOÁ trong kho khi tự tải lên, hoặc URL công khai khi dán —
-  // hai dạng phân biệt được vì khoá không bao giờ bắt đầu bằng "http".
+  // The `url` column holds a storage KEY for uploads, or a public URL when
+  // pasted — the two are distinguishable because a key never starts with "http".
   const file = body.file;
   const pastedUrl = field(body, "url");
   let url: string;
@@ -54,11 +55,11 @@ tracks.post("/", async (c) => {
   } else if (pastedUrl) {
     url = pastedUrl;
   } else {
-    throw new UserError("Chọn file để tải lên, hoặc dán URL");
+    throw new UserError("Choose a file to upload, or paste a URL");
   }
 
-  // Độ dài cần thật: Studio dựa vào nó để báo nhạc sẽ lặp mấy vòng.
-  // ffprobe chỉ đọc được file cục bộ nên URL từ xa đành để 0.
+  // The real duration matters: Studio uses it to say how many times the music
+  // will loop. ffprobe can only read local files, so a remote URL gets 0.
   const durationMs = localFile ? (await ffprobe(localFile)).durationMs : 0;
 
   await prisma.audioTrack.create({
@@ -77,20 +78,20 @@ tracks.post("/", async (c) => {
       attribution: field(body, "attribution") || null,
     },
   });
-  return c.json({ ok: `Đã thêm "${title}"` });
+  return c.json({ ok: `Added "${title}"` });
 });
 
 /**
- * Xoá track khỏi thư viện.
+ * Remove a track from the library.
  *
- * File trên đĩa GIỮ NGUYÊN — tập đã xuất bản có thể đang chứa tiếng nhạc này,
- * và xoá bản gốc thì không dựng lại được tập nữa.
+ * The file on disk STAYS — a published episode may already carry this music, and
+ * deleting the source would make that episode unrebuildable.
  */
 tracks.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const used = await prisma.episode.count({ where: { bgmTrackId: id } });
   if (used > 0) {
-    throw new UserError(`Còn ${used} tập đang dùng track này. Gỡ khỏi các tập đó trước.`);
+    throw new UserError(`${used} episodes still use this track. Remove it from them first.`);
   }
   await prisma.audioTrack.delete({ where: { id } });
   return c.json({ ok: true });

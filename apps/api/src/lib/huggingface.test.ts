@@ -7,14 +7,14 @@ import {
 } from "./huggingface";
 
 describe("parseHfRepo", () => {
-  it("nhận đường dẫn đầy đủ", () => {
+  it("accepts a full URL", () => {
     expect(parseHfRepo("https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF")).toBe(
       "bartowski/Qwen2.5-14B-Instruct-GGUF",
     );
   });
 
-  it("nhận đường dẫn dán thẳng từ thanh địa chỉ", () => {
-    // Đang xem file trong kho thì địa chỉ có /tree/main hoặc /blob/main/….
+  it("accepts a URL pasted straight from the address bar", () => {
+    // Browsing files in a repo puts /tree/main or /blob/main/… in the URL.
     expect(parseHfRepo("https://huggingface.co/bartowski/abc-GGUF/tree/main")).toBe(
       "bartowski/abc-GGUF",
     );
@@ -26,23 +26,23 @@ describe("parseHfRepo", () => {
     );
   });
 
-  it("nhận dạng rút gọn", () => {
+  it("accepts the short form", () => {
     expect(parseHfRepo("huggingface.co/a/b")).toBe("a/b");
     expect(parseHfRepo("hf.co/a/b")).toBe("a/b");
     expect(parseHfRepo("a/b")).toBe("a/b");
     expect(parseHfRepo("  a/b/  ")).toBe("a/b");
   });
 
-  it("từ chối thứ không phải kho", () => {
+  it("rejects things that are not a repo", () => {
     expect(parseHfRepo("")).toBeNull();
     expect(parseHfRepo("   ")).toBeNull();
-    expect(parseHfRepo("chỉ-một-đoạn")).toBeNull();
+    expect(parseHfRepo("just-one-segment")).toBeNull();
     expect(parseHfRepo("https://huggingface.co/")).toBeNull();
-    // Trang bộ sưu tập, không phải kho model.
+    // A collection page, not a model repo.
     expect(parseHfRepo("https://huggingface.co/collections/abc/def/ghi")).toBeNull();
   });
 
-  it("chặn ký tự có thể chui ra khỏi đường dẫn", () => {
+  it("blocks characters that could escape the path", () => {
     expect(parseHfRepo("../../etc/passwd")).toBeNull();
     expect(parseHfRepo("a b/c")).toBeNull();
     expect(parseHfRepo(`a/${"b".repeat(200)}`)).toBeNull();
@@ -50,7 +50,7 @@ describe("parseHfRepo", () => {
 });
 
 describe("quantFromFilename", () => {
-  it("đọc được cách đặt tên thông dụng", () => {
+  it("reads the common naming conventions", () => {
     expect(quantFromFilename("Meta-Llama-3-8B-Instruct-Q4_K_M.gguf")).toBe("Q4_K_M");
     expect(quantFromFilename("Llama-3.3-70B-Instruct-IQ2_XS.gguf")).toBe("IQ2_XS");
     expect(quantFromFilename("model.Q5_K_S.gguf")).toBe("Q5_K_S");
@@ -58,35 +58,35 @@ describe("quantFromFilename", () => {
     expect(quantFromFilename("abc-F16.gguf")).toBe("F16");
   });
 
-  it("giữ NGUYÊN chữ hoa thường của tên file", () => {
-    // Ollama đối chiếu tag với chuỗi trong tên file; đổi hoa thường là đi tìm
-    // một bản không tồn tại.
+  it("keeps the file name's case EXACTLY", () => {
+    // Ollama matches the tag against the string in the file name; changing case
+    // asks for a build that does not exist.
     expect(quantFromFilename("qwen2.5-14b-instruct-q4_k_m.gguf")).toBe("q4_k_m");
   });
 
-  it("bỏ hậu tố chia nhiều phần", () => {
+  it("drops the split-part suffix", () => {
     expect(quantFromFilename("DeepSeek-V3-Q4_K_M-00001-of-00009.gguf")).toBe("Q4_K_M");
   });
 
-  it("đọc được cả file nằm trong thư mục con", () => {
+  it("reads files inside subdirectories too", () => {
     expect(quantFromFilename("Q4_K_M/model-Q4_K_M-00001-of-00002.gguf")).toBe("Q4_K_M");
   });
 
-  it("bỏ qua file không phải GGUF", () => {
+  it("ignores non-GGUF files", () => {
     expect(quantFromFilename("README.md")).toBeNull();
     expect(quantFromFilename("config.json")).toBeNull();
     expect(quantFromFilename("model-Q4_K_M.safetensors")).toBeNull();
   });
 
-  it("GGUF không ghi mức lượng tử hoá thì trả null", () => {
+  it("a GGUF with no quantisation in its name returns null", () => {
     expect(quantFromFilename("model.gguf")).toBeNull();
   });
 });
 
 describe("collectQuantVariants", () => {
-  it("gom theo bản và CỘNG dung lượng các phần", () => {
-    // Model lớn hay bị chia chục phần; hiện dung lượng từng phần thì không ai
-    // ước lượng được phải tải bao nhiêu.
+  it("groups by build and SUMS the part sizes", () => {
+    // Large models are often split into a dozen parts; per-part sizes tell nobody
+    // how much they are about to download.
     const v = collectQuantVariants([
       { path: "m-Q4_K_M-00001-of-00002.gguf", size: 3_000_000_000 },
       { path: "m-Q4_K_M-00002-of-00002.gguf", size: 2_000_000_000 },
@@ -94,14 +94,14 @@ describe("collectQuantVariants", () => {
     expect(v).toEqual([{ quant: "Q4_K_M", sizeBytes: 5_000_000_000, parts: 2 }]);
   });
 
-  it("ưu tiên dung lượng LFS — `size` của file LFS thường chỉ là con trỏ", () => {
+  it("prefers the LFS size — an LFS file's `size` is usually just the pointer", () => {
     const v = collectQuantVariants([
       { path: "m-Q4_K_M.gguf", size: 135, lfs: { size: 9_000_000_000 } },
     ]);
     expect(v[0]!.sizeBytes).toBe(9_000_000_000);
   });
 
-  it("sắp xếp nhẹ lên trước", () => {
+  it("sorts smallest first", () => {
     const v = collectQuantVariants([
       { path: "m-Q8_0.gguf", size: 9 },
       { path: "m-Q4_K_M.gguf", size: 4 },
@@ -110,7 +110,7 @@ describe("collectQuantVariants", () => {
     expect(v.map((x) => x.quant)).toEqual(["Q4_K_M", "Q6_K", "Q8_0"]);
   });
 
-  it("gom bất kể hoa thường, nhưng giữ tên như trong file", () => {
+  it("groups case-insensitively, but keeps the name as the file spells it", () => {
     const v = collectQuantVariants([
       { path: "a-q4_k_m.gguf", size: 1 },
       { path: "b-Q4_K_M.gguf", size: 1 },
@@ -119,7 +119,7 @@ describe("collectQuantVariants", () => {
     expect(v[0]!.parts).toBe(2);
   });
 
-  it("bỏ qua file không liên quan", () => {
+  it("ignores unrelated files", () => {
     const v = collectQuantVariants([
       { path: "README.md", size: 1 },
       { path: ".gitattributes", size: 1 },
@@ -128,13 +128,13 @@ describe("collectQuantVariants", () => {
     expect(v).toHaveLength(1);
   });
 
-  it("kho không có GGUF nào thì trả mảng rỗng", () => {
+  it("a repo with no GGUF returns an empty array", () => {
     expect(collectQuantVariants([{ path: "model.safetensors", size: 1 }])).toEqual([]);
   });
 });
 
 describe("hfPullTag", () => {
-  it("ghép thành tên mà ollama pull hiểu", () => {
+  it("assembles a name ollama pull understands", () => {
     expect(hfPullTag("bartowski/abc-GGUF", "Q4_K_M")).toBe("hf.co/bartowski/abc-GGUF:Q4_K_M");
   });
 });

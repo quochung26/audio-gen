@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeConnectError } from "./connect-error";
 
-/** Dựng lại đúng hình dạng lỗi mà `fetch` của Node ném ra. */
+/** Rebuild the exact error shape Node's `fetch` throws. */
 function fetchError(cause: { code?: string; message?: string }): Error {
   const e = new Error("fetch failed") as Error & { cause?: unknown };
   e.cause = cause;
@@ -9,37 +9,37 @@ function fetchError(cause: { code?: string; message?: string }): Error {
 }
 
 describe("describeConnectError", () => {
-  it("dịch ECONNREFUSED", () => {
-    expect(describeConnectError(fetchError({ code: "ECONNREFUSED" }), 5000)).toMatch(/đã chạy chưa/);
+  it("translates ECONNREFUSED", () => {
+    expect(describeConnectError(fetchError({ code: "ECONNREFUSED" }), 5000)).toMatch(/is the service running/);
   });
 
-  it("dịch ENOTFOUND", () => {
-    expect(describeConnectError(fetchError({ code: "ENOTFOUND" }), 5000)).toMatch(/tên miền/);
+  it("translates ENOTFOUND", () => {
+    expect(describeConnectError(fetchError({ code: "ENOTFOUND" }), 5000)).toMatch(/resolve the host/);
   });
 
-  it("dịch ECONNRESET", () => {
-    expect(describeConnectError(fetchError({ code: "ECONNRESET" }), 5000)).toMatch(/ngắt giữa chừng/);
+  it("translates ECONNRESET", () => {
+    expect(describeConnectError(fetchError({ code: "ECONNRESET" }), 5000)).toMatch(/dropped mid-request/);
   });
 
-  it("timeout nói rõ số giây", () => {
+  it("a timeout says how many seconds", () => {
     const e = new Error("timed out");
     e.name = "TimeoutError";
-    expect(describeConnectError(e, 5000)).toBe("Không kết nối được trong 5 giây");
+    expect(describeConnectError(e, 5000)).toBe("No answer within 5s");
   });
 
-  it("mã lạ thì vẫn kèm mã vào", () => {
+  it("an unknown code is still included", () => {
     expect(describeConnectError(fetchError({ code: "EPIPE" }), 5000)).toContain("EPIPE");
   });
 
-  it("không có mã thì lấy lời của cause chứ KHÔNG trả về mỗi 'fetch failed'", () => {
-    // undici chặn vài cổng và chỉ nói "bad port" ở tầng cause. Trả về "fetch
-    // failed" thì người dùng không có manh mối nào để sửa.
+  it("with no code, uses the cause's words rather than just 'fetch failed'", () => {
+    // undici blocks some ports and only says "bad port" at the cause level.
+    // Returning "fetch failed" leaves the user no clue what to fix.
     const msg = describeConnectError(fetchError({ message: "bad port" }), 5000);
     expect(msg).toContain("bad port");
   });
 
-  it("không có gì để nói thêm thì trả về lời gốc", () => {
-    expect(describeConnectError(new Error("hỏng"), 5000)).toBe("hỏng");
+  it("with nothing to add, returns the original words", () => {
+    expect(describeConnectError(new Error("broken"), 5000)).toBe("broken");
     expect(describeConnectError(fetchError({}), 5000)).toBe("fetch failed");
   });
 });

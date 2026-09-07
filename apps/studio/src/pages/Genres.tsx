@@ -29,7 +29,7 @@ export function Genres() {
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
           The description here is{" "}
           <strong className="text-neutral-200">not a note for human readers</strong> — it goes into
-          the Story Bible, so the model reads “kinh dị” the way you mean it rather than the way it
+          the Story Bible, so the model reads “horror” the way you mean it rather than the way it
           guesses. Editing a description changes how every story in that genre is written, from the
           next run on.
         </p>
@@ -42,7 +42,7 @@ export function Genres() {
               <span className="mb-1 block text-xs text-neutral-500">Name — what listeners see</span>
               <input
                 name="name"
-                placeholder="kiếm hiệp"
+                placeholder="wuxia"
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
               />
               <span className="mt-1 block text-xs text-neutral-600">

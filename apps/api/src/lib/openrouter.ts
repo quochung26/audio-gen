@@ -1,12 +1,12 @@
-/** Một model trên OpenRouter, đã rút gọn còn những gì giao diện cần. */
+/** One OpenRouter model, trimmed to what the UI needs. */
 export interface OpenRouterModel {
   id: string;
   name: string;
   contextLength: number;
-  /** USD cho 1 triệu token. `null` = OpenRouter không công bố giá. */
+  /** USD per million tokens. `null` = OpenRouter publishes no price. */
   promptPerMTok: number | null;
   completionPerMTok: number | null;
-  /** Miễn phí hoàn toàn — OpenRouter có vài model giá 0. */
+  /** Entirely free — OpenRouter carries a few models priced at 0. */
   free: boolean;
 }
 
@@ -18,11 +18,11 @@ interface RawModel {
 }
 
 /**
- * Đổi giá của OpenRouter sang USD/1 triệu token.
+ * Convert an OpenRouter price to USD per million tokens.
  *
- * OpenRouter báo giá theo USD MỖI TOKEN, dạng chuỗi: "0.000003". Hiện thẳng số
- * đó thì không ai ước lượng nổi tốn bao nhiêu; nhân lên 1 triệu mới ra con số
- * so sánh được giữa các model.
+ * OpenRouter quotes USD PER TOKEN, as a string: "0.000003". Showing that number
+ * raw tells nobody what anything costs; scaling to a million gives a figure you
+ * can compare across models.
  */
 export function pricePerMTok(raw: string | undefined): number | null {
   if (raw === undefined || raw === null || raw.trim() === "") return null;
@@ -41,7 +41,7 @@ export function toModelInfo(raw: RawModel): OpenRouterModel | null {
     contextLength: raw.context_length ?? 0,
     promptPerMTok: prompt,
     completionPerMTok: completion,
-    // Cả hai đầu đều 0 mới là miễn phí. Chỉ đầu vào 0 thì vẫn mất tiền khi sinh.
+    // Free only when BOTH ends are 0. Input-only-free still costs on generation.
     free: prompt === 0 && completion === 0,
   };
 }
@@ -55,11 +55,11 @@ export function parseModelList(body: unknown): OpenRouterModel[] {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** Tình trạng khoá API và số tín dụng còn lại. */
+/** API key status and remaining credit. */
 export interface KeyStatus {
-  /** Đã tiêu, USD. */
+  /** Spent, USD. */
   usage: number;
-  /** Hạn mức, USD. `null` = không giới hạn (tài khoản trả trước). */
+  /** Limit, USD. `null` = unlimited (a prepaid account). */
   limit: number | null;
   remaining: number | null;
   freeTier: boolean;
@@ -77,8 +77,8 @@ export function parseKeyStatus(body: unknown): KeyStatus {
 
   const usage = typeof d?.usage === "number" ? d.usage : 0;
   const limit = typeof d?.limit === "number" ? d.limit : null;
-  // OpenRouter chỉ trả `limit_remaining` khi khoá có hạn mức; tài khoản trả
-  // trước thì trường này vắng mặt, và tự tính `limit - usage` sẽ ra NaN.
+  // OpenRouter only returns `limit_remaining` when the key has a limit; on a
+  // prepaid account the field is absent, and computing `limit - usage` gives NaN.
   const remaining =
     typeof d?.limit_remaining === "number"
       ? d.limit_remaining
@@ -90,17 +90,17 @@ export function parseKeyStatus(body: unknown): KeyStatus {
 }
 
 /**
- * Tên model OpenRouter hợp lệ: "nhà-cung-cấp/tên-model", kèm hậu tố tuỳ chọn.
+ * A valid OpenRouter model name: "provider/model", with an optional suffix.
  *
- * Chặn ở đây vì tên này đi thẳng vào URL và vào thân request. Danh sách ký tự
- * cho phép hẹp hơn thực tế một chút — thà từ chối một tên lạ còn hơn để lọt
- * dấu gạch chéo hay khoảng trắng vào chỗ không ngờ.
+ * Validated here because the name goes straight into a URL and a request body.
+ * The allowed set is slightly narrower than reality — better to reject one odd
+ * name than to let a slash or a space through into somewhere unexpected.
  */
 export function isValidOpenRouterModel(name: string): boolean {
   return /^[a-z0-9][a-z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._:-]*$/.test(name) && name.length <= 120;
 }
 
-/** Số token trung bình một tập tiêu tốn — nền để ước tính tiền. */
+/** Average tokens an episode burns — the basis for a cost estimate. */
 export interface EpisodeUsage {
   episodes: number;
   inputTokens: number;
@@ -108,13 +108,13 @@ export interface EpisodeUsage {
 }
 
 /**
- * Trung bình token mỗi tập, tính từ các lượt chạy đã ghi lại.
+ * Average tokens per episode, from the runs on record.
  *
- * Đây là lý do phải cộng theo TẬP trước rồi mới lấy trung bình: một tập gọi
- * model chục lần (mỗi cảnh một lần, cộng tóm tắt, cộng metadata). Lấy trung
- * bình trên từng lượt gọi sẽ ra con số của một cảnh, nhỏ hơn giá thật của một
- * tập nhiều lần — và ước tính chi phí thấp hơn thực tế là kiểu sai tệ nhất ở
- * đây.
+ * This is why it sums PER EPISODE first and averages after: one episode calls the
+ * model a dozen times (once per scene, plus summaries, plus metadata). Averaging
+ * over individual calls gives a scene's figure, many times smaller than what an
+ * episode really costs — and underestimating cost is the worst way to be wrong
+ * here.
  */
 export function averagePerEpisode(
   rows: Array<{ episodeId: string | null; inputTokens: number; outputTokens: number }>,

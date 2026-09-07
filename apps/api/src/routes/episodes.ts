@@ -18,8 +18,9 @@ episodes.get("/:id", async (c) => {
   const ep = await prisma.episode.findUniqueOrThrow({
     where: { id: c.req.param("id") },
     include: {
-      // `language`/`draftLanguage`: trang tập cần biết bộ có bước chuyển ngữ
-      // không, để hiện đúng chỗ và không mời duyệt bản thảo chưa viết lại.
+      // `language`/`draftLanguage`: the episode page needs to know whether the
+      // story has a rewrite step, so it shows the right block and does not offer
+      // approval on a draft that has not been rewritten yet.
       series: {
         select: {
           id: true,
@@ -27,7 +28,7 @@ episodes.get("/:id", async (c) => {
           genre: true,
           language: true,
           draftLanguage: true,
-          // Để trang tập dựng ô chọn "ai có mặt trong cảnh này".
+          // So the episode page can build the "who is in this scene" picker.
           characters: {
             orderBy: [{ isNarrator: "desc" }, { name: "asc" }],
             select: { id: true, name: true, isNarrator: true },
@@ -45,7 +46,7 @@ episodes.get("/:id", async (c) => {
   return c.json(ep);
 });
 
-/** Dữ liệu cho trang audio: block, bản xuất, thư viện nhạc nền. */
+/** Data for the audio page: blocks, exports, the music library. */
 episodes.get("/:id/audio", async (c) => {
   const id = c.req.param("id");
   const [episode, bgmTracks, sfxTracks] = await Promise.all([
@@ -70,7 +71,7 @@ episodes.get("/:id/audio", async (c) => {
     prisma.audioTrack.findMany({ where: { kind: AudioTrackKind.SFX }, orderBy: { title: "asc" } }),
   ]);
 
-  // Live có đang lệch so với local không — xem packages/core/src/sync-state.ts.
+  // Whether live has drifted from local — see packages/core/src/sync-state.ts.
   const newest = <T extends { updatedAt: Date }>(xs: T[]) =>
     xs.length === 0 ? null : new Date(Math.max(...xs.map((x) => x.updatedAt.getTime())));
 
@@ -88,7 +89,7 @@ episodes.get("/:id/audio", async (c) => {
   });
 });
 
-// ═══════════════════ Viết ═══════════════════
+// ═══════════════════ Writing ═══════════════════
 
 episodes.post("/:id/write-scenes", async (c) => {
   const episodeId = c.req.param("id");
@@ -96,22 +97,22 @@ episodes.post("/:id/write-scenes", async (c) => {
   await enqueue({
     type: "WRITE_SCENE",
     episodeId,
-    // Chỉ áp cho lần chạy này; để trống thì worker dùng mặc định.
+    // Applies to this run only; blank means the worker uses its default.
     payload: { episodeId, model: field(body, "model") || undefined },
   });
   return c.json({ ok: true });
 });
 
 /**
- * Viết MỘT cảnh — cảnh chưa có nội dung, hoặc viết đè lên bản cũ.
+ * Write ONE scene — either an empty one, or over the top of an old draft.
  *
- * Một cảnh 600–900 từ đã mất vài chục giây trên GPU thật, nên viết cả tập là
- * một lần chờ dài mà không xem được gì. Viết từng cảnh cho phép đọc cảnh 1 rồi
- * sửa beat trước khi tốn thời gian cho cảnh 2.
+ * A 600–900 word scene already takes tens of seconds on a real GPU, so writing a
+ * whole episode is one long wait with nothing to look at. Scene by scene lets
+ * you read scene 1 and fix its beat before spending time on scene 2.
  *
- * Đặt `text` về null trước khi đẩy job: `write-scene` lấy cảnh theo `sceneId`
- * nên không bắt buộc, nhưng để vậy thì giao diện hiện ngay "chưa viết" thay vì
- * để bản cũ nằm đó tới lúc job xong.
+ * Null out `text` before queueing: `write-scene` selects by `sceneId` so it is
+ * not required, but doing it makes the UI show "not written" immediately rather
+ * than leaving the old text sitting there until the job finishes.
  */
 episodes.post("/:id/scenes/:sceneId/write", async (c) => {
   const episodeId = c.req.param("id");
@@ -127,11 +128,12 @@ episodes.post("/:id/scenes/:sceneId/write", async (c) => {
 });
 
 /**
- * Đọc ghi đè nhân vật từ ô nhập nhiều dòng, mỗi dòng `Tên: mặc gì | ghi chú`.
+ * Parse character overrides from a multi-line box, one `Name: outfit | note`
+ * per line.
  *
- * Dạng dòng chứ không phải hàng chục ô rời, cùng lý do với luật thế giới: số
- * nhân vật thay đổi tuỳ chương, mà `FormData` phẳng thì tên trường phải mang
- * theo chỉ số và chỗ nào cũng phải tự ghép lại.
+ * Lines rather than dozens of separate fields, for the same reason as world
+ * rules: the number of characters varies per chapter, and a flat `FormData`
+ * would need indexed field names that every reader has to reassemble.
  */
 function parseOverrides(value: unknown): CharacterOverride[] {
   return splitLines(value)
@@ -147,9 +149,9 @@ function parseOverrides(value: unknown): CharacterOverride[] {
 }
 
 /**
- * Thiết lập riêng của một CHƯƠNG — tầng giữa giữa thiết lập thế giới và beat.
+ * Setup for one CHAPTER — the middle tier between world setup and a beat.
  *
- * Ghi đè ở đây thắng Story Bible, và `Scene.setup` lại thắng nó.
+ * Overrides here beat the Story Bible, and `Scene.setup` beats these.
  */
 episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   const body = await c.req.parseBody();
@@ -162,30 +164,31 @@ episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   });
 
   await prisma.chapter.update({ where: { id: c.req.param("chapterId") }, data: { setup } });
-  return c.json({ ok: "Đã lưu. Áp cho mọi cảnh của chương này, từ lượt viết kế tiếp." });
+  return c.json({ ok: "Saved. Applies to every scene in this chapter, from the next run." });
 });
 
-/** Đổi tên một chương. */
+/** Rename a chapter. */
 episodes.put("/:id/chapters/:chapterId", async (c) => {
   const body = await c.req.parseBody();
   await prisma.chapter.update({
     where: { id: c.req.param("chapterId") },
     data: { title: field(body, "title") || null },
   });
-  return c.json({ ok: "Đã lưu tên chương." });
+  return c.json({ ok: "Chapter title saved." });
 });
 
 episodes.put("/:id/scenes/:sceneId", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody();
 
-  // Mỗi ô chỉ ghi khi form CÓ gửi nó lên. Trang tập có hai form riêng — một để
-  // sửa bản thảo, một để sửa chỉ dẫn — và ghi bừa cả hai thì lưu chỉ dẫn là xoá
-  // trắng bản thảo.
+  // Each field is written only when the form actually SENT it. The episode page
+  // has two separate forms for a scene — one edits the draft, one edits the
+  // instructions — and writing both blindly means saving instructions wipes the
+  // draft.
   const data: Record<string, unknown> = {};
   if ("text" in body) data.text = String(body.text ?? "");
   if ("beat" in body) data.beat = field(body, "beat");
-  // Rỗng là hợp lệ và có nghĩa: "chưa biết ai có mặt" → Bible nạp đầy đủ.
+  // Empty is valid and means something: "not known yet" → the Bible loads in full.
   if ("characterIds" in body) {
     data.characterIds = field(body, "characterIds").split(",").map((v) => v.trim()).filter(Boolean);
   }
@@ -198,11 +201,11 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
 
   await prisma.scene.update({ where: { id: c.req.param("sceneId") }, data });
 
-  // Chỉ sửa chỉ dẫn thì bản thảo không đổi — khỏi ghép lại.
-  if (!("text" in body)) return c.json({ ok: "Đã lưu chỉ dẫn cho cảnh này." });
+  // Editing only the instructions leaves the draft alone — no need to reassemble.
+  if (!("text" in body)) return c.json({ ok: "Instructions saved for this scene." });
 
-  // Bản thảo là các cảnh nối lại, theo thứ tự ĐỌC: chương trước, cảnh trong
-  // chương sau. Cập nhật luôn để bước sau không phải ghép lại.
+  // The draft is the scenes joined in READING order: chapter first, then scene
+  // within it. Update now so the next step does not have to reassemble.
   const scenes = await prisma.scene.findMany({
     where: { chapter: { episodeId } },
     orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
@@ -218,13 +221,14 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
 });
 
 /**
- * Chữ đang được sinh, đọc trực tiếp trong lúc model viết.
+ * The text being generated, read live while the model writes.
  *
- * Worker ghi bản nháp dở vào Redis (`services/stream.ts`); đây chỉ đọc lại.
- * Trả `null` khi không có gì đang chạy — Studio hiểu là thôi không hỏi nữa.
+ * The worker writes the partial draft into Redis (`services/stream.ts`); this
+ * only reads it back. Returns `null` when nothing is running — Studio takes that
+ * as "stop asking".
  *
- * Redis trục trặc thì cũng trả `null` chứ không ném: mất phần xem trực tiếp là
- * chuyện nhỏ, làm hỏng trang tập mới là chuyện lớn.
+ * Redis trouble also returns `null` rather than throwing: losing the live view is
+ * minor, breaking the episode page is not.
  */
 episodes.get("/:id/stream", async (c) => {
   try {
@@ -236,20 +240,21 @@ episodes.get("/:id/stream", async (c) => {
 });
 
 /**
- * Xoá một tập.
+ * Delete an episode.
  *
- * Chặn cùng hai tình huống với xoá cả bộ: còn job trong hàng đợi, và tập đang
- * xuất bản. Xem `DELETE /api/series/:id`.
+ * Blocks the same two situations as deleting a whole story: jobs still queued,
+ * and the episode being published. See `DELETE /api/series/:id`.
  *
- * Xoá luôn SỰ KIỆN của tập. Quan hệ khai `onDelete: SetNull` nên mặc định
- * chúng sống sót — mà đó đúng là thứ phải đi: sự kiện được truy hồi bằng vector
- * vào mọi cảnh viết sau, nên bỏ một tập hỏng mà để lại sự kiện của nó là tập 8
- * vẫn bị lái bởi tình tiết của một tập không còn tồn tại.
+ * Also deletes the episode's FACTS. The relation declares `onDelete: SetNull` so
+ * by default they survive — and they are exactly what has to go: facts are
+ * retrieved by vector into every later scene, so dropping a bad episode while
+ * keeping its facts leaves episode 8 still steered by a plot point from an
+ * episode that no longer exists.
  *
- * KHÔNG đánh số lại các tập sau. Số tập nằm trong slug, trong `StoryFact`,
- * trong mục lục và trong tóm tắt cung truyện; đánh lại là sai hết những chỗ đó.
- * Xoá tập giữa thì để lại lỗ, và `NEXT_EPISODE` lấy số lớn nhất + 1 nên vẫn
- * chạy đúng.
+ * Does NOT renumber later episodes. The number appears in the slug, in
+ * `StoryFact`, in the index and in the arc summary; renumbering breaks all of
+ * them. Deleting a middle episode leaves a gap, and `NEXT_EPISODE` takes the
+ * highest + 1, so it still works.
  */
 episodes.delete("/:id", async (c) => {
   const id = c.req.param("id");
@@ -262,12 +267,12 @@ episodes.delete("/:id", async (c) => {
     where: { episodeId: id, status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] } },
   });
   if (running > 0) {
-    throw new UserError(`${running} job đang chạy hoặc đang chờ cho tập này. Đợi xong rồi xoá.`);
+    throw new UserError(`${running} jobs are running or queued for this episode. Wait for them, then delete.`);
   }
 
   if (ep.publishedAt) {
     throw new UserError(
-      "Tập này đang xuất bản. Gỡ xuất bản trước — xoá thẳng ở đây thì bản trên DB hosted không còn đường nào gỡ xuống.",
+      "This episode is published. Unpublish it first — deleting it here leaves the hosted copy with no way to take it down.",
     );
   }
 
@@ -279,8 +284,8 @@ episodes.delete("/:id", async (c) => {
     prisma.export.findMany({ where: { episodeId: id }, select: { url: true } }),
   ]);
 
-  // Trước khi xoá tập: `SetNull` sẽ để lại sự kiện mồ côi mà vẫn mang
-  // `episodeNumber`, và chúng vẫn được truy hồi như thường.
+  // Before deleting the episode: `SetNull` would leave orphaned facts that still
+  // carry an `episodeNumber`, and they would keep being retrieved as normal.
   const facts = await prisma.storyFact.deleteMany({ where: { episodeId: id } });
 
   await prisma.episode.delete({ where: { id } });
@@ -292,19 +297,19 @@ episodes.delete("/:id", async (c) => {
 
   return c.json({
     ok:
-      `Đã xoá tập ${ep.number}${filesRemovedNote(files)}` +
-      (facts.count > 0 ? `, cùng ${facts.count} sự kiện của tập` : "") +
+      `Deleted episode ${ep.number}${filesRemovedNote(files)}` +
+      (facts.count > 0 ? `, along with ${facts.count} of its facts` : "") +
       ".",
-    // Những thứ KHÔNG lùi lại được. Nói ra chứ đừng để người viết tưởng đã sạch:
-    // tập sau vẫn viết dựa trên chúng.
+    // What canNOT be undone. Say it rather than let the writer assume it is
+    // clean: later episodes are still written from these.
     warnings: [
-      "Trạng thái nhân vật và tóm tắt cung truyện vẫn giữ những gì tập này để lại — sửa tay ở trang Nhân vật và Story Bible nếu cần.",
-      `Số tập không đánh lại: các tập sau giữ nguyên số, nên dãy sẽ khuyết số ${ep.number}.`,
+      "Character states and the arc summary still carry what this episode left behind — edit them by hand on the Characters and Story Bible pages if needed.",
+      `Episodes are not renumbered: later ones keep their numbers, so the sequence will skip ${ep.number}.`,
     ],
   });
 });
 
-/** Duyệt bản thảo — chốt chặn ngăn bản thảo thô đi tiếp. */
+/** Approve the draft — the gate stopping a raw draft going further. */
 episodes.post("/:id/approve", async (c) => {
   const episodeId = c.req.param("id");
   const ep = await prisma.episode.update({
@@ -312,8 +317,8 @@ episodes.post("/:id/approve", async (c) => {
     data: { humanReviewed: true, reviewedAt: new Date(), reviewedBy: "studio" },
   });
 
-  // Gỡ chốt cho lượt chạy hàng loạt đang đứng chờ đúng tập này. Studio KHÔNG tự
-  // quyết bước kế tiếp — chỉ đẩy job BATCH, worker mới biết chuỗi bước.
+  // Unblocks a batch run waiting on this exact episode. Studio does NOT decide
+  // the next step — it only queues a BATCH job; the worker owns the chain.
   const run = await prisma.batchRun.findFirst({
     where: { seriesId: ep.seriesId, status: { in: ["RUNNING", "WAITING_REVIEW"] } },
     orderBy: { startedAt: "desc" },
@@ -344,10 +349,11 @@ episodes.post("/:id/audio-script", async (c) => {
 });
 
 /**
- * Viết lại bản thảo sang ngôn ngữ đầu ra.
+ * Rewrite the draft into the output language.
  *
- * `force=1` dịch lại từ bản thảo gốc đã giữ ở `Scene.sourceText` — dùng sau khi
- * sửa prompt chuyển ngữ. Không có nó thì job chỉ đụng những cảnh chưa dịch.
+ * `force=1` rewrites from the original kept in `Scene.sourceText` — use it after
+ * editing the rewrite prompt. Without it the job only touches scenes not yet
+ * rewritten.
  */
 episodes.post("/:id/translate", async (c) => {
   const episodeId = c.req.param("id");
@@ -387,10 +393,10 @@ episodes.put("/:id/blocks/:blockId/approve", async (c) => {
 });
 
 /**
- * Gán hiệu ứng cho một block.
+ * Assign a sound effect to a block.
  *
- * Hiệu ứng phát ở ĐẦU block khi ghép. Lưu lựa chọn KHÔNG tự dựng lại tập —
- * người dùng bấm "Xuất lại MP3" khi đã ưng.
+ * The effect plays at the START of the block when mixing. Saving the choice does
+ * NOT rebuild the episode — the user clicks "Re-export MP3" when happy.
  */
 episodes.put("/:id/blocks/:blockId/sfx", async (c) => {
   const body = await c.req.parseBody();
@@ -398,14 +404,14 @@ episodes.put("/:id/blocks/:blockId/sfx", async (c) => {
 
   if (trackId) {
     const track = await prisma.audioTrack.findUniqueOrThrow({ where: { id: trackId } });
-    if (track.kind !== AudioTrackKind.SFX) throw new UserError("Track được chọn không phải hiệu ứng");
+    if (track.kind !== AudioTrackKind.SFX) throw new UserError("The selected track is not an effect");
   }
 
   await prisma.block.update({
     where: { id: c.req.param("blockId") },
     data: { sfxTrackId: trackId || null },
   });
-  return c.json({ ok: trackId ? "Đã gán hiệu ứng. Bấm “Xuất lại MP3” để nghe." : "Đã gỡ hiệu ứng." });
+  return c.json({ ok: trackId ? "Effect assigned. Click “Re-export MP3” to hear it." : "Effect removed." });
 });
 
 episodes.post("/:id/export", async (c) => {
@@ -414,7 +420,7 @@ episodes.post("/:id/export", async (c) => {
   return c.json({ ok: true });
 });
 
-/** Nhạc nền cho tập. Lưu lựa chọn KHÔNG tự dựng lại — người dùng bấm xuất lại. */
+/** Background music for the episode. Saving does NOT rebuild — the user re-exports. */
 episodes.put("/:id/bgm", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody();
@@ -424,21 +430,21 @@ episodes.put("/:id/bgm", async (c) => {
 
   if (trackId) {
     const track = await prisma.audioTrack.findUniqueOrThrow({ where: { id: trackId } });
-    if (track.kind !== AudioTrackKind.BGM) throw new UserError("Track được chọn không phải nhạc nền");
+    if (track.kind !== AudioTrackKind.BGM) throw new UserError("The selected track is not background music");
   }
 
   await prisma.episode.update({
     where: { id: episodeId },
     data: { bgmTrackId: trackId || null, bgmVolume: volume },
   });
-  return c.json({ ok: trackId ? "Đã lưu. Bấm “Xuất lại MP3” để nghe thấy khác." : "Đã gỡ nhạc nền." });
+  return c.json({ ok: trackId ? "Saved. Click “Re-export MP3” to hear the difference." : "Music removed." });
 });
 
 /**
- * Xuất bản — tập hiện ra trang nghe.
+ * Publish — the episode appears on the player.
  *
- * `assertTransition` chặn ba thứ: bước không hợp lệ, bản thảo chưa duyệt, và
- * asset còn giấy phép chưa xác minh.
+ * `assertTransition` blocks three things: an invalid transition, an unapproved
+ * draft, and assets with unverified licences.
  */
 episodes.post("/:id/publish", async (c) => {
   const episodeId = c.req.param("id");
@@ -452,7 +458,7 @@ episodes.post("/:id/publish", async (c) => {
   });
 
   if (ep.exports.length === 0) {
-    throw new UserError("Tập chưa có bản MP3. Ghép và xuất trước khi xuất bản.");
+    throw new UserError("This episode has no MP3 yet. Mix and export before publishing.");
   }
 
   const licenses = [ep.bgmTrack?.licenseType, ...ep.blocks.map((b) => b.sfxTrack?.licenseType)].filter(
@@ -476,18 +482,19 @@ episodes.post("/:id/publish", async (c) => {
     prisma.series.update({ where: { id: ep.seriesId }, data: { status: "ONGOING" } }),
   ]);
 
-  // Đẩy sang DB hosted mà Player đọc. Làm bằng job chứ không làm thẳng ở đây:
-  // DB hosted có thể đang không với tới được, mà lỗi mạng thì không được làm
-  // hỏng việc đánh dấu đã xuất bản ở local.
+  // Push to the hosted DB the Player reads. As a job rather than inline: the
+  // hosted DB may be unreachable, and a network error must not break marking the
+  // episode published locally.
   await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
-  return c.json({ ok: "Đã xuất bản. Đang đồng bộ sang trang nghe." });
+  return c.json({ ok: "Published. Syncing to the player." });
 });
 
 /**
- * Đẩy lại sang DB hosted mà không đổi trạng thái.
+ * Push to the hosted DB again without changing status.
  *
- * Cần vì job PUBLISH xưa nay chỉ chạy lúc xuất bản và lúc gỡ — sửa tiêu đề hay
- * tạo lại kịch bản sau khi đã xuất bản thì live giữ bản cũ mà chẳng có gì báo.
+ * Needed because the PUBLISH job has only ever run on publish and unpublish —
+ * editing a title or rebuilding a script after publishing left live on the old
+ * version with nothing to say so.
  */
 episodes.post("/:id/resync", async (c) => {
   const episodeId = c.req.param("id");
@@ -496,10 +503,10 @@ episodes.post("/:id/resync", async (c) => {
     select: { status: true },
   });
   if (ep.status !== "PUBLISHED") {
-    throw new UserError("Tập chưa xuất bản thì không có gì để đồng bộ.");
+    throw new UserError("An unpublished episode has nothing to sync.");
   }
   await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId } });
-  return c.json({ ok: "Đang đồng bộ lại sang trang nghe." });
+  return c.json({ ok: "Re-syncing to the player." });
 });
 
 episodes.post("/:id/unpublish", async (c) => {
@@ -508,8 +515,8 @@ episodes.post("/:id/unpublish", async (c) => {
     where: { id: episodeId },
     data: { status: "READY", publishedAt: null },
   });
-  // Gỡ khỏi DB hosted luôn — để lại thì tập vẫn nghe được ở ngoài dù Studio
-  // đã coi là chưa xuất bản.
+  // Remove from the hosted DB too — left there, the episode stays listenable
+  // publicly while Studio treats it as unpublished.
   await enqueue({ type: "PUBLISH", episodeId, payload: { episodeId, remove: true } });
   return c.json({ ok: true });
 });

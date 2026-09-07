@@ -8,43 +8,44 @@ import { storageRoot } from "../lib/storage";
 export const audio = new Hono();
 
 /**
- * Phục vụ file audio từ đĩa cho trình duyệt.
+ * Serve audio files from disk to the browser.
  *
- * Cần vì driver lưu trữ local không có URL http. Với driver R2 thì URL công
- * khai dùng trực tiếp, không qua route này.
+ * Needed because the local storage driver has no http URL. With the R2 driver
+ * the public URL is used directly and never comes through here.
  *
- * Hai tham số:
- * - `key`  — khoá trong kho ("series/abc/blocks/x.wav"). Đây là dạng hiện tại.
- * - `path` — đường dẫn tuyệt đối. Dạng CŨ, chỉ còn để dữ liệu ghi trước khi
- *            chuyển sang lưu khoá vẫn nghe được. Chạy `pnpm fix:storage-refs` để dọn.
+ * Two parameters:
+ * - `key`  — a storage key ("series/abc/blocks/x.wav"). The current form.
+ * - `path` — an absolute path. The OLD form, kept only so data written before
+ *            the switch to keys still plays. Run `pnpm fix:storage-refs` to clean.
  *
- * Có hỗ trợ `Range` để tua giữa tập không phải tải lại từ đầu.
+ * Supports `Range` so seeking mid-episode does not re-download from the start.
  *
- * ⚠️ Cả hai tham số đều đọc file theo query nên PHẢI chặn path traversal.
+ * ⚠️ Both parameters read a file named by the query, so path traversal MUST be
+ * blocked.
  */
 audio.get("/", async (c) => {
   const key = c.req.query("key");
   const legacyPath = c.req.query("path");
-  if (!key && !legacyPath) return c.json({ error: "thiếu tham số key" }, 400);
+  if (!key && !legacyPath) return c.json({ error: "missing key parameter" }, 400);
 
   const root = storageRoot();
   const target = key ? resolve(join(root, key)) : resolve(legacyPath!);
 
   if (target !== root && !target.startsWith(root + "/")) {
-    return c.json({ error: "đường dẫn ngoài thư mục lưu trữ" }, 403);
+    return c.json({ error: "path outside the storage directory" }, 403);
   }
 
   let info;
   try {
     info = await stat(target);
   } catch {
-    return c.json({ error: "không tìm thấy file" }, 404);
+    return c.json({ error: "file not found" }, 404);
   }
-  if (!info.isFile()) return c.json({ error: "không phải file" }, 400);
+  if (!info.isFile()) return c.json({ error: "not a file" }, 400);
 
   const range = parseRange(c.req.header("range") ?? null, info.size);
   if (range === "unsatisfiable") {
-    return new Response("khoảng byte không hợp lệ", {
+    return new Response("invalid byte range", {
       status: 416,
       headers: { "content-range": `bytes */${info.size}`, "accept-ranges": "bytes" },
     });
@@ -89,7 +90,7 @@ function fileStream(path: string, start?: number, end?: number): ReadableStream<
   });
 }
 
-/** Nhạc nền người dùng tải lên không chỉ có mp3/wav — trình duyệt cần đúng type. */
+/** Uploaded music is not only mp3/wav — the browser needs the right type. */
 function contentType(path: string): string {
   const types: Record<string, string> = {
     mp3: "audio/mpeg",
@@ -99,7 +100,7 @@ function contentType(path: string): string {
     ogg: "audio/ogg",
     opus: "audio/ogg",
     flac: "audio/flac",
-    // Ảnh bìa cũng nằm trong kho và đi qua đúng route này.
+    // Cover art also lives in storage and comes through this same route.
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
     png: "image/png",

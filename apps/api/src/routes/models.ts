@@ -40,14 +40,14 @@ import {
 export const models = new Hono();
 
 /**
- * Tiến độ tải, giữ trong BỘ NHỚ tiến trình API.
+ * Download progress, held in the API process's MEMORY.
  *
- * Không lưu DB vì nó là trạng thái nhất thời — API khởi động lại thì Ollama VẪN
- * tải tiếp (việc tải chạy bên phía Ollama), chỉ là mất thanh tiến độ. Bấm tải
- * lại cùng model là Ollama nối tiếp phần đã có chứ không tải lại từ đầu.
+ * Not in the DB because it is transient state — restart the API and Ollama STILL
+ * keeps downloading (the pull runs on Ollama's side), you just lose the progress
+ * bar. Clicking download again for the same model resumes rather than restarts.
  *
- * Mỗi lần một model: tải hai model 9 GB song song trên một đường mạng thì cả
- * hai đều chậm, và giao diện khó đọc.
+ * One model at a time: two 9 GB pulls over one connection make both slow, and the
+ * UI hard to read.
  */
 let pull: PullProgress | null = null;
 let pullAbort: AbortController | null = null;
@@ -59,7 +59,7 @@ async function ollamaFetch(path: string, init?: RequestInit): Promise<Response> 
   return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 }
 
-/** Trạng thái kết nối, model đã cài, và model mà hệ thống đang cấu hình dùng. */
+/** Connection status, installed models, and the models the system is set to use. */
 models.get("/", async (c) => {
   const env = loadEnv();
   const provider = await getActiveProvider();
@@ -74,7 +74,7 @@ models.get("/", async (c) => {
       version = ((await v.json()) as { version?: string }).version ?? null;
       reachable = true;
     } else {
-      reason = `Ollama trả HTTP ${v.status}`;
+      reason = `Ollama returned HTTP ${v.status}`;
     }
   } catch (err) {
     reason = describeConnectError(err, TIMEOUT_MS);
@@ -99,19 +99,19 @@ models.get("/", async (c) => {
     }));
   }
 
-  // Model mà hệ thống sẽ dùng. Prompt có thể đè từng bước — lấy luôn để báo
-  // model nào đang được nhắc tới mà chưa tải về.
+  // The models the system will use. Prompts can override per step — read those
+  // too, so we can flag a model referenced but not downloaded.
   const promptModels = await prisma.prompt.findMany({
     where: { active: true, model: { not: null } },
     select: { step: true, genre: true, model: true },
   });
 
   /**
-   * Model đã DÙNG THẬT gần đây.
+   * Models ACTUALLY used recently.
    *
-   * Nguồn cho ô chọn model từng lần chạy. OpenRouter có hơn 300 model, đổ hết
-   * vào một ô select là không dùng được; còn danh sách này tự lớn lên theo thứ
-   * mình thật sự chạy, nên gần như luôn là thứ muốn chọn lại.
+   * The source for the per-run model picker. OpenRouter carries 300+ models, and
+   * dumping them all into one select is unusable; this list instead grows with
+   * what you actually run, so it is nearly always what you want to pick again.
    */
   const recentRuns = await prisma.llmRun.findMany({
     select: { model: true, createdAt: true },
@@ -124,24 +124,24 @@ models.get("/", async (c) => {
   const seenRecent = new Set<string>();
   const addRecent = (m: string) => {
     if (!m || seenRecent.has(m) || recent.length >= 12) return;
-    // Chỉ giữ model hợp lệ với provider đang bật: lịch sử còn tên model của
-    // provider kia, mà chọn nhầm là job chết giữa một tập đang viết dở.
+    // Keep only names valid for the active provider: the history holds the other
+    // provider's names too, and picking one kills a job mid-episode.
     if (!isValidForProvider(m, provider)) return;
     seenRecent.add(m);
     recent.push(m);
   };
 
-  // Model đang đặt luôn nằm trong danh sách, kể cả khi chưa chạy lần nào: mới
-  // bật OpenRouter thì lịch sử rỗng, và ô chọn model từng lần chạy sẽ biến mất
-  // hẳn chứ không phải chỉ ngắn đi.
+  // The configured model is always in the list, even with no runs yet: right
+  // after switching to OpenRouter the history is empty, and the per-run picker
+  // would disappear entirely rather than merely being short.
   addRecent(defaults.write.value);
   addRecent(defaults.utility.value);
   for (const r of recentRuns) addRecent(r.model);
 
   const configured = [
-    { label: "Viết truyện", kind: "write" as ModelKind, ...defaults.write },
-    { label: "Việc phụ — tóm tắt, metadata", kind: "utility" as ModelKind, ...defaults.utility },
-    { label: "Nhúng vector", kind: "embed" as ModelKind, ...defaults.embed },
+    { label: "Story writing", kind: "write" as ModelKind, ...defaults.write },
+    { label: "Utility work — summaries, metadata", kind: "utility" as ModelKind, ...defaults.utility },
+    { label: "Embeddings", kind: "embed" as ModelKind, ...defaults.embed },
   ];
 
   const promptOverrides = promptModels.map((p) => ({
@@ -152,15 +152,14 @@ models.get("/", async (c) => {
   const names = new Set(installed.map((m) => m.name));
 
   /**
-   * "Đã tải chưa?" — câu hỏi này chỉ có nghĩa khi đang chạy Ollama.
+   * "Is it downloaded?" — a question that only means anything under Ollama.
    *
-   * Model trên OpenRouter không tải về máy bao giờ; đối chiếu với danh sách của
-   * Ollama thì mọi model đám mây đều hiện cảnh báo "chưa tải" mà chẳng có gì
-   * để tải.
+   * OpenRouter models are never downloaded; checking them against Ollama's list
+   * would flag every cloud model as "not downloaded" with nothing to download.
    */
   const describeModel = (m: string) => ({
     model: m,
-    // Ollama coi "qwen3:14b" và "qwen3:14b:latest" là một; so cả hai dạng.
+    // Ollama treats "qwen3:14b" and "qwen3:14b:latest" as one; compare both forms.
     installed: provider === "ollama" ? names.has(m) || names.has(`${m}:latest`) : true,
   });
 
@@ -181,10 +180,10 @@ models.get("/", async (c) => {
   });
 });
 
-/** Đặt model mặc định cho một loại việc. Để trống = quay về giá trị trong .env. */
+/** Set the default model for one kind of work. Blank = fall back to .env. */
 models.put("/default/:kind", async (c) => {
   const kind = c.req.param("kind") as ModelKind;
-  if (!["write", "utility", "embed"].includes(kind)) throw new UserError("Loại không hợp lệ");
+  if (!["write", "utility", "embed"].includes(kind)) throw new UserError("Invalid kind");
 
   const body = await c.req.parseBody();
   const model = field(body, "model");
@@ -192,20 +191,20 @@ models.put("/default/:kind", async (c) => {
   if (model && !isValidForProvider(model, provider)) {
     throw new UserError(
       provider === "openrouter"
-        ? `Tên model OpenRouter phải có dạng "nhà-cung-cấp/tên-model": "${model}"`
-        : `Tên model không hợp lệ: "${model}"`,
+        ? `An OpenRouter model name must look like "provider/model": "${model}"`
+        : `Invalid model name: "${model}"`,
     );
   }
 
   await setDefaultModel(kind, model);
-  return c.json({ ok: model ? `Mặc định giờ là ${model}` : "Đã bỏ, quay về giá trị trong .env" });
+  return c.json({ ok: model ? `Default is now ${model}` : "Cleared — back to the .env value" });
 });
 
 /**
- * Đổi provider đang chạy. Một trong hai, không chạy lẫn.
+ * Switch the active provider. One or the other, never both at once.
  *
- * Ăn ngay ở lượt gọi model tiếp theo, kể cả trong worker đang chạy dở — lựa
- * chọn nằm trong `Setting` và được hỏi lại mỗi lượt.
+ * Takes effect on the next model call, including inside a worker mid-run — the
+ * choice lives in `Setting` and is read fresh every time.
  */
 models.put("/provider", async (c) => {
   const body = await c.req.parseBody();
@@ -221,19 +220,19 @@ models.put("/provider", async (c) => {
   return c.json({
     ok:
       now === "openrouter"
-        ? "Đang chạy OpenRouter — nội dung gửi lên sẽ rời khỏi máy này."
+        ? "Running on OpenRouter — what you send leaves this machine."
         : now === "ollama"
-          ? "Đang chạy Ollama tại chỗ."
-          : "Đang chạy provider giả lập.",
+          ? "Running on local Ollama."
+          : "Running on the mock provider.",
   });
 });
 
 /**
- * Ngôn ngữ mặc định cho truyện MỚI.
+ * The default language for NEW stories.
  *
- * Không đụng tới bộ truyện đã có: ngôn ngữ nằm ở `Series.language`, chốt lúc
- * tạo bộ. Đổi ngôn ngữ một bộ đang viết dở là viết lại từ đầu, không phải đổi
- * một ô cấu hình.
+ * Leaves existing stories alone: language lives in `Series.language`, fixed when
+ * the story is created. Changing the language of a story already being written is
+ * a rewrite from scratch, not a settings toggle.
  */
 models.put("/language", async (c) => {
   const body = await c.req.parseBody();
@@ -243,20 +242,20 @@ models.put("/language", async (c) => {
     throw new UserError((err as Error).message);
   }
   const now = await getDefaultLanguage();
-  return c.json({ ok: `Truyện mới sẽ viết bằng ${now === "en" ? "tiếng Anh" : "tiếng Việt"}.` });
+  return c.json({ ok: `New stories will be written in ${now === "en" ? "English" : "Vietnamese"}.` });
 });
 
 /**
- * Quét một kho Hugging Face, liệt kê các bản lượng tử hoá tải được.
+ * Scan a Hugging Face repo and list the quantisations available.
  *
- * Ollama kéo thẳng được từ HF bằng tên `hf.co/{repo}:{QUANT}`, nên chỗ này chỉ
- * cần đọc danh sách file trong kho và gom theo mức lượng tử hoá.
+ * Ollama pulls straight from HF given `hf.co/{repo}:{QUANT}`, so all this needs
+ * to do is read the repo's file list and group it by quantisation.
  */
 models.get("/hf", async (c) => {
   const repo = parseHfRepo(c.req.query("repo") ?? "");
   if (!repo) {
     throw new UserError(
-      'Không đọc được tên kho. Dán đường dẫn dạng "https://huggingface.co/<người>/<kho>".',
+      'Could not read a repo name. Paste a URL like "https://huggingface.co/<user>/<repo>".',
     );
   }
 
@@ -266,23 +265,23 @@ models.get("/hf", async (c) => {
       signal: AbortSignal.timeout(15_000),
     });
   } catch (err) {
-    throw new UserError(`Không gọi được Hugging Face: ${describeConnectError(err, 15_000)}`);
+    throw new UserError(`Could not reach Hugging Face: ${describeConnectError(err, 15_000)}`);
   }
 
   if (res.status === 404 || res.status === 401 || res.status === 403) {
-    // Hugging Face trả 401 cho CẢ kho không tồn tại lẫn kho riêng tư — cố tình,
-    // để không lộ ra kho nào có thật. Nói cả hai khả năng còn hơn đoán bừa một
-    // cái rồi bắt người dùng đi tìm nhầm hướng.
+    // Hugging Face returns 401 for BOTH a missing repo and a private one — on
+    // purpose, so it does not leak which repos exist. Say both possibilities
+    // rather than guessing one and sending the user the wrong way.
     throw new UserError(
-      `Không đọc được kho "${repo}": kho không tồn tại, hoặc là kho riêng tư / cần bấm đồng ý điều khoản trên Hugging Face trước. Kiểm tra lại đường dẫn.`,
+      `Could not read repo "${repo}": it does not exist, or it is private / needs its terms accepted on Hugging Face first. Check the URL.`,
     );
   }
-  if (!res.ok) throw new UserError(`Hugging Face trả HTTP ${res.status}`);
+  if (!res.ok) throw new UserError(`Hugging Face returned HTTP ${res.status}`);
 
   const variants = collectQuantVariants((await res.json()) as HfFile[]);
   if (variants.length === 0) {
     throw new UserError(
-      `Kho "${repo}" không có file GGUF nào. Ollama chỉ chạy được GGUF — tìm kho có đuôi "-GGUF".`,
+      `Repo "${repo}" has no GGUF files. Ollama only runs GGUF — look for a repo ending in "-GGUF".`,
     );
   }
 
@@ -295,10 +294,10 @@ models.get("/hf", async (c) => {
 models.get("/pull", (c) => c.json({ pull: withElapsed(pull) }));
 
 /**
- * Tính thời gian đã chạy Ở SERVER.
+ * Compute elapsed time ON THE SERVER.
  *
- * Không để trình duyệt tự trừ `Date.now() - startedAt`: đồng hồ hai máy lệch
- * nhau vài phút là chuyện thường, và lúc đó thanh tiến độ báo "đã -180 giây".
+ * Not `Date.now() - startedAt` in the browser: clocks on two machines drift by
+ * minutes routinely, and then the bar reads "-180 seconds elapsed".
  */
 function withElapsed(p: PullProgress | null) {
   if (!p) return null;
@@ -309,47 +308,47 @@ models.post("/pull", async (c) => {
   const body = await c.req.parseBody();
   const model = field(body, "model");
 
-  if (!model) throw new UserError("Chưa chọn model");
-  if (!isValidModelTag(model)) throw new UserError(`Tên model không hợp lệ: "${model}"`);
-  if (pull && !pull.done) throw new UserError(`Đang tải "${pull.model}". Đợi xong hoặc dừng lại.`);
+  if (!model) throw new UserError("No model selected");
+  if (!isValidModelTag(model)) throw new UserError(`Invalid model name: "${model}"`);
+  if (pull && !pull.done) throw new UserError(`Already downloading "${pull.model}". Wait for it or stop it.`);
 
   pull = newPullProgress(model);
   pullAbort = new AbortController();
   void runPull(model, pullAbort.signal);
 
-  return c.json({ ok: `Bắt đầu tải ${model}` });
+  return c.json({ ok: `Started downloading ${model}` });
 });
 
 models.delete("/pull", (c) => {
   pullAbort?.abort();
   if (pull && !pull.done) {
-    pull = { ...pull, done: true, error: "Đã dừng theo yêu cầu", finishedAt: Date.now() };
+    pull = { ...pull, done: true, error: "Stopped on request", finishedAt: Date.now() };
   }
-  return c.json({ ok: "Đã dừng tải." });
+  return c.json({ ok: "Download stopped." });
 });
 
 models.delete("/:name{.+}", async (c) => {
   const name = decodeURIComponent(c.req.param("name"));
-  if (!isValidModelTag(name)) throw new UserError("Tên model không hợp lệ");
+  if (!isValidModelTag(name)) throw new UserError("Invalid model name");
 
   const res = await ollamaFetch("/api/delete", {
     method: "DELETE",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ model: name }),
   });
-  if (!res.ok) throw new UserError(`Ollama không xoá được: HTTP ${res.status}`);
-  // Danh sách đang nhớ giờ sai — mặc định tự chọn phải thấy ngay.
+  if (!res.ok) throw new UserError(`Ollama could not delete it: HTTP ${res.status}`);
+  // The cached list is now wrong — auto-selected defaults must see this at once.
   forgetInstalledModels();
-  return c.json({ ok: `Đã xoá ${name}` });
+  return c.json({ ok: `Deleted ${name}` });
 });
 
 /* ─────────────────────────── OpenRouter ─────────────────────────── */
 
 /**
- * Danh sách model, giữ trong bộ nhớ.
+ * The model list, cached in memory.
  *
- * OpenRouter có hơn 300 model và danh sách gần như không đổi trong ngày; gọi
- * lại mỗi lần mở trang là tải vài trăm KB không để làm gì.
+ * OpenRouter carries 300+ models and the list barely changes within a day;
+ * refetching on every page open downloads a few hundred KB for nothing.
  */
 let modelCache: { at: number; models: OpenRouterModel[] } | null = null;
 const MODEL_CACHE_MS = 10 * 60 * 1000;
@@ -359,16 +358,16 @@ function openRouterUrl(path: string): string {
 }
 
 /**
- * Trạng thái kết nối OpenRouter.
+ * OpenRouter connection status.
  *
- * KHÔNG trả về khoá API dưới bất kỳ dạng nào — kể cả cắt ngắn hay che bớt.
- * Thứ này đi thẳng ra trình duyệt.
+ * Does NOT return the API key in any form — not truncated, not masked. This goes
+ * straight to the browser.
  */
 models.get("/openrouter", async (c) => {
   const env = loadEnv();
   const hasKey = env.OPENROUTER_API_KEY.length > 0;
 
-  // Ước tính chi phí dựa trên các lượt chạy THẬT đã ghi lại, không đoán.
+  // Cost estimates come from REAL recorded runs, not guesses.
   const runs = await prisma.llmRun.findMany({
     where: { episodeId: { not: null } },
     select: { episodeId: true, inputTokens: true, outputTokens: true },
@@ -386,7 +385,7 @@ models.get("/openrouter", async (c) => {
     return c.json({
       ...base,
       reachable: false,
-      reason: "Chưa đặt OPENROUTER_API_KEY trong .env",
+      reason: "OPENROUTER_API_KEY is not set in .env",
       key: null,
     });
   }
@@ -401,12 +400,12 @@ models.get("/openrouter", async (c) => {
       return c.json({
         ...base,
         reachable: false,
-        reason: "OpenRouter từ chối khoá này (401). Kiểm tra lại OPENROUTER_API_KEY.",
+        reason: "OpenRouter rejected this key (401). Check OPENROUTER_API_KEY.",
         key: null,
       });
     }
     if (!res.ok) {
-      return c.json({ ...base, reachable: false, reason: `OpenRouter trả HTTP ${res.status}`, key: null });
+      return c.json({ ...base, reachable: false, reason: `OpenRouter returned HTTP ${res.status}`, key: null });
     }
 
     return c.json({ ...base, reachable: true, reason: null, key: parseKeyStatus(await res.json()) });
@@ -415,7 +414,7 @@ models.get("/openrouter", async (c) => {
   }
 });
 
-/** Danh sách model đang có trên OpenRouter, kèm giá. */
+/** The models OpenRouter currently offers, with prices. */
 models.get("/openrouter/models", async (c) => {
   if (modelCache && Date.now() - modelCache.at < MODEL_CACHE_MS) {
     return c.json({ models: modelCache.models, cached: true });
@@ -424,29 +423,29 @@ models.get("/openrouter/models", async (c) => {
   const env = loadEnv();
   try {
     const res = await fetch(openRouterUrl("/models"), {
-      // Danh sách model là công khai, nhưng gửi kèm khoá thì OpenRouter lọc
-      // theo quyền của tài khoản — sát với thứ thật sự gọi được hơn.
+      // The model list is public, but sending the key makes OpenRouter filter it
+      // by the account's access — closer to what can actually be called.
       headers: env.OPENROUTER_API_KEY
         ? { authorization: `Bearer ${env.OPENROUTER_API_KEY}` }
         : undefined,
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) throw new UserError(`OpenRouter trả HTTP ${res.status}`);
+    if (!res.ok) throw new UserError(`OpenRouter returned HTTP ${res.status}`);
 
     const list = parseModelList(await res.json());
     modelCache = { at: Date.now(), models: list };
     return c.json({ models: list, cached: false });
   } catch (err) {
     if (err instanceof UserError) throw err;
-    throw new UserError(`Không lấy được danh sách model: ${describeConnectError(err, TIMEOUT_MS)}`);
+    throw new UserError(`Could not fetch the model list: ${describeConnectError(err, TIMEOUT_MS)}`);
   }
 });
 
 /**
- * Chạy nền, đọc luồng NDJSON của Ollama và cập nhật `pull`.
+ * Runs in the background, reading Ollama's NDJSON stream and updating `pull`.
  *
- * KHÔNG dùng timeout của `ollamaFetch`: tải một model 9 GB mất hàng chục phút,
- * cắt sau 5 giây là hỏng ngay.
+ * Deliberately NOT using `ollamaFetch`'s timeout: a 9 GB model takes tens of
+ * minutes, and cutting it off after 5 seconds breaks it immediately.
  */
 async function runPull(model: string, signal: AbortSignal): Promise<void> {
   const layers = new Map<string, { completed: number; total: number }>();
@@ -460,7 +459,7 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
     });
 
     if (!res.ok || !res.body) {
-      pull = { ...pull!, done: true, error: `Ollama trả HTTP ${res.status}`, finishedAt: Date.now() };
+      pull = { ...pull!, done: true, error: `Ollama returned HTTP ${res.status}`, finishedAt: Date.now() };
       return;
     }
 
@@ -480,9 +479,9 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
 
     forgetInstalledModels();
 
-    // Hết luồng mà chưa thấy dòng "success" — coi như xong, nhưng nói rõ.
+    // Stream ended without a "success" line — treat it as done, but say so.
     if (pull && !pull.done) {
-      pull = { ...pull, done: true, status: "kết thúc", finishedAt: Date.now() };
+      pull = { ...pull, done: true, status: "ended", finishedAt: Date.now() };
     }
   } catch (err) {
     const aborted = (err as Error).name === "AbortError";
@@ -490,7 +489,7 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
       pull = {
         ...pull,
         done: true,
-        error: aborted ? "Đã dừng theo yêu cầu" : (err as Error).message,
+        error: aborted ? "Stopped on request" : (err as Error).message,
         finishedAt: Date.now(),
       };
     }
@@ -499,11 +498,11 @@ async function runPull(model: string, signal: AbortSignal): Promise<void> {
 
 
 /**
- * Tên model hợp lệ với provider đang bật.
+ * Whether a model name is valid for the active provider.
  *
- * Hai bên đặt tên khác hẳn: Ollama dùng "qwen3:14b", OpenRouter dùng
- * "nhà-cung-cấp/tên-model". Kiểm theo đúng luật của bên đang chạy thì lỗi hiện
- * ngay lúc lưu, thay vì đợi tới lúc job chạy giữa một tập đang viết dở.
+ * The two name things completely differently: Ollama uses "qwen3:14b",
+ * OpenRouter uses "provider/model". Validating against the active provider's rule
+ * surfaces the error at save time, rather than mid-episode when a job runs.
  */
 function isValidForProvider(model: string, provider: ProviderName): boolean {
   return provider === "openrouter" ? isValidOpenRouterModel(model) : isValidModelTag(model);

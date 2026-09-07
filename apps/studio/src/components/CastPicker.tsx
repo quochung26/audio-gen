@@ -58,7 +58,7 @@ const input =
  * card, adjust it for this story, or type someone entirely new.
  *
  * Editing here does NOT touch the card. A card is the portable original; "the
- * Tài of this story" belongs to this story. To push an edit back to the library
+ * Sam of this story" belongs to this story. To push an edit back to the library
  * there is a separate Save on the Characters page, once the story exists.
  *
  * Sends ONE `cast` field as JSON: the list varies in length, and a flat

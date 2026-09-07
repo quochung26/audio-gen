@@ -4,7 +4,7 @@ import { getVramBudget } from "@audio/config";
 
 export const jobs = new Hono();
 
-/** Bảng điều khiển: job gần đây + đếm theo trạng thái. */
+/** Dashboard: recent jobs plus counts by status. */
 jobs.get("/", async (c) => {
   const [recent, byStatus] = await Promise.all([
     prisma.renderJob.findMany({
@@ -14,7 +14,7 @@ jobs.get("/", async (c) => {
     }),
     prisma.renderJob.groupBy({ by: ["status"], _count: true }),
   ]);
-  // Ngân sách VRAM đọc từ env — SPA không đọc được env của máy sản xuất.
+  // The VRAM budget comes from env — an SPA cannot read the machine's env.
   return c.json({ recent, byStatus, vram: getVramBudget() });
 });
 

@@ -1,9 +1,9 @@
 /**
- * Client Ollama cho trang cài đặt model.
+ * Ollama client for the model settings page.
  *
- * Tách khỏi `@audio/llm` có chủ đích: gói kia lo việc SINH CHỮ, gói này lo việc
- * quản lý model (xem có gì, tải về, xoá đi). Trộn vào nhau thì worker phải mang
- * theo cả code quản lý mà nó không bao giờ dùng.
+ * Deliberately separate from `@audio/llm`: that package does GENERATION, this one
+ * does model management (list, pull, delete). Merged, the worker would carry
+ * management code it never uses.
  */
 
 export interface OllamaModel {
@@ -15,9 +15,9 @@ export interface OllamaModel {
 }
 
 export interface PullProgress {
-  /** Model đang tải, ví dụ "qwen3:14b-q4_K_M". */
+  /** The model being pulled, e.g. "qwen3:14b-q4_K_M". */
   model: string;
-  /** Ollama đang làm gì: "pulling manifest", "downloading …", "success"… */
+  /** What Ollama is doing: "pulling manifest", "downloading …", "success"… */
   status: string;
   completedBytes: number;
   totalBytes: number;
@@ -27,7 +27,7 @@ export interface PullProgress {
   finishedAt: number | null;
 }
 
-/** Một dòng NDJSON mà `/api/pull` trả về. */
+/** One NDJSON line from `/api/pull`. */
 export interface PullChunk {
   status?: string;
   digest?: string;
@@ -37,11 +37,11 @@ export interface PullChunk {
 }
 
 /**
- * Gộp một dòng tiến độ vào trạng thái đang có.
+ * Fold one progress line into the state so far.
  *
- * Ollama trả tiến độ theo TỪNG LỚP ảnh, mỗi lớp có `digest` riêng và `completed`
- * đếm lại từ 0. Cộng dồn thẳng `completed` là thanh tiến độ nhảy lùi mỗi khi
- * sang lớp mới. Nên phải cộng theo digest.
+ * Ollama reports progress PER IMAGE LAYER, each with its own `digest` and a
+ * `completed` that restarts at 0. Adding `completed` straight up makes the bar
+ * jump backwards at every new layer. So it has to sum per digest.
  */
 export function reducePull(
   prev: PullProgress,
@@ -66,7 +66,7 @@ export function reducePull(
     totalBytes += l.total;
   }
 
-  // "success" là dòng cuối cùng Ollama gửi khi tải xong.
+  // "success" is the last line Ollama sends when the pull finishes.
   const done = chunk.status === "success";
 
   return {
@@ -80,10 +80,11 @@ export function reducePull(
 }
 
 /**
- * Tách các dòng NDJSON hoàn chỉnh khỏi bộ đệm.
+ * Split complete NDJSON lines out of the buffer.
  *
- * Trả về cả phần dư: một khối dữ liệu từ mạng có thể cắt ngang giữa dòng JSON,
- * parse ngay là lỗi cú pháp. Phần dư đợi khối sau nối vào.
+ * Returns the remainder too: a network chunk can cut through the middle of a JSON
+ * line, and parsing that is a syntax error. The remainder waits for the next
+ * chunk to be appended.
  */
 export function takeLines(buffer: string): { chunks: PullChunk[]; rest: string } {
   const parts = buffer.split("\n");
@@ -96,7 +97,7 @@ export function takeLines(buffer: string): { chunks: PullChunk[]; rest: string }
     try {
       chunks.push(JSON.parse(t) as PullChunk);
     } catch {
-      // Dòng hỏng thì bỏ qua — mất một mốc tiến độ còn hơn chết cả lượt tải.
+      // Skip a broken line — losing one progress tick beats killing the pull.
     }
   }
   return { chunks, rest };
@@ -105,7 +106,7 @@ export function takeLines(buffer: string): { chunks: PullChunk[]; rest: string }
 export function newPullProgress(model: string): PullProgress {
   return {
     model,
-    status: "đang bắt đầu",
+    status: "starting",
     completedBytes: 0,
     totalBytes: 0,
     done: false,
@@ -115,7 +116,7 @@ export function newPullProgress(model: string): PullProgress {
   };
 }
 
-/** Tag model hợp lệ: `tên[:thẻ]`, chỉ chữ số và vài ký tự Ollama cho phép. */
+/** A valid model tag: `name[:tag]`, only the characters Ollama allows. */
 export function isValidModelTag(tag: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9._/-]*(:[a-zA-Z0-9._-]+)?$/.test(tag) && tag.length <= 128;
 }

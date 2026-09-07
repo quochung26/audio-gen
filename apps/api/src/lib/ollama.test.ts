@@ -8,31 +8,31 @@ import {
 } from "./ollama";
 
 describe("takeLines", () => {
-  it("tách các dòng hoàn chỉnh", () => {
+  it("splits out the complete lines", () => {
     const r = takeLines('{"status":"a"}\n{"status":"b"}\n');
     expect(r.chunks).toEqual([{ status: "a" }, { status: "b" }]);
     expect(r.rest).toBe("");
   });
 
-  it("GIỮ dòng dở làm phần dư", () => {
-    // Khối dữ liệu từ mạng cắt ngang giữa JSON là chuyện thường; parse ngay là lỗi.
+  it("KEEPS a partial line as the remainder", () => {
+    // A network chunk cutting through JSON is normal; parsing it now is an error.
     const r = takeLines('{"status":"a"}\n{"sta');
     expect(r.chunks).toEqual([{ status: "a" }]);
     expect(r.rest).toBe('{"sta');
   });
 
-  it("nối được phần dư với khối sau", () => {
+  it("joins the remainder to the next chunk", () => {
     const first = takeLines('{"status":"a"}\n{"sta');
     const second = takeLines(first.rest + 'tus":"b"}\n');
     expect(second.chunks).toEqual([{ status: "b" }]);
   });
 
-  it("bỏ qua dòng hỏng, không làm chết cả lượt tải", () => {
-    const r = takeLines('{"status":"a"}\nrác rưởi\n{"status":"b"}\n');
+  it("skips a broken line rather than killing the pull", () => {
+    const r = takeLines('{"status":"a"}\ngarbage\n{"status":"b"}\n');
     expect(r.chunks).toEqual([{ status: "a" }, { status: "b" }]);
   });
 
-  it("bỏ qua dòng trống", () => {
+  it("skips blank lines", () => {
     expect(takeLines('\n\n{"status":"a"}\n\n').chunks).toEqual([{ status: "a" }]);
   });
 });
@@ -40,19 +40,19 @@ describe("takeLines", () => {
 describe("reducePull", () => {
   const start = () => ({ p: newPullProgress("qwen3:14b"), layers: new Map<string, { completed: number; total: number }>() });
 
-  it("cộng tiến độ theo TỪNG LỚP, không nhảy lùi khi sang lớp mới", () => {
-    // Ollama đếm `completed` lại từ 0 cho mỗi lớp. Cộng dồn thẳng là thanh tiến
-    // độ tụt xuống mỗi lần sang lớp mới — nhìn như đang tải hỏng.
+  it("sums progress PER LAYER, no jumping backwards at a new layer", () => {
+    // Ollama restarts `completed` at 0 for each layer. Adding it straight up makes
+    // the bar drop at every new layer — it looks like the download broke.
     const { p, layers } = start();
     let s = reducePull(p, { status: "downloading", digest: "L1", total: 100, completed: 100 }, layers);
     expect(s.completedBytes).toBe(100);
 
     s = reducePull(s, { status: "downloading", digest: "L2", total: 200, completed: 10 }, layers);
-    expect(s.completedBytes).toBe(110); // KHÔNG phải 10
+    expect(s.completedBytes).toBe(110); // NOT 10
     expect(s.totalBytes).toBe(300);
   });
 
-  it("cập nhật lại cùng một lớp thì ĐÈ, không cộng thêm", () => {
+  it("a second update for the same layer REPLACES, does not add", () => {
     const { p, layers } = start();
     let s = reducePull(p, { digest: "L1", total: 100, completed: 30 }, layers);
     s = reducePull(s, { digest: "L1", total: 100, completed: 60 }, layers);
@@ -60,20 +60,20 @@ describe("reducePull", () => {
     expect(s.totalBytes).toBe(100);
   });
 
-  it('dòng "success" đánh dấu xong', () => {
+  it('a "success" line marks it done', () => {
     const { p, layers } = start();
     const s = reducePull(p, { status: "success" }, layers);
     expect(s.done).toBe(true);
     expect(s.finishedAt).not.toBeNull();
   });
 
-  it("lỗi thì dừng và giữ nguyên văn thông báo", () => {
+  it("an error stops it and keeps the message verbatim", () => {
     const { p, layers } = start();
     const s = reducePull(p, { error: "model not found" }, layers);
     expect(s).toMatchObject({ done: true, error: "model not found" });
   });
 
-  it("dòng không có digest chỉ đổi trạng thái, không đụng số byte", () => {
+  it("a line without a digest only changes status, leaves the byte count alone", () => {
     const { p, layers } = start();
     let s = reducePull(p, { digest: "L1", total: 100, completed: 50 }, layers);
     s = reducePull(s, { status: "verifying sha256 digest" }, layers);
@@ -81,7 +81,7 @@ describe("reducePull", () => {
     expect(s.completedBytes).toBe(50);
   });
 
-  it("chuỗi tiến độ thật chạy từ 0 tới xong", () => {
+  it("a real progress sequence runs from 0 to done", () => {
     const { p, layers } = start();
     const stream: PullChunk[] = [
       { status: "pulling manifest" },
@@ -102,24 +102,24 @@ describe("reducePull", () => {
 
 describe("isValidModelTag", () => {
   it.each(["qwen3", "qwen3:14b", "qwen3:14b-q4_K_M", "library/qwen3:8b", "bge-m3:latest"])(
-    "nhận %s",
+    "accepts %s",
     (tag) => expect(isValidModelTag(tag)).toBe(true),
   );
 
   it.each([
-    ["rỗng", ""],
-    ["có khoảng trắng", "qwen3 14b"],
-    ["thoát thư mục", "../../etc/passwd"],
-    ["chèn lệnh", "qwen3;rm -rf /"],
-    ["bắt đầu bằng dấu", "-qwen3"],
-    ["quá dài", "a".repeat(129)],
-  ])("từ chối %s", (_name, tag) => expect(isValidModelTag(tag)).toBe(false));
+    ["empty", ""],
+    ["contains whitespace", "qwen3 14b"],
+    ["path traversal", "../../etc/passwd"],
+    ["command injection", "qwen3;rm -rf /"],
+    ["starts with punctuation", "-qwen3"],
+    ["far too long", "a".repeat(129)],
+  ])("rejects %s", (_name, tag) => expect(isValidModelTag(tag)).toBe(false));
 });
 
-describe("tên model kéo từ Hugging Face", () => {
-  it("chấp nhận dạng hf.co/<kho>:<mức lượng tử hoá>", () => {
-    // Nếu luật này siết lại thì nút "Tải" ở mục Hugging Face gãy mà không có
-    // test nào khác bắt được.
+describe("model names pulled from Hugging Face", () => {
+  it("accepts the hf.co/<repo>:<quantisation> form", () => {
+    // Tighten this rule and the Hugging Face "Download" button breaks with no
+    // other test catching it.
     expect(isValidModelTag("hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M")).toBe(true);
     expect(isValidModelTag("hf.co/a/b:q4_k_m")).toBe(true);
   });

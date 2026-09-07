@@ -3,36 +3,38 @@ import { dirname, join, resolve } from "node:path";
 import { loadEnv } from "@audio/config";
 
 /**
- * Thư mục lưu trữ của driver local — CÙNG gốc mà worker ghi ra.
+ * The local driver's storage directory — the SAME root the worker writes to.
  *
- * Worker chạy ở `apps/worker` nên `STORAGE_LOCAL_DIR` (mặc định `./data/storage`)
- * được giải theo đó. API chạy ở `apps/api`, phải trỏ ngược lại cho khớp, nếu
- * không file tải lên qua API worker sẽ không tìm thấy lúc trộn.
+ * The worker runs in `apps/worker`, so `STORAGE_LOCAL_DIR` (default
+ * `./data/storage`) resolves against that. The API runs in `apps/api` and has to
+ * point back, or files uploaded through the API are missing when the worker
+ * mixes.
  */
 export function storageRoot(): string {
   return resolve(process.cwd(), "..", "worker", loadEnv().STORAGE_LOCAL_DIR);
 }
 
 /**
- * Ghi file vào kho local, trả về KHOÁ trong kho (không phải đường dẫn tuyệt đối).
+ * Write a file into local storage and return its KEY (not an absolute path).
  *
- * Khoá là thứ đem lưu vào DB: đổi tên thư mục dự án hay chuyển sang máy khác thì
- * khoá vẫn đúng, còn `file:///Users/...` thì hỏng sạch.
+ * The key is what goes into the DB: rename the project directory or move to
+ * another machine and the key still holds, whereas `file:///Users/...` breaks
+ * entirely.
  *
- * Chỉ dùng được với `STORAGE_DRIVER=local`. Với R2 thì Studio không có credential
- * (và cũng không nên có) — chỗ đó người dùng dán URL công khai vào thay vì tải lên.
+ * Only works with `STORAGE_DRIVER=local`. With R2, Studio has no credentials
+ * (and should not) — there the user pastes a public URL instead of uploading.
  */
 export async function putLocal(key: string, data: Buffer): Promise<string> {
   if (loadEnv().STORAGE_DRIVER !== "local") {
-    throw new Error("Chỉ tải file lên được khi STORAGE_DRIVER=local. Với R2 hãy dán URL công khai.");
+    throw new Error("Uploads only work with STORAGE_DRIVER=local. With R2, paste a public URL.");
   }
 
   const root = storageRoot();
   const path = join(root, key);
-  // Chốt chặn: `key` do người dùng gián tiếp quyết định (tên file), nên phải
-  // chắc chắn không thoát ra ngoài thư mục kho.
+  // Guard: `key` is indirectly chosen by the user (the filename), so make sure
+  // it cannot escape the storage directory.
   if (path !== root && !path.startsWith(root + "/")) {
-    throw new Error("Khoá lưu trữ không hợp lệ");
+    throw new Error("Invalid storage key");
   }
 
   await mkdir(dirname(path), { recursive: true });
@@ -40,7 +42,7 @@ export async function putLocal(key: string, data: Buffer): Promise<string> {
   return key;
 }
 
-/** Bỏ dấu và ký tự lạ khỏi tên file — ffmpeg và đường dẫn đỡ phải quote. */
+/** Strip accents and odd characters from a filename — less quoting for ffmpeg and paths. */
 export function safeFileName(name: string): string {
   const dot = name.lastIndexOf(".");
   const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
@@ -57,13 +59,14 @@ export function safeFileName(name: string): string {
 }
 
 /**
- * Xoá file trong kho theo KHOÁ. Không có file thì coi như xong.
+ * Delete a file from storage by KEY. A missing file counts as done.
  *
- * Bỏ qua mọi thứ không phải khoá local: `http(s)://` là ảnh bìa người dùng dán
- * vào, và với `STORAGE_DRIVER=r2` thì file không nằm trên đĩa này. Không có
- * chốt đó thì dọn dẹp sẽ ném lỗi giữa chừng và để lại một nửa đã xoá.
+ * Skips anything that is not a local key: `http(s)://` is cover art the user
+ * pasted, and with `STORAGE_DRIVER=r2` the file is not on this disk. Without
+ * that guard, cleanup throws midway and leaves half of it deleted.
  *
- * Trả về true nếu thật sự có xoá gì đó — để chỗ gọi đếm và báo lại cho người dùng.
+ * Returns true when something was actually removed — so the caller can count and
+ * report it.
  */
 export async function removeLocal(key: string): Promise<boolean> {
   if (!key || /^[a-z]+:\/\//i.test(key)) return false;
@@ -71,8 +74,8 @@ export async function removeLocal(key: string): Promise<boolean> {
 
   const root = storageRoot();
   const path = join(root, key);
-  // Cùng chốt chặn với `putLocal`: khoá tới từ DB, và một khoá hỏng không được
-  // phép xoá thứ nằm ngoài kho.
+  // Same guard as `putLocal`: keys come from the DB, and a broken one must not
+  // delete anything outside the store.
   if (path !== root && !path.startsWith(root + "/")) return false;
 
   await rm(path, { force: true });

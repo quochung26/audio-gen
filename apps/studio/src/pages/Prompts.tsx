@@ -96,7 +96,7 @@ export function Prompts() {
                 <input
                   name="genre"
                   list="genres-in-use"
-                  placeholder="kinh dị"
+                  placeholder="horror"
                   className="rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
                 />
               </label>

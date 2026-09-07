@@ -204,7 +204,7 @@ export function Episode() {
                       name="focus"
                       label="What this chapter is driving at"
                       hint="The question it has to answer, or the feeling it has to leave behind."
-                      placeholder="Tài has to choose: tell bà Tư the truth, or keep a promise to a dead man."
+                      placeholder="Sam has to choose: tell the widow the truth, or keep a promise to a dead man."
                       rows={2}
                       defaultValue={chapter.setup?.focus ?? ""}
                     />
@@ -219,14 +219,14 @@ export function Episode() {
                     <Field
                       name="mustHappen"
                       label="Must happen — one per line"
-                      placeholder={"Tài goes back to the Old Depot\nBà Tư says a name nobody has said yet"}
+                      placeholder={"Sam goes back to the Old Depot\nThe widow says a name nobody has said yet"}
                       rows={2}
                       defaultValue={(chapter.setup?.mustHappen ?? []).join("\n")}
                     />
                     <Field
                       name="constraints"
                       label="Not in this chapter — one per line"
-                      placeholder="Do not let ông Bảy appear"
+                      placeholder="Do not let the gatekeeper appear"
                       rows={2}
                       defaultValue={(chapter.setup?.constraints ?? []).join("\n")}
                     />
@@ -234,7 +234,7 @@ export function Episode() {
                       name="characters"
                       label="Character overrides — one person per line"
                       hint="Form: Name: what they wear | note. Overrides the Story Bible for this chapter."
-                      placeholder={"Tài: torn raincoat, rubber boots | left wrist bandaged\nBà Tư: brown áo bà ba"}
+                      placeholder={"Sam: torn raincoat, rubber boots | left wrist bandaged\nThe widow: brown work dress"}
                       rows={3}
                       defaultValue={renderOverrides(chapter.setup?.characters)}
                     />
@@ -305,7 +305,7 @@ export function Episode() {
                             name="characters"
                             label="Character overrides for this scene"
                             hint="Form: Name: what they wear | note. Overrides the chapter setup FIELD BY FIELD — only write what differs."
-                            placeholder="Tài: raincoat off"
+                            placeholder="Sam: raincoat off"
                             rows={2}
                             defaultValue={renderOverrides(scene.setup?.characters)}
                           />

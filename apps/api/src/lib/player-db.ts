@@ -2,15 +2,15 @@ import { playerDbIsSeparate } from "@audio/database";
 import { UserError } from "./http";
 
 /**
- * Bọc mọi truy vấn tới DB HOSTED.
+ * Wraps every query against the HOSTED database.
  *
- * DB local nằm cùng máy, DB hosted nằm ở đâu đó trên internet — nó tắt, mạng
- * rớt, hay đổi mật khẩu là chuyện sẽ xảy ra. Không bọc thì trang Bình luận và
- * trang Thống kê trả "Có lỗi không lường trước", đúng thứ thông báo vô dụng
- * nhất ở đúng lúc cần biết chuyện gì.
+ * The local DB is on this machine; the hosted one is somewhere on the internet —
+ * it going down, the network dropping, or a password changing will all happen.
+ * Unwrapped, the Comments and Stats pages return "something unexpected went
+ * wrong", the least useful message possible at the moment you most need to know.
  *
- * Đây là lỗi NGƯỜI DÙNG xử lý được (bật DB lên, sửa PLAYER_DATABASE_URL) nên
- * trả về 400 kèm lý do, không phải 500 giấu chi tiết.
+ * This is an error the USER can act on (start the DB, fix PLAYER_DATABASE_URL),
+ * so it returns 400 with the reason rather than a 500 that hides it.
  */
 export async function withPlayerDb<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -23,16 +23,16 @@ export async function withPlayerDb<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Nhận diện lỗi kết nối theo CỤM TỪ trong thông báo của Prisma.
+ * Recognise connection failures by PHRASE in Prisma's message.
  *
- * Hai chi tiết đã kiểm bằng cách gây lỗi thật (Prisma 6.19):
- * - `errorCode` KHÔNG được đặt trên PrismaClientInitializationError, nên bắt
- *   theo mã P1001… là bắt hụt.
- * - Nguyên nhân thật nằm ở CUỐI thông báo, sau một khối trích dẫn mã nguồn.
- *   Lấy dòng đầu ra câu "Invalid `...` invocation" chẳng nói gì.
+ * Two details verified by causing real failures (Prisma 6.19):
+ * - `errorCode` is NOT set on PrismaClientInitializationError, so matching on
+ *   P1001 and friends catches nothing.
+ * - The real cause is at the END of the message, after a source excerpt. Taking
+ *   the first line gives "Invalid `...` invocation", which says nothing.
  *
- * Và tuyệt đối không ném nguyên văn thông báo ra ngoài: khối trích dẫn mã nguồn
- * trong đó có thể chứa chuỗi kết nối kèm mật khẩu.
+ * And never surface the message verbatim: the source excerpt inside it can
+ * contain a connection string with a password.
  */
 function describe(err: unknown): string | null {
   const e = err as { name?: string; message?: string };
@@ -40,20 +40,20 @@ function describe(err: unknown): string | null {
 
   const where = playerDbIsSeparate
     ? "DB hosted (PLAYER_DATABASE_URL)"
-    : "DB (đang chạy chung một DB)";
+    : "the database (running on a single database)";
   const msg = e.message ?? "";
 
   if (msg.includes("Can't reach database server")) {
-    return `Không kết nối được ${where}. Nó đã chạy chưa, địa chỉ có đúng không?`;
+    return `Cannot reach ${where}. Is it running, and is the address right?`;
   }
   if (msg.includes("Authentication failed")) {
-    return `Sai tên đăng nhập hoặc mật khẩu cho ${where}.`;
+    return `Wrong username or password for ${where}.`;
   }
   if (msg.includes("does not exist")) {
-    return `${where} không tồn tại. Chạy \`pnpm db:push:player\` để tạo?`;
+    return `${where} does not exist. Run \`pnpm db:push:player\` to create it?`;
   }
   if (msg.includes("Timed out")) {
-    return `${where} không trả lời kịp.`;
+    return `${where} did not answer in time.`;
   }
-  return `Không dùng được ${where}. Xem log của API để biết chi tiết.`;
+  return `${where} is unusable. Check the API log for detail.`;
 }

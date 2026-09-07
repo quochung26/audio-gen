@@ -154,7 +154,7 @@ export function Characters() {
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-900 pt-3">
                 {/* Push the edit BACK to the library. A button, never automatic:
-                    "Tài now knows he was lied to" is true of the story being
+                    "Sam now knows he was lied to" is true of the story being
                     written and false of every other one. */}
                 <ActionButton path={`/api/series/${id}/characters/${c.id}/save-card`}>
                   {c.cardId ? "update card" : "save to library"}
@@ -228,7 +228,7 @@ function CharacterFields({ c }: { c?: Character }) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input name="name" label="Name" defaultValue={c?.name ?? ""} placeholder="Tài" />
+        <Input name="name" label="Name" defaultValue={c?.name ?? ""} placeholder="Sam" />
         <Input
           name="role"
           label="Role in the story"
@@ -251,7 +251,7 @@ function CharacterFields({ c }: { c?: Character }) {
         label="How they speak"
         hint="Rhythm, verbal habits, what they call people, what happens under stress. This keeps their DIALOGUE the same across dozens of episodes."
         defaultValue={c?.speech ?? ""}
-        placeholder="Says little, trails off mid-sentence. Calls passengers 'cô', 'chú'. When frightened, speaks fast and repeats himself."
+        placeholder="Says little, trails off mid-sentence. Calls passengers 'sir' and 'ma'am'. When frightened, speaks fast and repeats himself."
         rows={2}
       />
 
@@ -281,7 +281,7 @@ function CharacterFields({ c }: { c?: Character }) {
         }
         hint="Where they are, what they know, how relationships changed. The summary job updates this after each episode; edit by hand when the AI got it wrong."
         defaultValue={c?.state ?? ""}
-        placeholder="Staying at bà Tư's place out on Cồn Vắng. Now knows the bus was never his."
+        placeholder="Staying at the widow's place out past the old bridge. Now knows the bus was never his."
         rows={3}
       />
 

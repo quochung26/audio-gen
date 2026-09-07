@@ -9,26 +9,26 @@ import {
 } from "./openrouter";
 
 describe("pricePerMTok", () => {
-  it("đổi USD/token sang USD/triệu token", () => {
-    // 0.000003 USD/token = 3 USD cho 1 triệu token.
+  it("converts USD/token to USD/million tokens", () => {
+    // 0.000003 USD/token = 3 USD per million tokens.
     expect(pricePerMTok("0.000003")).toBeCloseTo(3, 6);
   });
 
-  it("giá 0 là 0 chứ KHÔNG phải 'không có giá'", () => {
-    // Nhầm hai cái này là model miễn phí hiện thành "chưa rõ giá".
+  it("a price of 0 is 0, NOT 'no price'", () => {
+    // Confuse the two and a free model shows up as "price unknown".
     expect(pricePerMTok("0")).toBe(0);
   });
 
-  it("thiếu hoặc hỏng thì trả null", () => {
+  it("missing or malformed returns null", () => {
     expect(pricePerMTok(undefined)).toBeNull();
     expect(pricePerMTok("")).toBeNull();
-    expect(pricePerMTok("miễn phí")).toBeNull();
+    expect(pricePerMTok("free")).toBeNull();
     expect(pricePerMTok("-1")).toBeNull();
   });
 });
 
 describe("toModelInfo", () => {
-  it("rút gọn một model", () => {
+  it("trims one model", () => {
     expect(
       toModelInfo({
         id: "anthropic/claude-sonnet-4.5",
@@ -46,7 +46,7 @@ describe("toModelInfo", () => {
     });
   });
 
-  it("chỉ gọi là miễn phí khi CẢ HAI đầu đều 0", () => {
+  it("only counts as free when BOTH ends are 0", () => {
     const halfFree = toModelInfo({ id: "a/b", pricing: { prompt: "0", completion: "0.000002" } });
     expect(halfFree?.free).toBe(false);
 
@@ -54,67 +54,67 @@ describe("toModelInfo", () => {
     expect(free?.free).toBe(true);
   });
 
-  it("giá không rõ thì không phải miễn phí", () => {
+  it("an unknown price is not free", () => {
     expect(toModelInfo({ id: "a/b" })?.free).toBe(false);
   });
 
-  it("thiếu id thì bỏ", () => {
-    expect(toModelInfo({ name: "vô danh" })).toBeNull();
+  it("drops an entry with no id", () => {
+    expect(toModelInfo({ name: "nameless" })).toBeNull();
   });
 
-  it("thiếu tên thì lấy id làm tên", () => {
+  it("falls back to the id when there is no name", () => {
     expect(toModelInfo({ id: "a/b" })?.name).toBe("a/b");
   });
 });
 
 describe("parseModelList", () => {
-  it("sắp xếp theo id và bỏ mục hỏng", () => {
-    const list = parseModelList({ data: [{ id: "z/b" }, { name: "hỏng" }, { id: "a/b" }] });
+  it("sorts by id and drops broken entries", () => {
+    const list = parseModelList({ data: [{ id: "z/b" }, { name: "broken" }, { id: "a/b" }] });
     expect(list.map((m) => m.id)).toEqual(["a/b", "z/b"]);
   });
 
-  it("thân lạ thì trả mảng rỗng, không ném lỗi", () => {
+  it("an odd body returns an empty array rather than throwing", () => {
     expect(parseModelList(null)).toEqual([]);
     expect(parseModelList({})).toEqual([]);
-    expect(parseModelList({ data: "không phải mảng" })).toEqual([]);
+    expect(parseModelList({ data: "not an array" })).toEqual([]);
   });
 });
 
 describe("parseKeyStatus", () => {
-  it("khoá có hạn mức", () => {
+  it("a key with a limit", () => {
     expect(
       parseKeyStatus({ data: { usage: 2.5, limit: 10, limit_remaining: 7.5, is_free_tier: false } }),
     ).toEqual({ usage: 2.5, limit: 10, remaining: 7.5, freeTier: false });
   });
 
-  it("tài khoản trả trước không có hạn mức thì remaining là null, KHÔNG phải NaN", () => {
-    // Tự tính `limit - usage` khi limit vắng mặt là ra NaN, rồi hiện "còn $NaN".
+  it("a prepaid account with no limit gives remaining null, NOT NaN", () => {
+    // Computing `limit - usage` with no limit gives NaN, then shows "$NaN left".
     const s = parseKeyStatus({ data: { usage: 2.5, limit: null } });
     expect(s.limit).toBeNull();
     expect(s.remaining).toBeNull();
   });
 
-  it("thiếu limit_remaining thì tự tính từ limit", () => {
+  it("computes from limit when limit_remaining is absent", () => {
     expect(parseKeyStatus({ data: { usage: 3, limit: 10 } }).remaining).toBe(7);
   });
 
-  it("thân rỗng không làm chết", () => {
+  it("an empty body does not blow up", () => {
     expect(parseKeyStatus(null)).toEqual({ usage: 0, limit: null, remaining: null, freeTier: false });
   });
 });
 
 describe("isValidOpenRouterModel", () => {
-  it("nhận tên thật", () => {
+  it("accepts real names", () => {
     expect(isValidOpenRouterModel("anthropic/claude-sonnet-4.5")).toBe(true);
     expect(isValidOpenRouterModel("meta-llama/llama-3.3-70b-instruct:free")).toBe(true);
     expect(isValidOpenRouterModel("openai/gpt-5")).toBe(true);
   });
 
-  it("từ chối tên thiếu nhà cung cấp", () => {
+  it("rejects a name with no provider", () => {
     expect(isValidOpenRouterModel("qwen3:14b")).toBe(false);
   });
 
-  it("chặn ký tự có thể chui ra khỏi đường dẫn", () => {
+  it("blocks characters that could escape the path", () => {
     expect(isValidOpenRouterModel("../../etc/passwd")).toBe(false);
     expect(isValidOpenRouterModel("a/b c")).toBe(false);
     expect(isValidOpenRouterModel("a/b?x=1")).toBe(false);
@@ -122,16 +122,16 @@ describe("isValidOpenRouterModel", () => {
     expect(isValidOpenRouterModel("")).toBe(false);
   });
 
-  it("chặn tên dài bất thường", () => {
+  it("blocks absurdly long names", () => {
     expect(isValidOpenRouterModel(`a/${"b".repeat(200)}`)).toBe(false);
   });
 });
 
 describe("averagePerEpisode", () => {
-  it("cộng theo TẬP trước rồi mới lấy trung bình", () => {
-    // Tập A gọi model 3 lần, tập B gọi 1 lần. Trung bình phải là trung bình của
-    // (300, 30) và (100, 10) — tức 200/20 — chứ không phải trung bình của bốn
-    // lượt gọi (150/15), vốn là giá của một CẢNH chứ không phải một TẬP.
+  it("sums PER EPISODE first, then averages", () => {
+    // Episode A calls the model 3 times, episode B once. The average has to be the
+    // average of (300, 30) and (100, 10) — 200/20 — not the average of the four
+    // calls (150/15), which is what a SCENE costs, not an EPISODE.
     const rows = [
       { episodeId: "A", inputTokens: 100, outputTokens: 10 },
       { episodeId: "A", inputTokens: 100, outputTokens: 10 },
@@ -141,7 +141,7 @@ describe("averagePerEpisode", () => {
     expect(averagePerEpisode(rows)).toEqual({ episodes: 2, inputTokens: 200, outputTokens: 20 });
   });
 
-  it("bỏ qua lượt chạy không gắn với tập nào", () => {
+  it("ignores runs not attached to any episode", () => {
     const r = averagePerEpisode([
       { episodeId: null, inputTokens: 9999, outputTokens: 9999 },
       { episodeId: "A", inputTokens: 100, outputTokens: 10 },
@@ -149,8 +149,8 @@ describe("averagePerEpisode", () => {
     expect(r).toEqual({ episodes: 1, inputTokens: 100, outputTokens: 10 });
   });
 
-  it("chưa có dữ liệu thì trả null, KHÔNG phải số 0", () => {
-    // Hiện "0 đồng một tập" còn tệ hơn không hiện gì.
+  it("no data yet returns null, NOT 0", () => {
+    // Showing "$0 an episode" is worse than showing nothing.
     expect(averagePerEpisode([])).toBeNull();
     expect(averagePerEpisode([{ episodeId: null, inputTokens: 5, outputTokens: 5 }])).toBeNull();
   });

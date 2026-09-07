@@ -1,27 +1,27 @@
 /**
- * Tải model GGUF thẳng từ Hugging Face.
+ * Pull GGUF models straight from Hugging Face.
  *
- * Ollama kéo được từ HF bằng tên dạng `hf.co/{user}/{repo}:{QUANT}`, nên phần
- * việc ở đây chỉ là: bóc tên kho từ đường dẫn người dùng dán vào, liệt kê các
- * bản lượng tử hoá có trong kho, rồi ghép lại thành tên mà Ollama hiểu.
+ * Ollama can pull from HF given a name shaped `hf.co/{user}/{repo}:{QUANT}`, so
+ * the work here is only: peel the repo out of whatever URL the user pasted, list
+ * the quantisations the repo holds, then reassemble a name Ollama understands.
  */
 
 /**
- * Bóc "user/repo" từ thứ người dùng dán vào.
+ * Peel "user/repo" out of whatever the user pasted.
  *
- * Nhận cả đường dẫn đầy đủ lẫn dạng rút gọn, vì dán từ thanh địa chỉ thì thường
- * kèm `/tree/main` và tham số truy vấn.
+ * Accepts both a full URL and the short form, because a paste from the address
+ * bar usually carries `/tree/main` and a query string.
  */
 export function parseHfRepo(input: string): string | null {
   let text = input.trim();
   if (!text) return null;
 
-  // Bỏ giao thức và tên miền nếu có.
+  // Drop the protocol and host if present.
   text = text.replace(/^https?:\/\//i, "");
   text = text.replace(/^(?:www\.)?(?:huggingface\.co|hf\.co)\//i, "");
-  // Bỏ tham số truy vấn và neo.
+  // Drop the query string and fragment.
   text = text.split(/[?#]/)[0]!;
-  // Bỏ phần điều hướng trong kho: /tree/main, /blob/main/abc.gguf, /resolve/…
+  // Drop in-repo navigation: /tree/main, /blob/main/abc.gguf, /resolve/…
   text = text.replace(/\/(tree|blob|resolve|raw)\/.*$/i, "");
   text = text.replace(/\/+$/, "");
 
@@ -37,15 +37,15 @@ export function parseHfRepo(input: string): string | null {
 }
 
 /**
- * Đọc mức lượng tử hoá từ tên file.
+ * Read the quantisation out of a file name.
  *
- * Tên file GGUF trên HF không theo một chuẩn nào: có kho viết `Q4_K_M`, có kho
- * viết `q4_k_m`, có kho ngăn bằng dấu chấm thay vì gạch ngang. Nên tìm theo
- * mẫu ở bất cứ đâu trong tên chứ không cắt theo vị trí.
+ * GGUF file names on HF follow no standard: some repos write `Q4_K_M`, some
+ * `q4_k_m`, some separate with dots instead of dashes. So match a pattern
+ * anywhere in the name rather than slicing by position.
  *
- * Nhờ tìm theo mẫu mà không phải xử riêng file chia nhiều phần
- * ("…-Q4_K_M-00001-of-00009.gguf"): số thứ tự không khớp mẫu nên bị bỏ qua, và
- * các phần tự gom về cùng một bản vì cùng mức lượng tử hoá.
+ * Matching a pattern is also why split files need no special handling
+ * ("…-Q4_K_M-00001-of-00009.gguf"): the part numbers do not match the pattern so
+ * they are ignored, and the parts group themselves under one quantisation.
  */
 export function quantFromFilename(filename: string): string | null {
   const base = filename.split("/").pop() ?? filename;
@@ -64,20 +64,20 @@ export interface HfFile {
 }
 
 export interface QuantVariant {
-  /** Đúng chuỗi trong tên file — Ollama đối chiếu với nó. */
+  /** Exactly the string in the file name — Ollama matches against it. */
   quant: string;
-  /** Tổng dung lượng, cộng cả các phần nếu file bị chia nhỏ. */
+  /** Total size, summed across the parts when the file is split. */
   sizeBytes: number;
-  /** Số file — lớn hơn 1 nghĩa là bản này bị chia nhiều phần. */
+  /** File count — more than 1 means this one is split into parts. */
   parts: number;
 }
 
 /**
- * Gom file GGUF trong kho thành danh sách bản lượng tử hoá.
+ * Group a repo's GGUF files into a list of quantisations.
  *
- * Cộng dung lượng theo bản chứ không theo file: model lớn hay bị chia thành
- * chục phần, hiện dung lượng từng phần thì không ai ước lượng được phải tải
- * bao nhiêu.
+ * Sizes are summed per quantisation rather than per file: large models are often
+ * split into a dozen parts, and showing each part's size tells nobody how much
+ * they are about to download.
  */
 export function collectQuantVariants(files: HfFile[]): QuantVariant[] {
   const byQuant = new Map<string, QuantVariant>();
@@ -97,11 +97,11 @@ export function collectQuantVariants(files: HfFile[]): QuantVariant[] {
     }
   }
 
-  // Nhẹ lên trước: bản nhẹ nhất thường là bản người ta thử đầu tiên.
+  // Smallest first: the lightest build is usually the one people try first.
   return [...byQuant.values()].sort((a, b) => a.sizeBytes - b.sizeBytes);
 }
 
-/** Tên mà `ollama pull` hiểu. */
+/** The name `ollama pull` understands. */
 export function hfPullTag(repo: string, quant: string): string {
   return `hf.co/${repo}:${quant}`;
 }

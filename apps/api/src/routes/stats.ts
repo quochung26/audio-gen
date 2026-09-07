@@ -5,15 +5,16 @@ import { withPlayerDb } from "../lib/player-db";
 export const stats = new Hono();
 
 /**
- * Thống kê người nghe — đọc THẲNG DB hosted, không sao chép về local.
+ * Listener stats — read STRAIGHT from the hosted DB, never copied locally.
  *
- * Sao chép về sẽ tạo hai bản sao của cùng một sự thật: người ta bình luận lúc
- * bạn đang ngủ, bạn duyệt ở bản local, bản hosted không biết — rồi đồng bộ theo
- * hướng nào? Đọc thẳng thì Studio luôn thấy đúng thứ người nghe đang thấy.
+ * Copying would create two copies of one truth: someone comments while you
+ * sleep, you approve on the local copy, the hosted one does not know — and then
+ * which way does it sync? Reading directly means Studio always sees what
+ * listeners see.
  *
- * ⚠️ Chỉ đếm được người ĐÃ ĐĂNG NHẬP. Người nghe không đăng nhập chỉ lưu vị trí
- * trong localStorage của máy họ, máy chủ không hề biết. Con số ở đây là sàn
- * dưới, không phải tổng lượt nghe.
+ * ⚠️ Only counts SIGNED-IN listeners. Anyone else keeps their position in their
+ * own browser's localStorage and the server never learns it. These numbers are a
+ * floor, not total plays.
  */
 stats.get("/", async (c) =>
   withPlayerDb(async () => {
@@ -46,7 +47,7 @@ stats.get("/", async (c) =>
           ...e,
           publishedAt: e.publishedAt?.toISOString() ?? null,
           listeners: 0,
-          /** Nghe được bao nhiêu phần trăm, trung bình trên những người đã bắt đầu. */
+          /** Percentage of the episode reached, averaged over everyone who started. */
           avgCompletion: 0,
           finished: 0,
           rating: null as number | null,
@@ -58,8 +59,8 @@ stats.get("/", async (c) =>
       ]),
     );
 
-    // Tính phần trăm nghe được. Tập chưa có durationMs thì bỏ qua chứ không
-    // chia cho 0 — ra Infinity rồi hiện "Infinity%".
+    // Compute the listened percentage. Skip episodes with no durationMs rather
+    // than dividing by zero — that yields Infinity and renders as "Infinity%".
     const sumCompletion = new Map<string, number>();
     for (const p of progress) {
       const e = byEpisode.get(p.episodeId);
