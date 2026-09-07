@@ -1,10 +1,11 @@
 import { playableUrl } from "@/lib/audio-url";
 
 /**
- * Ảnh bìa bộ truyện.
+ * A story's cover art.
  *
- * Chưa có bìa thì vẽ một ô rỗng CÙNG KÍCH THƯỚC chứ không bỏ trống — thiếu ảnh
- * mà layout co lại thì danh sách nhảy loạn khi vài bộ có bìa vài bộ không.
+ * With no cover it draws an empty box of the SAME SIZE rather than nothing — a missing
+ * image collapsing the layout makes the list jump around when some stories have art and
+ * others do not.
  */
 export function Cover({ src, size }: { src: string | null; size: number }) {
   const style = { width: size, height: size };

@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 /**
- * Lọc theo thể loại.
+ * Filter by genre.
  *
- * Dùng query string chứ không phải state trong React: lọc xong gửi link cho
- * người khác thì họ mở ra thấy đúng thứ mình đang xem, và nút Back của trình
- * duyệt hoạt động như người ta mong đợi.
+ * Uses the query string rather than React state: sending someone the link after filtering
+ * shows them what you were looking at, and the browser's Back button behaves the way people
+ * expect.
  */
 export function GenreFilter({ genres }: { genres: string[] }) {
   const current = useSearchParams().get("the-loai");

@@ -64,8 +64,8 @@ export default async function ListenPage({
       : null,
   ]);
 
-  // Chỉ bình luận ĐÃ DUYỆT mới hiện. Người gửi cũng không thấy bình luận của
-  // chính mình cho tới khi duyệt — thấy nó thì tưởng đã công khai rồi.
+  // Only APPROVED comments appear. The author does not see their own until it is approved
+  // either — seeing it would suggest it is already public.
   const comments = await prisma.comment.findMany({
     where: { episodeId: id, status: "APPROVED" },
     orderBy: { createdAt: "desc" },
@@ -86,8 +86,8 @@ export default async function ListenPage({
     src: playableUrl(episode.exports[0].url),
     durationMs: episode.durationMs ?? 0,
     coverUrl: episode.series.coverUrl ? playableUrl(episode.series.coverUrl) : undefined,
-    // Vị trí đã lưu ở máy chủ. Trình duyệt so với vị trí trong localStorage rồi
-    // lấy cái xa hơn — nghe ở máy khác xong quay lại thì không bị lùi.
+    // The position saved on the server. The browser compares it with the localStorage one
+    // and takes whichever is further — coming back from another device does not rewind.
     serverPositionMs: progress?.positionMs,
     nextEpisodeId: next?.id,
   };

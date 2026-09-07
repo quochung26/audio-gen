@@ -9,12 +9,12 @@ import { Row, SeriesCard, type SeriesCardData } from "@/components/SeriesCard";
 export const dynamic = "force-dynamic";
 
 /**
- * Bao nhiêu tập được gửi xuống trình duyệt cho mục "Tiếp tục nghe".
+ * How many episodes are sent to the browser for "Continue listening".
  *
- * Vị trí nghe nằm trong localStorage nên máy chủ không biết nghe dở tập nào —
- * đành gửi một danh sách rồi lọc ở phía trình duyệt. Trần này giữ cho trang
- * không phình khi bộ sưu tập lớn dần; nghe dở một tập cũ hơn 200 tập gần nhất
- * là chuyện hiếm.
+ * The listening position lives in localStorage, so the server does not know which episode
+ * is partway through — it has to send a list and let the browser filter. This ceiling keeps
+ * the page from bloating as the collection grows; being partway through an episode older
+ * than the last 200 is rare.
  */
 const RESUMABLE_LIMIT = 200;
 
@@ -158,7 +158,7 @@ export default async function HomePage({
   );
 }
 
-/** Bộ được đưa lên đầu — bộ có cập nhật gần nhất. */
+/** The story featured at the top — the one most recently updated. */
 function Banner({ s }: { s: SeriesCardData }) {
   return (
     <Link

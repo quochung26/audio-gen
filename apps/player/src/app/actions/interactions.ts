@@ -14,17 +14,17 @@ export interface InteractionState {
   ok?: string;
 }
 
-/** Ai đang đăng nhập. Null nghĩa là chưa — mọi thao tác dưới đây đều cần. */
+/** Who is signed in. Null means nobody — every action below requires it. */
 async function currentUserId(): Promise<string | null> {
   const session = await auth();
   return session?.user?.id ?? null;
 }
 
 /**
- * Chỉ cho thao tác trên tập ĐÃ XUẤT BẢN.
+ * Only allows actions on a PUBLISHED episode.
  *
- * Không kiểm thì người ta gửi id bất kỳ và tạo được yêu thích/đánh giá cho tập
- * chưa phát hành — vừa lộ có tập đó tồn tại, vừa làm bẩn số liệu.
+ * Without the check, anyone could send an arbitrary id and create a favourite or rating for
+ * an unreleased episode — revealing that it exists and polluting the numbers.
  */
 async function assertPublished(episodeId: string): Promise<boolean> {
   const ep = await prismaPlayer.episode.findUnique({
@@ -71,7 +71,7 @@ export async function rateEpisode(
   }
   if (!(await assertPublished(episodeId))) return { error: "Không tìm thấy tập này." };
 
-  // Upsert: đánh giá lại thì ĐÈ lên điểm cũ, không cộng thêm một phiếu.
+  // Upsert: rating again OVERWRITES the old score rather than adding a second vote.
   await prismaPlayer.rating.upsert({
     where: { userId_episodeId: { userId, episodeId } },
     create: { userId, episodeId, score },
@@ -83,13 +83,13 @@ export async function rateEpisode(
 }
 
 /**
- * Gửi bình luận.
+ * Post a comment.
  *
- * Vào hàng CHỜ DUYỆT, không hiện ngay. Đây là lựa chọn có ý thức: trang này
- * chưa có ai trực để dọn spam theo giờ, mà bình luận hiện ngay trên một trang
- * công khai là mời spam và nội dung bẩn. Duyệt ở Studio.
+ * It goes into a MODERATION queue rather than appearing immediately. A deliberate choice:
+ * nobody is on duty to clear spam hourly, and comments appearing instantly on a public page
+ * invite spam and abuse. Approved in Studio.
  *
- * `timestampMs` để bình luận neo vào một mốc trong tập — "đoạn 12:30 nghe rợn".
+ * `timestampMs` anchors a comment to a moment in the episode — "12:30 is chilling".
  */
 export async function addComment(
   episodeId: string,
@@ -106,8 +106,8 @@ export async function addComment(
   }
   if (!(await assertPublished(episodeId))) return { error: "Không tìm thấy tập này." };
 
-  // Chặn gửi liên tiếp. Không có thì một người dán được hàng trăm bình luận
-  // vào hàng chờ và người duyệt phải dọn tay từng cái.
+  // Rate-limits posting. Without it one person could drop hundreds of comments into the
+  // queue and a moderator would have to clear each by hand.
   const last = await prismaPlayer.comment.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -129,13 +129,13 @@ export async function addComment(
 }
 
 /**
- * Lưu vị trí nghe lên máy chủ — đây là lý do chính để đăng nhập.
+ * Save the listening position to the server — the main reason to sign in.
  *
- * Chưa đăng nhập thì bỏ qua lặng lẽ, KHÔNG báo lỗi: hàm này chạy nền mỗi 15
- * giây, báo lỗi thì người chưa đăng nhập bị làm phiền vì một thứ họ không yêu cầu.
+ * Signed out, it skips silently and does NOT raise an error: this runs in the background
+ * every 15 seconds, and an error would pester a signed-out listener about something they
+ * never asked for.
  *
- * Không `revalidatePath`: nó chạy trong lúc đang phát, làm mới trang là ngắt
- * tiếng.
+ * No `revalidatePath`: it runs during playback, and refreshing the page cuts the audio.
  */
 export async function saveProgress(episodeId: string, positionMs: number): Promise<void> {
   const userId = await currentUserId();

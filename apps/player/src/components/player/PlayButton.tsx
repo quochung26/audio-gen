@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { getSavedPosition, usePlayer, type Track } from "./PlayerProvider";
 
 /**
- * Nút phát cho một tập. Tự phát ngay nếu URL có `?autoplay=1` — dùng khi
- * chuyển sang tập tiếp theo.
+ * The play button for one episode. Starts immediately when the URL carries `?autoplay=1` —
+ * used when moving to the next episode.
  */
 export function PlayButton({
   track,
@@ -21,7 +21,7 @@ export function PlayButton({
 
   useEffect(() => {
     if (autoplay) p.play(track);
-    // Chỉ chạy một lần khi vào trang có autoplay.
+    // Runs once on arriving at a page with autoplay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

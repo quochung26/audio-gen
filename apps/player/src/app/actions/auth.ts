@@ -11,11 +11,11 @@ export interface AuthState {
 }
 
 /**
- * Đăng ký bằng email + mật khẩu.
+ * Sign up with email + password.
  *
- * KHÔNG tiết lộ email đã tồn tại hay chưa qua thông báo khác nhau — làm vậy là
- * cho người ngoài dò danh sách người dùng. Trùng email thì báo chung chung và
- * gợi ý đăng nhập.
+ * Does NOT reveal whether an email already exists through a different message — doing so
+ * lets an outsider enumerate the user list. A duplicate gets a generic message suggesting
+ * signing in.
  */
 export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -26,7 +26,7 @@ export async function register(_prev: AuthState, formData: FormData): Promise<Au
   if (password.length < MIN_PASSWORD_LENGTH) {
     return { error: `Mật khẩu phải từ ${MIN_PASSWORD_LENGTH} ký tự trở lên` };
   }
-  // Đăng ký cũng tốn một lần băm, nên cũng phải giới hạn.
+  // Signing up also costs one hash, so it needs the same rate limit.
   if (!checkRateLimit(`register:${email}`).allowed) {
     return { error: "Thử quá nhiều lần. Đợi ít phút rồi thử lại." };
   }
@@ -56,8 +56,8 @@ export async function loginWithPassword(
     });
     return {};
   } catch (err) {
-    // `signIn` chuyển hướng bằng cách NÉM một lỗi đặc biệt — bắt hết là chặn
-    // luôn đường thành công. Chỉ xử lý lỗi xác thực thật.
+    // `signIn` redirects by THROWING a special error — catching everything would block the
+    // success path too. Only real authentication errors are handled.
     if (err instanceof AuthError) {
       return { error: "Email hoặc mật khẩu không đúng." };
     }

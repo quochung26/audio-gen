@@ -6,22 +6,22 @@ import { parseRange } from "@/lib/range";
 import type { NextRequest } from "next/server";
 
 /**
- * Phục vụ file audio từ đĩa cho trình duyệt và app podcast.
+ * Serve audio files from disk to browsers and podcast apps.
  *
- * Cần vì driver lưu trữ local không có URL http. Với driver R2 thì URL công
- * khai dùng trực tiếp, không qua route này.
+ * Needed because the local storage driver has no http URL. With the R2 driver the public
+ * URL is used directly and never goes through this route.
  *
- * Hai tham số:
- * - `key`  — khoá trong kho ("series/abc/episodes/x.mp3"). Đây là dạng hiện tại.
- * - `path` — đường dẫn tuyệt đối. Dạng CŨ, chỉ còn để dữ liệu ghi trước khi
- *            chuyển sang lưu khoá vẫn nghe được.
+ * Two parameters:
+ * - `key`  — the store key ("series/abc/episodes/x.mp3"). The current form.
+ * - `path` — an absolute path. The OLD form, kept only so data written before the switch to
+ *            keys is still playable.
  *
- * Có hỗ trợ `Range`: app podcast và thanh tua của trình duyệt cần nó để nhảy
- * tới giữa file. Không có thì mỗi lần tua là tải lại từ đầu — với tập 30 phút
- * thì gần như không dùng được.
+ * Supports `Range`: podcast apps and the browser's seek bar need it to jump into the middle
+ * of a file. Without it every seek re-downloads from the start — nearly unusable for a
+ * 30-minute episode.
  *
- * ⚠️ Cả hai tham số đều đọc file theo query nên PHẢI chặn path traversal —
- * chỉ cho phép đọc trong đúng thư mục lưu trữ đã cấu hình.
+ * ⚠️ Both parameters read a file from the query string, so path traversal MUST be blocked —
+ * only the configured storage directory may be read.
  */
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const root = storageRoot();
   const target = key ? resolve(join(root, key)) : resolve(legacyPath!);
 
-  // Chốt chặn: đường dẫn đã giải phải nằm trong thư mục lưu trữ.
+  // The gate: the resolved path has to sit inside the storage directory.
   if (target !== root && !target.startsWith(root + "/")) {
     return new Response("đường dẫn ngoài thư mục lưu trữ", { status: 403 });
   }
@@ -102,7 +102,7 @@ function contentType(path: string): string {
     ogg: "audio/ogg",
     opus: "audio/ogg",
     flac: "audio/flac",
-    // Ảnh bìa cũng nằm trong kho và đi qua đúng route này.
+    // Cover art also lives in the store and goes through this same route.
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
     png: "image/png",

@@ -18,7 +18,7 @@ export async function generateMetadata({
   return {
     title: s.title,
     description: s.description ?? undefined,
-    // Để trình duyệt và công cụ podcast tự tìm ra feed.
+    // So browsers and podcast tools discover the feed on their own.
     alternates: { types: { "application/rss+xml": `/truyen/${s.slug}/rss.xml` } },
   };
 }

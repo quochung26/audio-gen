@@ -1,13 +1,13 @@
 /**
- * Khoá cache cho một file audio.
+ * The cache key for one audio file.
  *
- * Bỏ mọi tham số trừ `key`/`path`: trình duyệt gửi kèm `Range` và đôi khi thêm
- * tham số khi tua, nên lấy nguyên URL làm khoá thì lần tua thứ hai coi như chưa
- * tải về.
+ * Drops every parameter but `key`/`path`: the browser sends `Range` along and sometimes
+ * adds parameters when seeking, so using the whole URL as the key makes the second seek
+ * look like nothing was downloaded.
  *
- * ⚠️ `public/sw.js` có bản sao của hàm này (`audioKey`) vì service worker không
- * import được module của app. Sửa một bên PHẢI sửa bên kia — lệch nhau thì tải
- * xong vẫn báo chưa tải, và không có gì báo lỗi.
+ * ⚠️ `public/sw.js` carries a copy of this function (`audioKey`) because a service worker
+ * cannot import the app's modules. Change one and you MUST change the other — out of sync,
+ * a completed download still reports as not downloaded, with no error to say so.
  */
 export function audioCacheKey(src: string, origin: string): string {
   const url = new URL(src, origin);

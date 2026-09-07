@@ -18,11 +18,11 @@ export interface Track {
   seriesSlug: string;
   src: string;
   durationMs: number;
-  /** URL ảnh bìa, để hiện trên màn hình khoá. */
+  /** The cover image URL, for the lock screen. */
   coverUrl?: string;
-  /** Vị trí đã lưu ở máy chủ (chỉ có khi đã đăng nhập). */
+  /** The position saved on the server (only when signed in). */
   serverPositionMs?: number;
-  /** Tập kế tiếp, để tự phát tiếp. */
+  /** The next episode, for autoplay. */
   nextEpisodeId?: string;
 }
 
@@ -32,7 +32,7 @@ interface PlayerState {
   positionMs: number;
   durationMs: number;
   rate: number;
-  /** Mốc thời gian (epoch ms) sẽ tự dừng; null = không hẹn giờ. */
+  /** The epoch-ms timestamp to stop at; null = no timer. */
   sleepAt: number | null;
   play: (t: Track) => void;
   toggle: () => void;
@@ -44,7 +44,7 @@ interface PlayerState {
 
 const Ctx = createContext<PlayerState | null>(null);
 
-/** Nhớ vị trí nghe theo tập. localStorage đủ dùng — chưa cần tài khoản. */
+/** Remembers the listening position per episode. localStorage is enough — no account needed yet. */
 const POS_KEY = "audio-truyen:pos";
 const RATE_KEY = "audio-truyen:rate";
 
@@ -70,8 +70,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [rate, setRateState] = useState(1);
   const [sleepAt, setSleepAt] = useState<number | null>(null);
 
-  // Tạo thẻ audio một lần và giữ ngoài React tree: nếu để trong JSX thì mỗi
-  // lần điều hướng trang là component remount và nhạc đứt.
+  // The audio element is created once and kept outside the React tree: inside JSX, every
+  // navigation would remount the component and cut the audio off.
   useEffect(() => {
     const el = new Audio();
     el.preload = "metadata";
@@ -102,7 +102,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Lưu vị trí mỗi 5 giây, không lưu mỗi timeupdate (bắn ~4 lần/giây).
+  // Saves the position every 5 seconds rather than on every timeupdate (which fires ~4×/second).
   useEffect(() => {
     if (!track) return;
     const id = setInterval(() => {
@@ -115,13 +115,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [track]);
 
-  // Đồng bộ lên máy chủ THƯA hơn nhiều — mỗi 15 giây thay vì 5.
+  // Syncing to the server is far LESS frequent — every 15 seconds rather than 5.
   //
-  // localStorage ghi là xong; gửi lên máy chủ là một lượt mạng cộng một lượt
-  // ghi DB. Nghe một tập 20 phút mà gửi mỗi 5 giây là 240 lượt cho một người.
-  // Sai lệch 15 giây khi đổi máy không ai để ý.
+  // A localStorage write is done and dusted; sending to the server is a network round trip
+  // plus a DB write. Listening to a 20-minute episode at every 5 seconds is 240 requests for
+  // one person. A 15-second discrepancy when switching devices is unnoticeable.
   //
-  // Chưa đăng nhập thì `saveProgress` tự bỏ qua, ở đây không cần biết.
+  // Signed out, `saveProgress` skips itself, so this does not have to know.
   useEffect(() => {
     if (!track) return;
     const id = setInterval(() => {
@@ -132,7 +132,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [track]);
 
-  // Hẹn giờ tắt — thứ quan trọng nhất với truyện nghe trước khi ngủ.
+  // The sleep timer — the most important feature for stories listened to before bed.
   useEffect(() => {
     if (sleepAt === null) return;
     const id = setInterval(() => {
@@ -155,19 +155,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     setTrack(t);
     el.src = t.src;
-    // Lấy vị trí XA HƠN giữa máy này và máy chủ. Nghe tiếp ở điện thoại rồi
-    // quay lại laptop mà lấy vị trí của laptop là bị lùi lại chỗ cũ.
+    // Takes the FURTHER of this device's position and the server's. Carrying on from a phone
+    // and then returning to a laptop, taking the laptop's would rewind to the old spot.
     el.currentTime = Math.max(getSavedPosition(t.episodeId), t.serverPositionMs ?? 0) / 1000;
     void el.play();
 
-    // Điều khiển từ màn hình khoá / tai nghe.
+    // Controls from the lock screen / headphones.
     if ("mediaSession" in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: t.title,
         artist: t.seriesTitle,
         album: "Audio Truyện",
-        // Ảnh hiện trên màn hình khoá và tai nghe. Không có bìa thì bỏ hẳn —
-        // đưa mảng rỗng thì một số máy hiện ô xám thay vì icon app.
+        // The image on the lock screen and on headphones. With no cover, drop it entirely —
+        // an empty array makes some devices show a grey box instead of the app icon.
         ...(t.coverUrl ? { artwork: [{ src: t.coverUrl }] } : {}),
       });
       navigator.mediaSession.setActionHandler("play", () => void el.play());
@@ -181,7 +181,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [track]);
 
-  // Tự phát tập tiếp theo khi hết tập — trừ khi đang hẹn giờ tắt.
+  // Autoplays the next episode at the end — unless a sleep timer is running.
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !track) return;

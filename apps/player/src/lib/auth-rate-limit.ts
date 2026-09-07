@@ -1,18 +1,18 @@
 /**
- * Giới hạn số lần thử đăng nhập.
+ * Rate-limit sign-in attempts.
  *
- * Cần vì hai lẽ, và lẽ thứ hai mới là lẽ nặng:
- *  1. Chặn dò mật khẩu.
- *  2. Mỗi lần kiểm mật khẩu tốn ~270 ms và ~64 MB (scrypt cố tình vậy). Không
- *     giới hạn thì gửi liên tục là làm sập máy chủ mà chẳng cần đoán đúng gì.
+ * Needed for two reasons, and the second is the heavier one:
+ *  1. It blocks password guessing.
+ *  2. Each password check costs ~270 ms and ~64 MB (scrypt is deliberately that way).
+ *     Unlimited, a stream of attempts brings the server down without guessing anything.
  *
- * Đếm trong BỘ NHỚ tiến trình: đủ cho một máy chủ, và không cần thêm hạ tầng.
- * Chạy nhiều tiến trình thì mỗi tiến trình đếm riêng — vẫn chặn được dò mật
- * khẩu, chỉ là ngưỡng thực tế nhân lên theo số tiến trình.
+ * Counted in the process's MEMORY: enough for one server, and it adds no infrastructure.
+ * Across several processes each counts its own — password guessing is still blocked, the
+ * effective threshold is just multiplied by the process count.
  */
 export interface RateLimitResult {
   allowed: boolean;
-  /** Còn bao nhiêu giây nữa mới thử lại được. */
+  /** How many seconds until another attempt is allowed. */
   retryAfterSec: number;
 }
 
@@ -42,23 +42,23 @@ export function checkRateLimit(key: string, now = Date.now()): RateLimitResult {
   return { allowed: true, retryAfterSec: 0 };
 }
 
-/** Đăng nhập ĐÚNG thì xoá bộ đếm — người gõ nhầm vài lần rồi nhớ ra không bị phạt. */
+/** A SUCCESSFUL sign-in clears the counter — someone who mistyped a few times is not punished. */
 export function clearRateLimit(key: string): void {
   buckets.delete(key);
 }
 
 /**
- * Dọn các ô đã hết hạn.
+ * Sweep the expired entries.
  *
- * Không có bước này thì Map phình mãi theo số email từng thử — một cách làm
- * cạn bộ nhớ chậm rãi mà không ai để ý.
+ * Without this the Map grows forever with every email ever tried — a slow memory leak that
+ * nobody notices.
  */
 function sweep(now: number): void {
   if (buckets.size < 1000) return;
   for (const [k, b] of buckets) if (now >= b.resetAt) buckets.delete(k);
 }
 
-/** Chỉ dùng trong test. */
+/** Test use only. */
 export function __resetRateLimit(): void {
   buckets.clear();
 }

@@ -33,10 +33,10 @@ export function SeriesCard({ s }: { s: SeriesCardData }) {
 }
 
 /**
- * Hàng ngang cuộn được.
+ * A horizontally scrollable row.
  *
- * Cuộn ngang thay vì lưới: trên điện thoại một hàng chỉ vừa hai thẻ, mà xếp
- * lưới thì mỗi mục chiếm cả màn hình và phải cuộn dọc rất dài mới thấy hết.
+ * Horizontal scrolling rather than a grid: on a phone a row fits only two cards, while a
+ * grid gives each item the whole screen and requires a very long vertical scroll.
  */
 export function Row({
   title,

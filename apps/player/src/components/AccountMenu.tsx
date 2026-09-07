@@ -3,10 +3,10 @@ import { auth } from "@/auth";
 import { logout } from "@/app/actions/auth";
 
 /**
- * Góc tài khoản.
+ * The account corner.
  *
- * Chưa đăng nhập thì chỉ hiện một liên kết nhỏ — đăng nhập là TUỲ CHỌN, không
- * phải cổng vào. Ai không muốn tài khoản vẫn nghe được đầy đủ.
+ * Signed out it shows only a small link — signing in is OPTIONAL, not a gate. Anyone who
+ * does not want an account can still listen to everything.
  */
 export async function AccountMenu() {
   const session = await auth();

@@ -22,8 +22,8 @@ export default async function FavoritesPage() {
     },
   });
 
-  // Tập bị gỡ xuất bản thì không hiện — nhưng GIỮ bản ghi yêu thích, xuất bản
-  // lại là thấy ngay. Xoá đi thì người ta mất danh sách vì lý do chẳng liên quan.
+  // An unpublished episode is hidden — but the favourite record is KEPT, so republishing
+  // brings it straight back. Deleting it would lose someone's list for an unrelated reason.
   const visible = favorites.filter((f) => f.episode.status === "PUBLISHED");
 
   return (

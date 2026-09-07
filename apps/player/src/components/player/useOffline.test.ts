@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOffline } from "./useOffline";
 
 /**
- * Máy trạng thái tải-về-nghe-offline.
+ * The offline-download state machine.
  *
- * Không thể kiểm bằng cách mở trang: trạng thái cache chỉ biết được ở trình
- * duyệt, nên HTML render sẵn luôn không có nút. Đây là chỗ duy nhất kiểm được.
+ * It cannot be checked by opening the page: the cache state is only knowable in the
+ * browser, so the server-rendered HTML never has the button. This is the only place it can
+ * be tested.
  */
 
 const SRC = "/api/audio?key=series%2Fa%2Fb.mp3";
@@ -51,35 +52,35 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useOffline", () => {
-  it("chưa tải thì báo absent", async () => {
+  it("not downloaded reports absent", async () => {
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("absent"));
   });
 
-  it("đã có trong cache thì báo ready ngay", async () => {
+  it("already cached reports ready immediately", async () => {
     cacheHas = true;
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("ready"));
   });
 
-  it("máy không hỗ trợ service worker thì báo no-support, KHÔNG treo ở unknown", async () => {
+  it("a device without service workers reports no-support, never hanging on unknown", async () => {
     stubBrowser(false);
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("no-support"));
   });
 
-  it("tải thì gửi ĐÚNG khoá cho service worker", async () => {
+  it("downloading sends the RIGHT key to the service worker", async () => {
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("absent"));
 
     act(() => result.current.download());
     expect(result.current.state).toBe("downloading");
-    // Khoá phải trùng cách service worker chuẩn hoá, lệch là tải xong vẫn báo
-    // chưa tải.
+    // The key has to match how the service worker normalises it; out of sync, a completed
+    // download still reports as not downloaded.
     await waitFor(() => expect(posted).toEqual([{ type: "download", url: KEY }]));
   });
 
-  it("service worker báo xong thì sang ready", async () => {
+  it("the service worker reporting done moves it to ready", async () => {
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("absent"));
     act(() => result.current.download());
@@ -88,7 +89,7 @@ describe("useOffline", () => {
     expect(result.current.state).toBe("ready");
   });
 
-  it("tải hỏng thì báo lý do và KHÔNG kẹt ở downloading", async () => {
+  it("a failed download reports why and does NOT stick on downloading", async () => {
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("absent"));
     act(() => result.current.download());
@@ -98,8 +99,8 @@ describe("useOffline", () => {
     expect(result.current.error).toBe("mất mạng");
   });
 
-  it("BỎ QUA thông báo của tập khác", async () => {
-    // Mở nhiều tab thì service worker phát cho mọi tab.
+  it("IGNORES messages about another episode", async () => {
+    // With several tabs open the service worker broadcasts to all of them.
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("absent"));
     act(() => result.current.download());
@@ -108,7 +109,7 @@ describe("useOffline", () => {
     expect(result.current.state).toBe("downloading");
   });
 
-  it("xoá thì gửi lệnh remove và quay về absent", async () => {
+  it("removing sends the remove command and returns to absent", async () => {
     cacheHas = true;
     const { result } = renderHook(() => useOffline(SRC));
     await waitFor(() => expect(result.current.state).toBe("ready"));

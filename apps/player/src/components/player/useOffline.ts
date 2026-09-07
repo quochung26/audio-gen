@@ -6,14 +6,14 @@ import { audioCacheKey } from "@/lib/cache-key";
 export type OfflineState = "unknown" | "no-support" | "absent" | "downloading" | "ready" | "failed";
 
 /**
- * Tải một tập về máy để nghe khi mất mạng.
+ * Download an episode to the device for offline listening.
  *
- * Việc tải do service worker làm chứ không phải tab này: đóng tab giữa chừng
- * thì file tải dở vẫn hoàn tất, và cache là của service worker nên trang nào
- * mở sau cũng thấy.
+ * The download is done by the service worker rather than this tab: closing the tab midway
+ * still completes the file, and the cache belongs to the service worker so any page opened
+ * later sees it.
  *
- * `absent` khác `no-support`: máy không hỗ trợ thì ẩn nút đi cho đỡ rối, chưa
- * tải thì hiện nút.
+ * `absent` differs from `no-support`: an unsupported device hides the button to reduce
+ * clutter, while not-yet-downloaded shows it.
  */
 export function useOffline(src: string) {
   const [state, setState] = useState<OfflineState>("unknown");
@@ -56,8 +56,8 @@ export function useOffline(src: string) {
   const send = useCallback(
     async (type: "download" | "remove") => {
       const reg = await navigator.serviceWorker.ready;
-      // `reg.active` chứ không phải `controller`: lần đầu đăng ký thì tab hiện
-      // tại chưa bị service worker kiểm soát, `controller` còn null.
+      // `reg.active` rather than `controller`: on the first registration the current tab is
+      // not yet controlled by the service worker and `controller` is still null.
       reg.active?.postMessage({ type, url: key });
     },
     [key],

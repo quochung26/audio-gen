@@ -11,18 +11,19 @@ export interface Resumed extends ResumableEpisode {
   positionMs: number;
 }
 
-/** Dưới ngưỡng này coi như mới bấm vào rồi thoát, không phải "đang nghe dở". */
+/** Below this counts as tapping in and leaving again, not "partway through". */
 export const MIN_PROGRESS_MS = 30_000;
-/** Còn dưới ngưỡng này coi như đã nghe xong. */
+/** Within this of the end counts as finished. */
 export const NEAR_END_MS = 60_000;
 export const MAX_ITEMS = 6;
 
 /**
- * Chọn những tập đáng hiện ở mục "Tiếp tục nghe".
+ * Pick the episodes worth showing under "Continue listening".
  *
- * Hai bộ lọc đều có lý do: bấm nhầm vào một tập rồi thoát ngay thì không phải
- * đang nghe dở, còn tập nghe gần hết mà cứ nằm đó thì mục này đầy toàn thứ đã
- * xong. Sắp theo vị trí giảm dần — nghe càng sâu càng nhiều khả năng muốn quay lại.
+ * Both filters have a reason: tapping the wrong episode and leaving immediately is not
+ * being partway through, and an episode listened almost to the end lingering there fills
+ * the section with things already done. Sorted by position descending — the further in,
+ * the more likely you want to go back.
  */
 export function pickResumable(
   episodes: readonly ResumableEpisode[],
@@ -39,7 +40,7 @@ export function pickResumable(
     .slice(0, MAX_ITEMS);
 }
 
-/** Còn bao lâu nữa hết tập. */
+/** How much of the episode is left. */
 export function remaining(durationMs: number | null, positionMs: number): string {
   if (!durationMs) return "—";
   const min = Math.max(0, Math.round((durationMs - positionMs) / 60000));

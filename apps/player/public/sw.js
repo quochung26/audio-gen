@@ -1,13 +1,13 @@
 /**
  * Service worker cho nghe offline.
  *
- * Hai kho tách nhau, có chủ đích:
- * - SHELL: vỏ app (HTML, JS, CSS). Xoá được thoải mái, tải lại là có.
- * - AUDIO: file MP3 người dùng CHỦ ĐỘNG tải về. KHÔNG bao giờ tự dọn — người
- *   ta tải trước chuyến xe đêm, mất là mất chuyến đó.
+ * Two separate stores, deliberately:
+ * - SHELL: the app shell (HTML, JS, CSS). Freely disposable, a reload brings it back.
+ * - AUDIO: MP3 files the user DELIBERATELY downloaded. NEVER swept — someone downloads
+ *   before a night bus, and losing it loses that journey.
  *
- * Không tự cache audio khi phát: một tập 20 phút là ~25 MB, cache lén cả bộ là
- * ăn hết dung lượng máy mà người dùng không hề biết.
+ * Playback never caches audio on its own: a 20-minute episode is ~25 MB, and quietly
+ * caching a whole story would eat the device's storage without the user knowing.
  */
 const SHELL = "audio-truyen-shell-v1";
 const AUDIO = "audio-truyen-audio-v1";
@@ -17,7 +17,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     (async () => {
-      // Dọn phiên bản shell cũ, GIỮ kho audio.
+      // Sweep old shell versions, KEEPING the audio store.
       const keys = await caches.keys();
       await Promise.all(
         keys.filter((k) => k.startsWith("audio-truyen-shell-") && k !== SHELL).map((k) => caches.delete(k)),
@@ -34,8 +34,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // File audio: chỉ trả từ cache nếu người dùng đã tải về. Không có thì đi mạng
-  // như bình thường và KHÔNG cache lại.
+  // Audio files: served from cache only when the user downloaded them. Otherwise it goes
+  // to the network as normal and does NOT cache the result.
   if (url.pathname === "/api/audio") {
     e.respondWith(
       (async () => {
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Vỏ app: ưu tiên mạng để luôn thấy tập mới, mất mạng thì rơi về cache.
+  // The app shell: network first so new episodes always show, falling back to cache offline.
   e.respondWith(
     (async () => {
       try {
@@ -66,10 +66,10 @@ self.addEventListener("fetch", (e) => {
 });
 
 /**
- * Khoá cache bỏ mọi tham số trừ `key`/`path`.
+ * The cache key drops every parameter but `key`/`path`.
  *
- * Trình duyệt gửi kèm `Range` và đôi khi thêm tham số khi tua, nên nếu lấy
- * nguyên URL làm khoá thì lần tua thứ hai coi như chưa tải.
+ * The browser sends `Range` along and sometimes adds parameters when seeking, so using the
+ * whole URL as the key makes the second seek look like nothing was downloaded.
  */
 function audioKey(url) {
   const clean = new URL(url.origin + url.pathname);
@@ -78,7 +78,7 @@ function audioKey(url) {
   return clean.toString();
 }
 
-// Trang gọi xuống để tải một tập về; trả tiến độ ngược lên.
+// The page calls down here to download an episode; progress is reported back up.
 self.addEventListener("message", (e) => {
   const { type, url } = e.data ?? {};
   if (type === "download") e.waitUntil(download(url, e.source));
@@ -89,8 +89,8 @@ async function download(url, client) {
   const cache = await caches.open(AUDIO);
   const key = audioKey(new URL(url, self.location.origin));
   try {
-    // Không dùng `cache.add`: cần đọc từng phần để báo tiến độ, và cần chắc
-    // chắn tải TRỌN file chứ không phải một khoảng byte.
+    // Not `cache.add`: progress reporting needs to read chunk by chunk, and it has to be
+    // certain the WHOLE file is downloaded rather than a byte range.
     const res = await fetch(key);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     await cache.put(key, res.clone());

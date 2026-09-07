@@ -1,6 +1,6 @@
 "use client";
 
-/** Trang nghe hỏng thì vẫn phải nói được điều gì đó, không để màn hình trắng. */
+/** A broken player page still has to say something rather than showing a blank screen. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="space-y-3 rounded border border-red-900 bg-red-950/30 p-6 text-center">

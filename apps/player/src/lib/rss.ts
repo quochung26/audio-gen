@@ -1,11 +1,11 @@
 import { playableUrl } from "./audio-url";
 
 /**
- * Dựng RSS podcast cho một bộ truyện.
+ * Build the podcast RSS for one story.
  *
- * Tách khỏi route để test được: đây là chỗ dễ sai lặng lẽ — thiếu một trường
- * bắt buộc thì app podcast từ chối feed mà không nói lý do, và escape sai một
- * dấu `&` trong tiêu đề là hỏng cả file XML chứ không riêng tập đó.
+ * Separate from the route so it can be tested: this is a place that fails silently —
+ * a missing required field makes podcast apps reject the feed with no reason given, and
+ * one unescaped `&` in a title breaks the whole XML file, not just that episode.
  */
 
 export interface FeedEpisode {
@@ -16,7 +16,7 @@ export interface FeedEpisode {
   gist: string | null;
   durationMs: number | null;
   publishedAt: Date | null;
-  /** Tham chiếu file MP3 — khoá trong kho hoặc URL http. */
+  /** The MP3 reference — a store key or an http URL. */
   audioRef: string;
   sizeBytes: number | null;
 }
@@ -29,23 +29,23 @@ export interface FeedSeries {
   tags: string[];
   coverUrl: string | null;
   aiDisclosure: boolean;
-  /** Ngôn ngữ của bộ — trình đọc podcast dùng để lọc và để đọc đúng tiếng. */
+  /** The story's language — podcast readers use it to filter and to pronounce correctly. */
   language: string;
   episodes: FeedEpisode[];
 }
 
 export interface FeedOptions {
-  /** Gốc URL công khai, ví dụ "https://truyen.example.com". Không có dấu / cuối. */
+  /** The public URL root, e.g. "https://truyen.example.com". No trailing slash. */
   baseUrl: string;
-  /** Ngôn ngữ feed. */
+  /** The feed's language. */
   author?: string;
 }
 
 /**
- * Thoát ký tự cho nội dung XML.
+ * Escape characters for XML content.
  *
- * `&` phải thay TRƯỚC các ký tự khác, nếu không sẽ thoát chồng lên phần vừa
- * sinh ra ("&lt;" thành "&amp;lt;").
+ * `&` has to be replaced BEFORE the others, or it escapes what was just produced
+ * ("&lt;" becoming "&amp;lt;").
  */
 export function escapeXml(value: string): string {
   return value
@@ -56,7 +56,7 @@ export function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** HH:MM:SS — dạng `itunes:duration` hiển thị được ở mọi app. */
+/** HH:MM:SS — the `itunes:duration` form every app can display. */
 export function itunesDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -66,7 +66,7 @@ export function itunesDuration(ms: number): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-/** Đổi tham chiếu trong DB thành URL tuyệt đối — app podcast tải từ bên ngoài. */
+/** Turn a DB reference into an absolute URL — podcast apps fetch from outside. */
 export function absoluteAudioUrl(ref: string, baseUrl: string): string {
   if (ref.startsWith("http://") || ref.startsWith("https://")) return ref;
   return new URL(playableUrl(ref), baseUrl).toString();
@@ -79,7 +79,7 @@ export function buildRssFeed(series: FeedSeries, opts: FeedOptions): string {
 
   const description = [
     series.description,
-    // Ghi rõ có AI tham gia. Một số nền tảng yêu cầu, và người nghe có quyền biết.
+    // States plainly that AI was involved. Some platforms require it, and listeners have a right to know.
     series.aiDisclosure ? aiNote(series.language) : null,
   ]
     .filter(Boolean)
@@ -107,8 +107,8 @@ ${renderCategory(series)}${renderImage(series, base)}${items}
 }
 
 /**
- * Danh mục iTunes là danh sách tiếng Anh CỐ ĐỊNH, không map được từ `genre`
- * tiếng Việt tự do. Nên để "Fiction" và đẩy genre thật xuống keywords.
+ * The iTunes categories are a FIXED English list, which cannot be mapped from a free-form
+ * Vietnamese `genre`. So it says "Fiction" and pushes the real genre into the keywords.
  */
 function renderCategory(series: FeedSeries): string {
   const keywords = [series.genre, ...series.tags].filter(Boolean).join(", ");
@@ -119,14 +119,15 @@ function renderCategory(series: FeedSeries): string {
 }
 
 /**
- * Apple đòi ảnh bìa mới nhận feed. Không có bìa thì bỏ thẻ đi — feed vẫn là RSS
- * hợp lệ và app podcast thường vẫn đọc được, chỉ không lên được Apple Podcasts.
+ * Apple requires cover art before it accepts a feed. Without one the tag is dropped — the
+ * feed is still valid RSS and podcast apps usually still read it, it just cannot reach
+ * Apple Podcasts.
  */
 function renderImage(series: FeedSeries, base: string): string {
   if (!series.coverUrl) return "";
-  // Qua `absoluteAudioUrl` chứ KHÔNG ghép thẳng vào base: `coverUrl` là khoá
-  // trong kho, phải đi qua route phục vụ file. Ghép thẳng ra URL 404 — mà app
-  // podcast không báo gì, chỉ lặng lẽ không hiện bìa.
+  // Through `absoluteAudioUrl` and NOT joined straight onto the base: `coverUrl` is a store
+  // key and has to go through the file-serving route. Joined directly it 404s — and podcast
+  // apps say nothing, they just quietly show no artwork.
   return `    <itunes:image href="${escapeXml(absoluteAudioUrl(series.coverUrl, base))}"/>\n`;
 }
 
@@ -137,10 +138,10 @@ function renderItem(ep: FeedEpisode, series: FeedSeries, base: string, author: s
     `      <title>${escapeXml(`${ep.number}. ${ep.title}`)}</title>`,
     `      <link>${escapeXml(`${base}/nghe/${ep.id}`)}</link>`,
     `      <description>${escapeXml(summary)}</description>`,
-    // isPermaLink="false" vì đây là id nội bộ, không phải URL.
+    // isPermaLink="false" because this is an internal id, not a URL.
     `      <guid isPermaLink="false">${escapeXml(ep.id)}</guid>`,
-    // `length` là số byte. Podcast app dùng nó để hiện tiến độ tải; sai thì
-    // thanh tải chạy loạn. Không biết thì để 0 còn hơn đoán.
+    // `length` is a byte count. Podcast apps use it for the download progress bar; wrong,
+    // and the bar goes haywire. 0 when unknown beats a guess.
     `      <enclosure url="${escapeXml(audio)}" length="${ep.sizeBytes ?? 0}" type="audio/mpeg"/>`,
     `      <itunes:author>${escapeXml(author)}</itunes:author>`,
     `      <itunes:episode>${ep.number}</itunes:episode>`,
@@ -148,7 +149,7 @@ function renderItem(ep: FeedEpisode, series: FeedSeries, base: string, author: s
   ];
 
   if (ep.publishedAt) {
-    // RFC 822. `toUTCString()` ra đúng dạng RSS cần.
+    // RFC 822. `toUTCString()` produces exactly the form RSS needs.
     parts.push(`      <pubDate>${ep.publishedAt.toUTCString()}</pubDate>`);
   }
   if (ep.durationMs) {
@@ -160,13 +161,13 @@ function renderItem(ep: FeedEpisode, series: FeedSeries, base: string, author: s
 }
 
 /**
- * Gốc URL công khai suy từ request.
+ * The public URL root, derived from the request.
  *
- * KHÔNG dùng `new URL(req.url).origin`: Next trả về địa chỉ tiến trình đang
- * bind, thường là `http://0.0.0.0:3001` — app podcast không tới được. Host thật
- * mà client gõ nằm ở header.
+ * Do NOT use `new URL(req.url).origin`: Next returns the address the process bound to,
+ * usually `http://0.0.0.0:3001` — unreachable for a podcast app. The real host the client
+ * typed is in the headers.
  *
- * `x-forwarded-*` đứng trước vì khi có proxy thì `host` là host nội bộ.
+ * `x-forwarded-*` comes first because behind a proxy `host` is the internal host.
  */
 export function originFromHeaders(headers: Headers, fallback: string): string {
   const host = headers.get("x-forwarded-host") ?? headers.get("host");
@@ -176,10 +177,10 @@ export function originFromHeaders(headers: Headers, fallback: string): string {
 }
 
 /**
- * Lời công bố dùng AI, viết bằng đúng thứ tiếng của bộ truyện.
+ * The AI disclosure, written in the story's own language.
  *
- * Một câu tiếng Việt kẹp giữa phần mô tả tiếng Anh trông như lỗi, mà đây lại là
- * câu bắt buộc phải để người nghe đọc được.
+ * One Vietnamese sentence sandwiched in an English description looks like a bug, and this
+ * is precisely the sentence listeners have to be able to read.
  */
 function aiNote(language: string): string {
   return language === "en"

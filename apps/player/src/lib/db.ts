@@ -1,21 +1,21 @@
 import { prismaPlayer } from "@audio/database";
 
 /**
- * Player đọc DB HOSTED, không phải DB sản xuất.
+ * The Player reads the HOSTED DB, not the production one.
  *
- * DB local giữ bản thảo, prompt, telemetry và không rời máy. Job PUBLISH đẩy
- * sang DB hosted đúng những gì được phép — xem packages/database/publish-scope.
+ * The local DB holds the drafts, prompts and telemetry, and never leaves the machine. The
+ * PUBLISH job pushes exactly what is allowed to the hosted DB — see packages/database/publish-scope.
  *
- * `PLAYER_DATABASE_URL` để trống thì đây chính là DB local (chế độ chạy tại
- * chỗ). Tiện khi dựng app, nhưng deploy Player ra ngoài mà quên đặt biến này
- * là mang cả bản thảo lên theo.
+ * With `PLAYER_DATABASE_URL` blank this IS the local DB (local mode). Handy while building
+ * the app, but deploying the Player publicly having forgotten this variable takes the drafts
+ * along with it.
  */
 export { prismaPlayer as prisma };
 
 /**
- * Chỉ tập đã XUẤT BẢN mới hiện ra ngoài.
+ * Only PUBLISHED episodes are visible from outside.
  *
- * Vẫn giữ dù DB hosted đúng ra chỉ chứa tập đã xuất bản: hai lớp chặn, và lớp
- * này là lớp duy nhất còn tác dụng khi chạy chung một DB.
+ * Kept even though the hosted DB should only hold published episodes: two layers of
+ * protection, and this is the only one still doing anything when one DB is shared.
  */
 export const PUBLISHED = { status: "PUBLISHED" as const, publishedAt: { not: null } };

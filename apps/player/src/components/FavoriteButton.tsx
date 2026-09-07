@@ -23,8 +23,8 @@ export function FavoriteButton({
     );
   }
 
-  // Trạng thái hiện tại: sau khi bấm thì lấy theo kết quả trả về, trước đó lấy
-  // theo dữ liệu render sẵn.
+  // The current state: after a click it comes from the returned result, before that from
+  // the server-rendered data.
   const saved = state.ok ? state.ok.startsWith("Đã lưu") : initial;
 
   return (

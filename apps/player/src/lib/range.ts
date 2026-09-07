@@ -1,21 +1,22 @@
 export interface ByteRange {
-  /** Chỉ số byte đầu, tính từ 0. */
+  /** The first byte index, counting from 0. */
   start: number;
-  /** Chỉ số byte cuối, TÍNH CẢ byte này (RFC 9110 dùng khoảng đóng). */
+  /** The last byte index, INCLUSIVE (RFC 9110 uses closed ranges). */
   end: number;
 }
 
 /**
- * Đọc header `Range` cho một file `size` byte.
+ * Parse the `Range` header for a file of `size` bytes.
  *
- * Trả về:
- * - `null` — không có Range, hoặc dạng không hiểu được → phục vụ cả file (200).
- *   RFC 9110 cho phép bỏ qua Range không hiểu, và làm vậy an toàn hơn báo lỗi.
- * - `"unsatisfiable"` — có Range hợp lệ nhưng nằm ngoài file → 416.
- * - `ByteRange` — khoảng cần trả, đã kẹp trong [0, size-1].
+ * Returns:
+ * - `null` — no Range, or an unparseable one → serve the whole file (200).
+ *   RFC 9110 allows ignoring a Range it does not understand, and doing so is safer than
+ *   raising an error.
+ * - `"unsatisfiable"` — a valid Range that falls outside the file → 416.
+ * - `ByteRange` — the range to return, clamped into [0, size-1].
  *
- * Chỉ hỗ trợ MỘT khoảng. Nhiều khoảng (`bytes=0-99,200-299`) phải trả về
- * multipart/byteranges — chưa client audio nào cần, nên bỏ qua thành 200.
+ * Supports ONE range only. Multiple ranges (`bytes=0-99,200-299`) would require
+ * multipart/byteranges — no audio client needs it, so those fall through to 200.
  */
 export function parseRange(header: string | null, size: number): ByteRange | "unsatisfiable" | null {
   if (!header) return null;
@@ -26,14 +27,14 @@ export function parseRange(header: string | null, size: number): ByteRange | "un
   const [, rawStart, rawEnd] = m;
   if (rawStart === "" && rawEnd === "") return null;
 
-  // File rỗng: mọi khoảng đều không thoả.
+  // An empty file: every range is unsatisfiable.
   if (size === 0) return "unsatisfiable";
 
   let start: number;
   let end: number;
 
   if (rawStart === "") {
-    // "bytes=-500" = 500 byte CUỐI, không phải từ 0 tới 500.
+    // "bytes=-500" = the LAST 500 bytes, not 0 through 500.
     const suffix = Number(rawEnd);
     if (suffix === 0) return "unsatisfiable";
     start = Math.max(0, size - suffix);
@@ -41,7 +42,7 @@ export function parseRange(header: string | null, size: number): ByteRange | "un
   } else {
     start = Number(rawStart);
     if (start >= size) return "unsatisfiable";
-    // Thiếu vế sau ("bytes=100-") nghĩa là tới hết file.
+    // A missing end ("bytes=100-") means to the end of the file.
     end = rawEnd === "" ? size - 1 : Math.min(Number(rawEnd), size - 1);
   }
 

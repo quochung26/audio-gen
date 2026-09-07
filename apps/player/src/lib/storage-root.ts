@@ -2,11 +2,11 @@ import { resolve } from "node:path";
 import { loadEnv } from "@audio/config";
 
 /**
- * Thư mục lưu trữ của driver local — CÙNG gốc mà worker ghi ra.
+ * The local driver's storage directory — the SAME root the worker writes to.
  *
- * CHỈ dùng ở phía máy chủ. Để riêng file thay vì chung với `playableUrl`: file
- * này import `node:path`, mà `playableUrl` được client component gọi — gộp
- * chung thì Next kéo cả `node:path` vào bundle trình duyệt và build hỏng.
+ * Server-side ONLY. In its own file rather than alongside `playableUrl`: this file imports
+ * `node:path`, while `playableUrl` is called by a client component — merged, Next would
+ * pull `node:path` into the browser bundle and the build would fail.
  */
 export function storageRoot(): string {
   return resolve(process.cwd(), "..", "worker", loadEnv().STORAGE_LOCAL_DIR);

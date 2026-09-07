@@ -7,18 +7,18 @@ import { prismaPlayer } from "@audio/database";
 import { checkRateLimit, clearRateLimit } from "@/lib/auth-rate-limit";
 
 /**
- * Đăng nhập cho trang nghe.
+ * Sign-in for the player.
  *
- * Hai đường vào:
- * - Google — không giữ mật khẩu nào, rủi ro thấp nhất. Cần AUTH_GOOGLE_ID và
- *   AUTH_GOOGLE_SECRET; thiếu thì nút Google tự ẩn chứ không báo lỗi khó hiểu.
- * - Mật khẩu — tự chứa, chạy được ngay không cần dịch vụ ngoài.
+ * Two ways in:
+ * - Google — holds no password at all, the lowest risk. Needs AUTH_GOOGLE_ID and
+ *   AUTH_GOOGLE_SECRET; without them the Google button hides itself rather than raising a
+ *   confusing error.
+ * - Password — self-contained, works immediately with no external service.
  *
- * Phiên lưu bằng JWT chứ không phải bảng Session: provider Credentials của
- * Auth.js không dùng được phiên trong DB. Adapter vẫn cần để nối tài khoản
- * Google vào bảng User.
+ * Sessions are JWTs rather than a Session table: Auth.js's Credentials provider cannot use
+ * database sessions. The adapter is still needed to link a Google account to the User table.
  *
- * ⚠️ next-auth v5 còn mang nhãn beta. Đây là bản duy nhất hỗ trợ App Router.
+ * ⚠️ next-auth v5 is still labelled beta. It is the only version supporting the App Router.
  */
 const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
@@ -39,14 +39,14 @@ const nextAuth = NextAuth({
         const password = String(raw?.password ?? "");
         if (!email || !password) return null;
 
-        // Chặn TRƯỚC khi băm: mỗi lần kiểm tốn ~270 ms và ~64 MB, gửi liên tục
-        // là làm sập máy chủ dù chẳng đoán đúng gì.
+        // Blocked BEFORE hashing: each check costs ~270 ms and ~64 MB, and sending them in a
+        // stream would bring the server down without guessing anything.
         if (!checkRateLimit(email).allowed) return null;
 
         const user = await prismaPlayer.user.findUnique({ where: { email } });
 
-        // Không phân biệt "không có email này" với "sai mật khẩu": phân biệt
-        // là cho người ngoài dò xem ai đã đăng ký.
+        // Does not distinguish "no such email" from "wrong password": distinguishing them
+        // lets an outsider probe who has registered.
         if (!user?.passwordHash) return null;
         if (!(await verifyPassword(password, user.passwordHash))) return null;
 
@@ -73,13 +73,12 @@ export const signIn = nextAuth.signIn;
 export const signOut = nextAuth.signOut;
 
 /**
- * Chú kiểu tường minh cho `auth`.
+ * An explicit type annotation for `auth`.
  *
- * Không có nó thì tsc báo TS2742: kiểu suy ra trỏ vào đường dẫn bên trong
- * node_modules mà nó không đặt tên "mang đi được". Lỗi cố hữu của next-auth v5
- * beta với pnpm.
+ * Without it tsc reports TS2742: the inferred type points inside node_modules at a path it
+ * cannot name "portably". A known problem with next-auth v5 beta under pnpm.
  */
 export const auth: NextAuthResult["auth"] = nextAuth.auth;
 
-/** Nút Google có hiện không — dùng ở trang đăng nhập. */
+/** Whether the Google button shows — used on the sign-in page. */
 export const GOOGLE_ENABLED = googleConfigured;

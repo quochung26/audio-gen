@@ -10,10 +10,10 @@ export type { ResumableEpisode };
 const POS_KEY = "audio-truyen:pos";
 
 /**
- * "Tiếp tục nghe" — đọc từ localStorage, không cần tài khoản.
+ * "Continue listening" — read from localStorage, no account needed.
  *
- * Render ở phía trình duyệt vì vị trí nghe nằm trong localStorage; máy chủ
- * không biết. Chưa nghe gì thì không hiện gì, không chiếm chỗ.
+ * Rendered in the browser because the listening position lives in localStorage; the server
+ * does not know it. With nothing listened to yet it renders nothing and takes no space.
  */
 export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }) {
   const [items, setItems] = useState<Resumed[]>([]);

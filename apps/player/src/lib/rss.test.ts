@@ -38,42 +38,42 @@ const series = (over: Partial<FeedSeries> = {}): FeedSeries => ({
 const opts = { baseUrl: "https://truyen.example.com" };
 
 describe("escapeXml", () => {
-  it("thoát & trước, không thoát chồng lên phần vừa sinh", () => {
-    // Sai thứ tự thì "<" ra "&amp;lt;" và cả file XML hỏng.
+  it("escapes & first, never escaping what it just produced", () => {
+    // Wrong order turns "<" into "&amp;lt;" and breaks the whole XML file.
     expect(escapeXml("a < b & c")).toBe("a &lt; b &amp; c");
     expect(escapeXml("&")).toBe("&amp;");
     expect(escapeXml("&lt;")).toBe("&amp;lt;");
   });
 
-  it("thoát dấu nháy vì còn dùng trong thuộc tính", () => {
+  it("escapes quotes, which are also used in attributes", () => {
     expect(escapeXml(`"x" 'y'`)).toBe("&quot;x&quot; &apos;y&apos;");
   });
 
-  it("giữ nguyên dấu tiếng Việt", () => {
+  it("leaves Vietnamese diacritics alone", () => {
     expect(escapeXml("Đường về đêm mưa")).toBe("Đường về đêm mưa");
   });
 });
 
 describe("itunesDuration", () => {
-  it("ra HH:MM:SS có đệm 0", () => {
+  it("produces zero-padded HH:MM:SS", () => {
     expect(itunesDuration(1_265_000)).toBe("00:21:05");
     expect(itunesDuration(3_600_000)).toBe("01:00:00");
     expect(itunesDuration(0)).toBe("00:00:00");
   });
 
-  it("không quay vòng ở 24 giờ", () => {
+  it("does not wrap at 24 hours", () => {
     expect(itunesDuration(90_000_000)).toBe("25:00:00");
   });
 });
 
 describe("absoluteAudioUrl", () => {
-  it("khoá trong kho thành URL tuyệt đối", () => {
+  it("turns a store key into an absolute URL", () => {
     expect(absoluteAudioUrl("series/abc/x.mp3", "https://t.example.com")).toBe(
       "https://t.example.com/api/audio?key=series%2Fabc%2Fx.mp3",
     );
   });
 
-  it("URL http giữ nguyên (driver R2)", () => {
+  it("an http URL is left alone (R2 driver)", () => {
     expect(absoluteAudioUrl("https://cdn.example.com/x.mp3", "https://t.example.com")).toBe(
       "https://cdn.example.com/x.mp3",
     );
@@ -81,7 +81,7 @@ describe("absoluteAudioUrl", () => {
 });
 
 describe("buildRssFeed", () => {
-  it("có đủ thẻ bắt buộc của RSS podcast", () => {
+  it("has every tag podcast RSS requires", () => {
     const xml = buildRssFeed(series(), opts);
     for (const tag of [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -100,38 +100,38 @@ describe("buildRssFeed", () => {
     }
   });
 
-  it("enclosure là URL TUYỆT ĐỐI kèm số byte và mime type", () => {
-    // App podcast tải từ ngoài, URL tương đối là tải hụt.
+  it("the enclosure is an ABSOLUTE URL with a byte count and mime type", () => {
+    // Podcast apps fetch from outside, and a relative URL downloads nothing.
     const xml = buildRssFeed(series(), opts);
     expect(xml).toContain(
       '<enclosure url="https://truyen.example.com/api/audio?key=series%2Fabc%2Fepisodes%2Ftap-1.mp3" length="25300000" type="audio/mpeg"/>',
     );
   });
 
-  it("pubDate đúng RFC 822", () => {
+  it("pubDate follows RFC 822", () => {
     const xml = buildRssFeed(series(), opts);
     expect(xml).toContain("<pubDate>Tue, 18 Aug 2026 07:30:00 GMT</pubDate>");
   });
 
-  it("atom:link tự trỏ về chính feed", () => {
+  it("atom:link points back at the feed itself", () => {
     const xml = buildRssFeed(series(), opts);
     expect(xml).toContain(
       'href="https://truyen.example.com/truyen/duong-ve/rss.xml" rel="self"',
     );
   });
 
-  it("bỏ dấu / thừa ở baseUrl", () => {
+  it("strips a trailing / from baseUrl", () => {
     const xml = buildRssFeed(series(), { baseUrl: "https://truyen.example.com///" });
     expect(xml).toContain("<link>https://truyen.example.com/truyen/duong-ve</link>");
     expect(xml).not.toContain("example.com//");
   });
 
-  it("ghi rõ nội dung có AI khi bật aiDisclosure", () => {
+  it("states the AI involvement when aiDisclosure is on", () => {
     expect(buildRssFeed(series(), opts)).toContain("hỗ trợ của AI");
     expect(buildRssFeed(series({ aiDisclosure: false }), opts)).not.toContain("hỗ trợ của AI");
   });
 
-  it("thoát ký tự XML trong tiêu đề — một dấu & là hỏng cả file", () => {
+  it("escapes XML characters in a title — one & breaks the whole file", () => {
     const xml = buildRssFeed(
       series({ title: "Ma & Người <thật>", episodes: [episode({ title: "Tập & cuối" })] }),
       opts,
@@ -141,31 +141,31 @@ describe("buildRssFeed", () => {
     expect(xml).not.toMatch(/<title>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
   });
 
-  it("genre tiếng Việt xuống keywords, không nhét vào itunes:category", () => {
+  it("a Vietnamese genre goes into the keywords, never into itunes:category", () => {
     const xml = buildRssFeed(series(), opts);
     expect(xml).toContain("<itunes:keywords>kinh dị, ma, đêm</itunes:keywords>");
     expect(xml).not.toContain('text="kinh dị"');
   });
 
-  it("thiếu ảnh bìa thì bỏ thẻ, không sinh href rỗng", () => {
+  it("a missing cover drops the tag rather than emitting an empty href", () => {
     expect(buildRssFeed(series(), opts)).not.toContain("itunes:image");
   });
 
-  it("ảnh bìa đi QUA route phục vụ file, không ghép thẳng vào base", () => {
-    // `coverUrl` là khoá trong kho. Ghép thẳng ra URL 404, mà app podcast
-    // không báo gì — chỉ lặng lẽ không hiện bìa. Đã dính đúng lỗi này.
+  it("the cover goes THROUGH the file-serving route, never joined straight onto the base", () => {
+    // `coverUrl` is a store key. Joined directly it 404s, and podcast apps say nothing —
+    // they just quietly show no artwork. This exact bug has happened.
     expect(buildRssFeed(series({ coverUrl: "library/covers/s1.jpg" }), opts)).toContain(
       '<itunes:image href="https://truyen.example.com/api/audio?key=library%2Fcovers%2Fs1.jpg"/>',
     );
   });
 
-  it("bìa lưu ở R2 thì dùng URL đó thẳng", () => {
+  it("a cover on R2 uses that URL directly", () => {
     expect(buildRssFeed(series({ coverUrl: "https://cdn.example.com/bia.jpg" }), opts)).toContain(
       '<itunes:image href="https://cdn.example.com/bia.jpg"/>',
     );
   });
 
-  it("dùng gist khi tập chưa có summary", () => {
+  it("falls back to the gist when an episode has no summary", () => {
     const xml = buildRssFeed(
       series({ episodes: [episode({ summary: null, gist: "Tài xế gặp khách lạ." })] }),
       opts,
@@ -173,12 +173,12 @@ describe("buildRssFeed", () => {
     expect(xml).toContain("<description>Tài xế gặp khách lạ.</description>");
   });
 
-  it("thiếu sizeBytes thì để 0 chứ không sinh length rỗng", () => {
+  it("a missing sizeBytes gives 0 rather than an empty length", () => {
     const xml = buildRssFeed(series({ episodes: [episode({ sizeBytes: null })] }), opts);
     expect(xml).toContain('length="0"');
   });
 
-  it("bộ chưa có tập nào vẫn ra feed hợp lệ, không có item", () => {
+  it("a story with no episodes still produces a valid feed, with no items", () => {
     const xml = buildRssFeed(series({ episodes: [] }), opts);
     expect(xml).toContain("<channel>");
     expect(xml).not.toContain("<item>");
@@ -188,15 +188,15 @@ describe("buildRssFeed", () => {
 describe("originFromHeaders", () => {
   const h = (o: Record<string, string>) => new Headers(o);
 
-  it("lấy host từ header chứ không phải địa chỉ bind", () => {
-    // Đây là lỗi thật đã gặp: new URL(req.url).origin ra http://0.0.0.0:3001,
-    // app podcast không tới được địa chỉ đó.
+  it("takes the host from the headers, not the bind address", () => {
+    // A real bug that happened: new URL(req.url).origin gives http://0.0.0.0:3001,
+    // an address no podcast app can reach.
     expect(originFromHeaders(h({ host: "truyen.example.com" }), "http://0.0.0.0:3001")).toBe(
       "https://truyen.example.com",
     );
   });
 
-  it("x-forwarded-* thắng khi đứng sau proxy", () => {
+  it("x-forwarded-* wins behind a proxy", () => {
     expect(
       originFromHeaders(
         h({ host: "10.0.0.5:3001", "x-forwarded-host": "truyen.example.com", "x-forwarded-proto": "https" }),
@@ -205,25 +205,25 @@ describe("originFromHeaders", () => {
     ).toBe("https://truyen.example.com");
   });
 
-  it("localhost dùng http, không phải https", () => {
+  it("localhost uses http, not https", () => {
     expect(originFromHeaders(h({ host: "localhost:3001" }), "x")).toBe("http://localhost:3001");
     expect(originFromHeaders(h({ host: "127.0.0.1:3001" }), "x")).toBe("http://127.0.0.1:3001");
   });
 
-  it("không có host thì lùi về giá trị dự phòng", () => {
+  it("with no host it falls back to the default", () => {
     expect(originFromHeaders(h({}), "http://0.0.0.0:3001")).toBe("http://0.0.0.0:3001");
   });
 });
 
-describe("ngôn ngữ của bộ", () => {
-  it("thẻ <language> lấy theo bộ, không cứng 'vi'", () => {
+describe("the story's language", () => {
+  it("the <language> tag follows the story rather than being hardcoded to 'vi'", () => {
     expect(buildRssFeed(series({ language: "en" }), opts)).toContain("<language>en</language>");
     expect(buildRssFeed(series({ language: "vi" }), opts)).toContain("<language>vi</language>");
   });
 
-  it("lời công bố AI viết bằng đúng tiếng của bộ", () => {
-    // Một câu tiếng Việt kẹp giữa mô tả tiếng Anh trông như lỗi, mà đây lại là
-    // câu bắt buộc phải để người nghe đọc được.
+  it("the AI disclosure is written in the story's own language", () => {
+    // One Vietnamese sentence sandwiched in an English description looks like a bug, and
+    // this is precisely the sentence listeners have to be able to read.
     const en = buildRssFeed(series({ language: "en" }), opts);
     expect(en).toContain("produced with the help of AI");
     expect(en).not.toContain("hỗ trợ của AI");
@@ -231,7 +231,7 @@ describe("ngôn ngữ của bộ", () => {
     expect(buildRssFeed(series({ language: "vi" }), opts)).toContain("hỗ trợ của AI");
   });
 
-  it("thiếu ngôn ngữ thì vẫn ra feed hợp lệ", () => {
+  it("a missing language still produces a valid feed", () => {
     expect(buildRssFeed(series({ language: "" }), opts)).toContain("<language>vi</language>");
   });
 });
