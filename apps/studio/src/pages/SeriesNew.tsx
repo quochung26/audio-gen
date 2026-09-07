@@ -41,7 +41,7 @@ export function SeriesNew() {
         <Field
           name="idea"
           label="Idea"
-          placeholder="a night-bus driver picks up a passenger who died three years ago"
+          placeholder="một tài xế xe khách đêm chở phải hành khách đã chết từ ba năm trước"
           rows={3}
         />
 
@@ -117,25 +117,25 @@ export function SeriesNew() {
             <Field
               name="setting"
               label="Setting"
-              placeholder="A central-Vietnam highway, 1970s. Empty road, fog, buses running through the night."
+              placeholder="Quốc lộ miền Trung, thập niên 1970. Đường vắng, sương mù, những chuyến xe chạy đêm."
               rows={2}
             />
             <Field
               name="rules"
               label="World rules — one per line"
-              placeholder={"Ghosts only appear after midnight\nThe dead never say their own name"}
+              placeholder={"Ma chỉ xuất hiện sau nửa đêm\nNgười chết không tự nói tên mình"}
               rows={3}
             />
             <Field
               name="tone"
               label="Tone"
-              placeholder="Slow, full of silences. Fear from atmosphere, not gore."
+              placeholder="Chậm rãi, nhiều khoảng lặng. Sợ bằng không khí chứ không bằng máu me."
               rows={2}
             />
             <Field
               name="constraints"
               label="Forbidden — one per line"
-              placeholder="Never end on it being a dream"
+              placeholder="Không kết thúc bằng giấc mơ"
               rows={2}
             />
           </div>

@@ -204,7 +204,7 @@ export function Episode() {
                       name="focus"
                       label="What this chapter is driving at"
                       hint="The question it has to answer, or the feeling it has to leave behind."
-                      placeholder="Tài has to choose: tell bà Tư the truth, or keep a promise to a dead man."
+                      placeholder="Tài phải chọn: nói thật với bà Tư, hay giữ lời hứa với người đã chết."
                       rows={2}
                       defaultValue={chapter.setup?.focus ?? ""}
                     />
@@ -212,21 +212,21 @@ export function Episode() {
                       name="tone"
                       label="Tone for this chapter"
                       hint="Overrides the story tone. Leave blank to keep it."
-                      placeholder="Slower than usual. Rain throughout, almost drowning the dialogue."
+                      placeholder="Chậm hơn thường lệ. Mưa suốt chương, tiếng mưa lấp gần hết lời thoại."
                       rows={2}
                       defaultValue={chapter.setup?.tone ?? ""}
                     />
                     <Field
                       name="mustHappen"
                       label="Must happen — one per line"
-                      placeholder={"Tài goes back to the Old Depot\nBà Tư says a name nobody has said yet"}
+                      placeholder={"Tài quay lại Bến Cũ\nBà Tư nhắc tới cái tên chưa ai nói ra"}
                       rows={2}
                       defaultValue={(chapter.setup?.mustHappen ?? []).join("\n")}
                     />
                     <Field
                       name="constraints"
                       label="Not in this chapter — one per line"
-                      placeholder="Do not let ông Bảy appear"
+                      placeholder="Không cho ông Bảy xuất hiện"
                       rows={2}
                       defaultValue={(chapter.setup?.constraints ?? []).join("\n")}
                     />
@@ -234,7 +234,7 @@ export function Episode() {
                       name="characters"
                       label="Character overrides — one person per line"
                       hint="Form: Name: what they wear | note. Overrides the Story Bible for this chapter."
-                      placeholder={"Tài: torn raincoat, rubber boots | left wrist bandaged\nBà Tư: brown áo bà ba"}
+                      placeholder={"Tài: áo mưa rách, ủng cao su | tay trái băng kín\nBà Tư: áo bà ba nâu"}
                       rows={3}
                       defaultValue={renderOverrides(chapter.setup?.characters)}
                     />
@@ -297,7 +297,7 @@ export function Episode() {
                           <Field
                             name="note"
                             label="Note for this scene"
-                            placeholder="No dialogue in this scene. Only rain and footsteps."
+                            placeholder="Cảnh này không có thoại. Chỉ tiếng mưa và tiếng bước chân."
                             rows={2}
                             defaultValue={scene.setup?.note ?? ""}
                           />
@@ -305,7 +305,7 @@ export function Episode() {
                             name="characters"
                             label="Character overrides for this scene"
                             hint="Form: Name: what they wear | note. Overrides the chapter setup FIELD BY FIELD — only write what differs."
-                            placeholder="Tài: raincoat off"
+                            placeholder="Tài: đã cởi áo mưa"
                             rows={2}
                             defaultValue={renderOverrides(scene.setup?.characters)}
                           />
