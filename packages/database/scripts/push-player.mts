@@ -3,30 +3,30 @@ import { PrismaClient } from "@prisma/client";
 import { LOCAL_ONLY_TABLES } from "../src/publish-scope";
 
 /**
- * Đẩy schema sang DB HOSTED mà Player đọc.
+ * Push the schema to the HOSTED DB the Player reads.
  *
- * `prisma db push` không nhận cờ `--url`, nó chỉ đọc `DATABASE_URL` — nên script
- * này chạy lại prisma với `DATABASE_URL` thay bằng `PLAYER_DATABASE_URL`. Gõ tay
- * rất dễ nhầm và nhầm ở đây là đẩy schema đè lên DB sản xuất.
+ * `prisma db push` takes no `--url` flag, it only reads `DATABASE_URL` — so this script
+ * reruns prisma with `DATABASE_URL` replaced by `PLAYER_DATABASE_URL`. Typing that by hand
+ * is easy to get wrong, and getting it wrong here pushes the schema over the production DB.
  *
- * Chạy: `pnpm db:push:player`
+ * Run: `pnpm db:push:player`
  */
 
 const url = process.env.PLAYER_DATABASE_URL;
 if (!url) {
   console.error(
-    "PLAYER_DATABASE_URL chưa đặt.\n" +
-      "Đây là DB hosted mà Player đọc — để trống nghĩa là đang chạy chung một DB\n" +
-      "với Studio, lúc đó không cần đẩy gì cả.",
+    "PLAYER_DATABASE_URL is not set.\n" +
+      "This is the hosted DB the Player reads — blank means Studio and the Player share\n" +
+      "one DB, and then there is nothing to push.",
   );
   process.exit(1);
 }
 if (url === process.env.DATABASE_URL) {
-  console.error("PLAYER_DATABASE_URL trùng DATABASE_URL. Hai DB phải khác nhau.");
+  console.error("PLAYER_DATABASE_URL is the same as DATABASE_URL. The two must differ.");
   process.exit(1);
 }
 
-console.log(`Đẩy schema sang DB hosted: ${url.replace(/:[^:@]*@/, ":***@")}`);
+console.log(`Pushing the schema to the hosted DB: ${url.replace(/:[^:@]*@/, ":***@")}`);
 
 const res = spawnSync("npx", ["prisma", "db", "push", "--skip-generate"], {
   stdio: "inherit",
@@ -34,9 +34,9 @@ const res = spawnSync("npx", ["prisma", "db", "push", "--skip-generate"], {
 });
 if (res.status !== 0) process.exit(res.status ?? 1);
 
-// Kiểm luôn ranh giới quyền riêng tư. Schema đẩy sang là schema ĐẦY ĐỦ nên các
-// bảng chỉ-local vẫn tồn tại ở hosted — chúng phải RỖNG. Có dòng nào ở đây
-// nghĩa là có thứ đã rời khỏi máy mà lẽ ra không được.
+// Also checks the privacy boundary. The schema pushed is the FULL schema, so the
+// local-only tables exist on hosted too — they have to be EMPTY. Any row here means
+// something left the machine that should not have.
 const client = new PrismaClient({ datasourceUrl: url });
 const counts: Array<[string, number]> = [];
 for (const table of LOCAL_ONLY_TABLES) {
@@ -48,15 +48,15 @@ for (const table of LOCAL_ONLY_TABLES) {
 await client.$disconnect();
 
 const dirty = counts.filter(([, n]) => n > 0);
-console.log("\nBảng chỉ được có ở local — kiểm trên DB hosted:");
-for (const [t, n] of counts) console.log(`  ${n === 0 ? "✔" : "✖"} ${t}: ${n} dòng`);
+console.log("\nTables that must be local only — checked on the hosted DB:");
+for (const [t, n] of counts) console.log(`  ${n === 0 ? "✔" : "✖"} ${t}: ${n} rows`);
 
 if (dirty.length > 0) {
   console.error(
-    `\nCÓ DỮ LIỆU KHÔNG ĐƯỢC PHÉP ở DB hosted: ${dirty.map(([t]) => t).join(", ")}.\n` +
-      "Job PUBLISH không ghi vào những bảng này — kiểm xem có ai trỏ DATABASE_URL\n" +
-      "vào DB hosted rồi chạy Studio/worker không.",
+    `\nFORBIDDEN DATA on the hosted DB: ${dirty.map(([t]) => t).join(", ")}.\n` +
+      "The PUBLISH job never writes to these tables — check whether anyone pointed\n" +
+      "DATABASE_URL at the hosted DB and then ran Studio or the worker.",
   );
   process.exit(1);
 }
-console.log("\nSạch. DB hosted chỉ có nội dung đã xuất bản.");
+console.log("\nClean. The hosted DB holds published content only.");

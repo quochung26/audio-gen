@@ -15,15 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Test của packages/audio chạy ffmpeg THẬT chứ không giả lập: thứ dễ sai
-      # ở đó là chuỗi filter, mà chuỗi filter chỉ sai lúc ffmpeg chạy. Giả lập
-      # rồi so chuỗi tham số thì filter hỏng vẫn xanh.
-      - name: Cài ffmpeg
+      # packages/audio's tests run REAL ffmpeg rather than a mock: the easy thing to get
+      # wrong there is the filter chain, and a filter chain only goes wrong when ffmpeg
+      # runs. Mocking it and comparing argument strings leaves a broken filter green.
+      - name: Install ffmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           ffmpeg -hide_banner -filters | grep -qE 'sidechaincompress' || {
-            echo "ffmpeg thiếu sidechaincompress"; exit 1; }
+            echo "ffmpeg is missing sidechaincompress"; exit 1; }
 
       - uses: pnpm/action-setup@v4
 
@@ -32,8 +32,8 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # `prisma generate` chạy ở postinstall và KHÔNG cần DATABASE_URL.
-      # Ba bước dưới cũng không cần Postgres/Redis — chưa có test tích hợp DB.
+      # `prisma generate` runs at postinstall and does NOT need DATABASE_URL.
+      # The three steps below need no Postgres/Redis either — there are no DB integration tests yet.
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm typecheck

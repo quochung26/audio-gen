@@ -1,19 +1,20 @@
--- Chỉ mục cho cột embedding của StoryFact.
+-- The index for StoryFact's embedding column.
 --
--- Bản thân CỘT do Prisma tạo (khai `Unsupported("vector(1024)")` trong schema);
--- extension do sql/000-extension.sql bật trước khi push. Ở đây chỉ còn chỉ mục,
--- vì Prisma không khai báo được chỉ mục trên kiểu nó không hiểu.
--- Chạy sau mỗi `prisma db push` / `migrate` — script db:vector lo việc này.
+-- The COLUMN itself is created by Prisma (declared `Unsupported("vector(1024)")` in the
+-- schema); the extension is enabled by sql/000-extension.sql before the push. All that is
+-- left here is the index, because Prisma cannot declare an index on a type it does not
+-- understand.
+-- Run after every `prisma db push` / `migrate` — the db:vector script handles it.
 
--- Phòng khi chạy tay file này trên DB dựng theo cách khác.
+-- In case this file is run by hand against a DB built some other way.
 CREATE EXTENSION IF NOT EXISTS vector;
 ALTER TABLE "StoryFact" ADD COLUMN IF NOT EXISTS embedding vector(1024);
 
--- HNSW cho tìm lân cận gần nhất theo cosine. Chỉ mục này chỉ đáng khi đã có
--- vài trăm sự kiện; dưới ngưỡng đó Postgres tự quét tuần tự và vẫn nhanh.
+-- HNSW for cosine nearest-neighbour search. This index only earns its keep past a few
+-- hundred facts; below that Postgres scans sequentially and is still fast.
 CREATE INDEX IF NOT EXISTS storyfact_embedding_hnsw
   ON "StoryFact" USING hnsw (embedding vector_cosine_ops);
 
--- Truy vấn "sự kiện nào chưa có embedding" chạy thường xuyên.
+-- The "which facts have no embedding" query runs often.
 CREATE INDEX IF NOT EXISTS storyfact_embedding_null
   ON "StoryFact" ("seriesId") WHERE embedding IS NULL;

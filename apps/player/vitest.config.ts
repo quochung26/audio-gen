@@ -4,11 +4,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
   test: {
-    // Chỉ file .ts. Component .tsx của Player KHÔNG test được ở đây: tsconfig
-    // để `jsx: "preserve"` cho Next, mà vite không parse nổi JSX với thiết lập
-    // đó — `esbuild.tsconfigRaw` lẫn pragma đều bị rolldown bỏ qua. Nên phần
-    // logic đáng test được tách hẳn ra file .ts (useOffline, cache-key, rss,
-    // range) và test ở đó.
+    // .ts files only. The Player's .tsx components canNOT be tested here: tsconfig sets
+    // `jsx: "preserve"` for Next, and vite cannot parse JSX with that setting —
+    // `esbuild.tsconfigRaw` and pragmas alike are ignored by rolldown. So the logic worth
+    // testing is pulled out into .ts files (useOffline, cache-key, rss, range) and tested
+    // there.
     include: ["src/**/*.test.ts"],
     environment: "jsdom",
   },

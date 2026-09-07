@@ -1,6 +1,6 @@
--- Bật pgvector TRƯỚC khi Prisma đẩy schema.
+-- Enable pgvector BEFORE Prisma pushes the schema.
 --
--- Thứ tự này quan trọng: `StoryFact.embedding` khai kiểu `Unsupported("vector(1024)")`
--- nên `prisma db push` sẽ tự tạo cột — mà tạo cột kiểu `vector` không được nếu
--- extension chưa bật. Trên máy đã dựng rồi thì lệnh này không làm gì.
+-- The order matters: `StoryFact.embedding` is declared `Unsupported("vector(1024)")` so
+-- `prisma db push` creates the column itself — and a `vector` column cannot be created
+-- while the extension is off. On a machine already set up this is a no-op.
 CREATE EXTENSION IF NOT EXISTS vector;
