@@ -22,9 +22,7 @@
     "db:push:player": "dotenv -e ../../.env -- tsx scripts/push-player.mts",
     "test": "vitest run"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
+
   "dependencies": {
     "@prisma/client": "^6.1.0"
   },
