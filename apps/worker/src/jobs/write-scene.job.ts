@@ -5,6 +5,7 @@ import { SCENE_MAX_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
+import { openSceneStream } from "../services/stream";
 import { buildSceneContext } from "../services/story-context";
 
 /**
@@ -49,6 +50,14 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
       params: prompt.params,
     };
 
+    // Chữ chảy về Studio trong lúc model đang viết. Cảnh 800 từ mất 40–70 giây
+    // trên GPU thật; không có nó thì cả phút đó là màn hình trắng.
+    const stream = openSceneStream({
+      episodeId: scene.episodeId,
+      sceneId: scene.id,
+      order: scene.order,
+    });
+
     let result;
     try {
       // Ba tầng: model chọn cho lần chạy này → model của prompt → mặc định.
@@ -84,14 +93,17 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
           }),
         }),
         ...(prompt.params as object),
-        // Streaming: cảnh 800 từ mất 40–70 giây trên GPU thật; không stream thì
-        // vừa dễ timeout HTTP vừa để người dùng nhìn màn hình trắng.
-        onToken: () => {},
+        onToken: (chunk) => stream.push(chunk),
       });
     } catch (err) {
+      await stream.finish();
       await recordFailure(ctx, (err as Error).message);
       throw err;
     }
+
+    // Xoá nháp ngay: từ đây bản chính thức nằm trong DB, để hai bản cùng tồn
+    // tại là trang tập có lúc hiện bản cũ hơn thứ vừa lưu.
+    await stream.finish();
 
     await recordRun(ctx, result);
 

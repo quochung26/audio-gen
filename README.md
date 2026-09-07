@@ -63,6 +63,12 @@ Hoặc dùng giao diện: `http://localhost:3000/series/new`.
 
 Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng cảnh → [người duyệt] → kịch bản audio + tách block → tóm tắt**.
 
+**Xem chữ chạy trực tiếp.** Trong lúc model viết, trang tập hiện chữ ngay tại chỗ của cảnh đó, kèm con trỏ nhấp nháy. Worker vốn đã stream sẵn (`onToken`) — nó có từ đầu để tránh timeout HTTP — chỉ là chưa ai đọc.
+
+Đường đi: worker ghi bản nháp dở vào Redis (`stream:episode:<id>`, hạn 5 phút, tối đa hai lần ghi mỗi giây), API đọc lại qua `GET /api/episodes/:id/stream`, Studio hỏi mỗi 700ms **chỉ khi** có job `WRITE_SCENE`/`TRANSLATE` đang chạy. Qua Redis vì worker và API là hai tiến trình, mà Redis thì đã có sẵn cho hàng đợi.
+
+Toàn bộ phần này là **trang trí**: Redis trục trặc thì mất phần xem trực tiếp, không mất cảnh vừa viết. Job không bao giờ chết vì nó, và khoá tự hết hạn nên worker chết giữa chừng cũng không để lại rác.
+
 **Viết từng cảnh một.** Trang tập có hai lối: *Viết cả N cảnh còn lại* chạy một job liền mạch, và nút *viết cảnh này* ở từng cảnh. Một cảnh 600–900 từ đã mất vài chục giây trên GPU thật, nên viết cả tập là một lần chờ dài mà không xem được gì — viết từng cảnh cho phép đọc cảnh 1 rồi sửa beat trước khi tốn thời gian cho cảnh 2. Cùng một job `WRITE_SCENE`, chỉ khác nó nhận `sceneId` thay vì `episodeId`.
 
 Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Thêm `--auto-approve` để bỏ qua khi đang thử.

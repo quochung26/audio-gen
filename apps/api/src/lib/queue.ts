@@ -13,7 +13,7 @@ const globalForQueue = globalThis as unknown as {
   queues?: Map<string, Queue>;
 };
 
-function connection(): Redis {
+export function connection(): Redis {
   globalForQueue.redis ??= new Redis(loadEnv().REDIS_URL, { maxRetriesPerRequest: null });
   return globalForQueue.redis;
 }

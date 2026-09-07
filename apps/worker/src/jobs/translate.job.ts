@@ -4,6 +4,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
+import { openSceneStream } from "../services/stream";
 import { buildSeriesBible } from "../services/story-context";
 
 /**
@@ -69,6 +70,8 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
       params: prompt.params,
     };
 
+    const stream = openSceneStream({ episodeId, sceneId: scene.id, order: scene.order });
+
     let result;
     try {
       // Model của bước này thường KHÁC model viết: thứ viết tiếng Anh hay nhất
@@ -84,12 +87,15 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
         system: withLanguage(plan.output),
         prompt: renderTemplate(prompt.content, { bible, text: source }),
         ...(prompt.params as object),
-        onToken: () => {},
+        onToken: (chunk) => stream.push(chunk),
       });
     } catch (err) {
+      await stream.finish();
       await recordFailure(ctx, (err as Error).message);
       throw err;
     }
+
+    await stream.finish();
 
     await recordRun(ctx, result);
 

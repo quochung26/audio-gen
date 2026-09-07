@@ -7,6 +7,12 @@ import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
 import { languageLabel } from "@/components/LanguagePicker";
 
+interface Streaming {
+  sceneId: string;
+  order: number;
+  text: string;
+}
+
 interface CharacterOverride {
   name: string;
   outfit: string;
@@ -83,11 +89,26 @@ export function Episode() {
   const { id } = useParams();
   const nav = useNavigate();
   const { data: ep, isLoading } = useApi<Ep>(`/api/episodes/${id}`, { refetchMs: 3000 });
+
+  const active = ep?.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
+
+  // Mọi hook phải đứng TRƯỚC nhánh return sớm bên dưới, kể cả hook chỉ dùng khi
+  // có dữ liệu — React so thứ tự hook giữa hai lần render, gọi thiếu một cái là
+  // sập cả trang.
+  //
+  // Chỉ hỏi khi có job đang viết chữ; `enabled: path !== null` ở useApi lo phần
+  // tắt hẳn, nên trang đứng yên thì không có request nào chạy nền.
+  const writing = active?.type === "WRITE_SCENE" || active?.type === "TRANSLATE";
+  const { data: stream } = useApi<Streaming | null>(
+    writing ? `/api/episodes/${id}/stream` : null,
+    // Nhanh hơn nhịp 3 giây của cả trang: đây là thứ để nhìn chữ chạy.
+    { refetchMs: 700 },
+  );
+
   if (isLoading || !ep) return <Loading />;
 
   const written = ep.scenes.filter((s) => s.text).length;
   const allWritten = written === ep.scenes.length && ep.scenes.length > 0;
-  const active = ep.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
   // Bộ viết thẳng thì `draftLanguage` rỗng và cả khối chuyển ngữ biến mất.
   const untranslated = ep.series.draftLanguage
     ? ep.scenes.filter((s) => s.text && !s.sourceText).length
@@ -210,7 +231,16 @@ export function Episode() {
                 )}
               </div>
               <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
-                {scene.text ?? <span className="text-neutral-600">chưa viết</span>}
+                {stream && stream.sceneId === scene.id ? (
+                  <>
+                    {stream.text}
+                    {/* Con trỏ nhấp nháy: phân biệt "đang viết" với "viết xong
+                        mà ngắn thế thôi". */}
+                    <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
+                  </>
+                ) : (
+                  (scene.text ?? <span className="text-neutral-600">chưa viết</span>)
+                )}
               </div>
 
               <details className="border-t border-neutral-900">

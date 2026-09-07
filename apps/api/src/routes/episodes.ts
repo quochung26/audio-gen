@@ -9,7 +9,7 @@ import {
 } from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
-import { enqueue } from "../lib/queue";
+import { connection, enqueue } from "../lib/queue";
 import { field, splitLines, UserError } from "../lib/http";
 
 export const episodes = new Hono();
@@ -198,6 +198,24 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     },
   });
   return c.json({ ok: true });
+});
+
+/**
+ * Chữ đang được sinh, đọc trực tiếp trong lúc model viết.
+ *
+ * Worker ghi bản nháp dở vào Redis (`services/stream.ts`); đây chỉ đọc lại.
+ * Trả `null` khi không có gì đang chạy — Studio hiểu là thôi không hỏi nữa.
+ *
+ * Redis trục trặc thì cũng trả `null` chứ không ném: mất phần xem trực tiếp là
+ * chuyện nhỏ, làm hỏng trang tập mới là chuyện lớn.
+ */
+episodes.get("/:id/stream", async (c) => {
+  try {
+    const raw = await connection().get(`stream:episode:${c.req.param("id")}`);
+    return c.json(raw ? (JSON.parse(raw) as unknown) : null);
+  } catch {
+    return c.json(null);
+  }
 });
 
 /**
