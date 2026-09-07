@@ -59,7 +59,7 @@ async function seedPrompts() {
         model: model ?? null,
         params: PARAMS[step] ?? {},
         active: true,
-        note: `Nạp từ prompts/${file}`,
+        note: `Loaded from prompts/${file}`,
       },
     });
   }
@@ -147,11 +147,11 @@ async function seedGenres() {
   const created = genres.filter((g) => !have.has(g.name)).length;
   const kept = genres.length - created;
   console.log(
-    `✔ thể loại: ${created} mới` +
+    `✔ genres: ${created} new` +
       (kept > 0
         ? OVERWRITE
-          ? `, ${kept} ghi đè mô tả`
-          : `, ${kept} giữ nguyên (SEED_OVERWRITE=1 để nạp mô tả mới)`
+          ? `, ${kept} descriptions overwritten`
+          : `, ${kept} left as they are (SEED_OVERWRITE=1 to load the new descriptions)`
         : ""),
   );
 }
@@ -186,7 +186,7 @@ async function seedVoices() {
       },
     });
   }
-  console.log(`✔ ${voices.length} giọng giả lập (vi + en)`);
+  console.log(`✔ ${voices.length} mock voices (vi + en)`);
 }
 
 /** The shared pronunciation dictionary — what Vietnamese TTS routinely mispronounces. */
@@ -211,7 +211,7 @@ async function seedPronunciations() {
       data: fresh.map((e) => ({ ...e, seriesId: null })),
     });
   }
-  console.log(`✔ ${fresh.length} từ điển phát âm mới (đã có ${have.size})`);
+  console.log(`✔ ${fresh.length} new pronunciation rules (${have.size} already present)`);
 }
 
 async function main() {
