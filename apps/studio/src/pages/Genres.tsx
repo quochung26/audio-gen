@@ -8,13 +8,13 @@ interface G {
   promptName: string;
   description: string;
   enabled: boolean;
-  /** Bao nhiêu bộ đang dùng, tính cả làm thể loại chính lẫn phụ. */
+  /** How many stories use it, counting both main genre and sub-genres. */
   usedBy: number;
 }
 
 interface Data {
   genres: G[];
-  /** Thể loại có bộ đang dùng nhưng chưa có trong danh mục. */
+  /** Genres stories use that are not in the catalogue. */
   unlisted: Array<{ name: string; usedBy: number }>;
 }
 
@@ -25,31 +25,33 @@ export function Genres() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">Thể loại</h1>
+        <h1 className="text-xl font-semibold">Genres</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Mô tả ở đây <strong className="text-neutral-200">không phải ghi chú cho người đọc</strong>{" "}
-          — nó được nhét vào Story Bible, nên model hiểu “kinh dị” theo nghĩa bạn định thay vì nghĩa
-          nó tự đoán. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
+          The description here is{" "}
+          <strong className="text-neutral-200">not a note for human readers</strong> — it goes into
+          the Story Bible, so the model reads “kinh dị” the way you mean it rather than the way it
+          guesses. Editing a description changes how every story in that genre is written, from the
+          next run on.
         </p>
       </div>
 
-      <Section title="Thêm thể loại">
-        <Form path="/api/genres" submit="Thêm" resetOnSuccess className="space-y-3 rounded border border-neutral-800 p-4">
+      <Section title="Add a genre">
+        <Form path="/api/genres" submit="Add" resetOnSuccess className="space-y-3 rounded border border-neutral-800 p-4">
           <div className="flex flex-wrap gap-3">
             <label className="flex-1">
-              <span className="mb-1 block text-xs text-neutral-500">Tên — người nghe nhìn thấy</span>
+              <span className="mb-1 block text-xs text-neutral-500">Name — what listeners see</span>
               <input
                 name="name"
                 placeholder="kiếm hiệp"
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
               />
               <span className="mt-1 block text-xs text-neutral-600">
-                Hiện ở trang nghe và trong từ khoá RSS — giữ tiếng của người nghe.
+                Shown on the player and in the RSS keywords — keep it in the listener's language.
               </span>
             </label>
             <label className="flex-1">
               <span className="mb-1 block text-xs text-neutral-500">
-                Tên cho model <span className="text-neutral-600">— tuỳ chọn</span>
+                Name for the model <span className="text-neutral-600">— optional</span>
               </span>
               <input
                 name="promptName"
@@ -57,13 +59,13 @@ export function Genres() {
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
               />
               <span className="mt-1 block text-xs text-neutral-600">
-                Bỏ trống thì model đọc luôn tên bên trái. Đặt tên tiếng Anh thì model 7–14B có
-                liên tưởng dày hơn hẳn.
+                Leave blank and the model reads the name on the left. An English name gives a
+                7–14B model far richer associations.
               </span>
             </label>
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs text-neutral-500">Mô tả — model sẽ đọc câu này</span>
+            <span className="mb-1 block text-xs text-neutral-500">Description — the model reads this</span>
             <textarea
               name="description"
               rows={3}
@@ -71,60 +73,60 @@ export function Genres() {
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
             />
             <span className="mt-1 block text-xs text-neutral-600">
-              Viết <strong className="text-neutral-400">bằng tiếng Anh</strong>, như đang dặn
-              người viết thuê: nói rõ cái gì nên và cái gì tránh. Câu này là chỉ dẫn cho model
-              và nằm cùng khối prompt tiếng Anh, cạnh “tên cho model”.
+              Write it <strong className="text-neutral-400">in English</strong>, the way you
+              would brief a writer you hired: say what to do and what to avoid. This is an
+              instruction to the model and sits in the English prompt block, next to the model name.
             </span>
           </label>
         </Form>
       </Section>
 
       {data.unlisted.length > 0 && (
-        <Section title="Đang dùng nhưng chưa có mô tả">
+        <Section title="In use but undescribed">
           <p className="-mt-1 text-xs text-neutral-500">
-            Những thể loại này có truyện đang dùng nhưng chưa nằm trong danh mục, nên model không
-            được dặn gì về chúng. Thêm ở trên với đúng tên để chúng có mô tả.
+            Stories use these genres but they are not in the catalogue, so the model is told
+            nothing about them. Add them above under the exact same name to give them a description.
           </p>
           <div className="flex flex-wrap gap-2">
             {data.unlisted.map((u) => (
               <Badge key={u.name} tone="amber">
-                {u.name} · {u.usedBy} bộ
+                {u.name} · {u.usedBy} stories
               </Badge>
             ))}
           </div>
         </Section>
       )}
 
-      <Section title={`Danh mục (${data.genres.length})`}>
+      <Section title={`Catalogue (${data.genres.length})`}>
         <div className="space-y-3">
           {data.genres.map((g) => (
             <Form
               key={g.id}
               path={`/api/genres/${g.id}`}
               method="PUT"
-              submit="Lưu"
+              submit="Save"
               className={`rounded border p-4 ${g.enabled ? "border-neutral-800" : "border-neutral-900 bg-neutral-950"}`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <input
                   name="name"
                   defaultValue={g.name}
-                  title="Tên người nghe nhìn thấy"
+                  title="The name listeners see"
                   className="rounded border border-neutral-700 bg-neutral-900 p-1.5 text-sm"
                 />
                 <input
                   name="promptName"
                   defaultValue={g.promptName}
-                  placeholder="tên cho model"
-                  title="Tên đưa cho model đọc. Bỏ trống thì dùng tên bên trái."
+                  placeholder="name for the model"
+                  title="The name given to the model. Blank uses the name on the left."
                   className="rounded border border-neutral-800 bg-neutral-900 p-1.5 text-sm text-neutral-400"
                 />
                 {g.usedBy > 0 ? (
-                  <Badge tone="green">{g.usedBy} bộ đang dùng</Badge>
+                  <Badge tone="green">used by {g.usedBy}</Badge>
                 ) : (
-                  <Badge>chưa bộ nào dùng</Badge>
+                  <Badge>unused</Badge>
                 )}
-                {!g.enabled && <Badge tone="amber">đã ẩn</Badge>}
+                {!g.enabled && <Badge tone="amber">hidden</Badge>}
               </div>
               <textarea
                 name="description"
@@ -134,16 +136,16 @@ export function Genres() {
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 <ActionButton path={`/api/genres/${g.id}/toggle`} method="PUT">
-                  {g.enabled ? "ẩn khỏi ô chọn" : "bật lại"}
+                  {g.enabled ? "hide from pickers" : "unhide"}
                 </ActionButton>
-                {/* Xoá chỉ mở khi không bộ nào dùng — API cũng chặn lần nữa. */}
+                {/* Delete only offered when nothing uses it — the API checks again. */}
                 {g.usedBy === 0 && (
                   <ActionButton
                     path={`/api/genres/${g.id}`}
                     method="DELETE"
-                    confirmText={`Xoá thể loại "${g.name}"?`}
+                    confirmText={`Delete the genre "${g.name}"?`}
                   >
-                    xoá
+                    delete
                   </ActionButton>
                 )}
               </div>

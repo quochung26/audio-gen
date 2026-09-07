@@ -15,11 +15,11 @@ interface Card {
 }
 
 /**
- * Một người trong dàn của bộ SẮP tạo.
+ * One person in the cast of the story ABOUT to be created.
  *
- * `cardId` null = nhân vật gõ riêng cho bộ này, không có trong thư viện.
- * `key` là khoá React tạm, không gửi lên — hai nhân vật chưa đặt tên vẫn phải
- * phân biệt được nhau trong lúc gõ.
+ * `cardId` null means a character typed for this story only, not in the library.
+ * `key` is a throwaway React key, never sent — two unnamed characters still have
+ * to be told apart while you type.
  */
 interface Row {
   key: string;
@@ -52,17 +52,17 @@ const input =
   "w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm placeholder:text-neutral-700";
 
 /**
- * Chọn dàn nhân vật trước khi dựng dàn ý.
+ * Pick the cast before building the outline.
  *
- * Ba việc trong một chỗ, vì chúng là cùng một quyết định: lấy thẻ có sẵn, sửa
- * lại cho hợp bộ này, hoặc gõ hẳn một người mới.
+ * Three jobs in one place, because they are the same decision: take an existing
+ * card, adjust it for this story, or type someone entirely new.
  *
- * Sửa ở đây KHÔNG đụng tới thẻ. Thẻ là bản mô tả gốc mang đi được; "Tài của bộ
- * này" là chuyện riêng của bộ này. Muốn đưa bản sửa lên thư viện thì có nút Lưu
- * riêng ở trang Nhân vật, sau khi bộ đã dựng xong.
+ * Editing here does NOT touch the card. A card is the portable original; "the
+ * Tài of this story" belongs to this story. To push an edit back to the library
+ * there is a separate Save on the Characters page, once the story exists.
  *
- * Gửi lên MỘT trường `cast` dạng JSON: danh sách dài ngắn tuỳ lúc, mà `FormData`
- * phẳng thì tên trường phải mang theo chỉ số và chỗ nào cũng phải tự ghép lại.
+ * Sends ONE `cast` field as JSON: the list varies in length, and a flat
+ * `FormData` would need indexed field names that every reader has to reassemble.
  */
 export function CastPicker() {
   const { data } = useApi<{ cards: Card[] }>("/api/character-cards");
@@ -92,8 +92,8 @@ export function CastPicker() {
         outfit: card.outfit ?? "",
         appearance: card.appearance ?? "",
         voiceHint: card.voiceHint ?? "",
-        // Người dẫn của thẻ chỉ là mặc định; bộ vẫn chỉ được có một, nên thẻ
-        // thứ hai mang cờ này vào sẽ không được nhận.
+        // A card's narrator flag is only a default; a story still gets exactly
+        // one, so a second card bringing it in is not accepted.
         isNarrator: card.isNarrator && !rs.some((r) => r.isNarrator),
       }),
     ]);
@@ -114,7 +114,7 @@ export function CastPicker() {
       {cards.length > 0 && (
         <div>
           <span className="mb-1.5 block text-xs text-neutral-500">
-            Thẻ trong thư viện — bấm để thêm vào bộ này
+            Cards in the library — click to add one
           </span>
           <div className="flex flex-wrap gap-2">
             {cards.map((card) => {
@@ -132,7 +132,7 @@ export function CastPicker() {
                   }`}
                 >
                   {card.name}
-                  {card.isNarrator && <span className="ml-1 text-neutral-600">(dẫn)</span>}
+                  {card.isNarrator && <span className="ml-1 text-neutral-600">(narrates)</span>}
                 </button>
               );
             })}
@@ -148,20 +148,20 @@ export function CastPicker() {
                 <input
                   value={r.name}
                   onChange={(e) => edit(r.key, { name: e.target.value })}
-                  placeholder="Tên"
+                  placeholder="Name"
                   className={input}
                 />
                 {r.cardId ? (
-                  <Badge>từ thẻ</Badge>
+                  <Badge>from a card</Badge>
                 ) : (
-                  <Badge tone="blue">riêng bộ này</Badge>
+                  <Badge tone="blue">this story only</Badge>
                 )}
                 <button
                   type="button"
                   onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                   className="shrink-0 text-xs text-neutral-500 underline hover:text-neutral-300"
                 >
-                  bỏ
+                  remove
                 </button>
               </div>
 
@@ -169,13 +169,13 @@ export function CastPicker() {
                 <input
                   value={r.role}
                   onChange={(e) => edit(r.key, { role: e.target.value })}
-                  placeholder="Vai trong truyện — vd: tài xế xe khách, 45 tuổi"
+                  placeholder="Role in the story — e.g. coach driver, 45"
                   className={`${input} flex-1`}
                 />
                 <input
                   value={r.voiceHint}
                   onChange={(e) => edit(r.key, { voiceHint: e.target.value })}
-                  placeholder="Chất giọng — vd: nam trung niên, khàn"
+                  placeholder="Voice — e.g. middle-aged man, hoarse"
                   className={`${input} flex-1`}
                 />
               </div>
@@ -184,7 +184,7 @@ export function CastPicker() {
                 value={r.description}
                 onChange={(e) => edit(r.key, { description: e.target.value })}
                 rows={2}
-                placeholder="Tính cách — thứ lái hành động và lựa chọn của người này."
+                placeholder="Personality — what drives their actions and choices."
                 className={input}
               />
 
@@ -192,7 +192,7 @@ export function CastPicker() {
                 value={r.speech}
                 onChange={(e) => edit(r.key, { speech: e.target.value })}
                 rows={2}
-                placeholder="Cách nói: nhịp, thói quen dùng từ, cách xưng hô. Thứ giữ cho lời thoại nghe giống nhau qua hàng chục tập."
+                placeholder="How they speak: rhythm, verbal habits, what they call people. This keeps their dialogue recognisable across dozens of episodes."
                 className={input}
               />
 
@@ -200,7 +200,7 @@ export function CastPicker() {
                 value={r.outfit}
                 onChange={(e) => edit(r.key, { outfit: e.target.value })}
                 rows={2}
-                placeholder="Trang phục thường thấy — mặc định, thiết lập chương đè lên được."
+                placeholder="What they usually wear — a default; chapter setup can override it."
                 className={input}
               />
 
@@ -208,13 +208,13 @@ export function CastPicker() {
                 value={r.appearance}
                 onChange={(e) => edit(r.key, { appearance: e.target.value })}
                 rows={2}
-                placeholder="Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục đặt ở thiết lập chương."
+                placeholder="Looks that never change: build, apparent age, face, scars. Clothing goes in the chapter setup."
                 className={input}
               />
 
-              {/* Bấm lại để bỏ chọn: không ai đọc phần dẫn là chuyện bình
-                  thường, phần dẫn khi đó dùng giọng mặc định của bộ. Radio
-                  thường không bỏ chọn được, nên bắt click thay vì change. */}
+              {/* Click again to clear: having nobody read the narration is normal,
+                  and it then uses the story's default voice. A radio cannot
+                  normally be cleared, so listen for click rather than change. */}
               <label className="flex items-center gap-2 text-xs text-neutral-400">
                 <input
                   type="radio"
@@ -223,8 +223,8 @@ export function CastPicker() {
                   onChange={() => {}}
                   onClick={() => edit(r.key, { isNarrator: !r.isNarrator })}
                 />
-                Đọc phần dẫn truyện
-                <span className="text-neutral-600">— tuỳ chọn, bấm lại để bỏ</span>
+                Reads the narration
+                <span className="text-neutral-600">— optional, click again to clear</span>
               </label>
             </div>
           ))}
@@ -237,19 +237,20 @@ export function CastPicker() {
           onClick={() => setRows((rs) => [...rs, blank()])}
           className="rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 hover:border-neutral-500"
         >
-          + Nhân vật riêng cho bộ này
+          + Character for this story only
         </button>
         {rows.length === 0 && (
           <span className="text-xs text-neutral-600">
-            Bỏ trống thì AI tự nghĩ ra dàn nhân vật.
+            Leave empty and the AI invents the cast.
           </span>
         )}
       </div>
 
       {rows.length > 0 && (
         <p className="text-xs text-neutral-600">
-          Sửa ở đây <strong className="text-neutral-400">không</strong> đụng tới thẻ trong thư
-          viện. AI phải dùng đúng những người này, và được thêm người mới nếu truyện cần.
+          Editing here does <strong className="text-neutral-400">not</strong> touch the cards in
+          the library. The AI must use these exact people, and may add more if the story needs
+          them.
         </p>
       )}
     </div>

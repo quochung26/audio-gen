@@ -7,7 +7,7 @@ function mount(at = "/") {
   return render(
     <MemoryRouter initialEntries={[at]}>
       <Layout>
-        <p>nội dung trang</p>
+        <p>page content</p>
       </Layout>
     </MemoryRouter>,
   );
@@ -16,60 +16,60 @@ function mount(at = "/") {
 afterEach(cleanup);
 
 describe("Layout", () => {
-  it("có đủ các mục việc hằng ngày", () => {
+  it("has every day-to-day item", () => {
     mount();
-    for (const label of ["Truyện", "Thư viện nhạc", "Thống kê", "Bình luận"]) {
+    for (const label of ["Stories", "Music library", "Stats", "Comments"]) {
       expect(screen.getByRole("link", { name: label })).toBeTruthy();
     }
   });
 
-  it("Model và Prompt nằm TRONG nhóm Cài đặt, không nằm ở menu chính", () => {
+  it("keeps Models and Prompts INSIDE Settings, out of the main nav", () => {
     const { container } = mount();
     const navs = container.querySelectorAll("nav");
-    const settings = [...navs].find((n) => n.textContent?.includes("Cài đặt")) as HTMLElement;
-    const main = [...navs].find((n) => !n.textContent?.includes("Cài đặt")) as HTMLElement;
+    const settings = [...navs].find((n) => n.textContent?.includes("Settings")) as HTMLElement;
+    const main = [...navs].find((n) => !n.textContent?.includes("Settings")) as HTMLElement;
     expect(settings).toBeTruthy();
 
     for (const name of [/Model/, /^Prompt$/]) {
       expect(within(settings).getByRole("link", { name })).toBeTruthy();
-      // Menu chính không được còn — đây chính là thứ vừa chuyển đi.
+      // The main nav must not still have it — that is exactly what moved.
       expect(within(main).queryByRole("link", { name })).toBeNull();
     }
   });
 
-  it("giữ nguyên đường dẫn cũ, không làm hỏng link đã lưu", () => {
+  it("keeps the same paths, so saved links still work", () => {
     mount();
     expect(screen.getByRole("link", { name: /Model/ }).getAttribute("href")).toBe("/model");
     expect(screen.getByRole("link", { name: /^Prompt$/ }).getAttribute("href")).toBe("/prompts");
   });
 
-  it("đánh dấu mục đang mở", () => {
+  it("marks the active item", () => {
     mount("/model");
     const link = screen.getByRole("link", { name: /Model/ });
     expect(link.className).toContain("bg-neutral-800");
-    expect(screen.getByRole("link", { name: "Truyện" }).className).not.toContain("bg-neutral-800");
+    expect(screen.getByRole("link", { name: "Stories" }).className).not.toContain("bg-neutral-800");
   });
 
-  it("cột menu nằm BÊN TRÁI nội dung", () => {
-    // Thứ tự trong DOM quyết định bên nào trước ở flex-row; đảo lại là menu
-    // nhảy sang phải mà không có lỗi nào báo.
+  it("puts the nav column LEFT of the content", () => {
+    // DOM order decides which side comes first in flex-row; swap them and the nav
+    // jumps to the right with nothing reporting it.
     const { container } = mount();
     const shell = container.querySelector("div.flex")!;
     const kids = [...shell.children];
     expect(kids[0]?.tagName).toBe("ASIDE");
     expect(kids[1]?.tagName).toBe("MAIN");
-    // Đường kẻ ngăn cách nằm ở mép PHẢI của cột, tức cột ở bên trái.
+    // The divider sits on the column's RIGHT edge, i.e. the column is on the left.
     expect(kids[0]?.classList.contains("md:border-r")).toBe(true);
-    // So khớp cả TOKEN chứ không phải chuỗi con: "md:flex-row" là chuỗi con của
-    // "md:flex-row-reverse", nên toContain sẽ xanh trong khi cột đã nhảy sang
-    // phải.
+    // Match the whole TOKEN, not a substring: "md:flex-row" is a substring of
+    // "md:flex-row-reverse", so toContain stays green while the column has
+    // jumped to the right.
     expect(shell.classList.contains("md:flex-row")).toBe(true);
     expect(shell.classList.contains("md:flex-row-reverse")).toBe(false);
   });
 
-  it("giữ nút Truyện mới và hiện nội dung trang", () => {
+  it("keeps the New story button and renders the page content", () => {
     const { container } = mount();
-    expect(screen.getByRole("link", { name: "Truyện mới" })).toBeTruthy();
-    expect(container.textContent).toContain("nội dung trang");
+    expect(screen.getByRole("link", { name: "New story" })).toBeTruthy();
+    expect(container.textContent).toContain("page content");
   });
 });

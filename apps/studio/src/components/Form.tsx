@@ -3,10 +3,11 @@ import { ApiError, useAction } from "@/lib/api";
 import { Button } from "./ui";
 
 /**
- * Form gửi lên API và hiện lỗi NGAY TẠI CHỖ.
+ * A form that posts to the API and shows errors IN PLACE.
  *
- * Lỗi validation là giá trị trả về (400 kèm `{error}`), không phải ngoại lệ
- * làm sập trang — người dùng giữ nguyên thứ đang gõ dở và đọc được lý do.
+ * A validation error is a return value (400 with `{error}`), not an exception
+ * that blows up the page — the user keeps what they were typing and gets to
+ * read why.
  */
 export function Form({
   path,
@@ -25,7 +26,7 @@ export function Form({
   className?: string;
   onDone?: (result: { ok?: string | boolean }) => void;
   resetOnSuccess?: boolean;
-  /** Chưa đủ điều kiện để gửi — nút mờ đi, lý do do phía gọi tự nói ra. */
+  /** Not ready to submit — the button dims; the caller says why. */
   disabled?: boolean;
 }) {
   const ref = useRef<HTMLFormElement>(null);
@@ -55,7 +56,7 @@ export function Form({
       {children}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button variant="primary" type="submit" disabled={action.isPending || disabled}>
-          {action.isPending ? "Đang gửi…" : submit}
+          {action.isPending ? "Sending…" : submit}
         </Button>
         {ok && (
           <span role="status" className="text-sm text-emerald-300">
@@ -63,7 +64,7 @@ export function Form({
           </span>
         )}
       </div>
-      {/* Cảnh báo KHÁC lỗi: việc đã làm xong, nhưng có điều cần biết. */}
+      {/* A warning is NOT an error: the work is done, but there is something to know. */}
       {warnings.length > 0 && (
         <ul className="mt-2 space-y-1 rounded border border-amber-900 bg-amber-950/30 p-3 text-sm text-amber-200">
           {warnings.map((w) => (
@@ -76,7 +77,7 @@ export function Form({
   );
 }
 
-/** Nút gửi một thao tác không cần nhập gì — bấm là chạy. */
+/** A button for an action that needs no input — click and it runs. */
 export function ActionButton({
   path,
   method = "POST",
@@ -125,5 +126,5 @@ export function ErrorNote({ error }: { error: ApiError | Error | null }) {
 }
 
 export function Loading() {
-  return <p className="p-6 text-sm text-neutral-600">Đang tải…</p>;
+  return <p className="p-6 text-sm text-neutral-600">Loading…</p>;
 }

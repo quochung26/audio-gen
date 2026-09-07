@@ -6,27 +6,27 @@ import { Section } from "@/components/ui";
 interface Variant {
   quant: string;
   sizeBytes: number;
-  /** Lớn hơn 1 nghĩa là bản này bị chia nhiều file. */
+  /** More than 1 means this build is split across files. */
   parts: number;
-  /** Tên đầy đủ mà `ollama pull` hiểu. */
+  /** The full name `ollama pull` understands. */
   tag: string;
 }
 
 /**
- * Mức lượng tử hoá — đánh đổi giữa dung lượng và chất lượng văn.
+ * Quantisation — the trade between size and prose quality.
  *
- * Số càng nhỏ càng nhẹ và càng nhanh, nhưng văn nhạt dần. Q4_K_M là mức cân
- * bằng mà cộng đồng dùng phổ biến nhất; Q6_K nặng hơn ~35% mà văn mượt hơn rõ.
+ * Lower numbers are smaller and faster, but the writing flattens out. Q4_K_M is
+ * the balance point most people use; Q6_K is ~35% larger and noticeably smoother.
  *
- * Danh sách CỐ ĐỊNH này chỉ đúng với thư viện chính chủ của Ollama. Kho trên
- * Hugging Face mỗi nơi một kiểu, nên với kho HF thì quét thật — xem dưới.
+ * This FIXED list is only right for Ollama's own library. Hugging Face repos
+ * each do their own thing, so those get scanned for real — see below.
  */
 const QUANTS = [
-  { tag: "q4_K_M", label: "Q4_K_M — cân bằng, phổ biến nhất", hint: "nhẹ nhất còn dùng tốt" },
-  { tag: "q5_K_M", label: "Q5_K_M — nhỉnh hơn Q4", hint: "nặng hơn ~12%" },
-  { tag: "q6_K", label: "Q6_K — văn mượt hơn rõ", hint: "nặng hơn ~35% so với Q4" },
-  { tag: "q8_0", label: "Q8_0 — gần như bản gốc", hint: "nặng gấp đôi Q4" },
-  { tag: "", label: "(mặc định của Ollama)", hint: "thường là Q4_K_M" },
+  { tag: "q4_K_M", label: "Q4_K_M — balanced, most common", hint: "smallest that still holds up" },
+  { tag: "q5_K_M", label: "Q5_K_M — a step up from Q4", hint: "~12% larger" },
+  { tag: "q6_K", label: "Q6_K — noticeably smoother prose", hint: "~35% larger than Q4" },
+  { tag: "q8_0", label: "Q8_0 — near the original", hint: "twice the size of Q4" },
+  { tag: "", label: "(Ollama default)", hint: "usually Q4_K_M" },
 ];
 
 const SUGGESTED = [
@@ -38,8 +38,8 @@ const SUGGESTED = [
 ];
 
 /**
- * Dung lượng THẬP PHÂN cho khớp con số Hugging Face hiện trên trang kho.
- * Xem chú thích ở trang Model.
+ * DECIMAL sizes, to match the numbers Hugging Face shows on a repo page.
+ * See the note on the Models page.
  */
 function gb(bytes: number): string {
   if (bytes <= 0) return "—";
@@ -47,18 +47,18 @@ function gb(bytes: number): string {
 }
 
 /**
- * Ô Model đang trỏ tới một kho Hugging Face, hay tới thư viện của Ollama?
+ * Does the Model box point at a Hugging Face repo, or at Ollama's library?
  *
- * Chỉ dùng để chọn xem hiện danh sách lượng tử hoá NÀO. Bóc tên kho và kiểm
- * kho có thật là việc của API, nên đoán sai ở đây cùng lắm là hiện nhầm ô chọn
- * rồi nhận một lời báo lỗi rõ ràng. Tên trong thư viện Ollama (`qwen3:14b`,
- * `bge-m3`) không bao giờ có dấu "/", nên dấu "/" là dấu hiệu đủ chắc.
+ * Only used to decide WHICH quantisation list to show. Parsing the repo name and
+ * checking it exists is the API's job, so guessing wrong here at worst shows the
+ * wrong picker and then a clear error. Names in Ollama's library (`qwen3:14b`,
+ * `bge-m3`) never contain a "/", so a "/" is a good enough signal.
  */
 export function looksLikeHfRepo(input: string): boolean {
   return input.trim().includes("/");
 }
 
-/** Chờ gõ xong rồi mới quét — mỗi ký tự một lần gọi API thì phí cả hai đầu. */
+/** Wait until typing stops before scanning — one API call per keystroke wastes both ends. */
 function useDebounced<T>(value: T, ms: number): T {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
@@ -69,12 +69,13 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /**
- * Tải model về — từ thư viện Ollama hoặc thẳng từ một kho GGUF trên Hugging Face.
+ * Pull a model — from Ollama's library or straight from a GGUF repo on Hugging Face.
  *
- * Một ô Model duy nhất cho cả hai, vì đứng từ phía người dùng thì đó là cùng
- * một việc. Khác nhau ở chỗ lấy danh sách lượng tử hoá: thư viện Ollama thì
- * dùng danh sách quen thuộc, còn kho HF thì hỏi thẳng kho rồi hiện đúng những
- * bản có thật kèm dung lượng — đoán mò một tag không tồn tại chỉ tổ nhận lỗi.
+ * One Model box for both, because from the user's side it is the same job. They
+ * differ in where the quantisation list comes from: Ollama's library uses the
+ * familiar fixed list, while an HF repo is asked directly and shows only the
+ * builds that really exist, with sizes — guessing a tag that is not there earns
+ * nothing but an error.
  */
 export function ModelDownload({ busy }: { busy: boolean }) {
   const [base, setBase] = useState("qwen3:14b");
@@ -85,9 +86,9 @@ export function ModelDownload({ busy }: { busy: boolean }) {
   const hf = looksLikeHfRepo(typed);
   const repo = useDebounced(typed, 300);
 
-  // Chỉ hỏi khi ô đã lặng. Thiếu vế `repo === typed` thì ngay sau khi dán link,
-  // `hf` đã bật mà `repo` còn là giá trị CŨ — trang đi quét nhầm thứ vừa bị
-  // thay đi, rồi hiện danh sách của nó.
+  // Only ask once the box goes quiet. Without the `repo === typed` clause, right
+  // after pasting a link `hf` is already true while `repo` still holds the OLD
+  // value — the page scans the thing that was just replaced and lists its builds.
   const ready = hf && repo === typed;
   const scan = useApi<{ repo: string; variants: Variant[] }>(
     ready ? `/api/models/hf?repo=${encodeURIComponent(repo)}` : null,
@@ -95,18 +96,18 @@ export function ModelDownload({ busy }: { busy: boolean }) {
   const scanning = hf && (!ready || scan.isLoading);
 
   const variants = scan.data?.variants ?? [];
-  // Bản nhẹ nhất là mặc định, và cũng là chỗ lùi về khi đổi sang kho khác
-  // không có mức đang chọn.
+  // The smallest build is the default, and the fallback when switching to a repo
+  // that does not have the currently selected level.
   const chosen = variants.find((v) => v.quant === hfQuant) ?? variants[0];
   const tag = hf ? (chosen?.tag ?? "") : quant ? `${base}-${quant}` : base;
 
   return (
-    <Section title="Tải model về">
+    <Section title="Download a model">
       <Form
         path="/api/models/pull"
-        submit={tag ? `Tải ${tag}` : "Tải"}
-        // Mỗi lần một model: tải hai model 9 GB song song trên một đường mạng
-        // thì cả hai đều chậm, và thanh tiến độ khó đọc.
+        submit={tag ? `Pull ${tag}` : "Pull"}
+        // One at a time: pulling two 9 GB models over one connection makes both
+        // slow, and the progress bar unreadable.
         disabled={busy || !tag}
         className="space-y-3 rounded border border-neutral-800 p-4"
       >
@@ -129,33 +130,33 @@ export function ModelDownload({ busy }: { busy: boolean }) {
         </datalist>
 
         <label className="block">
-          <span className="mb-1 block text-xs text-neutral-500">Mức lượng tử hoá</span>
+          <span className="mb-1 block text-xs text-neutral-500">Quantisation</span>
           {hf ? (
             <>
               <select
                 value={chosen?.quant ?? ""}
                 onChange={(e) => setHfQuant(e.target.value)}
                 disabled={variants.length === 0}
-                aria-label="Mức lượng tử hoá"
+                aria-label="Quantisation"
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm disabled:text-neutral-600"
               >
                 {variants.length === 0 ? (
                   <option value="">
-                    {scanning ? "đang quét kho…" : "— chưa quét được kho —"}
+                    {scanning ? "scanning the repo…" : "— could not scan the repo —"}
                   </option>
                 ) : (
                   variants.map((v) => (
                     <option key={v.quant} value={v.quant}>
                       {v.quant} — {gb(v.sizeBytes)}
-                      {v.parts > 1 && ` · ${v.parts} phần`}
+                      {v.parts > 1 && ` · ${v.parts} parts`}
                     </option>
                   ))
                 )}
               </select>
               <span className="mt-1 block text-xs text-neutral-600">
                 {chosen && chosen.parts > 1
-                  ? "Bản này bị chia nhiều phần — dung lượng trên đã cộng cả."
-                  : "Lấy thẳng từ kho: chỉ hiện những bản kho đó thật sự có."}
+                  ? "This build is split into parts — the size above is the total."
+                  : "Straight from the repo: only builds it actually has."}
               </span>
             </>
           ) : (
@@ -163,7 +164,7 @@ export function ModelDownload({ busy }: { busy: boolean }) {
               <select
                 value={quant}
                 onChange={(e) => setQuant(e.target.value)}
-                aria-label="Mức lượng tử hoá"
+                aria-label="Quantisation"
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
               >
                 {QUANTS.map((q) => (
@@ -182,7 +183,7 @@ export function ModelDownload({ busy }: { busy: boolean }) {
         {hf && scan.data && (
           <p className="text-xs text-neutral-500">
             <span className="font-mono text-neutral-300">{scan.data.repo}</span> ·{" "}
-            {scan.data.variants.length} bản
+            {scan.data.variants.length} builds
           </p>
         )}
         <ErrorNote error={scan.error} />
@@ -195,15 +196,15 @@ export function ModelDownload({ busy }: { busy: boolean }) {
         <p className="text-xs text-neutral-600">
           {hf ? (
             <>
-              Dán đường dẫn kho GGUF là trang tự quét. Ollama chỉ chạy được{" "}
-              <strong className="text-neutral-400">GGUF</strong>, nên tìm kho có đuôi{" "}
+              Paste a GGUF repo link and it scans automatically. Ollama only runs{" "}
+              <strong className="text-neutral-400">GGUF</strong>, so look for repos ending in{" "}
               <code>-GGUF</code>.
             </>
           ) : (
-            "Không phải model nào cũng có đủ mọi mức lượng tử hoá. Tag không tồn tại thì Ollama báo lỗi và hiện ngay ở đây."
+            "Not every model comes in every quantisation. A tag that does not exist makes Ollama fail, and the error shows up right here."
           )}
         </p>
-        {busy && <p className="text-xs text-neutral-600">Đang tải model khác — xong rồi hãy tải tiếp.</p>}
+        {busy && <p className="text-xs text-neutral-600">Another pull is running — wait for it to finish.</p>}
       </Form>
     </Section>
   );

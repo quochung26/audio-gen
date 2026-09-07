@@ -1,30 +1,31 @@
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 
-/** Việc hằng ngày: nội dung của bạn. */
+/** Day-to-day work: your content. */
 const NAV = [
-  ["/series", "Truyện"],
-  // Thẻ nhân vật đứng cùng thư viện nhạc chứ không nằm dưới Cài đặt: cả hai là
-  // NGUYÊN LIỆU bạn gom dần rồi mang vào từng bộ, không phải cách máy chạy.
-  ["/character-cards", "Thẻ nhân vật"],
-  ["/tracks", "Thư viện nhạc"],
-  ["/stats", "Thống kê"],
-  ["/comments", "Bình luận"],
+  ["/series", "Stories"],
+  // Character cards sit next to the music library rather than under Settings:
+  // both are MATERIAL you collect over time and bring into a story, not part of
+  // how the machine runs.
+  ["/character-cards", "Character cards"],
+  ["/tracks", "Music library"],
+  ["/stats", "Stats"],
+  ["/comments", "Comments"],
 ] as const;
 
 /**
- * Cấu hình máy chạy thế nào — đặt riêng ở cuối cột.
+ * How the machine runs — kept apart, at the bottom of the column.
  *
- * Nhóm chứ không phải menu xổ xuống: xổ ra để lộ vài mục thì thêm một cú bấm mà
- * chẳng giấu được gì.
+ * A group, not a dropdown: opening a menu to reveal three items costs a click
+ * and hides nothing worth hiding.
  *
- * Prompt nằm đây chứ không nằm ở menu chính vì nó là cách MÁY viết, không phải
- * nội dung của bạn — cùng loại với việc chọn model.
+ * Prompts live here rather than in the main nav because they are how the MACHINE
+ * writes, not content of yours — same category as picking a model.
  */
 const SETTINGS_NAV = [
   ["/prompts", "Prompt"],
-  ["/genres", "Thể loại"],
-  ["/model", "Model & ngôn ngữ"],
+  ["/genres", "Genres"],
+  ["/model", "Models & language"],
 ] as const;
 
 function itemClass({ isActive }: { isActive: boolean }): string {
@@ -35,8 +36,8 @@ function itemClass({ isActive }: { isActive: boolean }): string {
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    // Màn hẹp thì xếp dọc để cột không ăn mất nửa chiều ngang; từ md trở lên
-    // mới thành hai cột.
+    // Stack on narrow screens so the sidebar does not eat half the width; two
+    // columns from md up.
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="shrink-0 border-b border-neutral-800 px-4 py-5 md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-6">
@@ -49,7 +50,7 @@ export function Layout({ children }: { children: ReactNode }) {
             to="/series/new"
             className="rounded bg-neutral-100 px-3 py-1.5 text-center text-sm font-medium text-neutral-900 hover:bg-white"
           >
-            Truyện mới
+            New story
           </Link>
 
           <nav className="flex flex-wrap gap-1 md:flex-col">
@@ -60,10 +61,10 @@ export function Layout({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          {/* Đẩy xuống đáy cột khi còn chỗ — cấu hình không phải việc hằng ngày. */}
+          {/* Pushed to the bottom when there is room — settings are not daily work. */}
           <nav className="flex flex-wrap gap-1 md:mt-auto md:flex-col">
             <span className="px-3 pb-1 text-xs uppercase tracking-wide text-neutral-600">
-              Cài đặt
+              Settings
             </span>
             {SETTINGS_NAV.map(([to, label]) => (
               <NavLink key={to} to={to} className={itemClass}>

@@ -13,51 +13,51 @@ const base: SyncInput = {
 
 describe("syncState", () => {
   it("chưa xuất bản thì không xét lệch", () => {
-    expect(syncState({ ...base, status: "READY", syncedAt: null })).toBe("chưa xuất bản");
+    expect(syncState({ ...base, status: "READY", syncedAt: null })).toBe("not published");
   });
 
   it("đã xuất bản mà chưa từng đồng bộ", () => {
-    expect(syncState({ ...base, syncedAt: null })).toBe("chưa đồng bộ lần nào");
+    expect(syncState({ ...base, syncedAt: null })).toBe("never synced");
   });
 
   it("không sửa gì sau khi đồng bộ thì sạch", () => {
-    expect(syncState(base)).toBe("đã đồng bộ");
+    expect(syncState(base)).toBe("in sync");
   });
 
   it("sửa TIÊU ĐỀ sau khi đồng bộ → lệch", () => {
-    expect(syncState({ ...base, episodeUpdatedAt: T(60_000) })).toBe("đã lệch");
+    expect(syncState({ ...base, episodeUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
   it("tạo lại KỊCH BẢN sau khi đồng bộ → lệch", () => {
     // Chỉ nhìn Episode.updatedAt là bỏ sót kiểu này.
-    expect(syncState({ ...base, blocksUpdatedAt: T(60_000) })).toBe("đã lệch");
+    expect(syncState({ ...base, blocksUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
   it("xuất lại MP3 sau khi đồng bộ → lệch", () => {
-    expect(syncState({ ...base, exportsUpdatedAt: T(60_000) })).toBe("đã lệch");
+    expect(syncState({ ...base, exportsUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
   it("vừa đồng bộ xong — hai mốc BẰNG NHAU — thì sạch", () => {
     // Job đặt updatedAt bằng đúng syncedAt lúc đóng dấu, nên đây là tình huống
     // ngay sau mỗi lần đồng bộ.
-    expect(syncState({ ...base, episodeUpdatedAt: base.syncedAt! })).toBe("đã đồng bộ");
+    expect(syncState({ ...base, episodeUpdatedAt: base.syncedAt! })).toBe("in sync");
   });
 
   it("sửa NGAY SAU khi đồng bộ vẫn phải bắt được", () => {
     // Từng dùng đệm 5 giây ở đây và nó che mất đúng tình huống này — sửa tiêu
-    // đề một giây sau khi đồng bộ mà vẫn báo "đã đồng bộ".
-    expect(syncState({ ...base, episodeUpdatedAt: T(10_001) })).toBe("đã lệch");
+    // đề một giây sau khi đồng bộ mà vẫn báo "in sync".
+    expect(syncState({ ...base, episodeUpdatedAt: T(10_001) })).toBe("out of date");
   });
 
   it("tập chưa có block hay bản xuất vẫn xét được", () => {
     expect(syncState({ ...base, blocksUpdatedAt: null, exportsUpdatedAt: null })).toBe(
-      "đã đồng bộ",
+      "in sync",
     );
   });
 
   it("lấy mốc MỚI NHẤT trong ba nguồn", () => {
     expect(
       syncState({ ...base, episodeUpdatedAt: T(0), blocksUpdatedAt: T(0), exportsUpdatedAt: T(99_000) }),
-    ).toBe("đã lệch");
+    ).toBe("out of date");
   });
 });

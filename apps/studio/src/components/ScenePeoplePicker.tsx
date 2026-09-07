@@ -1,14 +1,16 @@
 import { useState } from "react";
 
 /**
- * Chọn ai có mặt trong một cảnh.
+ * Pick who is in a scene.
  *
- * Không chọn ai = **chưa biết**, không phải "không ai": lúc đó Story Bible nạp
- * mô tả đầy đủ của mọi nhân vật, đúng hành vi cũ. Chọn rồi thì người ngoài danh
- * sách chỉ còn tên và vai — ngữ cảnh không phình theo cỡ dàn.
+ * Picking nobody means **not known yet**, not "nobody": the Story Bible then
+ * carries the full description of every character, which is the old behaviour.
+ * Once you pick, everyone outside the list is reduced to a name and a role — so
+ * context does not grow with the size of the cast.
  *
- * Mặc định nghiêng về phía "nạp thừa": đoán hụt một người thì chỉ mất phần lọc,
- * chứ không phải model viết cảnh mà thiếu mô tả của chính người trong đó.
+ * The default leans toward carrying too much on purpose: guessing one person
+ * short only loses the filtering, whereas the other way round the model writes
+ * a scene without the description of someone actually in it.
  */
 export function ScenePeoplePicker({
   characters,
@@ -24,7 +26,7 @@ export function ScenePeoplePicker({
   return (
     <div>
       <input type="hidden" name="characterIds" value={picked.join(",")} />
-      <span className="mb-1.5 block text-xs text-neutral-500">Ai có mặt trong cảnh này</span>
+      <span className="mb-1.5 block text-xs text-neutral-500">Who is in this scene</span>
       <div className="flex flex-wrap gap-2">
         {characters.map((c) => {
           const on = picked.includes(c.id);
@@ -46,15 +48,15 @@ export function ScenePeoplePicker({
                 }
               />
               {c.name}
-              {c.isNarrator && <span className="ml-1 text-neutral-600">(dẫn)</span>}
+              {c.isNarrator && <span className="ml-1 text-neutral-600">(narrates)</span>}
             </label>
           );
         })}
       </div>
       <span className="mt-1 block text-xs text-neutral-600">
         {picked.length === 0
-          ? "Chưa chọn ai — Story Bible sẽ nạp mô tả đầy đủ của tất cả, như cũ."
-          : `Chỉ ${picked.length} người này được tả đầy đủ; số còn lại chỉ còn tên và vai.`}
+          ? "Nobody picked — the Story Bible carries everyone in full, as before."
+          : `Only these ${picked.length} are described in full; the rest keep just a name and a role.`}
       </span>
     </div>
   );

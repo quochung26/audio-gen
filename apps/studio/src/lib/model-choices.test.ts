@@ -9,7 +9,7 @@ const recent = ["anthropic/claude-sonnet-4.5", "openai/gpt-5"];
 const url = "http://localhost:11434";
 
 describe("modelChoices", () => {
-  it("chạy Ollama thì liệt kê model đã tải, kèm cỡ và mức lượng tử hoá", () => {
+  it("on Ollama, lists pulled models with size and quantisation", () => {
     const r = modelChoices({ provider: "ollama", reachable: true, installed, recent, url });
     expect(r.choices).toEqual([
       { value: "qwen3:14b", label: "qwen3:14b · 14B · Q4_K_M" },
@@ -18,49 +18,49 @@ describe("modelChoices", () => {
     expect(r.reason).toBeNull();
   });
 
-  it("chạy giả lập VẪN liệt kê model của Ollama", () => {
-    // Provider mock dùng tên model kiểu Ollama. Trước đây nó rơi vào nhánh
-    // "đã dùng gần đây" và bảng chọn hiện toàn tên cũ trong lịch sử.
+  it("the mock provider STILL lists Ollama models", () => {
+    // The mock provider uses Ollama-style model names. It used to fall into the
+    // "recently used" branch and the picker filled with stale names.
     const r = modelChoices({ provider: "mock", reachable: true, installed, recent, url });
     expect(r.choices.map((c) => c.value)).toEqual(["qwen3:14b", "bge-m3"]);
   });
 
-  it("chỉ OpenRouter mới đổi sang danh sách đã dùng gần đây", () => {
+  it("only OpenRouter switches to the recently-used list", () => {
     const r = modelChoices({ provider: "openrouter", reachable: true, installed, recent, url });
     expect(r.choices.map((c) => c.value)).toEqual(recent);
   });
 
-  it("Ollama chưa chạy: rỗng, và NÓI RÕ vì sao kèm địa chỉ", () => {
-    // Không nói thì nhìn vào chỉ thấy "không có chỗ chọn model".
+  it("Ollama down: empty, and SAYS why, with the address", () => {
+    // Without that, all you see is "no model picker".
     const r = modelChoices({ provider: "ollama", reachable: false, installed, recent, url });
     expect(r.choices).toEqual([]);
-    expect(r.reason).toContain("Không kết nối được Ollama");
+    expect(r.reason).toContain("Cannot reach Ollama");
     expect(r.reason).toContain(url);
     expect(r.reason).toContain("ollama serve");
   });
 
-  it("chạy giả lập mà Ollama chưa chạy cũng nói lý do đó", () => {
+  it("mock provider with Ollama down gives the same reason", () => {
     expect(modelChoices({ provider: "mock", reachable: false, installed, recent, url }).reason).toContain(
-      "Không kết nối được Ollama",
+      "Cannot reach Ollama",
     );
   });
 
-  it("Ollama chạy nhưng chưa tải model nào — lý do KHÁC hẳn", () => {
+  it("Ollama up but nothing pulled — a DIFFERENT reason entirely", () => {
     const r = modelChoices({ provider: "ollama", reachable: true, installed: [], recent, url });
     expect(r.choices).toEqual([]);
-    expect(r.reason).toContain("chưa tải model nào");
-    expect(r.reason).not.toContain("Không kết nối được");
+    expect(r.reason).toContain("no model is pulled");
+    expect(r.reason).not.toContain("Cannot reach");
   });
 
-  it("OpenRouter chưa dùng model nào cũng có lý do riêng", () => {
+  it("OpenRouter with nothing used yet has its own reason", () => {
     const r = modelChoices({ provider: "openrouter", reachable: false, installed: [], recent: [] });
     expect(r.choices).toEqual([]);
     expect(r.reason).toContain("OpenRouter");
-    // Không đổ lỗi cho Ollama khi đang chạy đám mây.
+    // Do not blame Ollama when running in the cloud.
     expect(r.reason).not.toContain("ollama serve");
   });
 
-  it("OpenRouter không phụ thuộc Ollama có chạy hay không", () => {
+  it("OpenRouter does not depend on Ollama being up", () => {
     const r = modelChoices({ provider: "openrouter", reachable: false, installed: [], recent });
     expect(r.choices).toHaveLength(2);
     expect(r.reason).toBeNull();

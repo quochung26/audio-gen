@@ -1,4 +1,4 @@
-/** Ô nhập nhiều dòng dùng chung — nhãn, gợi ý, placeholder. */
+/** Shared multi-line input — label, hint, placeholder. */
 export function Field({
   name,
   label,

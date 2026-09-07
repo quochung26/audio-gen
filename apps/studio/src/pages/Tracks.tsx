@@ -3,7 +3,7 @@ import { Badge, Section } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { TextInput } from "@/components/Field";
 
-/** UNKNOWN là thứ chặn xuất bản, nên phải nhìn thấy ngay chứ không lẫn vào đám xám. */
+/** UNKNOWN blocks publishing, so it has to stand out rather than blend into the grey. */
 const LICENSE_TONE: Record<string, string> = {
   ROYALTY_FREE: "green",
   CC0: "green",
@@ -13,18 +13,18 @@ const LICENSE_TONE: Record<string, string> = {
   UNKNOWN: "red",
 };
 const LICENSE_LABEL: Record<string, string> = {
-  ROYALTY_FREE: "miễn phí bản quyền",
+  ROYALTY_FREE: "royalty free",
   CC0: "CC0",
-  CC_BY: "CC BY — phải ghi nguồn",
-  PURCHASED: "đã mua",
-  SELF_MADE: "tự làm",
-  UNKNOWN: "chưa rõ",
+  CC_BY: "CC BY — attribution required",
+  PURCHASED: "purchased",
+  SELF_MADE: "self made",
+  UNKNOWN: "unknown",
 };
 const KIND_LABEL: Record<string, string> = {
-  BGM: "nhạc nền",
-  SFX: "hiệu ứng",
-  INTRO: "nhạc mở",
-  OUTRO: "nhạc kết",
+  BGM: "background",
+  SFX: "effect",
+  INTRO: "intro",
+  OUTRO: "outro",
 };
 
 interface Track {
@@ -56,25 +56,25 @@ export function Tracks() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">Thư viện nhạc</h1>
+        <h1 className="text-xl font-semibold">Music library</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Nhạc nền được trộn dưới lời đọc kèm <strong className="text-neutral-200">ducking</strong> —
-          nhạc tự nhỏ lại khi có lời, tự to lên ở khoảng lặng. Chọn nhạc cho từng tập ở trang Audio
-          của tập đó.
+          Background music is mixed under the narration with{" "}
+          <strong className="text-neutral-200">ducking</strong> — it drops when someone speaks and
+          comes back up in the gaps. Pick music per episode on that episode's Audio page.
         </p>
       </div>
 
       {unknown.length > 0 && (
         <p className="rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-          {unknown.length} track chưa xác minh giấy phép. Tập nào dùng chúng sẽ bị chặn ở bước xuất
-          bản — điền giấy phép trước khi đưa vào tập.
+          {unknown.length} tracks have no verified licence. Any episode using them is blocked at
+          publish — fill in the licence before putting them in an episode.
         </p>
       )}
 
       <Section title={`Track (${data.tracks.length})`}>
         {data.tracks.length === 0 ? (
           <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-500">
-            Chưa có track nào. Thêm một bản nhạc ở form bên dưới.
+            No tracks yet. Add one using the form below.
           </p>
         ) : (
           <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
@@ -89,11 +89,11 @@ export function Tracks() {
                         {LICENSE_LABEL[t.licenseType] ?? t.licenseType}
                       </Badge>
                       {t._count.episodesAsBgm > 0 && (
-                        <Badge tone="blue">{t._count.episodesAsBgm} tập đang dùng</Badge>
+                        <Badge tone="blue">used by {t._count.episodesAsBgm}</Badge>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">
-                      {t.durationMs > 0 ? formatDuration(t.durationMs) : "độ dài chưa rõ"}
+                      {t.durationMs > 0 ? formatDuration(t.durationMs) : "length unknown"}
                       {t.mood ? ` · ${t.mood}` : ""}
                       {t.tags.length > 0 ? ` · ${t.tags.join(", ")}` : ""}
                     </p>
@@ -108,9 +108,9 @@ export function Tracks() {
                   <ActionButton
                     path={`/api/tracks/${t.id}`}
                     method="DELETE"
-                    confirmText={`Xoá "${t.title}" khỏi thư viện? File trên đĩa vẫn giữ.`}
+                    confirmText={`Remove "${t.title}" from the library? The file on disk stays.`}
                   >
-                    xoá
+                    remove
                   </ActionButton>
                 </div>
                 <audio controls preload="none" className="h-8 w-full max-w-md" src={mediaUrl(t.url)} />
@@ -120,17 +120,17 @@ export function Tracks() {
         )}
       </Section>
 
-      <Section title="Thêm track">
+      <Section title="Add a track">
         <Form
           path="/api/tracks"
-          submit="Thêm vào thư viện"
+          submit="Add to library"
           className="space-y-3 rounded border border-neutral-800 p-4"
           resetOnSuccess
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextInput name="title" label="Tên" placeholder="Đêm mưa — piano trầm" />
+            <TextInput name="title" label="Title" placeholder="Rainy night — low piano" />
             <label className="block">
-              <span className="mb-1 block text-xs text-neutral-500">Loại</span>
+              <span className="mb-1 block text-xs text-neutral-500">Kind</span>
               <select
                 name="kind"
                 defaultValue="BGM"
@@ -155,26 +155,26 @@ export function Tracks() {
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-2 file:py-1 file:text-neutral-200"
               />
               <span className="mt-1 block text-xs text-neutral-600">
-                Lưu vào cùng kho mà worker đọc. Độ dài được đo tự động.
+                Saved to the same store the worker reads. Length is measured automatically.
               </span>
             </label>
           ) : (
             <label className="block">
-              <span className="mb-1 block text-xs text-neutral-500">URL công khai</span>
+              <span className="mb-1 block text-xs text-neutral-500">Public URL</span>
               <input
                 name="url"
                 placeholder="https://..."
                 className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
               />
               <span className="mt-1 block text-xs text-neutral-600">
-                Đang dùng STORAGE_DRIVER={data.storageDriver} — không tải file lên thay bạn được.
+                STORAGE_DRIVER={data.storageDriver} — uploads are not possible from here.
               </span>
             </label>
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-neutral-500">Giấy phép</span>
+              <span className="mb-1 block text-xs text-neutral-500">Licence</span>
               <select
                 name="licenseType"
                 defaultValue="UNKNOWN"
@@ -187,26 +187,26 @@ export function Tracks() {
                 ))}
               </select>
             </label>
-            <TextInput name="mood" label="Không khí (tuỳ chọn)" placeholder="u ám, căng thẳng" />
+            <TextInput name="mood" label="Mood (optional)" placeholder="bleak, tense" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <TextInput
               name="attribution"
-              label="Ghi nguồn (bắt buộc với CC BY)"
-              placeholder="Nhạc: Tên tác giả"
+              label="Attribution (required for CC BY)"
+              placeholder="Music: artist name"
             />
             <TextInput
               name="tags"
-              label="Thẻ, cách nhau bằng dấu phẩy"
-              placeholder="piano, chậm, kinh dị"
+              label="Tags, comma separated"
+              placeholder="piano, slow, horror"
             />
           </div>
 
           <TextInput
             name="licenseNote"
-            label="Ghi chú giấy phép"
-            placeholder="Mua ở ... ngày ... / link điều khoản"
+            label="Licence note"
+            placeholder="Bought at ... on ... / link to terms"
           />
         </Form>
       </Section>

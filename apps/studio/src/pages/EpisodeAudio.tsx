@@ -73,13 +73,13 @@ export function EpisodeAudio() {
   const mp3 = ep.exports[0];
   const uniqueAssets = new Set(ep.blocks.map((b) => b.audioAsset?.id).filter(Boolean)).size;
 
-  // Kịch bản audio đã gợi ý tiếng động cho những block này nhưng chưa ai gán
-  // track — dễ quên vì nó nằm rải trong danh sách dài.
+  // The audio script suggested a sound for these blocks but nobody assigned a
+  // track — easy to miss because they are scattered down a long list.
   const sfxPending = ep.blocks.filter((b) => b.sfxHint && !b.sfxTrackId).length;
   const sfxUsed = ep.blocks.filter((b) => b.sfxTrackId).length;
 
-  // Vòng lặp nhạc nối thẳng, không crossfade — nhiều vòng là nhiều chỗ nối
-  // nghe được. Cho thấy con số trước để chọn track dài hơn.
+  // Music loops are butt-joined, no crossfade — more loops means more audible
+  // seams. Show the number up front so a longer track can be picked.
   const loops =
     ep.bgmTrack && ep.bgmTrack.durationMs > 0 && ep.durationMs
       ? ep.durationMs / ep.bgmTrack.durationMs
@@ -89,18 +89,18 @@ export function EpisodeAudio() {
     <div className="space-y-8">
       <div>
         <Link to={`/episode/${ep.id}`} className="text-xs text-neutral-500 underline">
-          ← Tập {ep.number}: {ep.title}
+          ← Episode {ep.number}: {ep.title}
         </Link>
         <div className="mt-2 flex items-center gap-3">
           <h1 className="text-xl font-semibold">Audio</h1>
           <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>
         </div>
         <p className="mt-1 text-sm text-neutral-500">
-          {done}/{ep.blocks.length} block có audio · {approved} đã duyệt
-          {sfxUsed > 0 ? ` · ${sfxUsed} hiệu ứng` : ""}
+          {done}/{ep.blocks.length} blocks with audio · {approved} approved
+          {sfxUsed > 0 ? ` · ${sfxUsed} effects` : ""}
           {ep.durationMs ? ` · ~${formatDuration(ep.durationMs)}` : ""}
           {uniqueAssets > 0 && uniqueAssets < done
-            ? ` · ${done - uniqueAssets} block dùng chung cache`
+            ? ` · ${done - uniqueAssets} blocks share cached audio`
             : ""}
         </p>
       </div>
@@ -110,7 +110,7 @@ export function EpisodeAudio() {
           to={`/job/${active.id}`}
           className="block rounded border border-blue-900 bg-blue-950/40 p-3 text-sm text-blue-200"
         >
-          Đang chạy {active.type} — {active.progress}%. Bấm để xem tiến độ.
+          {active.type} running — {active.progress}%. Click for progress.
         </Link>
       )}
 
@@ -118,42 +118,42 @@ export function EpisodeAudio() {
         <div className="flex flex-wrap gap-2">
           {!allDone && (
             <ActionButton path={`/api/episodes/${ep.id}/render`} variant="primary">
-              Đọc {ep.blocks.length - done} block còn lại
+              Speak the remaining {ep.blocks.length - done} blocks
             </ActionButton>
           )}
           {allDone && (
             <ActionButton path={`/api/episodes/${ep.id}/export`} variant="primary">
-              {mp3 ? "Xuất lại MP3" : "Ghép & xuất MP3"}
+              {mp3 ? "Re-export MP3" : "Mix & export MP3"}
             </ActionButton>
           )}
-          <ActionButton path={`/api/episodes/${ep.id}/render?force=1`}>đọc lại toàn bộ</ActionButton>
+          <ActionButton path={`/api/episodes/${ep.id}/render?force=1`}>re-speak everything</ActionButton>
         </div>
       )}
 
       {sfxPending > 0 && (
         <p className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
-          {sfxPending} block có gợi ý hiệu ứng nhưng chưa gán track.
+          {sfxPending} blocks have a sound suggestion but no track assigned.
           {data.sfxTracks.length === 0 ? (
             <>
               {" "}
-              Thư viện chưa có hiệu ứng nào —{" "}
+              The library has no effects yet —{" "}
               <Link to="/tracks" className="underline">
-                thêm ở Thư viện nhạc
+                add some in the Music library
               </Link>
               .
             </>
           ) : (
-            " Gán ở từng block bên dưới."
+            " Assign them per block below."
           )}
         </p>
       )}
 
-      <Section title="Nhạc nền">
+      <Section title="Background music">
         {data.bgmTracks.length === 0 ? (
           <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-500">
-            Thư viện chưa có nhạc nền nào.{" "}
+            The library has no background music yet.{" "}
             <Link to="/tracks" className="underline">
-              Thêm ở trang Thư viện nhạc
+              Add some in the Music library
             </Link>
             .
           </p>
@@ -161,7 +161,7 @@ export function EpisodeAudio() {
           <Form
             path={`/api/episodes/${ep.id}/bgm`}
             method="PUT"
-            submit="Lưu nhạc nền"
+            submit="Save music"
             className="space-y-3 rounded border border-neutral-800 p-4"
           >
             <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
@@ -172,19 +172,19 @@ export function EpisodeAudio() {
                   defaultValue={ep.bgmTrackId ?? ""}
                   className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
                 >
-                  <option value="">— không có nhạc nền —</option>
+                  <option value="">— no background music —</option>
                   {data.bgmTracks.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.title}
                       {t.mood ? ` (${t.mood})` : ""}
-                      {t.licenseType === "UNKNOWN" ? " — chưa rõ giấy phép" : ""}
+                      {t.licenseType === "UNKNOWN" ? " — licence unknown" : ""}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs text-neutral-500">
-                  Âm lượng nền — {Math.round(ep.bgmVolume * 100)}%
+                  Music level — {Math.round(ep.bgmVolume * 100)}%
                 </span>
                 <input
                   type="number"
@@ -199,19 +199,19 @@ export function EpisodeAudio() {
             </div>
 
             <p className="text-xs text-neutral-600">
-              Đây là mức nhạc ở khoảng KHÔNG có lời. Khi có lời, ducking tự kéo xuống thêm ~8 dB.
+              This is the level where nobody is speaking. Under speech, ducking pulls it down another ~8 dB.
             </p>
 
             {loops !== null && loops > 1.5 && (
               <p className="rounded border border-amber-900 bg-amber-950/40 p-2 text-xs text-amber-200">
-                Track này ngắn hơn tập nên phải lặp ~{loops.toFixed(1)} vòng. Chỗ nối vòng lặp không
-                được crossfade nên nghe thấy được.
+                This track is shorter than the episode, so it loops ~{loops.toFixed(1)} times. The
+                loop joins are not crossfaded, so they are audible.
               </p>
             )}
 
             {ep.bgmTrack?.licenseType === "UNKNOWN" && (
               <p className="rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-200">
-                Track đang chọn chưa xác minh giấy phép — bước xuất bản sẽ bị chặn.
+                The selected track has no verified licence — publishing will be blocked.
               </p>
             )}
           </Form>
@@ -219,7 +219,7 @@ export function EpisodeAudio() {
       </Section>
 
       {mp3 && (
-        <Section title="Bản xuất">
+        <Section title="Exports">
           <div className="space-y-2 rounded border border-emerald-900/50 p-4">
             <div className="flex items-center gap-3 text-sm">
               <Badge tone="green">MP3</Badge>
@@ -235,13 +235,13 @@ export function EpisodeAudio() {
               {ep.status === "PUBLISHED" ? (
                 <>
                   <span className="text-sm text-emerald-300">
-                    Đã xuất bản
+                    Published
                     {ep.publishedAt ? ` ${new Date(ep.publishedAt).toLocaleString("vi")}` : ""}
                   </span>
-                  <Badge tone={data.sync === "đã đồng bộ" ? "green" : "amber"}>{data.sync}</Badge>
-                  {data.sync !== "đã đồng bộ" && (
+                  <Badge tone={data.sync === "in sync" ? "green" : "amber"}>{data.sync}</Badge>
+                  {data.sync !== "in sync" && (
                     <ActionButton path={`/api/episodes/${ep.id}/resync`} variant="primary">
-                      Đồng bộ lại
+                      Re-sync
                     </ActionButton>
                   )}
                   <a
@@ -250,24 +250,24 @@ export function EpisodeAudio() {
                     rel="noreferrer"
                     className="text-xs text-neutral-400 underline"
                   >
-                    mở trang nghe
+                    open the player
                   </a>
-                  <ActionButton path={`/api/episodes/${ep.id}/unpublish`}>gỡ xuất bản</ActionButton>
+                  <ActionButton path={`/api/episodes/${ep.id}/unpublish`}>unpublish</ActionButton>
                 </>
               ) : (
                 <>
                   <ActionButton path={`/api/episodes/${ep.id}/publish`} variant="primary">
-                    Xuất bản
+                    Publish
                   </ActionButton>
                   <span className="text-xs text-neutral-600">
-                    Xuất bản xong tập mới hiện ở trang nghe.
+                    Only published episodes appear on the player.
                   </span>
                 </>
               )}
             </div>
-            {ep.status === "PUBLISHED" && data.sync === "đã lệch" && (
+            {ep.status === "PUBLISHED" && data.sync === "out of date" && (
               <p className="text-xs text-amber-500">
-                Đã sửa gì đó sau lần đẩy cuối — trang nghe vẫn đang phục vụ bản cũ.
+                Something changed since the last push — the player is still serving the old version.
               </p>
             )}
           </div>
@@ -283,7 +283,7 @@ export function EpisodeAudio() {
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="text-neutral-500">{b.order}.</span>
                     <Badge tone={b.speakerLabel === "narrator" ? "neutral" : "blue"}>
-                      {b.speakerLabel === "narrator" ? "dẫn truyện" : b.speakerLabel}
+                      {b.speakerLabel === "narrator" ? "narration" : b.speakerLabel}
                     </Badge>
                     <span className="text-neutral-600">
                       {b.character?.voice?.name ?? b.voiceId} · {b.ttsEngine}
@@ -291,15 +291,15 @@ export function EpisodeAudio() {
                     {b.audioAsset ? (
                       <span className="text-neutral-600">
                         {(b.audioAsset.durationMs / 1000).toFixed(1)}s
-                        {b.audioAsset.refCount > 1 ? ` · dùng ${b.audioAsset.refCount} nơi` : ""}
+                        {b.audioAsset.refCount > 1 ? ` · used in ${b.audioAsset.refCount} places` : ""}
                       </span>
                     ) : (
-                      <Badge tone="amber">chưa có audio</Badge>
+                      <Badge tone="amber">no audio</Badge>
                     )}
-                    {b.approved && <Badge tone="green">đã duyệt</Badge>}
+                    {b.approved && <Badge tone="green">approved</Badge>}
                     {b.sfxTrack && <Badge tone="blue">sfx: {b.sfxTrack.title}</Badge>}
                     {b.sfxHint && !b.sfxTrackId && (
-                      <span className="text-neutral-600">gợi ý sfx: {b.sfxHint}</span>
+                      <span className="text-neutral-600">sfx hint: {b.sfxHint}</span>
                     )}
                   </div>
                   <p className="mt-1 text-sm text-neutral-300">{b.text}</p>
@@ -316,23 +316,23 @@ export function EpisodeAudio() {
                     <Form
                       path={`/api/episodes/${ep.id}/blocks/${b.id}/sfx`}
                       method="PUT"
-                      submit="Gán"
+                      submit="Assign"
                       className="mt-2 max-w-md"
                     >
                       <label className="block">
                         <span className="mb-1 block text-xs text-neutral-500">
-                          Hiệu ứng{b.sfxHint ? ` — kịch bản gợi ý: ${b.sfxHint}` : ""}
+                          Effect{b.sfxHint ? ` — the script suggested: ${b.sfxHint}` : ""}
                         </span>
                         <select
                           name="sfxTrackId"
                           defaultValue={b.sfxTrackId ?? ""}
                           className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
                         >
-                          <option value="">— không có —</option>
+                          <option value="">— none —</option>
                           {data.sfxTracks.map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.title}
-                              {t.licenseType === "UNKNOWN" ? " — chưa rõ giấy phép" : ""}
+                              {t.licenseType === "UNKNOWN" ? " — licence unknown" : ""}
                             </option>
                           ))}
                         </select>
@@ -347,11 +347,11 @@ export function EpisodeAudio() {
                         path={`/api/episodes/${ep.id}/blocks/${b.id}/approve`}
                         method="PUT"
                       >
-                        {b.approved ? "bỏ duyệt" : "duyệt"}
+                        {b.approved ? "unapprove" : "approve"}
                       </ActionButton>
                     )}
                     <ActionButton path={`/api/episodes/${ep.id}/blocks/${b.id}/rerender`}>
-                      đọc lại
+                      re-speak
                     </ActionButton>
                   </div>
                 )}

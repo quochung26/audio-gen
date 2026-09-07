@@ -1,17 +1,17 @@
 import { useState } from "react";
 
 /**
- * Chọn thể loại phụ bằng cách bấm, lấy từ danh mục ở Cài đặt → Thể loại.
+ * Pick sub-genres by clicking, from the catalogue under Settings → Genres.
  *
- * Gửi lên một chuỗi `tags` cách nhau bằng dấu phẩy — đúng thứ API vẫn nhận,
- * nên phía backend không phải đổi gì.
+ * Sends one comma-separated `tags` string — exactly what the API already
+ * accepts, so nothing changes on the backend.
  */
 export function TagPicker({ genres, initial = [] }: { genres: string[]; initial?: string[] }) {
   const [picked, setPicked] = useState<string[]>(initial);
 
-  // Thể loại bộ này đang mang mà danh mục không có — gõ tay từ trước, hoặc vừa
-  // bị ẩn đi — vẫn phải hiện ra và vẫn được tick. Bỏ chúng đi thì chỉ cần bấm
-  // Lưu là mất sạch, mà không có gì báo.
+  // A genre this story carries that the catalogue does not have — typed by hand
+  // earlier, or just hidden — must still show and stay ticked. Drop them and a
+  // single Save wipes them, with nothing to say so.
   const choices = [...new Set([...initial, ...genres])];
 
   return (
@@ -19,7 +19,7 @@ export function TagPicker({ genres, initial = [] }: { genres: string[]; initial?
       <input type="hidden" name="tags" value={picked.join(", ")} />
       {choices.length === 0 ? (
         <p className="text-xs text-amber-500">
-          Danh mục thể loại đang rỗng — thêm ở Cài đặt → Thể loại.
+          The genre catalogue is empty — add one under Settings → Genres.
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">

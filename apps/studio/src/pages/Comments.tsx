@@ -15,9 +15,9 @@ interface Comment {
 }
 
 const TABS = [
-  ["PENDING", "Chờ duyệt"],
-  ["APPROVED", "Đã duyệt"],
-  ["REJECTED", "Đã từ chối"],
+  ["PENDING", "Awaiting review"],
+  ["APPROVED", "Approved"],
+  ["REJECTED", "Rejected"],
 ] as const;
 
 function fmt(ms: number): string {
@@ -39,15 +39,15 @@ export function Comments() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Bình luận</h1>
+        <h1 className="text-xl font-semibold">Comments</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Bình luận của người nghe vào <strong className="text-neutral-200">hàng chờ</strong> và
-          không hiện ở trang nghe cho tới khi được duyệt. Người gửi cũng không thấy bình luận của
-          chính mình — thấy nó thì tưởng đã công khai rồi.
+          Listener comments land in a <strong className="text-neutral-200">queue</strong> and do
+          not appear on the player until approved. Not even the author sees their own — seeing it
+          would suggest it is already public.
         </p>
         {!data.separateDb && (
           <p className="mt-2 text-xs text-neutral-600">
-            Đang chạy chung một DB (PLAYER_DATABASE_URL trống).
+            Running on a single database (PLAYER_DATABASE_URL is empty).
           </p>
         )}
       </div>
@@ -66,33 +66,33 @@ export function Comments() {
         ))}
       </div>
 
-      <Section title={`${data.comments.length} bình luận`}>
+      <Section title={`${data.comments.length} comments`}>
         {data.comments.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-800 p-6 text-sm text-neutral-500">
-            {tab === "PENDING" ? "Hàng chờ trống." : "Không có bình luận nào."}
+            {tab === "PENDING" ? "The queue is empty." : "No comments."}
           </p>
         ) : (
           <div className="space-y-3">
             {data.comments.map((c) => (
               <div key={c.id} className="rounded border border-neutral-800 p-4">
                 <div className="flex flex-wrap items-baseline gap-2 text-xs text-neutral-500">
-                  <span className="text-neutral-300">{c.user.name ?? "Người nghe"}</span>
+                  <span className="text-neutral-300">{c.user.name ?? "Listener"}</span>
                   <span className="text-neutral-600">{c.user.email}</span>
                   <Link
                     to={`/episode/${c.episode.id}`}
                     className="text-neutral-500 underline"
                   >
-                    {c.episode.series.title} · tập {c.episode.number}
+                    {c.episode.series.title} · episode {c.episode.number}
                   </Link>
                   {c.timestampMs !== null && (
-                    <span className="text-neutral-600">tại {fmt(c.timestampMs)}</span>
+                    <span className="text-neutral-600">at {fmt(c.timestampMs)}</span>
                   )}
                   <span className="text-neutral-700">
                     {new Date(c.createdAt).toLocaleString("vi")}
                   </span>
                   {c.status !== "PENDING" && (
                     <Badge tone={c.status === "APPROVED" ? "green" : "red"}>
-                      {c.status === "APPROVED" ? "đã duyệt" : "đã từ chối"}
+                      {c.status === "APPROVED" ? "approved" : "rejected"}
                     </Badge>
                   )}
                 </div>
@@ -109,7 +109,7 @@ export function Comments() {
                       body={{ status: "APPROVED" }}
                       variant="primary"
                     >
-                      Duyệt
+                      Approve
                     </ActionButton>
                   )}
                   {c.status !== "REJECTED" && (
@@ -118,15 +118,15 @@ export function Comments() {
                       method="PUT"
                       body={{ status: "REJECTED" }}
                     >
-                      Từ chối
+                      Reject
                     </ActionButton>
                   )}
                   <ActionButton
                     path={`/api/comments/${c.id}`}
                     method="DELETE"
-                    confirmText="Xoá hẳn bình luận này?"
+                    confirmText="Delete this comment for good?"
                   >
-                    xoá hẳn
+                    delete
                   </ActionButton>
                 </div>
               </div>

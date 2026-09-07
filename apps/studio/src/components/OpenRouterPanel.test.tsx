@@ -51,7 +51,7 @@ function mount(status: Partial<typeof STATUS> = {}) {
             ? MODELS
             : null;
       return Promise.resolve(
-        new Response(JSON.stringify(body ?? { error: "thiếu fixture" }), {
+        new Response(JSON.stringify(body ?? { error: "missing fixture" }), {
           status: body ? 200 : 404,
         }),
       );
@@ -72,84 +72,84 @@ afterEach(() => {
 });
 
 describe("OpenRouterPanel", () => {
-  it("hiện tín dụng còn lại khi đã kết nối", async () => {
+  it("shows the remaining credit once connected", async () => {
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
     expect(container.textContent).toContain("$2.50");
     expect(container.textContent).toContain("$7.50");
   });
 
-  it("LUÔN cảnh báo dữ liệu rời khỏi máy khi có khoá", async () => {
-    // Cả kiến trúc hai DB dựng lên để bản thảo không rời khỏi máy. Cảnh báo này
-    // là thứ duy nhất cho người dùng biết họ đang mở ngoại lệ đó.
+  it("ALWAYS warns that data leaves the machine when a key is present", async () => {
+    // The whole two-database design exists to keep drafts on this machine. This
+    // warning is the only thing telling the user they are opening an exception.
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toMatch(/rời khỏi máy này/));
+    await waitFor(() => expect(container.textContent).toMatch(/leave this machine/));
     expect(container.textContent).toMatch(/Story Bible/);
   });
 
-  it("chưa có khoá thì không doạ người dùng, mà chỉ dẫn cách bật", async () => {
-    const { container } = mount({ hasKey: false, reachable: false, key: null, reason: "Chưa đặt OPENROUTER_API_KEY trong .env" });
-    await waitFor(() => expect(container.textContent).toContain("Chưa bật OpenRouter"));
+  it("with no key, does not alarm the user but explains how to turn it on", async () => {
+    const { container } = mount({ hasKey: false, reachable: false, key: null, reason: "OPENROUTER_API_KEY is not set in .env" });
+    await waitFor(() => expect(container.textContent).toContain("OpenRouter is off"));
     expect(container.textContent).toContain("openrouter.ai/keys");
-    expect(container.textContent).not.toMatch(/rời khỏi máy này/);
+    expect(container.textContent).not.toMatch(/leave this machine/);
   });
 
-  it("khoá sai thì nói rõ lý do", async () => {
+  it("a bad key gives the reason", async () => {
     const { container } = mount({
       reachable: false,
       key: null,
-      reason: "OpenRouter từ chối khoá này (401). Kiểm tra lại OPENROUTER_API_KEY.",
+      reason: "OpenRouter rejected this key (401). Check OPENROUTER_API_KEY.",
     });
     await waitFor(() => expect(container.textContent).toContain("401"));
   });
 
-  it("KHÔNG tải danh sách model cho tới khi người dùng bấm mở", async () => {
-    // Hơn 300 model, vài trăm KB. Tải sẵn mỗi lần mở trang là lãng phí.
+  it("does NOT fetch the model list until it is opened", async () => {
+    // 300+ models, a few hundred KB. Fetching on every page load is waste.
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
     expect(calls).not.toContain("/api/models/openrouter/models");
 
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
     await waitFor(() => expect(calls).toContain("/api/models/openrouter/models"));
   });
 
-  it("tính tiền mỗi tập từ số token đo được, không đoán", async () => {
+  it("computes per-episode cost from measured tokens, not guesses", async () => {
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
 
-    // 3820 token vào × $3/1M + 1718 token ra × $15/1M = $0.0115 + $0.0258 ≈ $0.037
+    // 3820 input tokens × $3/1M + 1718 output × $15/1M = $0.0115 + $0.0258 ≈ $0.037
     await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
     expect(container.textContent).toContain("~$0.037");
-    expect(container.textContent).toContain("20 tập đã chạy");
+    expect(container.textContent).toContain("20 episodes");
   });
 
-  it("model miễn phí có huy hiệu và không hiện tiền mỗi tập", async () => {
+  it("a free model gets a badge and no per-episode cost", async () => {
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
     await waitFor(() => expect(container.textContent).toContain("llama-3.3-70b"));
-    expect(container.textContent).toContain("miễn phí");
+    expect(container.textContent).toContain("free");
   });
 
-  it("lọc theo từ khoá", async () => {
+  it("filters by search term", async () => {
     const { container } = mount();
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
     await waitFor(() => expect(container.textContent).toContain("llama-3.3-70b"));
 
-    fireEvent.change(screen.getByLabelText("Tìm model"), { target: { value: "claude" } });
+    fireEvent.change(screen.getByLabelText("Search models"), { target: { value: "claude" } });
     await waitFor(() => expect(container.textContent).not.toContain("llama-3.3-70b"));
     expect(container.textContent).toContain("anthropic/claude-sonnet-4.5");
   });
 
-  it("đang chạy OpenRouter thì đặt được model mặc định, gửi đúng tên model", async () => {
+  it("on OpenRouter, sets a default model and sends the right name", async () => {
     const { container } = mount({ active: true });
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
     await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
 
-    fireEvent.click(screen.getAllByRole("button", { name: "đặt làm model viết" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "use for writing" })[0]!);
 
     await waitFor(() => {
       const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
@@ -161,15 +161,15 @@ describe("OpenRouterPanel", () => {
     });
   });
 
-  it("KHÔNG cho đặt model mặc định khi đang chạy bên kia", async () => {
-    // Model mặc định lưu riêng cho từng provider và API ghi theo provider đang
-    // chạy — bấm lúc này là nhét tên model đám mây vào ô của Ollama.
+  it("does NOT offer setting a default while the other provider is in use", async () => {
+    // Defaults are stored per provider and the API writes against the one in use
+    // — clicking now would put a cloud model name into Ollama's slot.
     const { container } = mount({ active: false });
-    await waitFor(() => expect(container.textContent).toContain("Đã kết nối"));
-    fireEvent.click(screen.getByRole("button", { name: /Xem model có sẵn/ }));
+    await waitFor(() => expect(container.textContent).toContain("Connected"));
+    fireEvent.click(screen.getByRole("button", { name: /Browse available models/ }));
     await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
 
-    expect(screen.queryByRole("button", { name: "đặt làm model viết" })).toBeNull();
-    expect(container.textContent).toContain("Chạy model ở đâu");
+    expect(screen.queryByRole("button", { name: "use for writing" })).toBeNull();
+    expect(container.textContent).toContain("where models run");
   });
 });

@@ -28,27 +28,27 @@ afterEach(() => {
 });
 
 describe("ProviderSwitch", () => {
-  it("đánh dấu bên đang chạy, và chỉ bên kia có nút chuyển", () => {
+  it("marks the provider in use, and only the other one gets a switch button", () => {
     const { container } = mount({ provider: "ollama" });
-    expect(container.textContent).toContain("đang chạy");
-    expect(screen.getByRole("button", { name: /chuyển sang OpenRouter/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /chuyển sang Ollama/ })).toBeNull();
+    expect(container.textContent).toContain("in use");
+    expect(screen.getByRole("button", { name: /switch to OpenRouter/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /switch to Ollama/ })).toBeNull();
   });
 
-  it("chạy OpenRouter thì nút chuyển nằm ở bên Ollama", () => {
+  it("on OpenRouter, the switch button sits on the Ollama side", () => {
     mount({ provider: "openrouter" });
-    expect(screen.getByRole("button", { name: /chuyển sang Ollama/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /chuyển sang OpenRouter/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /switch to Ollama/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /switch to OpenRouter/ })).toBeNull();
   });
 
-  it("chuyển sang OpenRouter thì HỎI LẠI trước, vì mất tiền và lộ nội dung", async () => {
+  it("switching to OpenRouter ASKS FIRST, because it costs money and sends content out", async () => {
     mount({ provider: "ollama" });
-    fireEvent.click(screen.getByRole("button", { name: /chuyển sang OpenRouter/ }));
+    fireEvent.click(screen.getByRole("button", { name: /switch to OpenRouter/ }));
 
     const confirmed = (globalThis.confirm as unknown as { mock: { calls: string[][] } }).mock
       .calls[0]?.[0];
-    expect(confirmed).toMatch(/gửi lên/);
-    expect(confirmed).toMatch(/tính tiền/);
+    expect(confirmed).toMatch(/sent to a cloud service/);
+    expect(confirmed).toMatch(/costs money/);
 
     await waitFor(() => {
       const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
@@ -57,31 +57,31 @@ describe("ProviderSwitch", () => {
     });
   });
 
-  it("quay về Ollama thì KHÔNG hỏi lại — không mất gì cả", async () => {
+  it("going back to Ollama does NOT ask — nothing is at stake", async () => {
     mount({ provider: "openrouter" });
-    fireEvent.click(screen.getByRole("button", { name: /chuyển sang Ollama/ }));
+    fireEvent.click(screen.getByRole("button", { name: /switch to Ollama/ }));
     expect((globalThis.confirm as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(0);
     await waitFor(() =>
       expect((globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls).toHaveLength(1),
     );
   });
 
-  it("OpenRouter chưa kết nối được thì không cho chuyển sang", () => {
-    // Chuyển sang lúc chưa có khoá là mọi job chết ngay ở lượt gọi model đầu.
+  it("does not offer the switch while OpenRouter is unreachable", () => {
+    // Switching without a key kills every job on its first model call.
     const { container } = mount({ provider: "ollama", openRouterReady: false });
-    expect(screen.queryByRole("button", { name: /chuyển sang OpenRouter/ })).toBeNull();
-    expect(container.textContent).toContain("Chưa kết nối được");
+    expect(screen.queryByRole("button", { name: /switch to OpenRouter/ })).toBeNull();
+    expect(container.textContent).toContain("Not connected");
   });
 
-  it("còn chạy giả lập thì nói thẳng là model không viết gì", () => {
+  it("on the mock provider, says plainly that no model is writing", () => {
     const { container } = mount({ provider: "mock" });
-    expect(container.textContent).toContain("giả lập");
-    // Cả hai bên đều chưa chạy nên đều có nút chuyển.
-    expect(screen.getByRole("button", { name: /chuyển sang Ollama/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /chuyển sang OpenRouter/ })).toBeTruthy();
+    expect(container.textContent).toContain("mock");
+    // Neither side is in use, so both get a switch button.
+    expect(screen.getByRole("button", { name: /switch to Ollama/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /switch to OpenRouter/ })).toBeTruthy();
   });
 
-  it("nói rõ lựa chọn ở đây đang đè lên .env", () => {
+  it("says the choice here overrides .env", () => {
     const { container } = mount({ provider: "openrouter", envProvider: "ollama" });
     expect(container.textContent).toContain(".env");
     expect(container.textContent).toContain("ollama");

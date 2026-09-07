@@ -10,9 +10,9 @@ const CHOICES = [
 afterEach(cleanup);
 
 describe("ModelDefaultField", () => {
-  it("liệt kê model đã tải trong một ô CHỌN, không bắt gõ tay", () => {
-    // Trước đây là ô gõ tay kèm datalist — danh sách chỉ hiện khi bấm vào rồi
-    // gõ, nên nhìn vào trang thì tưởng không có chỗ chọn.
+  it("lists pulled models in a SELECT, not a text box", () => {
+    // It used to be a text box with a datalist — the list only appeared once you
+    // clicked in and typed, so the page looked as if it offered no choice.
     const { container } = render(
       <ModelDefaultField choices={CHOICES} value="qwen3:14b" auto />,
     );
@@ -21,58 +21,58 @@ describe("ModelDefaultField", () => {
     expect([...select!.options].map((o) => o.value)).toEqual(["", "qwen3:14b", "qwen3:8b"]);
   });
 
-  it("chưa đặt tay thì ô chọn đứng ở mục 'để máy tự chọn'", () => {
+  it("with nothing set by hand, the select sits on 'let it choose'", () => {
     const { container } = render(<ModelDefaultField choices={CHOICES} value="qwen3:14b" auto />);
     expect(container.querySelector<HTMLSelectElement>("select")!.value).toBe("");
   });
 
-  it("nói rõ 'tự chọn' đang là model NÀO", () => {
-    // Không nói thì người dùng không biết mình đang để máy chọn cái gì.
+  it("says WHICH model 'automatic' currently means", () => {
+    // Without it the user has no idea what they are letting it choose.
     const { container } = render(<ModelDefaultField choices={CHOICES} value="qwen3:8b" auto />);
-    expect(container.textContent).toContain("tự chọn: qwen3:8b");
+    expect(container.textContent).toContain("automatic: qwen3:8b");
   });
 
-  it("chưa có model nào thì không vờ như đang chọn được gì", () => {
+  it("with no models, does not pretend anything is selected", () => {
     const { container } = render(<ModelDefaultField choices={CHOICES} value="" auto />);
-    expect(container.textContent).toContain("để máy tự chọn");
-    expect(container.textContent).not.toContain("tự chọn:");
+    expect(container.textContent).toContain("let it choose");
+    expect(container.textContent).not.toContain("automatic:");
   });
 
-  it("đặt tay thì ô chọn đứng đúng giá trị đó", () => {
+  it("with a value set by hand, the select sits on it", () => {
     const { container } = render(
       <ModelDefaultField choices={CHOICES} value="qwen3:8b" auto={false} />,
     );
     expect(container.querySelector<HTMLSelectElement>("select")!.value).toBe("qwen3:8b");
   });
 
-  it("model đặt tay mà CHƯA tải vẫn hiện trong danh sách", () => {
-    // Không hiện thì mở trang lên ô chọn nhảy sang giá trị khác, bấm Lưu là ghi
-    // đè mất lựa chọn cũ mà không ai bấm gì vào nó.
+  it("a configured model that is NOT pulled still appears in the list", () => {
+    // Without it, opening the page moves the select elsewhere and the first Save
+    // overwrites the old choice, with nobody having touched it.
     const { container } = render(
       <ModelDefaultField choices={CHOICES} value="qwen3:32b" auto={false} />,
     );
     const select = container.querySelector<HTMLSelectElement>("select")!;
     expect(select.value).toBe("qwen3:32b");
-    expect(container.textContent).toContain("qwen3:32b (chưa tải)");
+    expect(container.textContent).toContain("qwen3:32b (not pulled)");
   });
 
-  it("gõ tên khác được — đặt sẵn model chưa kéo về", () => {
+  it("lets you type another name — set a model before pulling it", () => {
     const { container } = render(<ModelDefaultField choices={CHOICES} value="" auto />);
-    fireEvent.click(screen.getByRole("button", { name: /gõ tên khác/ }));
+    fireEvent.click(screen.getByRole("button", { name: /type a different name/ }));
     expect(container.querySelector('input[name="model"]')).toBeTruthy();
     expect(container.querySelector("select")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /chọn từ danh sách/ }));
+    fireEvent.click(screen.getByRole("button", { name: /pick from the list/ }));
     expect(container.querySelector("select")).toBeTruthy();
   });
 
-  it("không liệt kê được thì về thẳng ô gõ tay, kèm LÝ DO", () => {
-    // Im lặng đổi sang ô gõ tay thì nhìn vào chỉ thấy "không có chỗ chọn model".
+  it("with nothing listable, falls back to a text box and gives the REASON", () => {
+    // Falling back silently just looks like "no model picker".
     const { container } = render(
-      <ModelDefaultField choices={[]} value="" auto emptyReason="Ollama chưa chạy." />,
+      <ModelDefaultField choices={[]} value="" auto emptyReason="Ollama is not running." />,
     );
     expect(container.querySelector('input[name="model"]')).toBeTruthy();
     expect(container.querySelector("select")).toBeNull();
-    expect(container.textContent).toContain("Ollama chưa chạy.");
+    expect(container.textContent).toContain("Ollama is not running.");
   });
 });

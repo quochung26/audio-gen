@@ -22,14 +22,15 @@ import { SeriesNew } from "./SeriesNew";
 import { Tracks } from "./Tracks";
 
 /**
- * Kiểm mỗi trang render được với dữ liệu THẬT-DẠNG từ API.
+ * Checks every page renders with REALISTICALLY-SHAPED data from the API.
  *
- * Đây là lưới an toàn cho lần chuyển từ Next sang Vite: TypeScript bắt được sai
- * kiểu, nhưng không bắt được `data.x.y` khi `x` là mảng rỗng hay null. Kiểu lỗi
- * đó chỉ hiện lúc mở trang, mà mở tay 13 trang thì lần nào cũng sót.
+ * This is the safety net from the Next-to-Vite move: TypeScript catches wrong
+ * types, but not `data.x.y` when `x` is an empty array or null. That kind of
+ * failure only shows on opening the page, and opening 13 pages by hand misses
+ * one every time.
  */
 
-/** Dữ liệu mẫu cho từng endpoint — hình dạng khớp route ở apps/api. */
+/** Fixture data per endpoint — shapes match the routes in apps/api. */
 const FIXTURES: Record<string, unknown> = {
   "/api/jobs": {
     recent: [
@@ -84,7 +85,7 @@ const FIXTURES: Record<string, unknown> = {
     unlisted: [{ name: "slow burn", usedBy: 1 }],
   },
   "/api/series/s1/episodes": { jobId: "j-new" },
-  "/api/series/s1/tags": { ok: "Đã lưu 2 thể loại phụ." },
+  "/api/series/s1/tags": { ok: "Saved 2 sub-genres." },
   "/api/series/s1": {
     id: "s1",
     title: "Đường về",
@@ -273,8 +274,8 @@ const FIXTURES: Record<string, unknown> = {
     recent: ["qwen3:8b"],
     language: { value: "vi", fromEnv: true },
     configured: [
-      { label: "Viết truyện", kind: "write", value: "qwen3:14b", source: "installed", model: "qwen3:14b", installed: false },
-      { label: "Việc phụ — tóm tắt, metadata", kind: "utility", value: "qwen3:8b", source: "setting", model: "qwen3:8b", installed: true },
+      { label: "Writing", kind: "write", value: "qwen3:14b", source: "installed", model: "qwen3:14b", installed: false },
+      { label: "Utility — summaries, metadata", kind: "utility", value: "qwen3:8b", source: "setting", model: "qwen3:8b", installed: true },
     ],
     promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
     pull: {
@@ -294,7 +295,7 @@ const FIXTURES: Record<string, unknown> = {
     key: { usage: 2.5, limit: 10, remaining: 7.5, freeTier: false },
     url: "https://openrouter.ai/api/v1",
     active: false,
-    // Số thật đo được từ 20 tập đã chạy trên máy này.
+    // Real numbers measured over 20 episodes run on this machine.
     usage: { episodes: 20, inputTokens: 3820, outputTokens: 1718 },
   },
   "/api/models/openrouter/models": {
@@ -364,7 +365,7 @@ const FIXTURES: Record<string, unknown> = {
         genre: "*",
         version: 1,
         active: true,
-        note: "mặc định",
+        note: "default",
         content: "{{context}}",
         wins: true,
         params: { temperature: 0.95, numCtx: 16384 },
@@ -372,13 +373,13 @@ const FIXTURES: Record<string, unknown> = {
       },
     ],
     steps: ["OUTLINE", "WRITE_SCENE", "AUDIO_EDIT", "SUMMARIZE", "ARC_SUMMARY", "METADATA"],
-    // Bảng khai báo do API cấp — Studio không chép lại khoảng hợp lệ.
+    // The spec table comes from the API — Studio never copies the ranges.
     genParams: [
-      { key: "temperature", label: "temperature", hint: "Cao thì văn biến hoá hơn nhưng dễ lạc đề.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
-      { key: "topP", label: "topP", hint: "Hạ xuống là văn an toàn hơn, nhạt hơn.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
-      { key: "repeatPenalty", label: "repeatPenalty", hint: "Phạt lặp cụm từ.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
-      { key: "numCtx", label: "numCtx", hint: "Trần ngữ cảnh.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
-      { key: "maxTokens", label: "maxTokens", hint: "Trần độ dài câu trả lời.", min: 128, max: 32768, step: 128, fallback: 1500 },
+      { key: "temperature", label: "temperature", hint: "Higher is more varied but wanders off topic.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
+      { key: "topP", label: "topP", hint: "Lower is safer and flatter.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
+      { key: "repeatPenalty", label: "repeatPenalty", hint: "Penalises repeated phrases.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
+      { key: "numCtx", label: "numCtx", hint: "Context ceiling.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
+      { key: "maxTokens", label: "maxTokens", hint: "Ceiling on answer length.", min: 128, max: 32768, step: 128, fallback: 1500 },
     ],
   },
   "/api/prompts/p1": {
@@ -395,13 +396,13 @@ const FIXTURES: Record<string, unknown> = {
       unknownParams: ["top_k"],
       updatedAt: "2026-08-18T07:00:00Z",
     },
-    // Bảng khai báo do API cấp — Studio không chép lại khoảng hợp lệ.
+    // The spec table comes from the API — Studio never copies the ranges.
     genParams: [
-      { key: "temperature", label: "temperature", hint: "Cao thì văn biến hoá hơn nhưng dễ lạc đề.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
-      { key: "topP", label: "topP", hint: "Hạ xuống là văn an toàn hơn, nhạt hơn.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
-      { key: "repeatPenalty", label: "repeatPenalty", hint: "Phạt lặp cụm từ.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
-      { key: "numCtx", label: "numCtx", hint: "Trần ngữ cảnh.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
-      { key: "maxTokens", label: "maxTokens", hint: "Trần độ dài câu trả lời.", min: 128, max: 32768, step: 128, fallback: 1500 },
+      { key: "temperature", label: "temperature", hint: "Higher is more varied but wanders off topic.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
+      { key: "topP", label: "topP", hint: "Lower is safer and flatter.", min: 0.1, max: 1, step: 0.01, fallback: 0.92 },
+      { key: "repeatPenalty", label: "repeatPenalty", hint: "Penalises repeated phrases.", min: 1, max: 1.5, step: 0.01, fallback: 1.1 },
+      { key: "numCtx", label: "numCtx", hint: "Context ceiling.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
+      { key: "maxTokens", label: "maxTokens", hint: "Ceiling on answer length.", min: 128, max: 32768, step: 128, fallback: 1500 },
     ],
     wins: true,
     check: { used: ["context"], unknown: [], unused: [] },
@@ -417,12 +418,12 @@ beforeEach(() => {
       const path = String(input).split("?")[0]!;
       const body = FIXTURES[path];
       if (body === undefined) {
-        return Promise.resolve(new Response(JSON.stringify({ error: "thiếu fixture: " + path }), { status: 404 }));
+        return Promise.resolve(new Response(JSON.stringify({ error: "missing fixture: " + path }), { status: 404 }));
       }
       return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
     }),
   );
-  // jsdom chưa có; trang audio dùng window.confirm trong nút xoá.
+  // jsdom has none; the audio page uses window.confirm in its delete button.
   vi.stubGlobal("confirm", vi.fn(() => true));
 });
 
@@ -445,199 +446,199 @@ function renderAt(path: string, route: string, element: ReactElement) {
 }
 
 const PAGES: Array<[string, string, string, ReactElement, string]> = [
-  ["Bảng điều khiển", "/", "/", <Dashboard />, "Bảng điều khiển"],
-  ["Danh sách truyện", "/series", "/series", <SeriesList />, "Đường về"],
-  ["Truyện mới", "/series/new", "/series/new", <SeriesNew />, "Ý tưởng"],
-  ["Bộ truyện", "/series/s1", "/series/:id", <Series />, "Chạy hàng loạt"],
-  ["Story Bible", "/series/s1/bible", "/series/:id/bible", <Bible />, "Luật thế giới"],
-  ["Nhân vật", "/series/s1/characters", "/series/:id/characters", <Characters />, "Giọng mặc định"],
-  ["Sự kiện", "/series/s1/facts", "/series/:id/facts", <Facts />, "Tình tiết còn bỏ ngỏ"],
-  ["Tập", "/episode/e1", "/episode/:id", <Episode />, "Duyệt bản thảo"],
-  ["Audio của tập", "/episode/e1/audio", "/episode/:id/audio", <EpisodeAudio />, "Âm lượng nền"],
+  ["Dashboard", "/", "/", <Dashboard />, "Dashboard"],
+  ["Story list", "/series", "/series", <SeriesList />, "Đường về"],
+  ["New story", "/series/new", "/series/new", <SeriesNew />, "Idea"],
+  ["Story", "/series/s1", "/series/:id", <Series />, "Batch run"],
+  ["Story Bible", "/series/s1/bible", "/series/:id/bible", <Bible />, "World rules"],
+  ["Characters", "/series/s1/characters", "/series/:id/characters", <Characters />, "Default voice"],
+  ["Facts", "/series/s1/facts", "/series/:id/facts", <Facts />, "Open threads"],
+  ["Episode", "/episode/e1", "/episode/:id", <Episode />, "Approve the draft"],
+  ["Episode audio", "/episode/e1/audio", "/episode/:id/audio", <EpisodeAudio />, "Music level"],
   ["Job", "/job/j1", "/job/:id", <Job />, "OUTLINE"],
-  ["Thư viện nhạc", "/tracks", "/tracks", <Tracks />, "Thư viện nhạc"],
-  ["Prompt (danh sách)", "/prompts", "/prompts", <Prompts />, "Viết cảnh"],
-  ["Prompt (sửa)", "/prompts/p1", "/prompts/:id", <Prompt />, "Biến dùng được"],
-  ["Model", "/model", "/model", <Models />, "Mức lượng tử hoá"],
-  ["Thống kê", "/stats", "/stats", <Stats />, "Theo tập"],
+  ["Music library", "/tracks", "/tracks", <Tracks />, "Music library"],
+  ["Prompts (list)", "/prompts", "/prompts", <Prompts />, "Write scene"],
+  ["Prompt (edit)", "/prompts/p1", "/prompts/:id", <Prompt />, "Available variables"],
+  ["Models", "/model", "/model", <Models />, "Quantisation"],
+  ["Stats", "/stats", "/stats", <Stats />, "By episode"],
 ];
 
-describe("mọi trang render được", () => {
+describe("every page renders", () => {
   it.each(PAGES)("%s", async (_name, path, route, element, expected) => {
     renderAt(path, route, element);
     await waitFor(() => expect(screen.getByText(new RegExp(expected))).toBeDefined());
   });
 });
 
-describe("trang hiện đúng cảnh báo quan trọng", () => {
-  it("thư viện nhạc cảnh báo track chưa rõ giấy phép", async () => {
+describe("pages surface the warnings that matter", () => {
+  it("the music library warns about tracks with no verified licence", async () => {
     renderAt("/tracks", "/tracks", <Tracks />);
     await waitFor(() =>
-      expect(screen.getByText(/chưa xác minh giấy phép/)).toBeDefined(),
+      expect(screen.getByText(/no verified licence/)).toBeDefined(),
     );
   });
 
-  it("tập chưa duyệt hiện chốt chặn, KHÔNG hiện nút tạo kịch bản", async () => {
+  it("an unapproved episode shows the gate and NOT the build-script button", async () => {
     renderAt("/episode/e1", "/episode/:id", <Episode />);
-    await waitFor(() => expect(screen.getByText(/Tôi đã đọc và duyệt/)).toBeDefined());
-    expect(screen.queryByText(/tạo kịch bản/)).toBeNull();
+    await waitFor(() => expect(screen.getByText(/I have read it and approve/)).toBeDefined());
+    expect(screen.queryByText(/build script/)).toBeNull();
   });
 
-  it("prompt mặc định hiện là đang dùng và không cho xoá", async () => {
+  it("the default prompt shows as in use and cannot be deleted", async () => {
     renderAt("/prompts/p1", "/prompts/:id", <Prompt />);
-    await waitFor(() => expect(screen.getByText(/mặc định — mọi thể loại/)).toBeDefined());
-    expect(screen.getAllByText("đang dùng").length).toBeGreaterThan(0);
-    expect(screen.queryByText(/xoá biến thể/)).toBeNull();
-    expect(screen.getByText(/Bản mặc định không xoá được/)).toBeDefined();
+    await waitFor(() => expect(screen.getByText(/default — every genre/)).toBeDefined());
+    expect(screen.getAllByText("in use").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/delete variant/)).toBeNull();
+    expect(screen.getByText(/The default cannot be deleted/)).toBeDefined();
   });
 });
 
 describe("trang Model", () => {
   /**
-   * Kiểm trên toàn bộ text của trang chứ không dùng getByText: React tách
-   * `{pct}%` thành hai text node, và tên model xuất hiện ở cả thanh tiến độ
-   * lẫn ô xem trước lệnh — getByText báo "nhiều phần tử khớp" trong khi trang
-   * không hề sai.
+   * Assert on the page's whole text rather than getByText: React splits
+   * `{pct}%` into two text nodes, and the model name appears both in the
+   * progress bar and in the command preview — getByText reports "multiple
+   * elements" while the page is perfectly fine.
    */
   async function pageText(): Promise<string> {
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Mức lượng tử hoá"));
+    await waitFor(() => expect(container.textContent).toContain("Quantisation"));
     return container.textContent ?? "";
   }
 
-  it("hiện tiến độ tải và phần trăm đúng", async () => {
+  it("shows download progress and the right percentage", async () => {
     const t = await pageText();
     expect(t).toContain("qwen3:14b-q4_K_M");
     expect(t).toContain("33%"); // 3 GB / 9 GB
     expect(t).toContain("3.0 GB");
     expect(t).toContain("9.0 GB");
-    expect(t).toContain("đã 45 giây");
+    expect(t).toContain("45s so far");
   });
 
-  it("nói rõ mặc định nào là do MÁY tự chọn", async () => {
-    // Không nói thì người dùng tưởng mình đã đặt tay giá trị đó.
-    expect(await pageText()).toContain("tự chọn theo model đã tải");
+  it("says which default was chosen AUTOMATICALLY", async () => {
+    // Unsaid, the user thinks they set that value themselves.
+    expect(await pageText()).toContain("follows what is pulled");
   });
 
-  it("cho chọn MỘT trong hai nơi chạy model", async () => {
+  it("offers ONE of the two places models can run", async () => {
     const t = await pageText();
-    expect(t).toContain("Chạy model ở đâu");
-    expect(t).toContain("Ollama — tại chỗ");
-    expect(t).toContain("OpenRouter — đám mây");
-    // Fixture đang chạy Ollama, nên bên kia phải là nút chuyển chứ không phải
-    // cũng "đang chạy".
-    expect(t).toContain("đang chạy");
-    expect(t).toContain("chuyển sang OpenRouter");
+    expect(t).toContain("Where models run");
+    expect(t).toContain("Ollama — local");
+    expect(t).toContain("OpenRouter — cloud");
+    // The fixture runs Ollama, so the other side must offer a switch rather than
+    // also reading "in use".
+    expect(t).toContain("in use");
+    expect(t).toContain("switch to OpenRouter");
   });
 
-  it("xem trước đúng lệnh ollama sẽ chạy", async () => {
-    // Người dùng đối chiếu được với tài liệu Ollama trước khi bấm.
+  it("previews the exact ollama command", async () => {
+    // So it can be checked against Ollama's docs before clicking.
     expect(await pageText()).toContain("ollama pull qwen3:14b-q4_K_M");
   });
 
-  it("nói rõ mặc định nào đến từ .env, nào đặt tay", async () => {
-    // Khác nhau ở chỗ: sửa .env cần khởi động lại worker, đặt tay thì không.
+  it("says which default comes from .env and which was set by hand", async () => {
+    // The difference: editing .env needs a worker restart, setting by hand does not.
     const t = await pageText();
-    expect(t).toContain("từ .env");
+    expect(t).toContain("from .env");
   });
 
-  it("liệt kê prompt có model riêng — chúng BỎ QUA mặc định", async () => {
+  it("lists prompts with their own model — they IGNORE the defaults", async () => {
     const t = await pageText();
     expect(t).toContain("Prompt WRITE_SCENE");
-    expect(t).toContain("Những bước này bỏ qua model mặc định");
+    expect(t).toContain("These steps ignore the defaults");
   });
 
-  it("nêu rõ thứ tự ưu tiên ba tầng", async () => {
-    expect(await pageText()).toContain("model chọn cho lần chạy đó");
+  it("spells out the three-level precedence", async () => {
+    expect(await pageText()).toContain("the model picked for that run");
   });
 });
 
-describe("trang Thống kê", () => {
+describe("the Stats page", () => {
   async function text(): Promise<string> {
     const { container } = renderAt("/stats", "/stats", <Stats />);
-    await waitFor(() => expect(container.textContent).toContain("Theo tập"));
+    await waitFor(() => expect(container.textContent).toContain("By episode"));
     return container.textContent ?? "";
   }
 
-  it("nói rõ chỉ đếm được người ĐÃ ĐĂNG NHẬP", async () => {
-    // Không nói thì con số trông như tổng lượt nghe, và mọi quyết định dựa
-    // vào nó đều lệch.
+  it("says it can only count SIGNED-IN listeners", async () => {
+    // Unsaid, the number looks like total plays and every decision from it is
+    // off.
     const t = await text();
-    expect(t).toContain("đã đăng nhập");
-    expect(t).toContain("sàn dưới");
+    expect(t).toContain("signed-in");
+    expect(t).toContain("a floor");
   });
 
-  it("xếp tập nhiều người nghe lên trước", async () => {
+  it("puts the most-listened episodes first", async () => {
     const t = await text();
     expect(t.indexOf("Tập 1")).toBeLessThan(t.indexOf("Tập 2"));
   });
 
-  it("hiện phần trăm nghe được và số sao", async () => {
+  it("shows the listened percentage and the star rating", async () => {
     const t = await text();
     expect(t).toContain("82%");
     expect(t).toContain("4.5 (8)");
   });
 
-  it("tập chưa ai đánh giá thì để gạch, không hiện 0 sao", async () => {
-    // Hiện "0.0 sao" cho tập chưa ai chấm là nói sai — khác hẳn với bị chấm kém.
+  it("an unrated episode shows a dash, not 0 stars", async () => {
+    // Showing "0.0 stars" for an unrated episode is a lie — quite different from being rated badly.
     expect(await text()).toContain("—");
   });
 
-  it("nhắc số bình luận đang chờ duyệt", async () => {
-    expect(await text()).toContain("2 bình luận đang chờ duyệt");
+  it("flags how many comments are awaiting review", async () => {
+    expect(await text()).toContain("2 comments awaiting review");
   });
 });
 
-describe("ngôn ngữ", () => {
-  it("trang bộ truyện hiện rõ bộ này viết bằng tiếng gì", async () => {
-    // Ngôn ngữ quyết định model viết bằng tiếng gì và giọng nào đọc được —
-    // không hiện thì mở một bộ tiếng Anh mà tưởng là tiếng Việt.
+describe("language", () => {
+  it("the story page makes the story language obvious", async () => {
+    // Language decides what the model writes and which voices can read it —
+    // unshown, you open an English story thinking it is Vietnamese.
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(container.textContent).toContain("Đường về"));
-    expect(container.textContent).toContain("Tiếng Anh");
+    expect(container.textContent).toContain("English");
   });
 
-  it("màn tạo truyện có ô chọn ngôn ngữ, điền sẵn theo mặc định", async () => {
+  it("the new-story screen has a language picker prefilled from the default", async () => {
     const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
-    await waitFor(() => expect(container.textContent).toContain("Ngôn ngữ"));
+    await waitFor(() => expect(container.textContent).toContain("Language"));
     const select = container.querySelector<HTMLSelectElement>('select[name="language"]');
     expect(select).toBeTruthy();
     expect(select!.value).toBe("vi");
-    // Nói rõ là chốt luôn — đổi ngôn ngữ giữa chừng là viết lại từ đầu.
-    expect(container.textContent).toContain("không đổi được sau");
+    // Say it is final — changing language mid-story means rewriting from scratch.
+    expect(container.textContent).toContain("cannot be changed later");
   });
 
-  it("trang Model đặt được ngôn ngữ mặc định cho truyện mới", async () => {
+  it("the Models page sets the default language for new stories", async () => {
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Ngôn ngữ mặc định"));
-    // Phải nói rõ là KHÔNG đụng tới bộ đã có.
-    expect(container.textContent).toMatch(/không.*đụng tới bộ truyện đã có/);
+    await waitFor(() => expect(container.textContent).toContain("Default language"));
+    // Must say it does NOT touch existing stories.
+    expect(container.textContent).toMatch(/not.*touch existing stories/);
   });
 });
 
-describe("tham số sinh", () => {
-  it("trang Cài đặt vặn được tham số của từng bước", async () => {
+describe("generation parameters", () => {
+  it("the settings page tunes parameters per step", async () => {
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Tham số sinh"));
+    await waitFor(() => expect(container.textContent).toContain("Generation parameters"));
     expect(container.textContent).toContain("WRITE_SCENE");
     expect(container.querySelector('input[name="temperature"]')).toBeTruthy();
     expect(container.querySelector('input[name="numCtx"]')).toBeTruthy();
   });
 
-  it("trang Prompt dùng ô nhập, KHÔNG còn bắt gõ JSON", async () => {
-    // Gõ sai tên khoá trong JSON thì không có gì báo — tham số lặng lẽ bị bỏ
-    // qua và văn vẫn ra, chỉ là ra bằng giá trị mặc định.
+  it("the prompt page uses inputs, NOT a JSON box", async () => {
+    // Mistyping a key in JSON said nothing — the parameter was quietly dropped
+    // and prose still came out, just at the default value.
     const { container } = renderAt("/prompts/p1", "/prompts/:id", <Prompt />);
-    await waitFor(() => expect(container.textContent).toContain("Tham số sinh"));
+    await waitFor(() => expect(container.textContent).toContain("Generation parameters"));
     expect(container.querySelector('textarea[name="params"]')).toBeNull();
     expect(container.querySelector<HTMLInputElement>('input[name="temperature"]')!.value).toBe("0.95");
-    // Khoá lạ trong dữ liệu cũ được chỉ ra.
+    // Stray keys in old data are called out.
     expect(container.textContent).toContain("top_k");
   });
 });
 
-describe("khi không có model nào để chọn", () => {
-  /** Ollama chưa chạy — đúng tình huống hay gặp nhất. */
+describe("when there is no model to pick", () => {
+  /** Ollama down — by far the most common case. */
   function withoutOllama() {
     const base = FIXTURES["/api/models"] as Record<string, unknown>;
     vi.stubGlobal(
@@ -649,7 +650,7 @@ describe("khi không có model nào để chọn", () => {
             ? { ...base, reachable: false, version: null, installed: [], recent: [] }
             : FIXTURES[path];
         return Promise.resolve(
-          new Response(JSON.stringify(body ?? { error: "thiếu fixture" }), {
+          new Response(JSON.stringify(body ?? { error: "missing fixture" }), {
             status: body ? 200 : 404,
           }),
         );
@@ -657,42 +658,42 @@ describe("khi không có model nào để chọn", () => {
     );
   }
 
-  it("trang Model nói KHÔNG CÓ model nào, kèm lý do và địa chỉ", async () => {
-    // Trước đây nó lặng lẽ đổi sang ô gõ tay — nhìn vào chỉ thấy "không có chỗ
-    // chọn model" mà không biết là do Ollama chưa chạy.
+  it("the Models page says there are NONE, with the reason and address", async () => {
+    // It used to fall back silently to a text box — all you saw was "no model
+    // picker", with no hint that Ollama was down.
     withoutOllama();
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Model mặc định"));
-    expect(container.textContent).toContain("Không có model nào để chọn");
+    await waitFor(() => expect(container.textContent).toContain("Default models"));
+    expect(container.textContent).toContain("Nothing to pick");
     expect(container.textContent).toContain("http://localhost:11434");
     expect(container.textContent).toContain("ollama serve");
   });
 
-  it("form tạo truyện cũng nói, thay vì ẩn ô chọn đi", async () => {
+  it("the new-story form says it too, instead of hiding the picker", async () => {
     withoutOllama();
     const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
-    await waitFor(() => expect(container.textContent).toContain("Model cho lần chạy này"));
-    expect(container.textContent).toContain("Không có model nào để chọn");
-    // Vẫn cho biết lần chạy này sẽ dùng gì.
-    expect(container.textContent).toContain("dùng mặc định");
+    await waitFor(() => expect(container.textContent).toContain("Model for this run"));
+    expect(container.textContent).toContain("Nothing to pick");
+    // Still says what this run will use.
+    expect(container.textContent).toContain("uses the default");
   });
 });
 
-describe("chọn model ngay trong danh sách đã tải", () => {
-  it("mỗi model có nút đặt làm model viết / việc phụ / nhúng vector", async () => {
-    // Trước đây danh sách này chỉ có nút xoá: nhìn thấy model mình vừa tải mà
-    // không có cách nào dùng nó.
+describe("assigning models from the pulled list", () => {
+  it("each model has buttons for writing / utility / embeddings", async () => {
+    // This list used to have only a delete button: you could see the model you
+    // had just pulled with no way to use it.
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Model đang có"));
-    for (const name of ["dùng để viết", "việc phụ", "nhúng vector"]) {
+    await waitFor(() => expect(container.textContent).toContain("Models available"));
+    for (const name of ["use for writing", "utility", "embeddings"]) {
       expect(screen.getAllByRole("button", { name }).length).toBeGreaterThan(0);
     }
   });
 
-  it("bấm là gửi đúng tên model lên đúng loại việc", async () => {
+  it("clicking sends the right model name for the right kind", async () => {
     const { container } = renderAt("/model", "/model", <Models />);
     await waitFor(() => expect(container.textContent).toContain("qwen3:8b"));
-    fireEvent.click(screen.getAllByRole("button", { name: "dùng để viết" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "use for writing" })[0]!);
 
     await waitFor(() => {
       const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
@@ -703,29 +704,29 @@ describe("chọn model ngay trong danh sách đã tải", () => {
     });
   });
 
-  it("chỉ ra model nào đang được dùng làm gì", async () => {
-    // Fixture đặt qwen3:8b làm model việc phụ.
+  it("shows which model is currently used for what", async () => {
+    // The fixture sets qwen3:8b as the utility model.
     const { container } = renderAt("/model", "/model", <Models />);
-    await waitFor(() => expect(container.textContent).toContain("Model đang có"));
-    expect(container.textContent).toContain("đang dùng: Việc phụ");
+    await waitFor(() => expect(container.textContent).toContain("Models available"));
+    expect(container.textContent).toContain("in use as: Utility");
   });
 });
 
-describe("viết từng tập một", () => {
-  it("màn tạo truyện KHÔNG còn hỏi số tập", async () => {
-    // Dựng sẵn 10 tập từ một dòng ý tưởng thì tập 8 trở đi chỉ là phỏng đoán
-    // của model về câu chuyện chưa được viết.
+describe("one episode at a time", () => {
+  it("the new-story screen no longer asks for an episode count", async () => {
+    // Planning 10 episodes from one line of idea makes episode 8 onward the
+    // model's guess about a story nobody has written yet.
     const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
-    await waitFor(() => expect(container.textContent).toContain("Ý tưởng"));
+    await waitFor(() => expect(container.textContent).toContain("Idea"));
     expect(container.querySelector('input[name="episodeCount"]')).toBeNull();
-    expect(container.textContent).toContain("tập đầu tiên");
-    expect(container.textContent).toContain("Viết tập mới");
+    expect(container.textContent).toContain("first episode");
+    expect(container.textContent).toContain("New episode");
   });
 
-  it("trang bộ truyện có nút Viết tập mới, gọi đúng route", async () => {
+  it("the story page has a New episode button hitting the right route", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(container.textContent).toContain("Đường về"));
-    fireEvent.click(screen.getByRole("button", { name: "Viết tập mới" }));
+    fireEvent.click(screen.getByRole("button", { name: "New episode" }));
 
     await waitFor(() => {
       const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
@@ -737,16 +738,16 @@ describe("viết từng tập một", () => {
   });
 });
 
-describe("thể loại phụ", () => {
-  it("màn tạo truyện có ô thể loại phụ, tách bạch với thể loại chính", async () => {
+describe("sub-genres", () => {
+  it("the new-story screen keeps sub-genres separate from the main genre", async () => {
     const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
-    await waitFor(() => expect(container.textContent).toContain("Thể loại chính"));
+    await waitFor(() => expect(container.textContent).toContain("Main genre"));
     expect(container.querySelector('input[name="tags"]')).toBeTruthy();
-    // Nói rõ hai thứ làm việc khác nhau, nếu không người dùng tưởng trùng lặp.
-    expect(container.textContent).toMatch(/thể loại chính quyết định dùng prompt nào/i);
+    // Say the two do different jobs, or they look redundant.
+    expect(container.textContent).toMatch(/main\s+genre decides which prompt runs/i);
   });
 
-  it("trang bộ truyện hiện thể loại phụ và cho sửa", async () => {
+  it("the story page shows sub-genres and lets you edit them", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(container.textContent).toContain("Đường về"));
     expect(container.textContent).toContain("slow burn");
@@ -755,78 +756,78 @@ describe("thể loại phụ", () => {
     expect(input.value).toBe("tình cảm, slow burn");
   });
 
-  it("nói rõ sửa ở đây KHÔNG đụng tới thể loại chính", async () => {
+  it("says editing here does NOT touch the main genre", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
-    await waitFor(() => expect(container.textContent).toContain("Thể loại phụ"));
-    expect(container.textContent).toMatch(/đổi ở đây không đụng tới nó/i);
+    await waitFor(() => expect(container.textContent).toContain("Sub-genres"));
+    expect(container.textContent).toMatch(/changing things here does not touch it/i);
   });
 });
 
-describe("trang Thể loại", () => {
+describe("the Genres page", () => {
   async function page() {
     const { container } = renderAt("/genres", "/genres", <Genres />);
-    await waitFor(() => expect(container.textContent).toContain("Danh mục"));
+    await waitFor(() => expect(container.textContent).toContain("Catalogue"));
     return container;
   }
 
-  it("nói rõ mô tả là thứ MODEL đọc, không phải ghi chú cho người", async () => {
-    // Không nói thì người ta viết mô tả kiểu từ điển, chẳng lái được gì.
+  it("says the description is what the MODEL reads, not a note for humans", async () => {
+    // Unsaid, people write dictionary definitions that steer nothing.
     const c = await page();
-    expect(c.textContent).toMatch(/không phải ghi chú cho người đọc/);
-    expect(c.textContent).toMatch(/nhét vào Story Bible/);
+    expect(c.textContent).toMatch(/not a note for human readers/);
+    expect(c.textContent).toMatch(/goes into\s+the Story Bible/);
   });
 
-  it("hiện số bộ đang dùng từng thể loại", async () => {
+  it("shows how many stories use each genre", async () => {
     const c = await page();
-    expect(c.textContent).toContain("3 bộ đang dùng");
-    expect(c.textContent).toContain("chưa bộ nào dùng");
+    expect(c.textContent).toContain("used by 3");
+    expect(c.textContent).toContain("unused");
   });
 
-  it("KHÔNG cho xoá thể loại đang có bộ dùng", async () => {
-    // Xoá thì các bộ đó mất mô tả trong Bible mà không có gì báo.
+  it("does NOT offer delete for a genre in use", async () => {
+    // Delete it and those stories lose their Bible description with nothing said.
     await page();
-    expect(screen.getAllByRole("button", { name: "xoá" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "delete" })).toHaveLength(1);
   });
 
-  it("đánh dấu thể loại đã ẩn", async () => {
-    expect((await page()).textContent).toContain("đã ẩn");
+  it("marks hidden genres", async () => {
+    expect((await page()).textContent).toContain("hidden");
   });
 
-  it("nêu thể loại đang dùng mà chưa có mô tả", async () => {
+  it("lists genres in use that have no description", async () => {
     const c = await page();
     expect(c.textContent).toContain("slow burn");
-    expect(c.textContent).toMatch(/chưa nằm trong danh mục/);
+    expect(c.textContent).toMatch(/not in the catalogue/);
   });
 });
 
-describe("màn tạo truyện lấy thể loại từ danh mục", () => {
-  it("chỉ liệt kê thể loại đang bật", async () => {
+describe("the new-story screen takes genres from the catalogue", () => {
+  it("lists only enabled genres", async () => {
     const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
     const options = () =>
       [...container.querySelectorAll('select[name="genre"] option')].map((o) => o.textContent);
 
-    // Chờ đúng NỘI DUNG chứ không chờ "có option nào chưa": lúc danh mục chưa
-    // về, select đã có sẵn một option báo rỗng nên đếm số option là chờ hụt.
-    // "kỳ ảo" đã ẩn nên không được xuất hiện.
+    // Wait for the CONTENT, not for "any options yet": before the catalogue
+    // arrives the select already holds one empty-state option, so counting
+    // options waits for nothing. "kỳ ảo" is hidden and must not appear.
     await waitFor(() => expect(options()).toEqual(["kinh dị"]));
   });
 
-  it("danh mục rỗng thì nói ra bằng một dòng, không để select trắng", async () => {
-    // Select không có option nào mở ra một danh sách trắng — trông như hỏng.
+  it("an empty catalogue says so in one line rather than a blank select", async () => {
+    // A select with no options opens a blank list — it looks broken.
     const { container } = await withEmptyCatalog(async () => {
       const r = renderAt("/series/new", "/series/new", <SeriesNew />);
-      await waitFor(() => expect(r.container.textContent).toContain("Danh mục thể loại đang rỗng"));
+      await waitFor(() => expect(r.container.textContent).toContain("The genre catalogue is empty"));
       return r;
     });
 
     const select = container.querySelector<HTMLSelectElement>('select[name="genre"]')!;
-    expect([...select.options].map((o) => o.textContent)).toEqual(["— chưa có thể loại nào —"]);
+    expect([...select.options].map((o) => o.textContent)).toEqual(["— no genres yet —"]);
     expect(select.disabled).toBe(true);
   });
 });
 
-describe("chọn thể loại phụ", () => {
-  it("chọn được nhiều, gửi lên một chuỗi cách nhau bằng dấu phẩy", async () => {
+describe("picking sub-genres", () => {
+  it("allows several, and sends one comma-separated string", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(screen.getByRole("checkbox", { name: "kinh dị" })).toBeTruthy());
     const tags = () => container.querySelector<HTMLInputElement>('input[name="tags"]')!.value;
@@ -838,8 +839,8 @@ describe("chọn thể loại phụ", () => {
     expect(tags()).toBe("slow burn, kinh dị");
   });
 
-  it("thể loại bộ đang mang mà danh mục không có vẫn hiện và vẫn được tick", async () => {
-    // Bỏ chúng đi thì chỉ cần bấm Lưu là mất sạch, mà không có gì báo.
+  it("a genre the story carries but the catalogue lacks still shows, still ticked", async () => {
+    // Drop them and one Save wipes them, with nothing said.
     renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() =>
       expect(screen.getByRole("checkbox", { name: "slow burn" })).toBeInstanceOf(HTMLInputElement),
@@ -847,19 +848,19 @@ describe("chọn thể loại phụ", () => {
     expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "slow burn" }).checked).toBe(true);
   });
 
-  it("danh mục rỗng và bộ chưa có thể loại phụ nào thì chỉ báo rỗng", async () => {
+  it("an empty catalogue and no sub-genres yet just reports empty", async () => {
     const { container } = await withEmptyCatalog(async () => {
       const r = renderAt("/series/new", "/series/new", <SeriesNew />);
-      await waitFor(() => expect(r.container.textContent).toContain("Danh mục thể loại đang rỗng"));
+      await waitFor(() => expect(r.container.textContent).toContain("The genre catalogue is empty"));
       return r;
     });
     expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
-    // Ô ẩn vẫn còn để form gửi được, chỉ là rỗng.
+    // The hidden input stays so the form still submits, just empty.
     expect(container.querySelector<HTMLInputElement>('input[name="tags"]')!.value).toBe("");
   });
 });
 
-/** Chạy `body` với /api/genres trả về danh mục rỗng, rồi trả fixture về cũ. */
+/** Run `body` with /api/genres returning an empty catalogue, then restore the fixture. */
 async function withEmptyCatalog<T>(body: () => Promise<T>): Promise<T> {
   const saved = FIXTURES["/api/genres"];
   FIXTURES["/api/genres"] = { genres: [], unlisted: [] };

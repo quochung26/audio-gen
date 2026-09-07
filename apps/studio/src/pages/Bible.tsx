@@ -26,65 +26,66 @@ export function Bible() {
         <Link to={`/series/${id}`} className="text-xs text-neutral-500 underline">
           ← {data.title}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Thiết lập thế giới</h1>
+        <h1 className="mt-2 text-xl font-semibold">World setup</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Phần này nạp vào mỗi lần viết cảnh, nên nó là thứ giữ cho tập 30 vẫn đúng luật đã đặt ở
-          tập 1. Sửa ở đây <strong className="text-neutral-200">không</strong> làm mất dàn ý, và
-          sinh lại dàn ý <strong className="text-neutral-200">không</strong> làm mất phần này.
+          This is loaded into every scene, so it is what keeps episode 30 obeying rules set in
+          episode 1. Editing here does <strong className="text-neutral-200">not</strong> lose the
+          outline, and regenerating the outline does{" "}
+          <strong className="text-neutral-200">not</strong> lose this.
         </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <Form path={`/api/series/${id}/world`} method="PUT" submit="Lưu thiết lập" className="space-y-5">
+        <Form path={`/api/series/${id}/world`} method="PUT" submit="Save setup" className="space-y-5">
           <Field
             name="setting"
-            label="Bối cảnh"
-            hint="Thời gian, địa điểm, không khí."
-            placeholder="Quốc lộ miền Trung, thập niên 1970. Những chuyến xe khách chạy đêm, đường vắng, sương mù."
+            label="Setting"
+            hint="Time, place, atmosphere."
+            placeholder="A central-Vietnam highway, 1970s. Night coaches, empty road, fog."
             defaultValue={world.setting}
             rows={3}
           />
           <Field
             name="rules"
-            label="Luật thế giới"
-            hint="Mỗi dòng một luật. Những điều LUÔN đúng — AI không được viết trái."
-            placeholder={"Ma chỉ xuất hiện sau nửa đêm\nNgười chết không tự nói tên mình"}
+            label="World rules"
+            hint="One rule per line. Things that are ALWAYS true — the AI may not contradict them."
+            placeholder={"Ghosts only appear after midnight\nThe dead never say their own name"}
             defaultValue={world.rules.join("\n")}
             rows={5}
           />
           <Field
             name="tone"
-            label="Giọng văn"
-            hint="Cách kể mong muốn."
-            placeholder="Chậm rãi, nhiều khoảng lặng. Sợ bằng không khí chứ không bằng máu me."
+            label="Tone"
+            hint="How you want it told."
+            placeholder="Slow, full of silences. Fear from atmosphere, not gore."
             defaultValue={world.tone}
             rows={2}
           />
           <Field
             name="constraints"
-            label="Điều cấm"
-            hint="Mỗi dòng một điều. Những thứ KHÔNG được xuất hiện."
-            placeholder={"Không mô tả bạo lực với trẻ em\nKhông kết thúc bằng giấc mơ"}
+            label="Forbidden"
+            hint="One per line. Things that must NOT appear."
+            placeholder={"No violence against children\nNever end on it being a dream"}
             defaultValue={world.constraints.join("\n")}
             rows={3}
           />
           <Field
             name="glossary"
-            label="Thuật ngữ"
-            hint="Mỗi dòng một mục, dạng «tên: nghĩa». Giữ cho AI không đổi cách gọi giữa các tập."
-            placeholder={"Bến Cũ: bến xe bỏ hoang ngoài rìa thị trấn"}
+            label="Glossary"
+            hint="One per line, as «term: meaning». Keeps the AI from renaming things between episodes."
+            placeholder={"Bến Cũ: an abandoned bus depot on the edge of town"}
             defaultValue={world.glossary.map((g) => `${g.term}: ${g.meaning}`).join("\n")}
             rows={3}
           />
         </Form>
 
-        <Section title="Xem trước — đây là thứ AI thật sự đọc">
+        <Section title="Preview — this is what the AI actually reads">
           <pre className="max-h-[36rem] overflow-auto rounded border border-neutral-800 bg-neutral-900/60 p-4 text-xs leading-relaxed whitespace-pre-wrap text-neutral-400">
             {data.bible}
           </pre>
           <p className="text-xs text-neutral-600">
-            Nạp vào <code>system</code> prompt ở mọi lần viết cảnh, tóm tắt và biên tập audio.
-            Lưu xong bấm tải lại để xem bản mới.
+            Loaded into the <code>system</code> prompt for every scene, summary and audio edit.
+            Save, then reload to see the new version.
           </p>
         </Section>
       </div>

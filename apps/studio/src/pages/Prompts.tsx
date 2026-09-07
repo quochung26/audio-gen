@@ -3,17 +3,17 @@ import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { Form, Loading } from "@/components/Form";
 
-/** Mỗi bước làm gì — để không phải tra PLAN mới biết đang sửa cái gì. */
+/** What each step does — so you know what you are editing without reading PLAN. */
 const STEP_LABEL: Record<string, { title: string; desc: string }> = {
-  OUTLINE: { title: "Dàn ý", desc: "Từ một dòng ý tưởng ra dàn ý tập và hồ sơ nhân vật." },
-  WRITE_SCENE: { title: "Viết cảnh", desc: "Viết một cảnh, bám Story Bible và cảnh trước." },
+  OUTLINE: { title: "Outline", desc: "Turns one line of idea into an episode outline and a cast." },
+  WRITE_SCENE: { title: "Write scene", desc: "Writes one scene, held to the Story Bible and the previous scene." },
   AUDIO_EDIT: {
-    title: "Kịch bản audio",
-    desc: "Biên tập bản thảo thành lời đọc được, tách block và gán người nói.",
+    title: "Audio script",
+    desc: "Edits the draft into speakable lines, splits it into blocks and assigns speakers.",
   },
-  SUMMARIZE: { title: "Tóm tắt tập", desc: "Nén một tập thành 150–250 từ và rút ra sự kiện." },
-  ARC_SUMMARY: { title: "Tóm tắt cung truyện", desc: "Nén các tập cũ để ngữ cảnh không phình." },
-  METADATA: { title: "Metadata", desc: "Tiêu đề, mô tả, hashtag." },
+  SUMMARIZE: { title: "Episode summary", desc: "Compresses one episode to 150-250 words and extracts facts." },
+  ARC_SUMMARY: { title: "Arc summary", desc: "Compresses older episodes so context stops growing." },
+  METADATA: { title: "Metadata", desc: "Title, description, hashtags." },
 };
 
 interface P {
@@ -37,14 +37,14 @@ export function Prompts() {
       <div>
         <h1 className="text-xl font-semibold">Prompt</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Đây là chỗ vặn để AI viết theo ý bạn. Mỗi bước có một bản{" "}
-          <strong className="text-neutral-200">mặc định</strong> dùng cho mọi thể loại, và có thể
-          thêm <strong className="text-neutral-200">biến thể theo thể loại</strong> — biến thể luôn
-          thắng bản mặc định khi bộ truyện đúng thể loại đó.
+          This is where you tune how the AI writes. Each step has one{" "}
+          <strong className="text-neutral-200">default</strong> used for every genre, and can have{" "}
+          <strong className="text-neutral-200">genre variants</strong> — a variant always beats the
+          default when the story is in that genre.
         </p>
         <p className="mt-2 max-w-2xl text-xs text-neutral-600">
-          Prompt không phải chỗ duy nhất: thiết lập riêng của từng bộ (bối cảnh, luật thế giới,
-          giọng văn, điều cấm) nằm ở Story Bible và được nạp vào <em>mọi</em> lần viết cảnh.
+          Prompts are not the only lever: per-story settings (setting, world rules, tone, what to
+          avoid) live in the Story Bible and are loaded into <em>every</em> scene.
         </p>
       </div>
 
@@ -58,7 +58,7 @@ export function Prompts() {
 
             {forStep.length === 0 ? (
               <p className="rounded border border-amber-900 bg-amber-950/40 p-3 text-sm text-amber-200">
-                Chưa có prompt cho bước này — job sẽ lỗi. Chạy <code>pnpm db:seed</code>.
+                No prompt for this step — the job will fail. Run <code>pnpm db:seed</code>.
               </p>
             ) : (
               <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
@@ -70,28 +70,28 @@ export function Prompts() {
                   >
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <Badge tone={p.genre === "*" ? "neutral" : "blue"}>
-                        {p.genre === "*" ? "mặc định" : p.genre}
+                        {p.genre === "*" ? "default" : p.genre}
                       </Badge>
                       <span className="text-xs text-neutral-600">v{p.version}</span>
-                      {!p.active && <Badge tone="red">đã tắt</Badge>}
-                      {p.active && p.wins && <Badge tone="green">đang dùng</Badge>}
+                      {!p.active && <Badge tone="red">off</Badge>}
+                      {p.active && p.wins && <Badge tone="green">in use</Badge>}
                       {p.active && !p.wins && (
-                        <span className="text-xs text-neutral-600">bị bản khác đè</span>
+                        <span className="text-xs text-neutral-600">overridden</span>
                       )}
                       <span className="truncate text-xs text-neutral-600">{p.note}</span>
                     </div>
                     <span className="shrink-0 text-xs text-neutral-600">
-                      {p.content.length.toLocaleString("vi")} ký tự
+                      {p.content.length.toLocaleString("en")} characters
                     </span>
                   </Link>
                 ))}
               </div>
             )}
 
-            <Form path={`/api/prompts/variants/${step}`} submit="Tạo, chép từ bản mặc định">
+            <Form path={`/api/prompts/variants/${step}`} submit="Create, copied from the default">
               <label className="block">
                 <span className="mb-1 block text-xs text-neutral-500">
-                  Thêm biến thể cho thể loại
+                  Add a variant for a genre
                 </span>
                 <input
                   name="genre"
@@ -105,8 +105,8 @@ export function Prompts() {
         );
       })}
 
-      {/* Gợi ý đúng thể loại các bộ đang dùng — biến thể cho thể loại không có
-          bộ nào thì chẳng bao giờ chạy tới. */}
+      {/* Suggest the genres stories actually use — a variant for a genre no story
+          has will never be reached. */}
       <datalist id="genres-in-use">
         {(genres ?? []).map((g) => (
           <option key={g} value={g} />
@@ -115,8 +115,8 @@ export function Prompts() {
 
       {genres && genres.length > 0 && (
         <p className="text-xs text-neutral-600">
-          Thể loại các bộ đang dùng: {genres.join(", ")}. Biến thể đặt tên khác những cái này sẽ
-          không bao giờ được dùng tới.
+          Genres in use: {genres.join(", ")}. A variant named anything else will never be
+          reached.
         </p>
       )}
     </div>

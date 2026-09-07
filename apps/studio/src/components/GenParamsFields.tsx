@@ -9,17 +9,17 @@ export interface GenParamSpec {
 }
 
 /**
- * Ô nhập tham số sinh.
+ * Inputs for the generation parameters.
  *
- * Thay cho ô gõ JSON tay: gõ sai tên khoá thì xưa nay không có gì báo, tham số
- * lặng lẽ bị bỏ qua và văn vẫn ra — chỉ là ra bằng giá trị mặc định, nên rất
- * khó nhận ra mình vừa không đổi được gì.
+ * Replaces a hand-typed JSON box: mistyping a key used to say nothing at all —
+ * the parameter was quietly dropped and prose still came out, just with the
+ * default value, so there was no way to tell you had changed nothing.
  *
- * Khoảng hợp lệ lấy từ API chứ không chép lại ở đây: chép lại là sớm muộn giao
- * diện cho nhập thứ mà API từ chối.
+ * Valid ranges come from the API rather than being copied here: copy them and
+ * sooner or later the UI accepts something the API rejects.
  *
- * Ô trống = không đặt, rơi về mặc định của provider — và gợi ý mờ trong ô trống
- * chính là giá trị mặc định đó.
+ * Empty means unset and falls back to the provider default — and the greyed
+ * placeholder in an empty box is that default.
  */
 export function GenParamsFields({
   specs,
@@ -30,7 +30,7 @@ export function GenParamsFields({
   specs: GenParamSpec[];
   params: Record<string, number>;
   unknownParams?: string[];
-  /** Bản gọn cho bảng nhiều dòng — bỏ phần giải thích dài. */
+  /** Compact form for multi-row tables — drops the long explanations. */
   compact?: boolean;
 }) {
   return (
@@ -56,13 +56,13 @@ export function GenParamsFields({
       </div>
 
       {/*
-        Khoá lạ trong dữ liệu cũ chưa bao giờ có tác dụng — provider chỉ đọc các
-        khoá đã biết. Nói ra để khỏi tưởng mình đã vặn được cái gì đó.
+        A stray key in old data never did anything — the provider only reads keys it
+        knows. Say so, or you think you tuned something when you did not.
       */}
       {unknownParams.length > 0 && (
         <p className="text-xs text-amber-500">
-          Bỏ qua khoá không dùng tới: <code>{unknownParams.join(", ")}</code> — provider không đọc
-          chúng, lưu lại là chúng biến mất.
+          Ignoring unused keys: <code>{unknownParams.join(", ")}</code> — the provider never
+          reads them, and saving drops them.
         </p>
       )}
     </div>

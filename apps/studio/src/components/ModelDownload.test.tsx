@@ -34,12 +34,12 @@ function mount(opts: { busy?: boolean; fail?: string } = {}) {
   );
 }
 
-/** Dán một đường dẫn kho vào ô Model — quét là tự động, không có nút riêng. */
+/** Paste a repo link into the Model box — scanning is automatic, no separate button. */
 function paste(url = `https://huggingface.co/${REPO}`) {
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: url } });
 }
 
-/** Chờ hết debounce rồi tới lượt API trả về. */
+/** Wait out the debounce, then the API round trip. */
 const settle = { timeout: 3000 };
 
 afterEach(() => {
@@ -47,48 +47,48 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ModelDownload — thư viện Ollama", () => {
-  it("tên model thường thì KHÔNG quét Hugging Face", async () => {
+describe("ModelDownload — Ollama library", () => {
+  it("a plain model name does NOT scan Hugging Face", async () => {
     mount();
     await new Promise((r) => setTimeout(r, 500));
     expect(calls.filter((c) => c.includes("/api/models/hf"))).toHaveLength(0);
   });
 
-  it("ghép tag theo mức lượng tử hoá chọn sẵn", () => {
+  it("appends the tag for the selected quantisation", () => {
     mount();
-    expect(screen.getByRole("button", { name: "Tải qwen3:14b-q4_K_M" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pull qwen3:14b-q4_K_M" })).toBeTruthy();
   });
 });
 
-describe("ModelDownload — kho Hugging Face", () => {
-  it("dán link là tự quét, và chỉ hiện những bản kho đó thật sự có", async () => {
+describe("ModelDownload — Hugging Face repo", () => {
+  it("pasting a link scans, and only shows builds the repo really has", async () => {
     const { container } = mount();
     paste();
     await waitFor(() => expect(container.textContent).toContain("Q4_K_M"), settle);
 
-    // Gửi nguyên thứ người dùng dán; bóc tên kho là việc của API.
+    // Send exactly what was pasted; parsing the repo name is the API's job.
     expect(
       calls.some((c) =>
         c.includes(`repo=${encodeURIComponent(`https://huggingface.co/${REPO}`)}`),
       ),
     ).toBe(true);
     const opts = [...container.querySelectorAll("select option")].map((o) => o.textContent);
-    expect(opts).toEqual(["Q4_K_M — 4.7 GB", "Q8_0 — 8.1 GB · 3 phần"]);
-    expect(container.textContent).toContain("2 bản");
+    expect(opts).toEqual(["Q4_K_M — 4.7 GB", "Q8_0 — 8.1 GB · 3 parts"]);
+    expect(container.textContent).toContain("2 builds");
   });
 
-  it("chọn bản nào thì gửi ĐÚNG tên hf.co mà ollama hiểu", async () => {
-    // Gửi thiếu tiền tố hf.co là Ollama đi tìm trong thư viện của nó và báo
-    // không có model.
+  it("sends the exact hf.co name ollama understands for the chosen build", async () => {
+    // Without the hf.co prefix, Ollama looks in its own library and reports no
+    // such model.
     mount();
     paste();
     await waitFor(
-      () => expect(screen.getByRole("button", { name: `Tải hf.co/${REPO}:Q4_K_M` })).toBeTruthy(),
+      () => expect(screen.getByRole("button", { name: `Pull hf.co/${REPO}:Q4_K_M` })).toBeTruthy(),
       settle,
     );
 
-    fireEvent.change(screen.getByLabelText("Mức lượng tử hoá"), { target: { value: "Q8_0" } });
-    fireEvent.click(screen.getByRole("button", { name: `Tải hf.co/${REPO}:Q8_0` }));
+    fireEvent.change(screen.getByLabelText("Quantisation"), { target: { value: "Q8_0" } });
+    fireEvent.click(screen.getByRole("button", { name: `Pull hf.co/${REPO}:Q8_0` }));
 
     await waitFor(() => {
       const call = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
@@ -99,31 +99,31 @@ describe("ModelDownload — kho Hugging Face", () => {
     });
   });
 
-  it("nói rõ bản bị chia nhiều phần", async () => {
-    // Dung lượng đã cộng cả ba phần; không nói thì tưởng tải một file.
+  it("says when a build is split into parts", async () => {
+    // The size already covers all three parts; unsaid, it looks like one file.
     const { container } = mount();
     paste();
     await waitFor(() => expect(container.textContent).toContain("Q4_K_M"), settle);
-    fireEvent.change(screen.getByLabelText("Mức lượng tử hoá"), { target: { value: "Q8_0" } });
-    expect(container.textContent).toContain("chia nhiều phần");
+    fireEvent.change(screen.getByLabelText("Quantisation"), { target: { value: "Q8_0" } });
+    expect(container.textContent).toContain("split into parts");
   });
 
-  it("kho hỏng thì hiện nguyên văn lý do từ API, và không cho bấm tải", async () => {
-    const { container } = mount({ fail: 'Kho "a/b" không có file GGUF nào.' });
+  it("a bad repo shows the API reason verbatim and blocks the pull", async () => {
+    const { container } = mount({ fail: 'Repo "a/b" has no GGUF files.' });
     paste("https://huggingface.co/a/b");
-    await waitFor(() => expect(container.textContent).toContain("không có file GGUF nào"), settle);
-    expect(screen.getByRole("button", { name: "Tải" })).toHaveProperty("disabled", true);
+    await waitFor(() => expect(container.textContent).toContain("has no GGUF files"), settle);
+    expect(screen.getByRole("button", { name: "Pull" })).toHaveProperty("disabled", true);
   });
 
-  it("đang tải model khác thì không cho bấm tải tiếp", async () => {
-    // Hai model 9 GB song song trên một đường mạng thì cả hai đều chậm.
+  it("blocks a second pull while one is running", async () => {
+    // Two 9 GB pulls over one connection make both slow.
     const { container } = mount({ busy: true });
     paste();
     await waitFor(() => expect(container.textContent).toContain("Q4_K_M"), settle);
-    expect(screen.getByRole("button", { name: `Tải hf.co/${REPO}:Q4_K_M` })).toHaveProperty(
+    expect(screen.getByRole("button", { name: `Pull hf.co/${REPO}:Q4_K_M` })).toHaveProperty(
       "disabled",
       true,
     );
-    expect(container.textContent).toContain("Đang tải model khác");
+    expect(container.textContent).toContain("Another pull is running");
   });
 });

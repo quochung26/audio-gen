@@ -27,8 +27,8 @@ import { Tracks } from "@/pages/Tracks";
 const qc = new QueryClient({
   defaultOptions: {
     queries: {
-      // Studio chạy tại chỗ, dữ liệu đổi do chính bạn hoặc do worker. Lấy lại
-      // khi quay lại tab là đủ; không cần polling khắp nơi.
+      // Studio runs locally and data only changes because of you or the worker.
+      // Refetching when you come back to the tab is enough; no polling everywhere.
       refetchOnWindowFocus: true,
       staleTime: 2_000,
       retry: false,

@@ -24,7 +24,7 @@ interface Character {
   isNarrator: boolean;
   voiceId: string | null;
   voice: Voice | null;
-  /** Thẻ đã dùng để dựng nhân vật này. Chỉ là xuất xứ, không phải liên kết sống. */
+  /** The card this character came from. Provenance only, not a live link. */
   cardId: string | null;
   _count: { blocks: number };
 }
@@ -54,45 +54,45 @@ export function Characters() {
         <Link to={`/series/${id}`} className="text-xs text-neutral-500 underline">
           ← {data.title}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Nhân vật</h1>
+        <h1 className="mt-2 text-xl font-semibold">Characters</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Danh sách này nạp vào system prompt mỗi lần viết cảnh, và là căn cứ để bước biên tập audio
-          gán người nói cho từng block. Phần{" "}
-          <strong className="text-neutral-200">mô tả</strong> là thứ giữ cho lời thoại của một nhân
-          vật nghe giống nhau qua hàng chục tập.
+          This list goes into the system prompt for every scene, and is what the audio edit uses
+          to assign a speaker to each block. The{" "}
+          <strong className="text-neutral-200">description</strong> is what keeps a character's
+          dialogue sounding the same across dozens of episodes.
         </p>
       </div>
 
       {narrators.length === 0 && characters.length > 0 && (
         <p className="rounded border border-neutral-800 p-3 text-sm text-neutral-400">
-          Chưa chọn ai đọc phần dẫn truyện — phần dẫn sẽ đọc bằng{" "}
-          <strong className="text-neutral-200">giọng mặc định của bộ</strong>. Đây là lựa chọn của
-          khâu audio, không bắt buộc: đánh dấu một nhân vật nếu bạn muốn phần dẫn mang đúng giọng
-          của người đó.
+          Nobody is set to read the narration — it will use the{" "}
+          <strong className="text-neutral-200">story's default voice</strong>. This is an audio-stage
+          choice and not required: mark a character only if you want the narration to carry that
+          person's voice.
         </p>
       )}
 
-      <Section title="Giọng mặc định">
+      <Section title="Default voice">
         <Form
           path={`/api/series/${id}/default-voice`}
           method="PUT"
-          submit="Lưu"
+          submit="Save"
           className="rounded border border-neutral-800 p-4"
         >
           <p className="mb-2 text-xs text-neutral-500">
-            Hiện dùng <strong className="text-neutral-300">một giọng cho cả bộ</strong>. Casting
-            riêng từng nhân vật bên dưới chỉ có tác dụng khi làm đa giọng.
+            Currently <strong className="text-neutral-300">one voice for the whole story</strong>.
+            Per-character casting below only takes effect once multi-voice is on.
           </p>
           <select
             name="defaultVoiceId"
             defaultValue={data.defaultVoiceId ?? ""}
             className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
           >
-            <option value="">— tự chọn giọng đầu tiên của engine đang cấu hình —</option>
+            <option value="">— pick the first voice of the configured engine —</option>
             {voices.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name} · {v.engine}
-                {v.commercialOk ? "" : " · ⚠ phi thương mại"}
+                {v.commercialOk ? "" : " · ⚠ non-commercial"}
               </option>
             ))}
           </select>
@@ -106,15 +106,15 @@ export function Characters() {
               <span className="font-medium">{c.name}</span>
               {c.isNarrator && (
                 <span className="ml-2">
-                  <Badge tone="blue">dẫn truyện</Badge>
+                  <Badge tone="blue">narrator</Badge>
                 </span>
               )}
               <span className="ml-2 text-xs text-neutral-500">{c.role}</span>
               <span className="ml-2 text-xs text-neutral-600">
                 {c._count.blocks > 0 ? `${c._count.blocks} block` : ""}
-                {c.voice ? ` · giọng: ${c.voice.name}` : " · chưa casting"}
-                {c.description ? "" : " · chưa có mô tả"}
-                {c.stateThroughEpisode ? ` · trạng thái tới tập ${c.stateThroughEpisode}` : ""}
+                {c.voice ? ` · voice: ${c.voice.name}` : " · not cast"}
+                {c.description ? "" : " · no description"}
+                {c.stateThroughEpisode ? ` · state through ep ${c.stateThroughEpisode}` : ""}
               </span>
             </summary>
 
@@ -122,7 +122,7 @@ export function Characters() {
               <Form
                 path={`/api/series/${id}/characters/${c.id}`}
                 method="PUT"
-                submit="Lưu"
+                submit="Save"
                 className="space-y-3"
               >
                 <CharacterFields c={c} />
@@ -131,21 +131,21 @@ export function Characters() {
               <Form
                 path={`/api/series/${id}/characters/${c.id}/voice`}
                 method="PUT"
-                submit="Gán"
+                submit="Assign"
                 className="mt-4 border-t border-neutral-900 pt-3"
               >
                 <label className="block">
-                  <span className="mb-1 block text-xs text-neutral-400">Giọng đọc (casting)</span>
+                  <span className="mb-1 block text-xs text-neutral-400">Voice (casting)</span>
                   <select
                     name="voiceId"
                     defaultValue={c.voiceId ?? ""}
                     className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
                   >
-                    <option value="">— chưa gán —</option>
+                    <option value="">— unassigned —</option>
                     {voices.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.name} · {v.engine} · {v.tier === "FAST" ? "CPU" : "GPU"}
-                        {v.commercialOk ? "" : " · ⚠ phi thương mại"}
+                        {v.commercialOk ? "" : " · ⚠ non-commercial"}
                       </option>
                     ))}
                   </select>
@@ -153,27 +153,27 @@ export function Characters() {
               </Form>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-900 pt-3">
-                {/* Đưa bản đã sửa NGƯỢC lên thư viện. Phải bấm chứ không tự
-                    động: "Tài lúc này đã biết mình bị lừa" đúng với bộ đang
-                    viết và sai với mọi bộ khác. */}
+                {/* Push the edit BACK to the library. A button, never automatic:
+                    "Tài now knows he was lied to" is true of the story being
+                    written and false of every other one. */}
                 <ActionButton path={`/api/series/${id}/characters/${c.id}/save-card`}>
-                  {c.cardId ? "cập nhật thẻ" : "lưu vào thư viện"}
+                  {c.cardId ? "update card" : "save to library"}
                 </ActionButton>
                 {c.cardId && (
                   <ActionButton path={`/api/series/${id}/characters/${c.id}/save-card?asNew=1`}>
-                    tách thành thẻ mới
+                    fork into a new card
                   </ActionButton>
                 )}
                 <ActionButton
                   path={`/api/series/${id}/characters/${c.id}`}
                   method="DELETE"
-                  confirmText={`Xoá nhân vật "${c.name}"?`}
+                  confirmText={`Delete the character "${c.name}"?`}
                 >
-                  Xoá nhân vật
+                  Delete character
                 </ActionButton>
                 {c._count.blocks > 0 && (
                   <span className="ml-2 text-xs text-neutral-600">
-                    {c._count.blocks} block sẽ mất liên kết nhưng vẫn giữ tên người nói.
+                    {c._count.blocks} blocks lose the link but keep the speaker name.
                   </span>
                 )}
               </div>
@@ -183,11 +183,11 @@ export function Characters() {
       </div>
 
       {(library?.cards ?? []).length > 0 && (
-        <Section title="Thêm từ thư viện thẻ">
+        <Section title="Add from the card library">
           <div className="flex flex-wrap gap-2">
             {(library?.cards ?? [])
-              // Thẻ đã có mặt trong bộ thì bỏ khỏi danh sách: bấm vào chỉ nhận
-              // được lỗi trùng tên.
+              // Drop cards already in the story: clicking one only returns a
+              // duplicate-name error.
               .filter((card) => !characters.some((c) => c.name === card.name))
               .map((card) => (
                 <Form
@@ -200,19 +200,19 @@ export function Characters() {
               ))}
           </div>
           <p className="mt-2 text-xs text-neutral-600">
-            Chép nội dung thẻ vào bộ này. Sửa về sau không đụng tới thẻ.
+            Copies the card's contents into this story. Later edits do not touch the card.
           </p>
         </Section>
       )}
 
       <details className="rounded border border-dashed border-neutral-700">
         <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
-          + Thêm nhân vật
+          + Add a character
         </summary>
         <div className="border-t border-neutral-800 p-4">
           <Form
             path={`/api/series/${id}/characters`}
-            submit="Thêm"
+            submit="Add"
             className="space-y-3"
             resetOnSuccess
           >
@@ -228,68 +228,68 @@ function CharacterFields({ c }: { c?: Character }) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input name="name" label="Tên" defaultValue={c?.name ?? ""} placeholder="Tài" />
+        <Input name="name" label="Name" defaultValue={c?.name ?? ""} placeholder="Tài" />
         <Input
           name="role"
-          label="Vai trong truyện"
+          label="Role in the story"
           defaultValue={c?.role ?? ""}
-          placeholder="tài xế xe khách, 45 tuổi"
+          placeholder="coach driver, 45"
         />
       </div>
 
       <Textarea
         name="description"
-        label="Tính cách"
-        hint="Con người này ra sao — thứ lái HÀNH ĐỘNG và lựa chọn của họ."
+        label="Personality"
+        hint="Who this person is — what drives their ACTIONS and choices."
         defaultValue={c?.description ?? ""}
-        placeholder="Lì, không kêu ca. Tin vào điềm nhưng không nói ra. Sợ nhất là mắc nợ ai."
+        placeholder="Stubborn, never complains. Believes in omens but will not say so. Most afraid of owing anyone."
         rows={3}
       />
 
       <Textarea
         name="speech"
-        label="Cách nói"
-        hint="Nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động. Thứ giữ cho LỜI THOẠI nghe giống nhau qua hàng chục tập."
+        label="How they speak"
+        hint="Rhythm, verbal habits, what they call people, what happens under stress. This keeps their DIALOGUE the same across dozens of episodes."
         defaultValue={c?.speech ?? ""}
-        placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
+        placeholder="Says little, trails off mid-sentence. Calls passengers 'cô', 'chú'. When frightened, speaks fast and repeats himself."
         rows={2}
       />
 
       <Textarea
         name="outfit"
-        label="Trang phục thường thấy"
-        hint="Trang phục thường thấy. Đây là MẶC ĐỊNH — thiết lập chương và từng cảnh đè lên được, nên cứ ghi bộ đồ hay gặp nhất."
+        label="Usually wears"
+        hint="A DEFAULT — chapter and scene setup can both override it, so put down the outfit you see most often."
         defaultValue={c?.outfit ?? ""}
-        placeholder="Áo sơ mi bạc màu xắn tay, quần vải sẫm, dép nhựa."
+        placeholder="Faded shirt with the sleeves rolled, dark trousers, plastic sandals."
         rows={2}
       />
 
       <Textarea
         name="appearance"
-        label="Ngoại hình"
-        hint="Thứ KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục thì không để đây — nó đặt ở thiết lập chương, vì mỗi chương một khác."
+        label="Appearance"
+        hint="What never changes across the story: build, apparent age, face, scars. Clothing does not go here — it belongs in the chapter setup, because it differs per chapter."
         defaultValue={c?.appearance ?? ""}
-        placeholder="Gầy, da sạm, tóc muối tiêu cắt cao. Vết sẹo dài ở cổ tay trái."
+        placeholder="Thin, weathered, salt-and-pepper hair cut short. A long scar on the left wrist."
         rows={2}
       />
 
       <Textarea
         name="state"
         label={
-          "Trạng thái hiện tại" +
-          (c?.stateThroughEpisode ? ` — cập nhật tới hết tập ${c.stateThroughEpisode}` : "")
+          "Current state" +
+          (c?.stateThroughEpisode ? ` — updated through episode ${c.stateThroughEpisode}` : "")
         }
-        hint="Đang ở đâu, biết gì, quan hệ đã đổi thế nào. Job tóm tắt tự cập nhật sau mỗi tập; sửa tay khi AI đọc sai."
+        hint="Where they are, what they know, how relationships changed. The summary job updates this after each episode; edit by hand when the AI got it wrong."
         defaultValue={c?.state ?? ""}
-        placeholder="Đang ở nhà bà Tư ngoài Cồn Vắng. Đã biết chiếc xe không phải của mình."
+        placeholder="Staying at bà Tư's place out on Cồn Vắng. Now knows the bus was never his."
         rows={3}
       />
 
       <Input
         name="voiceHint"
-        label="Gợi ý giọng đọc"
+        label="Voice hint"
         defaultValue={c?.voiceHint ?? ""}
-        placeholder="nam trung niên, giọng khàn"
+        placeholder="middle-aged man, hoarse"
       />
 
       <label className="flex items-center gap-2 text-sm text-neutral-300">
@@ -299,8 +299,8 @@ function CharacterFields({ c }: { c?: Character }) {
           defaultChecked={c?.isNarrator ?? false}
           className="accent-neutral-300"
         />
-        Là người dẫn truyện
-        <span className="text-xs text-neutral-600">(mỗi bộ chỉ một người)</span>
+        Reads the narration
+        <span className="text-xs text-neutral-600">(one per story)</span>
       </label>
     </>
   );

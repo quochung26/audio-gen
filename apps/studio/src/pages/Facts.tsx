@@ -4,13 +4,13 @@ import { Badge, Section } from "@/components/ui";
 import { ActionButton, Loading } from "@/components/Form";
 
 const KIND_LABEL: Record<string, string> = {
-  EVENT: "việc xảy ra",
-  REVELATION: "phát hiện",
-  PROMISE: "lời thề",
-  RELATION: "quan hệ",
-  OBJECT: "vật",
-  PLACE: "địa điểm",
-  OPEN_THREAD: "bỏ ngỏ",
+  EVENT: "event",
+  REVELATION: "revelation",
+  PROMISE: "promise",
+  RELATION: "relation",
+  OBJECT: "object",
+  PLACE: "place",
+  OPEN_THREAD: "open thread",
 };
 const KIND_TONE: Record<string, string> = {
   OPEN_THREAD: "amber",
@@ -52,36 +52,36 @@ export function Facts() {
         <Link to={`/series/${id}`} className="text-xs text-neutral-500 underline">
           ← {data.title}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Sự kiện truyện</h1>
+        <h1 className="mt-2 text-xl font-semibold">Story facts</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Mỗi sự kiện là một câu, có vector riêng. Khi viết cảnh, hệ thống chỉ lấy những sự kiện
-          liên quan tới beat của cảnh đó — thay vì nhồi mọi tóm tắt cũ vào prompt. Sự kiện sống độc
-          lập với việc nén tóm tắt, nên nén không làm mất chi tiết.
+          Each fact is one sentence with its own vector. When writing a scene, only the facts
+          related to that beat are pulled in — instead of stuffing every old summary into the
+          prompt. Facts live independently of summary compression, so compressing loses no detail.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Tổng sự kiện" value={String(facts.length)} />
-        <Stat label="Còn bỏ ngỏ" value={String(open.length)} hint="luôn được nạp" />
-        <Stat label="Đã ghim" value={String(pinned.length)} hint="luôn được nạp" />
+        <Stat label="Total facts" value={String(facts.length)} />
+        <Stat label="Still open" value={String(open.length)} hint="always loaded" />
+        <Stat label="Pinned" value={String(pinned.length)} hint="always loaded" />
         <Stat
-          label="Chưa có vector"
+          label="No vector yet"
           value={String(data.missingVector)}
-          hint={data.missingVector > 0 ? "không truy hồi được" : "đủ"}
+          hint={data.missingVector > 0 ? "cannot be retrieved" : "all set"}
         />
       </div>
 
       {open.length > 0 && (
-        <Section title={`Tình tiết còn bỏ ngỏ (${open.length})`}>
+        <Section title={`Open threads (${open.length})`}>
           <p className="text-xs text-neutral-500">
-            Món nợ câu chuyện phải trả. Luôn được nạp vào prompt bất kể độ tương đồng — vì một tình
-            tiết bỏ ngỏ ở tập 3 vẫn cần nhắc ở tập 40 dù chủ đề chẳng liên quan.
+            Debts the story has to pay. Always loaded regardless of similarity — an open thread
+            from episode 3 still needs raising in episode 40 even if the subject is unrelated.
           </p>
           <div className="divide-y divide-neutral-900 rounded border border-amber-900/50">
             {open.map((f) => (
               <div key={f.id} className="flex items-start justify-between gap-3 px-4 py-2.5">
                 <div className="text-sm">
-                  <span className="text-xs text-neutral-500">tập {f.episodeNumber} · </span>
+                  <span className="text-xs text-neutral-500">ep {f.episodeNumber} · </span>
                   {f.text}
                 </div>
                 <ActionButton
@@ -89,7 +89,7 @@ export function Facts() {
                   method="PUT"
                   body={{ episodeNumber: String(f.episodeNumber) }}
                 >
-                  đã giải
+                  resolved
                 </ActionButton>
               </div>
             ))}
@@ -97,13 +97,13 @@ export function Facts() {
         </Section>
       )}
 
-      <Section title="Theo tập">
+      <Section title="By episode">
         <div className="space-y-3">
           {[...byEpisode.entries()].map(([num, list]) => (
             <details key={num} className="rounded border border-neutral-800">
               <summary className="cursor-pointer px-4 py-2.5 text-sm">
-                <span className="text-neutral-500">Tập {num}</span>
-                <span className="ml-2 text-xs text-neutral-600">{list.length} sự kiện</span>
+                <span className="text-neutral-500">Episode {num}</span>
+                <span className="ml-2 text-xs text-neutral-600">{list.length} facts</span>
               </summary>
               <div className="divide-y divide-neutral-900 border-t border-neutral-800">
                 {list.map((f) => (
@@ -119,20 +119,20 @@ export function Facts() {
                       </span>
                       {f.resolved && f.resolvedInEpisode && (
                         <span className="ml-2 text-xs text-neutral-600">
-                          giải ở tập {f.resolvedInEpisode}
+                          resolved in ep {f.resolvedInEpisode}
                         </span>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <ActionButton path={`/api/series/${id}/facts/${f.id}/pin`} method="PUT">
-                        {f.pinned ? "bỏ ghim" : "ghim"}
+                        {f.pinned ? "unpin" : "pin"}
                       </ActionButton>
                       <ActionButton
                         path={`/api/series/${id}/facts/${f.id}`}
                         method="DELETE"
-                        confirmText={`Xoá sự kiện "${f.text.slice(0, 40)}…"?`}
+                        confirmText={`Delete the fact "${f.text.slice(0, 40)}…"?`}
                       >
-                        xoá
+                        delete
                       </ActionButton>
                     </div>
                   </div>

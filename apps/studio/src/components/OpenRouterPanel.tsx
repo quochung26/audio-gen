@@ -33,12 +33,12 @@ interface ORModel {
 }
 
 function usd(n: number): string {
-  if (n === 0) return "miễn phí";
-  // Model rẻ có giá $0.02/triệu token — làm tròn 2 chữ số là thành "$0.00".
+  if (n === 0) return "free";
+  // Cheap models cost $0.02 per million tokens — rounding to 2 places shows "$0.00".
   return n < 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`;
 }
 
-/** Tiền cho một tập, theo số token trung bình đo được từ các tập đã chạy. */
+/** Cost of one episode, from the average token use measured on episodes already run. */
 function costPerEpisode(m: ORModel, u: Usage): number | null {
   if (m.promptPerMTok === null || m.completionPerMTok === null) return null;
   return (
@@ -47,11 +47,12 @@ function costPerEpisode(m: ORModel, u: Usage): number | null {
 }
 
 /**
- * Kết nối OpenRouter — model chạy trên đám mây.
+ * The OpenRouter connection — models running in the cloud.
  *
- * Tách khỏi trang Model vì hai bên khác hẳn nhau về bản chất: Ollama là tải
- * model về máy, OpenRouter là gọi qua mạng và trả tiền theo token. Gộp chung
- * một danh sách thì "xoá model" và "chưa tải" đều thành vô nghĩa với một nửa.
+ * Kept apart from the Ollama section because the two are different in kind:
+ * Ollama pulls a model onto the machine, OpenRouter calls over the network and
+ * bills per token. Merge them into one list and "delete model" and "not pulled"
+ * become meaningless for half the rows.
  */
 export function OpenRouterPanel() {
   const [open, setOpen] = useState(false);
@@ -59,7 +60,7 @@ export function OpenRouterPanel() {
   const [freeOnly, setFreeOnly] = useState(false);
 
   const { data, isLoading } = useApi<Status>("/api/models/openrouter");
-  // Chỉ tải danh sách khi người dùng mở ra: hơn 300 model, vài trăm KB.
+  // Only fetch the list when opened: 300+ models, a few hundred KB.
   const list = useApi<{ models: ORModel[] }>(open ? "/api/models/openrouter/models" : null);
 
   if (isLoading || !data) return <Loading />;
@@ -72,7 +73,7 @@ export function OpenRouterPanel() {
   });
 
   return (
-    <Section title="OpenRouter — model đám mây">
+    <Section title="OpenRouter — cloud models">
       <div
         className={`rounded border p-4 ${
           data.reachable
@@ -85,57 +86,59 @@ export function OpenRouterPanel() {
         {data.reachable && data.key ? (
           <div className="space-y-1">
             <p className="text-sm text-emerald-200">
-              Đã kết nối · {data.url}
-              {data.key.freeTier && " · tài khoản miễn phí"}
+              Connected · {data.url}
+              {data.key.freeTier && " · free tier"}
             </p>
             <p className="text-xs text-emerald-300/80">
-              Đã tiêu {usd(data.key.usage)}
+              Spent {usd(data.key.usage)}
               {data.key.remaining !== null
-                ? ` · còn ${usd(data.key.remaining)}`
-                : " · không đặt hạn mức"}
+                ? ` · ${usd(data.key.remaining)} left`
+                : " · no limit set"}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
             <p className={`text-sm ${data.hasKey ? "text-red-200" : "text-neutral-400"}`}>
-              {data.hasKey ? "Không kết nối được OpenRouter" : "Chưa bật OpenRouter"}
+              {data.hasKey ? "Cannot reach OpenRouter" : "OpenRouter is off"}
             </p>
             {data.reason && <p className="text-xs text-neutral-500">{data.reason}</p>}
             <p className="text-xs text-neutral-500">
-              Lấy khoá ở <code>openrouter.ai/keys</code>, rồi đặt{" "}
-              <code>OPENROUTER_API_KEY</code> trong <code>.env</code> và khởi động lại API.
+              Get a key at <code>openrouter.ai/keys</code>, set{" "}
+              <code>OPENROUTER_API_KEY</code> in <code>.env</code>, and restart the API.
             </p>
           </div>
         )}
 
         {/*
-          Cảnh báo này KHÔNG ẩn đi được, và cố tình đặt ngay dưới ô trạng thái.
-          Cả kiến trúc hai DB dựng lên để bản thảo không rời khỏi máy; bật cái
-          này là tự tay mở ngoại lệ, nên phải nhìn thấy mỗi lần mở trang.
+          This warning CANNOT be dismissed, and sits right under the status on
+          purpose. The whole two-database design exists to keep drafts on this
+          machine; turning this on opens an exception by hand, so it has to be
+          visible every time the page loads.
         */}
         {data.hasKey && (
           <p className="mt-3 rounded border border-amber-900/60 bg-amber-950/30 p-2.5 text-xs text-amber-200">
-            Model đám mây đọc được nội dung gửi lên: Story Bible, bản thảo, lời thoại nhân vật đều
-            rời khỏi máy này. Bản thảo chưa duyệt thì cân nhắc để model chạy tại chỗ lo.
+            A cloud model reads what you send it: the Story Bible, drafts and character dialogue
+            all leave this machine. For unapproved drafts, consider letting the local model handle
+            it.
           </p>
         )}
 
         <p className="mt-3 text-xs text-neutral-500">
           {data.active ? (
             <>
-              <Badge tone="green">đang chạy</Badge> — mọi lượt sinh đi qua OpenRouter.
+              <Badge tone="green">in use</Badge> — every generation goes through OpenRouter.
             </>
           ) : (
             <>
-              Hiện <strong className="text-neutral-400">không</strong> chạy bên này. Chuyển ở khối
-              “Chạy model ở đâu” phía trên, rồi mới đặt được model mặc định.
+              <strong className="text-neutral-400">Not</strong> in use right now. Switch in the
+              “where models run” block above before setting a default model.
             </>
           )}
         </p>
       </div>
 
       {!open ? (
-        <Button onClick={() => setOpen(true)}>Xem model có sẵn</Button>
+        <Button onClick={() => setOpen(true)}>Browse available models</Button>
       ) : list.isLoading ? (
         <Loading />
       ) : list.error ? (
@@ -146,8 +149,8 @@ export function OpenRouterPanel() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Tìm model…"
-              aria-label="Tìm model"
+              placeholder="Search models…"
+              aria-label="Search models"
               className="flex-1 rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
             />
             <label className="flex items-center gap-2 text-xs text-neutral-400">
@@ -156,26 +159,26 @@ export function OpenRouterPanel() {
                 checked={freeOnly}
                 onChange={(e) => setFreeOnly(e.target.checked)}
               />
-              chỉ model miễn phí
+              free models only
             </label>
             <span className="text-xs text-neutral-600">{models.length} model</span>
           </div>
 
           {data.usage ? (
             <p className="text-xs text-neutral-600">
-              Cột “một tập” tính theo mức tiêu thụ đo được từ {data.usage.episodes} tập đã chạy:{" "}
-              {data.usage.inputTokens.toLocaleString("vi-VN")} token vào +{" "}
-              {data.usage.outputTokens.toLocaleString("vi-VN")} token ra.
+              The “per episode” figure uses consumption measured over {data.usage.episodes}{" "}
+              episodes: {data.usage.inputTokens.toLocaleString("en-GB")} input tokens +{" "}
+              {data.usage.outputTokens.toLocaleString("en-GB")} output.
             </p>
           ) : (
             <p className="text-xs text-neutral-600">
-              Chưa chạy tập nào nên chưa ước tính được tiền mỗi tập.
+              No episodes run yet, so there is no per-episode estimate.
             </p>
           )}
 
           <div className="max-h-[28rem] divide-y divide-neutral-900 overflow-y-auto rounded border border-neutral-800">
             {models.length === 0 ? (
-              <p className="p-4 text-sm text-neutral-500">Không có model nào khớp.</p>
+              <p className="p-4 text-sm text-neutral-500">No models match.</p>
             ) : (
               models.map((m) => {
                 const cost = data.usage ? costPerEpisode(m, data.usage) : null;
@@ -185,19 +188,19 @@ export function OpenRouterPanel() {
                       <div className="font-mono text-sm text-neutral-200">{m.id}</div>
                       <div className="mt-0.5 text-xs text-neutral-600">
                         {m.contextLength > 0 &&
-                          `${Math.round(m.contextLength / 1000)}k ngữ cảnh · `}
+                          `${Math.round(m.contextLength / 1000)}k context · `}
                         {m.promptPerMTok === null || m.completionPerMTok === null
-                          ? "chưa rõ giá"
-                          : `vào ${usd(m.promptPerMTok)} · ra ${usd(m.completionPerMTok)} /1M token`}
-                        {cost !== null && cost > 0 && ` · ~${usd(cost)} một tập`}
+                          ? "price unknown"
+                          : `in ${usd(m.promptPerMTok)} · out ${usd(m.completionPerMTok)} /1M tokens`}
+                        {cost !== null && cost > 0 && ` · ~${usd(cost)} per episode`}
                       </div>
                     </div>
                     <span className="flex shrink-0 items-center gap-1">
-                      {m.free && <Badge tone="green">miễn phí</Badge>}
+                      {m.free && <Badge tone="green">free</Badge>}
                       {/*
-                        Model mặc định lưu riêng cho từng provider, mà API ghi
-                        theo provider ĐANG CHẠY. Bấm khi đang chạy Ollama là ghi
-                        nhầm tên model đám mây vào ô của Ollama.
+                        Default models are stored per provider, and the API writes
+                        against the provider CURRENTLY IN USE. Clicking this while
+                        on Ollama writes a cloud model name into Ollama's slot.
                       */}
                       {data.active ? (
                         <>
@@ -206,14 +209,14 @@ export function OpenRouterPanel() {
                             method="PUT"
                             body={{ model: m.id }}
                           >
-                            đặt làm model viết
+                            use for writing
                           </ActionButton>
                           <ActionButton
                             path="/api/models/default/utility"
                             method="PUT"
                             body={{ model: m.id }}
                           >
-                            việc phụ
+                            utility
                           </ActionButton>
                         </>
                       ) : null}

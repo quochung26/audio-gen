@@ -16,11 +16,11 @@ interface P {
 }
 
 /**
- * Vặn tham số sinh cho cả sáu bước trong một màn.
+ * Tune generation parameters for every step on one screen.
  *
- * Chỉ liệt kê bản THẮNG của mỗi bước — bản mà worker thật sự dùng. Liệt kê hết
- * mọi biến thể thì bảng dài ra mà phần lớn dòng chẳng ảnh hưởng gì tới lượt
- * chạy tiếp theo; sửa biến thể thì vào trang Prompt.
+ * Lists only the WINNING version of each step — the one the worker actually
+ * uses. Listing every variant makes a long table where most rows have no effect
+ * on the next run; to edit a variant, open its prompt page.
  */
 export function GenParamsSettings() {
   const { data, isLoading } = useApi<{ prompts: P[]; genParams: GenParamSpec[] }>("/api/prompts");
@@ -29,11 +29,12 @@ export function GenParamsSettings() {
   const winners = data.prompts.filter((p) => p.wins);
 
   return (
-    <Section title="Tham số sinh">
+    <Section title="Generation parameters">
       <p className="-mt-1 text-xs text-neutral-500">
-        Mỗi bước một bộ tham số riêng, vì chúng cần khác nhau: bước viết cần{" "}
-        <code>temperature</code> cao cho văn biến hoá, bước biên tập và tóm tắt cần thấp cho bám
-        sát bản gốc. Ô trống thì dùng mặc định của provider — số mờ trong ô chính là giá trị đó.
+        Each step gets its own parameters because they need different ones: writing wants a
+        high <code>temperature</code> for varied prose, while editing and summarising want it low
+        to stay close to the source. An empty box falls back to the provider default — the greyed
+        number in the box is that default.
       </p>
 
       <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
@@ -42,7 +43,7 @@ export function GenParamsSettings() {
             key={p.id}
             path={`/api/prompts/${p.id}/params`}
             method="PUT"
-            submit="Lưu"
+            submit="Save"
             className="px-4 py-3"
           >
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -52,7 +53,7 @@ export function GenParamsSettings() {
                 to={`/prompts/${p.id}`}
                 className="text-xs text-neutral-500 underline hover:text-neutral-300"
               >
-                sửa prompt
+                edit prompt
               </Link>
             </div>
             <GenParamsFields

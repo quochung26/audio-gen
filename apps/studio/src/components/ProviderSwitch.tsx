@@ -2,14 +2,14 @@ import { Badge } from "@/components/ui";
 import { ActionButton } from "@/components/Form";
 
 /**
- * Chọn nơi chạy model — MỘT trong hai.
+ * Choose where models run — ONE of the two.
  *
- * Ollama tại chỗ: miễn phí, nội dung không rời khỏi máy, nhưng giới hạn bởi
- * card đồ hoạ ở nhà. OpenRouter: model mạnh hơn nhiều, trả tiền theo token, và
- * nội dung gửi đi.
+ * Ollama locally: free, nothing leaves the machine, but limited by the GPU you
+ * have at home. OpenRouter: far stronger models, paid per token, and your
+ * content is sent out.
  *
- * Đổi là ăn ngay ở lượt gọi model tiếp theo, kể cả worker đang chạy dở: lựa
- * chọn nằm trong bảng `Setting` và được hỏi lại mỗi lượt.
+ * The switch takes effect on the very next model call, even mid-run: the choice
+ * lives in the `Setting` table and is read every time.
  */
 export function ProviderSwitch({
   provider,
@@ -18,21 +18,21 @@ export function ProviderSwitch({
 }: {
   provider: string;
   envProvider: string;
-  /** Có khoá API và gọi được không — chưa sẵn sàng thì đổi sang là job chết. */
+  /** Has an API key and answers — switching before that kills the job. */
   openRouterReady: boolean;
 }) {
   const options = [
     {
       id: "ollama",
-      title: "Ollama — tại chỗ",
-      desc: "Miễn phí. Nội dung không rời khỏi máy. Giới hạn bởi card đồ hoạ ở nhà.",
+      title: "Ollama — local",
+      desc: "Free. Nothing leaves this machine. Limited by the GPU you have at home.",
       blocked: null as string | null,
     },
     {
       id: "openrouter",
-      title: "OpenRouter — đám mây",
-      desc: "Model mạnh hơn nhiều, trả tiền theo token. Nội dung gửi lên rời khỏi máy này.",
-      blocked: openRouterReady ? null : "Chưa kết nối được — xem khối OpenRouter bên dưới.",
+      title: "OpenRouter — cloud",
+      desc: "Far stronger models, paid per token. Your content leaves this machine.",
+      blocked: openRouterReady ? null : "Not connected — see the OpenRouter panel below.",
     },
   ];
 
@@ -50,7 +50,7 @@ export function ProviderSwitch({
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-neutral-200">{o.title}</span>
-                {on && <Badge tone="green">đang chạy</Badge>}
+                {on && <Badge tone="green">in use</Badge>}
               </div>
               <p className="mt-1 text-xs text-neutral-500">{o.desc}</p>
 
@@ -65,11 +65,11 @@ export function ProviderSwitch({
                       body={{ provider: o.id }}
                       confirmText={
                         o.id === "openrouter"
-                          ? "Chuyển sang OpenRouter? Story Bible, bản thảo và lời thoại sẽ được gửi lên dịch vụ đám mây, và mỗi lượt sinh đều tính tiền."
+                          ? "Switch to OpenRouter? Your Story Bible, drafts and dialogue will be sent to a cloud service, and every generation costs money."
                           : undefined
                       }
                     >
-                      chuyển sang {o.id === "ollama" ? "Ollama" : "OpenRouter"}
+                      switch to {o.id === "ollama" ? "Ollama" : "OpenRouter"}
                     </ActionButton>
                   )}
                 </div>
@@ -81,16 +81,16 @@ export function ProviderSwitch({
 
       {provider === "mock" && (
         <p className="rounded border border-amber-900 bg-amber-950/30 p-3 text-sm text-amber-200">
-          Đang chạy provider <strong>giả lập</strong> — model không thật sự viết gì. Chọn một trong
-          hai ở trên để chạy thật.
+          Running the <strong>mock</strong> provider — no model is actually writing. Pick one of
+          the two above to run for real.
         </p>
       )}
 
       <p className="text-xs text-neutral-600">
-        Model mặc định nhớ riêng cho từng bên, nên đổi qua đổi lại không mất lựa chọn cũ.{" "}
+        Default models are remembered per provider, so switching back and forth loses nothing.{" "}
         {provider !== envProvider && (
           <>
-            Giá trị trong <code>.env</code> là <code>{envProvider}</code>; lựa chọn ở đây đè lên nó.
+            <code>.env</code> says <code>{envProvider}</code>; the choice here overrides it.
           </>
         )}
       </p>

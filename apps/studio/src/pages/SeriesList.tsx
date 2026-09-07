@@ -18,13 +18,13 @@ export function SeriesList() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Truyện</h1>
+      <h1 className="text-xl font-semibold">Stories</h1>
 
       {data.length === 0 ? (
         <p className="rounded border border-dashed border-neutral-800 p-6 text-sm text-neutral-500">
-          Chưa có truyện nào.{" "}
+          No stories yet.{" "}
           <Link to="/series/new" className="underline">
-            Tạo truyện đầu tiên
+            Create the first one
           </Link>
           .
         </p>
@@ -41,9 +41,9 @@ export function SeriesList() {
                 <div className="mt-0.5 text-xs text-neutral-500">{s.description}</div>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500">
-                <span>{s._count.episodes} tập</span>
+                <span>{s._count.episodes} episodes</span>
                 <Badge>{s.genre}</Badge>
-                <Badge>{s.kind === "SHORT" ? "ngắn" : "dài"}</Badge>
+                <Badge>{s.kind === "SHORT" ? "short" : "long"}</Badge>
               </div>
             </Link>
           ))}

@@ -4,24 +4,26 @@ interface ModelsData {
   language: { value: string; fromEnv: boolean };
 }
 
-const LABELS: Record<string, string> = { vi: "Tiếng Việt", en: "Tiếng Anh" };
+const LABELS: Record<string, string> = { vi: "Vietnamese", en: "English" };
 
 /**
- * Nhãn tiếng Việt cho một mã ngôn ngữ.
+ * Display label for a language code.
  *
- * Bảng chép riêng vì Studio không phụ thuộc `@audio/core` — nó là SPA, mọi thứ
- * chạm DB đều đi qua API. Thêm ngôn ngữ thì phải sửa cả hai chỗ.
+ * The table is duplicated here because Studio does not depend on `@audio/core` —
+ * it is an SPA and everything touching the DB goes through the API. Adding a
+ * language means editing both places.
  */
 export function languageLabel(code: string): string {
   return LABELS[code] ?? code;
 }
 
 /**
- * Chọn ngôn ngữ cho một bộ truyện MỚI.
+ * Pick the language for a NEW story.
  *
- * Chốt lúc tạo bộ và không đổi được sau đó — nói thẳng ra ngay dưới ô chọn.
- * Đổi ngôn ngữ một bộ đang viết dở không phải là đổi một ô cấu hình: tóm tắt
- * cung truyện, tên nhân vật và giọng đọc của các tập cũ đều lệch theo.
+ * Fixed when the story is created and not changeable afterwards — said plainly
+ * right under the picker. Changing the language of a story in progress is not a
+ * config tweak: the arc summary, character names and the voices of earlier
+ * episodes all drift out of line.
  */
 export function LanguagePicker() {
   const { data } = useApi<ModelsData>("/api/models");
@@ -29,11 +31,12 @@ export function LanguagePicker() {
 
   return (
     <label className="w-40">
-      <span className="mb-1 block text-sm text-neutral-400">Ngôn ngữ</span>
+      <span className="mb-1 block text-sm text-neutral-400">Language</span>
       <select
         name="language"
-        // `key` để select nhận giá trị mặc định khi dữ liệu về sau lần render
-        // đầu — không có nó thì ô luôn đứng ở "vi" dù mặc định là "en".
+        // `key` makes the select take the default once data arrives after the
+        // first render — without it the box sits on "vi" even when the default
+        // is "en".
         key={fallback}
         defaultValue={fallback}
         className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
@@ -45,33 +48,32 @@ export function LanguagePicker() {
         ))}
       </select>
       <span className="mt-1 block text-xs text-neutral-600">
-        Chốt luôn cho cả bộ, không đổi được sau.
+        Fixed for the whole story; cannot be changed later.
       </span>
     </label>
   );
 }
 
 /**
- * Chọn ngôn ngữ BẢN THẢO — viết nháp bằng tiếng này rồi mới viết lại sang
- * ngôn ngữ đầu ra.
+ * Pick the DRAFT language — write in this, then rewrite into the output language.
  *
- * Để dùng model viết hay nhất kể cả khi nó không viết được thứ tiếng đầu ra:
- * một finetune sáng tác dựng trên Mistral Small viết tiếng Anh rất khá và
- * tiếng Việt gần như không dùng được.
+ * There so you can use the model that writes best even when it cannot write the
+ * output language: a creative finetune built on Mistral Small writes very decent
+ * English and near-unusable Vietnamese.
  *
- * Khác ô trên, cái này đổi giữa chừng được — nó chỉ quyết định lượt viết kế
- * tiếp, cảnh đã viết xong nằm yên.
+ * Unlike the picker above, this one can change mid-story — it only decides the
+ * next run; scenes already written stay put.
  */
 export function DraftLanguagePicker() {
   return (
     <label className="w-52">
-      <span className="mb-1 block text-sm text-neutral-400">Viết nháp bằng</span>
+      <span className="mb-1 block text-sm text-neutral-400">Draft in</span>
       <select
         name="draftLanguage"
         defaultValue=""
         className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
       >
-        <option value="">— viết thẳng, không dịch —</option>
+        <option value="">— write directly, no rewrite —</option>
         {Object.entries(LABELS).map(([code, label]) => (
           <option key={code} value={code}>
             {label}
@@ -79,8 +81,8 @@ export function DraftLanguagePicker() {
         ))}
       </select>
       <span className="mt-1 block text-xs text-neutral-600">
-        Chọn khi model viết hay nhất không viết được ngôn ngữ đầu ra. Thêm một
-        lượt gọi model cho mỗi cảnh.
+        Use when the model that writes best cannot write the output language. Costs
+        one extra model call per scene.
       </span>
     </label>
   );

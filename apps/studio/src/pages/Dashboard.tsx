@@ -29,7 +29,8 @@ interface Data {
 }
 
 export function Dashboard() {
-  // Worker chạy ở tiến trình khác nên tiến độ chỉ đổi phía server — phải hỏi lại.
+  // The worker runs in another process, so progress only changes server-side —
+  // we have to ask again.
   const { data, isLoading } = useApi<Data>("/api/jobs", { refetchMs: 2000 });
   if (isLoading || !data) return <Loading />;
 
@@ -38,41 +39,41 @@ export function Dashboard() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-xl font-semibold">Bảng điều khiển</h1>
+        <h1 className="text-xl font-semibold">Dashboard</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Hàng đợi và tài nguyên của máy sản xuất.
+          Queue and resources on this machine.
         </p>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
         <Stat
-          label="VRAM dùng được"
+          label="VRAM available"
           value={`${data.vram.usableMb} MB`}
-          hint={`${data.vram.totalMb} MB tổng − ${data.vram.reservedMb} MB hệ điều hành giữ`}
+          hint={`${data.vram.totalMb} MB total − ${data.vram.reservedMb} MB held by the OS`}
         />
-        <Stat label="Job trong hàng đợi" value={String(count("QUEUED"))} hint="chờ tới lượt" />
-        <Stat label="Đang chạy" value={String(count("RUNNING"))} hint="đang chiếm tài nguyên" />
+        <Stat label="Queued" value={String(count("QUEUED"))} hint="waiting for a slot" />
+        <Stat label="Running" value={String(count("RUNNING"))} hint="holding resources" />
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-neutral-300">Job gần nhất</h2>
+        <h2 className="mb-3 text-sm font-medium text-neutral-300">Recent jobs</h2>
         {data.recent.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-800 p-6 text-sm text-neutral-500">
-            Chưa có job nào. Chạy <code className="text-neutral-300">pnpm job:mock</code> ở terminal
-            để thử khung hàng đợi.
+            No jobs yet. Run <code className="text-neutral-300">pnpm job:mock</code> in a terminal
+            to exercise the queue.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-neutral-500">
                 <tr>
-                  <th className="py-2">Trạng thái</th>
-                  <th>Làn</th>
-                  <th>Loại</th>
-                  <th>Tập</th>
+                  <th className="py-2">Status</th>
+                  <th>Lane</th>
+                  <th>Type</th>
+                  <th>Episode</th>
                   <th className="text-right">VRAM</th>
-                  <th className="text-right">Tiến độ</th>
-                  <th className="text-right">Thời gian</th>
+                  <th className="text-right">Progress</th>
+                  <th className="text-right">Took</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-900">

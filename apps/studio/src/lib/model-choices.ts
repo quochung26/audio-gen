@@ -12,31 +12,31 @@ export interface ModelChoice {
 export interface ModelChoices {
   choices: ModelChoice[];
   /**
-   * Vì sao không có gì để chọn. `null` khi có.
+   * Why there is nothing to pick. `null` when there is.
    *
-   * Luôn phải nói ra: trước đây danh sách rỗng thì giao diện lặng lẽ đổi sang ô
-   * gõ tay, nhìn vào chỉ thấy "không có chỗ chọn model" mà không biết là do
-   * Ollama chưa chạy, hay do chưa tải model nào, hay do đang chạy OpenRouter.
+   * Always say it: an empty list used to make the UI quietly fall back to a
+   * free-text box, and all you saw was "no model picker" — no way to tell
+   * whether Ollama was down, no model was pulled, or OpenRouter was in use.
    */
   reason: string | null;
 }
 
 /**
- * Model nào được liệt kê cho chọn, và nếu không có thì vì sao.
+ * Which models are offered, and if none, why.
  *
- * Chỉ OpenRouter mới đổi nguồn danh sách. Provider `mock` vẫn dùng tên model
- * kiểu Ollama — trước đây nó rơi vào nhánh "model đã dùng gần đây" và bảng chọn
- * hiện toàn tên cũ trong lịch sử.
+ * Only OpenRouter changes where the list comes from. The `mock` provider still
+ * uses Ollama-style model names — it used to fall into the "recently used"
+ * branch and the picker filled up with stale names from history.
  *
- * Ollama chưa chạy thì trả rỗng chứ không đoán: chọn model chưa có là job chết
- * giữa chừng một tập đang viết dở.
+ * If Ollama is unreachable, return nothing rather than guess: picking a model
+ * that is not there kills the job midway through an episode.
  */
 export function modelChoices(input: {
   provider: string;
   reachable: boolean;
   installed: InstalledModel[];
   recent: string[];
-  /** Địa chỉ Ollama — đưa vào lời giải thích cho khỏi phải đi tra `.env`. */
+  /** Ollama address — put in the explanation so nobody has to go read `.env`. */
   url?: string;
 }): ModelChoices {
   if (input.provider === "openrouter") {
@@ -45,21 +45,21 @@ export function modelChoices(input: {
       choices,
       reason: choices.length
         ? null
-        : "Chưa dùng model OpenRouter nào. Chọn một model ở mục OpenRouter, hoặc gõ tên model.",
+        : "No OpenRouter model used yet. Pick one under OpenRouter, or type a model name.",
     };
   }
 
   if (!input.reachable) {
     return {
       choices: [],
-      reason: `Không kết nối được Ollama${input.url ? ` ở ${input.url}` : ""} nên không lấy được danh sách model. Chạy \`ollama serve\` rồi tải lại trang.`,
+      reason: `Cannot reach Ollama${input.url ? ` at ${input.url}` : ""}, so the model list is unavailable. Run \`ollama serve\` and reload.`,
     };
   }
 
   if (input.installed.length === 0) {
     return {
       choices: [],
-      reason: "Ollama đang chạy nhưng chưa tải model nào. Tải ở mục “Tải model về” bên dưới.",
+      reason: "Ollama is running but no model is pulled. Pull one under “Download a model” below.",
     };
   }
 

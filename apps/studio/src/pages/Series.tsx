@@ -73,8 +73,8 @@ export function Series() {
     ? s.episodes.find((e) => e.id === active.currentEpisodeId)
     : undefined;
 
-  // Đếm theo dữ liệu thật chứ không theo Episode.status: status lệch được khi
-  // bấm tay giữa chừng, còn "có bao nhiêu block" thì luôn đúng.
+  // Count from real data rather than Episode.status: status drifts when you click
+  // things by hand mid-run, whereas "how many blocks" is always true.
   const written = s.episodes.filter((e) => e._count.chapters > 0).length;
   const scripted = s.episodes.filter((e) => e._count.blocks > 0).length;
   const exported = s.episodes.filter((e) => e.exports.length > 0).length;
@@ -85,22 +85,22 @@ export function Series() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold">{s.title}</h1>
-          <Badge>{s.kind === "SHORT" ? "truyện ngắn" : "truyện dài"}</Badge>
+          <Badge>{s.kind === "SHORT" ? "short story" : "long story"}</Badge>
           <Badge>{s.genre}</Badge>
           {s.tags.map((t) => (
             <Badge key={t} tone="blue">
               {t}
             </Badge>
           ))}
-          {/* Hiện luôn: ngôn ngữ quyết định model viết bằng tiếng gì và giọng nào đọc được. */}
+          {/* Always shown: language decides what the model writes and which voices can read it. */}
           <Badge tone={s.language === "en" ? "blue" : "neutral"}>
-            {s.language === "en" ? "Tiếng Anh" : "Tiếng Việt"}
+            {s.language === "en" ? "English" : "Vietnamese"}
           </Badge>
         </div>
         {s.description && <p className="mt-2 text-sm text-neutral-400">{s.description}</p>}
       </div>
 
-      <Section title="Ảnh bìa">
+      <Section title="Cover art">
         <div className="flex flex-wrap items-start gap-4 rounded border border-neutral-800 p-4">
           {s.coverUrl ? (
             <img
@@ -110,17 +110,17 @@ export function Series() {
             />
           ) : (
             <div className="flex size-32 shrink-0 items-center justify-center rounded border border-dashed border-neutral-700 text-xs text-neutral-600">
-              chưa có
+              none
             </div>
           )}
 
           <div className="min-w-60 flex-1 space-y-3">
             <p className="text-xs text-neutral-500">
-              Hiện ở trang nghe và trong feed podcast. Apple Podcasts đòi ảnh{" "}
-              <strong className="text-neutral-400">vuông, JPEG/PNG, ít nhất 1400×1400</strong> —
-              không đạt thì vẫn đặt được nhưng feed sẽ bị từ chối.
+              Shown on the player and in the podcast feed. Apple Podcasts requires{" "}
+              <strong className="text-neutral-400">square JPEG/PNG, at least 1400×1400</strong> —
+              anything smaller still uploads, but the feed gets rejected.
             </p>
-            <Form path={`/api/series/${s.id}/cover`} method="PUT" submit="Tải ảnh lên">
+            <Form path={`/api/series/${s.id}/cover`} method="PUT" submit="Upload">
               <input
                 type="file"
                 name="file"
@@ -130,7 +130,7 @@ export function Series() {
             </Form>
             {s.coverUrl && (
               <ActionButton path={`/api/series/${s.id}/cover`} method="DELETE">
-                gỡ ảnh bìa
+                remove cover
               </ActionButton>
             )}
           </div>
@@ -138,32 +138,32 @@ export function Series() {
       </Section>
 
       <Section
-        title="Thiết lập thế giới"
+        title="World setup"
         action={
           <Link to={`/series/${s.id}/bible`} className="text-xs text-neutral-400 underline">
-            sửa
+            edit
           </Link>
         }
       >
         <div className="space-y-2 rounded border border-neutral-800 p-4 text-sm">
-          <p className="text-neutral-400">{s.world.setting || "chưa đặt bối cảnh"}</p>
+          <p className="text-neutral-400">{s.world.setting || "no setting yet"}</p>
           <p className="text-xs text-neutral-600">
-            {s.world.rules.length} luật thế giới · {s.world.constraints.length} điều cấm ·{" "}
-            {s.world.glossary.length} thuật ngữ
+            {s.world.rules.length} world rules · {s.world.constraints.length} forbidden ·{" "}
+            {s.world.glossary.length} glossary terms
           </p>
           {worldThin && s.kind === "LONG" && (
             <p className="text-xs text-amber-600">
-              Truyện dài mà chưa đặt luật thế giới và giọng văn — tập sau dễ trôi khỏi tập đầu.
+              A long story with no world rules or tone — later episodes drift away from the first.
             </p>
           )}
         </div>
       </Section>
 
       <Section
-        title={`Nhân vật (${s.characters.length})`}
+        title={`Characters (${s.characters.length})`}
         action={
           <Link to={`/series/${s.id}/characters`} className="text-xs text-neutral-400 underline">
-            sửa
+            edit
           </Link>
         }
       >
@@ -172,20 +172,20 @@ export function Series() {
             <div key={c.id} className="rounded border border-neutral-800 p-3">
               <div className="flex items-center gap-2">
                 <span className="font-medium">{c.name}</span>
-                {c.isNarrator && <Badge tone="blue">dẫn truyện</Badge>}
+                {c.isNarrator && <Badge tone="blue">narrator</Badge>}
               </div>
               <p className="mt-1 text-xs text-neutral-500">{c.role}</p>
               {c.description && (
                 <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{c.description}</p>
               )}
               <p className="mt-2 text-xs text-neutral-600">
-                giọng gợi ý: {c.voiceHint ?? "—"}
+                voice hint: {c.voiceHint ?? "—"}
                 <br />
-                đã casting: {c.voice?.name ?? <span className="text-amber-500">chưa</span>}
+                cast: {c.voice?.name ?? <span className="text-amber-500">not yet</span>}
                 {!c.description && (
                   <>
                     <br />
-                    <span className="text-amber-600">chưa có mô tả tính cách</span>
+                    <span className="text-amber-600">no personality described</span>
                   </>
                 )}
               </p>
@@ -195,7 +195,7 @@ export function Series() {
       </Section>
 
       <Section
-        title="Sự kiện truyện"
+        title="Story facts"
         action={
           <Link to={`/series/${s.id}/facts`} className="text-xs text-neutral-400 underline">
             xem
@@ -203,81 +203,82 @@ export function Series() {
         }
       >
         <p className="rounded border border-neutral-800 p-4 text-xs text-neutral-500">
-          Sự kiện có vector riêng, được truy hồi theo beat của từng cảnh.
+          Facts carry their own vectors and are retrieved per scene beat.
         </p>
       </Section>
 
       {(s.arcSummary || s.episodes.length > 6) && (
-        <Section title="Mạch truyện từ đầu">
-          <Form path={`/api/series/${s.id}/arc-summary`} method="PUT" submit="Lưu" className="space-y-2">
+        <Section title="The story so far">
+          <Form path={`/api/series/${s.id}/arc-summary`} method="PUT" submit="Save" className="space-y-2">
             <textarea
               name="arcSummary"
               rows={5}
               defaultValue={s.arcSummary ?? ""}
-              placeholder="Tự sinh khi bộ đủ dài — nén các tập cũ lại để ngữ cảnh không phình theo số tập."
+              placeholder="Generated once the story is long enough — compresses older episodes so context stops growing with the episode count."
               className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed outline-none placeholder:text-neutral-700 focus:border-neutral-600"
             />
             <span className="text-xs text-neutral-600">
               {s.arcThroughEpisode
-                ? `Đã nén tới hết tập ${s.arcThroughEpisode}. Các tập sau đó vẫn giữ tóm tắt nguyên văn.`
-                : "Chưa nén — tóm tắt từng tập vẫn được nạp nguyên văn."}
+                ? `Compressed through episode ${s.arcThroughEpisode}. Later episodes keep their summaries verbatim.`
+                : "Not compressed yet — per-episode summaries are still loaded in full."}
             </span>
           </Form>
         </Section>
       )}
 
-      <Section title="Chạy hàng loạt">
+      <Section title="Batch run">
         {active ? (
           <div className="space-y-3 rounded border border-blue-900 bg-blue-950/30 p-4">
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Badge tone={active.status === "WAITING_REVIEW" ? "amber" : "blue"}>
-                {active.status === "WAITING_REVIEW" ? "chờ duyệt" : "đang chạy"}
+                {active.status === "WAITING_REVIEW" ? "awaiting review" : "running"}
               </Badge>
               <span className="text-neutral-300">
-                {written}/{s.episodes.length} tập đã viết · {scripted} có kịch bản · {exported} có MP3
+                {written}/{s.episodes.length} episodes written · {scripted} scripted · {exported} with MP3
               </span>
             </div>
 
             {active.status === "WAITING_REVIEW" && waiting ? (
               <p className="text-sm text-amber-200">
-                Dừng ở tập {waiting.number}: {waiting.title}. Bản thảo cần người đọc trước khi tạo
+                Stopped at episode {waiting.number}: {waiting.title}. The draft needs a human before
                 audio —{" "}
                 <Link to={`/episode/${waiting.id}`} className="underline">
-                  mở tập để đọc và duyệt
+                  open the episode to read and approve
                 </Link>
-                . Duyệt xong lượt chạy tự đi tiếp.
+. Once approved the run continues on its own.
               </p>
             ) : (
               <p className="text-xs text-neutral-400">
-                Đang chạy trong worker — đóng tab này không làm gián đoạn.
+                Running in the worker — closing this tab changes nothing.
               </p>
             )}
 
             <ActionButton path={`/api/series/${s.id}/batch/${active.id}`} method="DELETE">
-              dừng lượt chạy
+              stop the run
             </ActionButton>
           </div>
         ) : (
           <Form
             path={`/api/series/${s.id}/batch`}
-            submit="Bắt đầu"
+            submit="Start"
             className="space-y-3 rounded border border-neutral-800 p-4"
           >
             <p className="text-sm text-neutral-400">
-              Đưa từng tập đi hết chuỗi: viết cảnh → duyệt → kịch bản audio → tóm tắt → đọc → ghép
-              MP3. Chạy tuần tự từng tập vì tập sau cần tóm tắt và sự kiện của tập trước.
+              Takes each episode through the whole chain: write scenes → approve → audio script →
+              summarise → speak → mix MP3. One episode at a time, because each needs the summary and
+              facts of the one before.
             </p>
             <p className="text-xs text-neutral-600">
-              {written}/{s.episodes.length} tập đã viết · {scripted} có kịch bản · {exported} có
-              MP3. Tập nào xong rồi sẽ được bỏ qua.
+              {written}/{s.episodes.length} episodes written · {scripted} scripted · {exported}
+              with MP3. Anything already done is skipped.
             </p>
 
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="withAudio" defaultChecked className="mt-1" />
               <span>
-                Chạy cả TTS và ghép MP3
+                Also run TTS and mix the MP3
                 <span className="block text-xs text-neutral-600">
-                  Bỏ chọn để dừng sau khi có kịch bản audio.
+                  Uncheck to stop once the audio script exists.
                 </span>
               </span>
             </label>
@@ -285,9 +286,9 @@ export function Series() {
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="autoApprove" className="mt-1" />
               <span>
-                Tự duyệt bản thảo
+                Auto-approve drafts
                 <span className="block text-xs text-amber-600/80">
-                  Bỏ qua chốt chặn duy nhất ngăn bản thảo thô đi tiếp. Chỉ dùng khi đang thử.
+                  Skips the one gate stopping raw drafts. Only while experimenting.
                 </span>
               </span>
             </label>
@@ -296,16 +297,16 @@ export function Series() {
 
         {run && !active && run.status === "FAILED" && (
           <p className="mt-3 rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-            Lượt chạy trước thất bại: {run.error}
+            The previous run failed: {run.error}
           </p>
         )}
       </Section>
 
-      <Section title="Thể loại phụ">
+      <Section title="Sub-genres">
         <Form
           path={`/api/series/${s.id}/tags`}
           method="PUT"
-          submit="Lưu"
+          submit="Save"
           className="rounded border border-neutral-800 p-4"
         >
           <TagPicker
@@ -313,15 +314,15 @@ export function Series() {
             initial={s.tags}
           />
           <p className="mt-2 text-xs text-neutral-600">
-            Bấm để chọn hoặc bỏ chọn. AI đọc chúng khi viết, và chúng thành từ khoá RSS. Thể loại{" "}
-            <strong className="text-neutral-400">chính</strong> ({s.genre}) là thứ quyết định dùng
-            prompt nào — đổi ở đây không đụng tới nó.
+            Click to add or remove. The AI reads them while writing, and they become RSS keywords.
+            The <strong className="text-neutral-400">main</strong> genre ({s.genre}) is what decides
+            which prompt runs — changing things here does not touch it.
           </p>
         </Form>
       </Section>
 
       <Section
-        title={`Tập (${s.episodes.length})`}
+        title={`Episodes (${s.episodes.length})`}
         action={
           <ActionButton
             path={`/api/series/${s.id}/episodes`}
@@ -331,7 +332,7 @@ export function Series() {
               if (jobId) nav(`/job/${jobId}`);
             }}
           >
-            Viết tập mới
+            New episode
           </ActionButton>
         }
       >
@@ -343,11 +344,11 @@ export function Series() {
               className="flex items-center justify-between px-4 py-3 hover:bg-neutral-900"
             >
               <div>
-                <span className="text-sm text-neutral-500">Tập {ep.number}</span>
+                <span className="text-sm text-neutral-500">Episode {ep.number}</span>
                 <span className="ml-3 text-sm">{ep.title}</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-neutral-500">
-                {ep.wordCount ? <span>{ep.wordCount} từ</span> : null}
+                {ep.wordCount ? <span>{ep.wordCount} words</span> : null}
                 {ep.durationMs ? <span>~{formatDuration(ep.durationMs)}</span> : null}
                 <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>
               </div>
@@ -356,21 +357,21 @@ export function Series() {
         </div>
       </Section>
 
-      {/* Cuối trang, không phải cạnh nút chạy: xoá cả bộ là việc hiếm và không
-          hoàn tác được, đặt nó gần nút bấm hằng ngày là mời bấm nhầm. */}
-      <Section title="Vùng nguy hiểm">
+      {/* At the bottom, away from the run buttons: deleting a whole story is rare
+          and cannot be undone, so putting it near daily buttons invites mistakes. */}
+      <Section title="Danger zone">
         <div className="flex flex-wrap items-center gap-3 rounded border border-red-950 bg-red-950/20 p-4">
           <ActionButton
             path={`/api/series/${s.id}`}
             method="DELETE"
-            confirmText={`Xoá "${s.title}" cùng ${s.episodes.length} tập, toàn bộ bản thảo, nhân vật và audio đã dựng? Không hoàn tác được.`}
+            confirmText={`Delete "${s.title}" with its ${s.episodes.length} episodes, every draft, character and rendered audio? This cannot be undone.`}
             onDone={() => nav("/series")}
           >
-            Xoá cả bộ truyện
+            Delete the whole story
           </ActionButton>
           <span className="text-xs text-neutral-500">
-            Xoá luôn tập, cảnh, nhân vật, sự kiện và file audio chỉ bộ này dùng. Tập đang xuất bản
-            thì phải gỡ xuất bản trước.
+            Also deletes episodes, scenes, characters, facts and any audio files only this story
+            uses. Published episodes must be unpublished first.
           </span>
         </div>
       </Section>

@@ -10,8 +10,8 @@ import { CastPicker } from "@/components/CastPicker";
 
 export function SeriesNew() {
   const nav = useNavigate();
-  // Lấy từ danh mục chứ không cứng trong mã: thêm thể loại ở trang Cài đặt là
-  // ô này có ngay, và mỗi thể loại mang theo mô tả để model đọc.
+  // From the catalogue rather than hard-coded: add a genre under Settings and it
+  // shows up here immediately, carrying the description the model reads.
   const { data } = useApi<{ genres: Array<{ name: string; description: string; enabled: boolean }> }>(
     "/api/genres",
   );
@@ -20,17 +20,18 @@ export function SeriesNew() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Truyện mới</h1>
+        <h1 className="text-xl font-semibold">New story</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Viết một dòng ý tưởng. Máy sẽ dựng dàn ý, nhân vật và <strong className="text-neutral-200">tập
-          đầu tiên</strong> — bạn sửa lại trước khi cho viết. Tập sau thêm dần bằng nút “Viết tập
-          mới” ở trang bộ truyện, để mỗi tập được dựng khi đã biết tập trước kết thúc ra sao.
+          Write one line of idea. The machine builds an outline, a cast and the{" "}
+          <strong className="text-neutral-200">first episode</strong> — you edit before anything is
+          written. Later episodes come one at a time from “New episode” on the story page, so each
+          is planned knowing how the previous one ended.
         </p>
       </div>
 
       <Form
         path="/api/series"
-        submit="Dựng dàn ý"
+        submit="Build the outline"
         className="space-y-4"
         onDone={(r) => {
           const jobId = (r as unknown as { jobId?: string }).jobId;
@@ -39,24 +40,24 @@ export function SeriesNew() {
       >
         <Field
           name="idea"
-          label="Ý tưởng"
-          placeholder="một tài xế xe khách đêm chở phải hành khách đã chết từ ba năm trước"
+          label="Idea"
+          placeholder="a night-bus driver picks up a passenger who died three years ago"
           rows={3}
         />
 
         <div className="flex flex-wrap gap-4">
           <label className="flex-1">
-            <span className="mb-1 block text-sm text-neutral-400">Thể loại chính</span>
+            <span className="mb-1 block text-sm text-neutral-400">Main genre</span>
             <select
               name="genre"
               key={genres.length}
               disabled={genres.length === 0}
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm disabled:text-neutral-600"
             >
-              {/* Danh mục rỗng thì nói ra bằng một dòng. Select không có option
-                  nào mở ra một danh sách trắng — trông như đang hỏng. */}
+              {/* Say so in one line when the catalogue is empty. A select with no
+                  options opens a blank list — it looks broken. */}
               {genres.length === 0 ? (
-                <option value="">— chưa có thể loại nào —</option>
+                <option value="">— no genres yet —</option>
               ) : (
                 genres.map((g) => (
                   <option key={g.name} value={g.name}>
@@ -67,7 +68,7 @@ export function SeriesNew() {
             </select>
             {genres.length === 0 && (
               <span className="mt-1 block text-xs text-amber-500">
-                Danh mục thể loại đang rỗng — thêm ở Cài đặt → Thể loại.
+                The genre catalogue is empty — add one under Settings → Genres.
               </span>
             )}
           </label>
@@ -77,13 +78,13 @@ export function SeriesNew() {
 
         <label className="block">
           <span className="mb-1 block text-sm text-neutral-400">
-            Thể loại phụ <span className="text-neutral-600">— tuỳ chọn</span>
+            Sub-genres <span className="text-neutral-600">— optional</span>
           </span>
           <TagPicker genres={genres.map((g) => g.name)} />
           <span className="mt-1 block text-xs text-neutral-600">
-            Bấm để chọn, chọn được nhiều. AI đọc chúng khi viết — thể loại chính quyết định dùng
-            prompt nào, thể loại phụ lái giọng văn và tình tiết. Cũng thành từ khoá để người nghe
-            tìm ra kênh.
+            Click to pick; pick as many as you like. The AI reads them while writing — the main
+            genre decides which prompt runs, sub-genres steer tone and events. They also become
+            keywords listeners search by.
           </span>
         </label>
 
@@ -91,13 +92,13 @@ export function SeriesNew() {
 
         <details className="rounded border border-neutral-800">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
-            Dàn nhân vật trước{" "}
-            <span className="text-neutral-600">— tuỳ chọn, lấy từ thẻ hoặc gõ riêng</span>
+            Cast up front{" "}
+            <span className="text-neutral-600">— optional, from cards or typed here</span>
           </summary>
           <div className="space-y-4 border-t border-neutral-800 px-4 py-4">
             <p className="text-xs text-neutral-500">
-              Bỏ trống thì AI tự nghĩ ra nhân vật. Chọn trước thì AI buộc phải dùng đúng những
-              người này — hợp khi bạn đã có một dàn ưng ý và muốn mang sang bộ mới.
+              Leave it empty and the AI invents the cast. Pick up front and the AI must use these
+              exact people — useful when you have a cast you like and want it in a new story.
             </p>
             <CastPicker />
           </div>
@@ -105,36 +106,36 @@ export function SeriesNew() {
 
         <details className="rounded border border-neutral-800">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
-            Thiết lập thế giới trước{" "}
-            <span className="text-neutral-600">— tuỳ chọn, nhưng nên có với truyện dài</span>
+            World setup up front{" "}
+            <span className="text-neutral-600">— optional, but worth it for a long story</span>
           </summary>
           <div className="space-y-4 border-t border-neutral-800 px-4 py-4">
             <p className="text-xs text-neutral-500">
-              Bỏ trống thì AI tự nghĩ ra bối cảnh, bạn sửa lại sau ở trang Story Bible. Điền sẵn thì
-              AI buộc phải bám theo ngay từ dàn ý — đỡ phải viết lại.
+              Leave it empty and the AI invents a setting you fix later in the Story Bible. Fill it
+              in and the AI is held to it from the outline on — less rewriting.
             </p>
             <Field
               name="setting"
-              label="Bối cảnh"
-              placeholder="Quốc lộ miền Trung, thập niên 1970. Đường vắng, sương mù, những chuyến xe chạy đêm."
+              label="Setting"
+              placeholder="A central-Vietnam highway, 1970s. Empty road, fog, buses running through the night."
               rows={2}
             />
             <Field
               name="rules"
-              label="Luật thế giới — mỗi dòng một luật"
-              placeholder={"Ma chỉ xuất hiện sau nửa đêm\nNgười chết không tự nói tên mình"}
+              label="World rules — one per line"
+              placeholder={"Ghosts only appear after midnight\nThe dead never say their own name"}
               rows={3}
             />
             <Field
               name="tone"
-              label="Giọng văn"
-              placeholder="Chậm rãi, nhiều khoảng lặng. Sợ bằng không khí chứ không bằng máu me."
+              label="Tone"
+              placeholder="Slow, full of silences. Fear from atmosphere, not gore."
               rows={2}
             />
             <Field
               name="constraints"
-              label="Điều cấm — mỗi dòng một điều"
-              placeholder="Không kết thúc bằng giấc mơ"
+              label="Forbidden — one per line"
+              placeholder="Never end on it being a dream"
               rows={2}
             />
           </div>

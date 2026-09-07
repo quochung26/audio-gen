@@ -3,22 +3,22 @@ import { afterEach, describe, expect, it } from "vitest";
 import { GenParamsFields, type GenParamSpec } from "./GenParamsFields";
 
 const SPECS: GenParamSpec[] = [
-  { key: "temperature", label: "temperature", hint: "Cao thì dễ lạc đề.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
-  { key: "numCtx", label: "numCtx", hint: "Trần ngữ cảnh.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
+  { key: "temperature", label: "temperature", hint: "High values wander off topic.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },
+  { key: "numCtx", label: "numCtx", hint: "Context ceiling.", min: 2048, max: 131072, step: 1024, fallback: 16384 },
 ];
 
 afterEach(cleanup);
 
 describe("GenParamsFields", () => {
-  it("dựng ô nhập cho từng tham số, tên trường khớp khoá", () => {
+  it("builds an input per parameter, field name matching the key", () => {
     const { container } = render(<GenParamsFields specs={SPECS} params={{}} />);
     for (const s of SPECS) {
       expect(container.querySelector(`input[name="${s.key}"]`)).toBeTruthy();
     }
   });
 
-  it("lấy khoảng hợp lệ từ API chứ không tự đặt", () => {
-    // Chép lại khoảng ở giao diện là sớm muộn cho nhập thứ mà API từ chối.
+  it("takes valid ranges from the API rather than inventing them", () => {
+    // Copy the ranges into the UI and sooner or later it accepts what the API rejects.
     const { container } = render(<GenParamsFields specs={SPECS} params={{}} />);
     const t = container.querySelector<HTMLInputElement>('input[name="temperature"]')!;
     expect(t.min).toBe("0");
@@ -27,39 +27,39 @@ describe("GenParamsFields", () => {
     expect(t.type).toBe("number");
   });
 
-  it("ô trống gợi ý giá trị mặc định của provider", () => {
-    // Để người dùng biết bỏ trống thì thành cái gì, thay vì phải đoán.
+  it("an empty box hints the provider default", () => {
+    // So the user knows what leaving it blank means, instead of guessing.
     const { container } = render(<GenParamsFields specs={SPECS} params={{}} />);
     const t = container.querySelector<HTMLInputElement>('input[name="temperature"]')!;
     expect(t.value).toBe("");
     expect(t.placeholder).toBe("0.9");
   });
 
-  it("điền sẵn giá trị đang lưu", () => {
+  it("prefills the stored values", () => {
     const { container } = render(<GenParamsFields specs={SPECS} params={{ temperature: 0.95 }} />);
     expect(container.querySelector<HTMLInputElement>('input[name="temperature"]')!.value).toBe("0.95");
-    // Tham số không đặt vẫn để trống, không tự điền mặc định vào.
+    // An unset parameter stays empty; the default is never written in.
     expect(container.querySelector<HTMLInputElement>('input[name="numCtx"]')!.value).toBe("");
   });
 
-  it("nói rõ khoá lạ trong dữ liệu cũ chưa bao giờ có tác dụng", () => {
+  it("says a stray key in old data never did anything", () => {
     const { container } = render(
       <GenParamsFields specs={SPECS} params={{}} unknownParams={["top_k", "seed"]} />,
     );
     expect(container.textContent).toContain("top_k, seed");
-    expect(container.textContent).toMatch(/provider không đọc/);
+    expect(container.textContent).toMatch(/never\s+reads them/);
   });
 
-  it("không có khoá lạ thì không hiện cảnh báo", () => {
+  it("shows no warning when there are no stray keys", () => {
     const { container } = render(<GenParamsFields specs={SPECS} params={{}} />);
-    expect(container.textContent).not.toMatch(/Bỏ qua khoá/);
+    expect(container.textContent).not.toMatch(/Ignoring unused keys/);
   });
 
-  it("bản gọn bỏ phần giải thích dài nhưng giữ trong tooltip", () => {
+  it("the compact form drops long explanations but keeps them in the tooltip", () => {
     const { container } = render(<GenParamsFields specs={SPECS} params={{}} compact />);
-    expect(container.textContent).not.toContain("Cao thì dễ lạc đề.");
+    expect(container.textContent).not.toContain("High values wander off topic.");
     expect(container.querySelector('input[name="temperature"]')!.getAttribute("title")).toBe(
-      "Cao thì dễ lạc đề.",
+      "High values wander off topic.",
     );
   });
 });

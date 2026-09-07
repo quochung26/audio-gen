@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 
 /**
- * Lớp gọi API.
+ * API client.
  *
- * Quy ước lỗi khớp với `apps/api/src/lib/http.ts`:
- * - 400 kèm `{ error }` — lỗi người dùng gặp trong lúc dùng bình thường và tự
- *   xử lý được. Hiện nguyên văn tại chỗ, giữ nguyên thứ đang gõ dở.
- * - 500 — bug. Thông báo chung, chi tiết nằm ở log API.
+ * Error convention matches `apps/api/src/lib/http.ts`:
+ * - 400 with `{ error }` — something the user hit in normal use and can fix
+ *   themselves. Shown verbatim, in place, without losing what they were typing.
+ * - 500 — a bug. Generic message; the detail is in the API log.
  */
 
 export class ApiError extends Error {
@@ -28,13 +28,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const message =
       body && typeof body === "object" && "error" in body
         ? String((body as { error: unknown }).error)
-        : `Lỗi ${res.status}`;
+        : `Error ${res.status}`;
     throw new ApiError(message, res.status);
   }
   return body as T;
 }
 
-/** Đọc dữ liệu cho một trang. */
+/** Read data for a page. */
 export function useApi<T>(path: string | null, opts?: { refetchMs?: number }) {
   return useQuery<T>({
     queryKey: [path] as QueryKey,
@@ -50,11 +50,12 @@ export interface ActionResult {
 }
 
 /**
- * Gửi một thao tác ghi.
+ * Send a write.
  *
- * Sau khi xong thì làm mới TOÀN BỘ query đang hiển thị: các trang ở đây đều
- * nhỏ, và chọn tay từng key nào cần làm mới là kiểu sai âm thầm — sửa nhân vật
- * xong mà trang bộ truyện vẫn hiện số cũ thì rất khó lần ra.
+ * Afterwards refresh EVERY live query: the pages here are all small, and
+ * hand-picking which keys to invalidate is a silent kind of wrong — editing a
+ * character and having the series page still show the old count is very hard
+ * to trace back.
  */
 export function useAction<T = ActionResult>(
   method: "POST" | "PUT" | "DELETE" = "POST",
@@ -76,7 +77,7 @@ export function useAction<T = ActionResult>(
   });
 }
 
-/** file:// và khoá trong kho đều không phát thẳng được — đi qua route của API. */
+/** Neither file:// nor a storage key can be played directly — go through the API route. */
 export function mediaUrl(ref: string): string {
   if (ref.startsWith("http://") || ref.startsWith("https://")) return ref;
   const param = ref.startsWith("file://")

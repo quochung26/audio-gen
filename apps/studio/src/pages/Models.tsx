@@ -22,7 +22,7 @@ interface Pull {
   totalBytes: number;
   done: boolean;
   error: string | null;
-  /** Đã chạy bao lâu — tính ở server, xem chú thích bên API. */
+  /** How long it has been running — computed server-side; see the API note. */
   elapsedMs: number;
 }
 interface Data {
@@ -30,21 +30,21 @@ interface Data {
   reason: string | null;
   version: string | null;
   url: string;
-  /** Provider đang chạy — một trong hai. */
+  /** The provider in use — one of the two. */
   provider: string;
-  /** Giá trị trong .env, để nói rõ lựa chọn ở giao diện đang đè lên cái gì. */
+  /** The value in .env, so it is clear what the UI choice is overriding. */
   envProvider: string;
   embedProvider: string;
   installed: Model[];
-  /** Model đã dùng gần đây, đã lọc theo provider đang chạy. */
+  /** Recently used models, already filtered to the provider in use. */
   recent: string[];
-  /** Ngôn ngữ mặc định cho truyện MỚI — không đụng tới bộ đã có. */
+  /** Default language for NEW stories — existing ones are untouched. */
   language: { value: string; fromEnv: boolean };
   configured: Array<{
     label: string;
     kind: string;
     value: string;
-    /** "setting" = bạn chọn · "installed" = tự bám model đã tải · "none" = chưa có */
+    /** "setting" = you chose it · "installed" = follows what is pulled · "none" = nothing */
     source: "setting" | "installed" | "none";
     model: string;
     installed: boolean;
@@ -54,11 +54,11 @@ interface Data {
 }
 
 /**
- * Đơn vị THẬP PHÂN (1 GB = 1000³) chứ không phải nhị phân.
+ * DECIMAL units (1 GB = 1000³), not binary.
  *
- * Để con số ở đây khớp với thứ người dùng thấy trên ollama.com và trong
- * `ollama list`. Dùng GiB thì cùng một model hiện 2,8 ở đây và 3,0 ở kia,
- * và người ta tưởng tải thiếu.
+ * So the numbers match what you see on ollama.com and in `ollama list`. With GiB
+ * the same model reads 2.8 here and 3.0 there, and people think the download
+ * came up short.
  */
 function gb(bytes: number): string {
   if (bytes <= 0) return "—";
@@ -66,18 +66,18 @@ function gb(bytes: number): string {
 }
 
 export function Models() {
-  // Đang tải thì hỏi dày hơn để thanh tiến độ chạy mượt.
+  // Poll faster during a pull so the progress bar moves smoothly.
   const { data, isLoading } = useApi<Data>("/api/models", { refetchMs: 1500 });
-  // Cùng khoá với OpenRouterPanel nên TanStack Query dùng chung một lần gọi.
+  // Same key as OpenRouterPanel, so TanStack Query shares one request.
   const or = useApi<OrStatus>("/api/models/openrouter");
   if (isLoading || !data) return <Loading />;
 
-  // Nhúng vector LUÔN chạy tại chỗ, kể cả khi đang chạy OpenRouter.
+  // Embeddings ALWAYS run locally, even when OpenRouter is in use.
   const localChoices = modelChoices({ ...data, provider: "ollama" });
   const choicesFor = modelChoices(data);
   const pick = (kind: string) => (kind === "embed" ? localChoices : choicesFor);
 
-  /** Model này đang được đặt làm gì — để khỏi phải dò ngược lên mục bên dưới. */
+  /** What this model is currently set as — saves scrolling down to check. */
   const usedAs = (name: string) =>
     data.configured.filter((c) => c.value === name).map((c) => c.label.split(" — ")[0]!);
 
@@ -89,22 +89,22 @@ export function Models() {
       <div>
         <h1 className="text-xl font-semibold">Model</h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          Chọn nơi chạy model, tải model về Ollama, đặt model mặc định. Thứ tự ưu tiên khi chạy:{" "}
-          <strong className="text-neutral-200">model chọn cho lần chạy đó</strong> → model của
-          prompt → mặc định ở đây.
+          Choose where models run, pull models into Ollama, set the defaults. Precedence at run
+          time: <strong className="text-neutral-200">the model picked for that run</strong> → the
+          prompt's model → the default here.
         </p>
       </div>
 
-      <Section title="Ngôn ngữ mặc định">
+      <Section title="Default language">
         <Form
           path="/api/models/language"
           method="PUT"
-          submit="Lưu"
+          submit="Save"
           className="rounded border border-neutral-800 p-4"
         >
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-neutral-300">Truyện mới viết bằng</span>
-            {data.language.fromEnv && <Badge>từ .env</Badge>}
+            <span className="text-sm text-neutral-300">New stories are written in</span>
+            {data.language.fromEnv && <Badge>from .env</Badge>}
           </div>
           <select
             name="language"
@@ -112,18 +112,18 @@ export function Models() {
             defaultValue={data.language.value}
             className="w-48 rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
           >
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">Tiếng Anh</option>
+            <option value="vi">Vietnamese</option>
+            <option value="en">English</option>
           </select>
           <p className="mt-2 text-xs text-neutral-600">
-            Chỉ là giá trị điền sẵn ở màn tạo truyện — đổi ở đây{" "}
-            <strong className="text-neutral-400">không</strong> đụng tới bộ truyện đã có. Mỗi bộ giữ
-            ngôn ngữ riêng, chốt lúc tạo.
+            Only the value prefilled on the new-story screen — changing it here does{" "}
+            <strong className="text-neutral-400">not</strong> touch existing stories. Each story
+            keeps its own language, fixed at creation.
           </p>
         </Form>
       </Section>
 
-      <Section title="Chạy model ở đâu">
+      <Section title="Where models run">
         <ProviderSwitch
           provider={data.provider}
           envProvider={data.envProvider}
@@ -131,7 +131,7 @@ export function Models() {
         />
       </Section>
 
-      <Section title="Ollama — model chạy tại chỗ">
+      <Section title="Ollama — local models">
         <div
           className={`rounded border p-4 ${
             data.reachable ? "border-emerald-900/60 bg-emerald-950/20" : "border-red-900 bg-red-950/30"
@@ -143,21 +143,21 @@ export function Models() {
             </p>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-red-200">Không kết nối được Ollama ở {data.url}</p>
+              <p className="text-sm text-red-200">Cannot reach Ollama at {data.url}</p>
               {data.reason && <p className="text-xs text-red-300/80">{data.reason}</p>}
               <p className="text-xs text-neutral-400">
-                Cài ở <code>ollama.com/download</code>, rồi chạy <code>ollama serve</code>. Đổi địa
-                chỉ bằng <code>OLLAMA_URL</code> trong <code>.env</code>.
+                Install from <code>ollama.com/download</code>, then run <code>ollama serve</code>.
+                Change the address with <code>OLLAMA_URL</code> in <code>.env</code>.
               </p>
             </div>
           )}
 
           <p className="mt-3 text-xs text-neutral-500">
-            Nhúng vector:{" "}
+            Embeddings:{" "}
             <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
               {data.embedProvider}
             </Badge>{" "}
-            — luôn chạy tại chỗ, không đổi theo lựa chọn ở trên.
+            — always local, unaffected by the choice above.
           </p>
         </div>
       </Section>
@@ -165,7 +165,7 @@ export function Models() {
       <OpenRouterPanel />
 
       {p && (
-        <Section title="Đang tải">
+        <Section title="Downloading">
           <div className="space-y-3 rounded border border-neutral-800 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-mono text-sm">{p.model}</span>
@@ -187,18 +187,18 @@ export function Models() {
                 <span className="text-red-300">{p.error}</span>
               ) : p.done ? (
                 <span className="text-emerald-300">
-                  Xong sau {Math.round(p.elapsedMs / 1000)} giây.
+                  Done in {Math.round(p.elapsedMs / 1000)}s.
                 </span>
               ) : (
                 <>
-                  {p.status} · đã {Math.round(p.elapsedMs / 1000)} giây
+                  {p.status} · {Math.round(p.elapsedMs / 1000)}s so far
                 </>
               )}
             </p>
 
             {!p.done && (
               <ActionButton path="/api/models/pull" method="DELETE">
-                dừng tải
+                stop
               </ActionButton>
             )}
           </div>
@@ -207,10 +207,10 @@ export function Models() {
 
       <ModelDownload busy={Boolean(p && !p.done)} />
 
-      <Section title={`Model đang có (${data.installed.length})`}>
+      <Section title={`Models available (${data.installed.length})`}>
         {data.installed.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-800 p-4 text-sm text-neutral-500">
-            {data.reachable ? "Chưa tải model nào." : "Chưa kết nối được Ollama."}
+            {data.reachable ? "No models pulled yet." : "Cannot reach Ollama."}
           </p>
         ) : (
           <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
@@ -221,7 +221,7 @@ export function Models() {
                   <div className="mt-0.5 text-xs text-neutral-600">
                     {usedAs(m.name).length > 0 && (
                       <span className="mr-1 text-emerald-400">
-                        đang dùng: {usedAs(m.name).join(", ")} ·{" "}
+                        in use as: {usedAs(m.name).join(", ")} ·{" "}
                       </span>
                     )}
                     {gb(m.sizeBytes)}
@@ -231,13 +231,13 @@ export function Models() {
                 </div>
                 <span className="flex flex-wrap items-center gap-1">
                   {/*
-                    Chọn ngay tại chỗ. Trước đây danh sách này chỉ có nút xoá:
-                    nhìn thấy model mình vừa tải mà không có cách nào dùng nó,
-                    phải cuộn xuống mục khác rồi chọn lại từ đầu.
+                    Assign right here. This list used to have only a delete button:
+                    you could see the model you had just pulled with no way to use
+                    it, and had to scroll to another section and start over.
 
-                    Ẩn khi đang chạy OpenRouter vì API ghi mặc định theo provider
-                    đang chạy — bấm lúc đó là nhét tên model Ollama vào ô của
-                    OpenRouter và bị từ chối.
+                    Hidden while OpenRouter is in use, because the API writes the
+                    default against the provider in use — clicking then would put an
+                    Ollama model name into OpenRouter's slot and be rejected.
                   */}
                   {data.provider !== "openrouter" && (
                     <>
@@ -246,30 +246,30 @@ export function Models() {
                         method="PUT"
                         body={{ model: m.name }}
                       >
-                        dùng để viết
+                        use for writing
                       </ActionButton>
                       <ActionButton
                         path="/api/models/default/utility"
                         method="PUT"
                         body={{ model: m.name }}
                       >
-                        việc phụ
+                        utility
                       </ActionButton>
                       <ActionButton
                         path="/api/models/default/embed"
                         method="PUT"
                         body={{ model: m.name }}
                       >
-                        nhúng vector
+                        embeddings
                       </ActionButton>
                     </>
                   )}
                   <ActionButton
                     path={`/api/models/${encodeURIComponent(m.name)}`}
                     method="DELETE"
-                    confirmText={`Xoá ${m.name} khỏi Ollama? Tải lại sẽ mất ${gb(m.sizeBytes)} băng thông.`}
+                    confirmText={`Remove ${m.name} from Ollama? Pulling it again costs ${gb(m.sizeBytes)} of bandwidth.`}
                   >
-                    xoá
+                    remove
                   </ActionButton>
                 </span>
               </div>
@@ -278,13 +278,14 @@ export function Models() {
         )}
       </Section>
 
-      <Section title="Model mặc định">
+      <Section title="Default models">
         <p className="-mt-1 text-xs text-neutral-500">
-          Dùng khi lần chạy đó không chọn model riêng và prompt cũng không đặt. Để trống ô nào thì
-          nó tự bám vào model đã tải. Chưa tải model nào hợp việc đó thì{" "}
-          <strong className="text-neutral-300">không chọn gì</strong> — và job chạy tới bước đó sẽ
-          dừng kèm lời nhắc, thay vì chết vì một tên model không tồn tại. Mỗi provider nhớ lựa chọn
-          riêng — đây là model cho <strong className="text-neutral-300">{data.provider}</strong>.
+          Used when a run picks no model of its own and the prompt sets none either. Leave a box
+          empty and it follows whatever is pulled. If nothing suitable is pulled it picks{" "}
+          <strong className="text-neutral-300">nothing</strong> — and a job reaching that step stops
+          with a message, instead of dying on a model name that does not exist. Each provider
+          remembers its own — these are the models for{" "}
+          <strong className="text-neutral-300">{data.provider}</strong>.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) => (
@@ -292,17 +293,17 @@ export function Models() {
               key={cfg.kind}
               path={`/api/models/default/${cfg.kind}`}
               method="PUT"
-              submit="Lưu"
+              submit="Save"
               className="rounded border border-neutral-800 p-4"
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="text-sm text-neutral-300">{cfg.label}</span>
-                {/* Tự chọn: nói ra, nếu không người dùng tưởng mình đã đặt tay. */}
-                {cfg.source === "installed" && <Badge tone="blue">tự chọn theo model đã tải</Badge>}
-                {cfg.source === "none" && <Badge tone="red">chưa có model</Badge>}
-                {/* "chưa tải" chỉ có nghĩa khi đang chạy Ollama — model đám mây không tải bao giờ. */}
+                {/* Automatic: say so, or the user thinks they set it by hand. */}
+                {cfg.source === "installed" && <Badge tone="blue">follows what is pulled</Badge>}
+                {cfg.source === "none" && <Badge tone="red">no model</Badge>}
+                {/* "not pulled" only means anything on Ollama — cloud models are never pulled. */}
                 {data.reachable && data.provider === "ollama" &&
-                  (cfg.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
+                  (cfg.installed ? <Badge tone="green">ready</Badge> : <Badge tone="red">not pulled</Badge>)}
               </div>
               <ModelDefaultField
                 choices={pick(cfg.kind).choices}
@@ -315,7 +316,7 @@ export function Models() {
         </div>
         {data.configured.some((c) => c.source === "none") && (
           <p className="text-xs text-red-400">
-            Bước nào “chưa có model” thì job chạy tới đó sẽ dừng. Tải một model về, hoặc chọn tay.
+            Any step marked “no model” stops the job that reaches it. Pull a model, or pick one.
           </p>
         )}
       </Section>
@@ -323,7 +324,7 @@ export function Models() {
       <GenParamsSettings />
 
       {data.promptOverrides.length > 0 && (
-        <Section title="Prompt đặt model riêng">
+        <Section title="Prompts with their own model">
           <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
             {data.promptOverrides.map((o, i) => (
               <div key={`${o.label}-${i}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
@@ -331,13 +332,13 @@ export function Models() {
                 <span className="flex items-center gap-2">
                   <code className="text-xs text-neutral-300">{o.model}</code>
                   {data.reachable && data.provider === "ollama" &&
-                    (o.installed ? <Badge tone="green">đã có</Badge> : <Badge tone="red">chưa tải</Badge>)}
+                    (o.installed ? <Badge tone="green">ready</Badge> : <Badge tone="red">not pulled</Badge>)}
                 </span>
               </div>
             ))}
           </div>
           <p className="text-xs text-neutral-600">
-            Những bước này bỏ qua model mặc định. Sửa ở trang Prompt.
+            These steps ignore the defaults. Edit them on the prompt page.
           </p>
         </Section>
       )}
