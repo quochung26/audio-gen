@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { getSavedPosition, usePlayer, type Track } from "./PlayerProvider";
+import { useLocale } from "../LocaleProvider";
 
 /**
  * The play button for one episode. Starts immediately when the URL carries `?autoplay=1` —
@@ -16,6 +17,7 @@ export function PlayButton({
   autoplay?: boolean;
   label?: string;
 }) {
+  const { t } = useLocale();
   const p = usePlayer();
   const isCurrent = p.track?.episodeId === track.episodeId;
 
@@ -26,7 +28,7 @@ export function PlayButton({
   }, []);
 
   const resumeMs = typeof window !== "undefined" ? getSavedPosition(track.episodeId) : 0;
-  const text = isCurrent && p.playing ? "Pause" : resumeMs > 5000 ? "Resume" : (label ?? "Play");
+  const text = isCurrent && p.playing ? t.pause : resumeMs > 5000 ? t.resume : (label ?? t.play);
 
   return (
     <button

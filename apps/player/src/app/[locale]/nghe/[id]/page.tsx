@@ -12,30 +12,35 @@ import { addComment, rateEpisode, toggleFavorite } from "@/app/actions/interacti
 import { COMMENT_MAX_LENGTH } from "@/lib/comment-limits";
 import { Comments } from "@/components/Comments";
 import { auth } from "@/auth";
+import { dict, localeAlternates, localeHref, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string; locale: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
   const ep = await prisma.episode.findUnique({
     where: { id },
     include: { series: { select: { title: true } } },
   });
-  return ep ? { title: `${ep.title} — ${ep.series.title}` } : {};
+  return ep
+    ? { title: `${ep.title} — ${ep.series.title}`, alternates: localeAlternates(`/nghe/${id}`) }
+    : {};
 }
 
 export default async function ListenPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string; locale: string }>;
   searchParams: Promise<{ autoplay?: string }>;
 }) {
-  const [{ id }, { autoplay }] = await Promise.all([params, searchParams]);
+  const [{ id, locale }, { autoplay }] = await Promise.all([params, searchParams]);
+  const l = locale as Locale;
+  const t = dict(l);
 
   const episode = await prisma.episode.findUnique({
     where: { id },
@@ -95,11 +100,11 @@ export default async function ListenPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/truyen/${episode.series.slug}`} className="text-xs text-neutral-500 underline">
+        <Link href={localeHref(l, `/truyen/${episode.series.slug}`)} className="text-xs text-neutral-500 underline">
           ← {episode.series.title}
         </Link>
         <h1 className="mt-2 text-xl font-semibold">
-          Episode {episode.number}: {episode.title}
+          {t.episodeTitle(episode.number, episode.title)}
         </h1>
         <p className="mt-1 text-xs text-neutral-500">
           {episode.durationMs ? formatDuration(episode.durationMs) : ""}
@@ -127,8 +132,8 @@ export default async function ListenPage({
 
       {next && (
         <p className="text-xs text-neutral-600">
-          At the end it moves on to <span className="text-neutral-400">{next.title}</span> — unless
-          a sleep timer is running.
+          {t.autoplayNote} <span className="text-neutral-400">{next.title}</span>{" "}
+          {t.autoplayNoteTail}
         </p>
       )}
 
@@ -141,14 +146,14 @@ export default async function ListenPage({
           body: c.body,
           timestampMs: c.timestampMs,
           createdAt: c.createdAt.toISOString(),
-          authorName: c.user.name ?? "Listener",
+          authorName: c.user.name ?? t.listener,
         }))}
       />
 
       {episode.blocks.length > 0 && (
         <details className="rounded border border-neutral-900">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-400">
-            Read the transcript
+            {t.readTranscript}
           </summary>
           <div className="space-y-3 border-t border-neutral-900 px-4 py-4">
             {episode.blocks.map((b, i) => (

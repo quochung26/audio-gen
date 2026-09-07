@@ -7,8 +7,8 @@
  * character names and the voices alike.
  */
 export const LANGUAGES = [
-  { code: "vi", label: "Vietnamese", endonym: "Vietnamese" },
-  { code: "en", label: "English", endonym: "English" },
+  { code: "vi", label: "Vietnamese", endonym: "Vietnamese", native: "Tiếng Việt" },
+  { code: "en", label: "English", endonym: "English", native: "English" },
 ] as const;
 
 export type LanguageCode = (typeof LANGUAGES)[number]["code"];
@@ -40,6 +40,18 @@ export function languageLabel(code: LanguageCode): string {
 /** The language's name in the language the model understands — for writing directives. */
 export function languageEndonym(code: LanguageCode): string {
   return LANGUAGES.find((l) => l.code === code)?.endonym ?? code;
+}
+
+/**
+ * The language's name IN ITSELF — "Tiếng Việt", not "Vietnamese".
+ *
+ * Separate from `endonym` despite the name: that one is what the MODEL is told to write in,
+ * and it is English on purpose because instructions are English. This one is for a reader
+ * choosing a language, where a list written in a language they cannot read is no help to
+ * someone who landed in the wrong one.
+ */
+export function languageNativeName(code: LanguageCode): string {
+  return LANGUAGES.find((l) => l.code === code)?.native ?? code;
 }
 
 /**

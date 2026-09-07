@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Cover } from "./Cover";
+import { dict, localeHref, type Locale } from "@/lib/i18n";
 
 export interface SeriesCardData {
   id: string;
@@ -13,10 +14,11 @@ export interface SeriesCardData {
   episodeCount: number;
 }
 
-export function SeriesCard({ s }: { s: SeriesCardData }) {
+export function SeriesCard({ s, locale }: { s: SeriesCardData; locale: Locale }) {
+  const t = dict(locale);
   return (
     <Link
-      href={`/truyen/${s.slug}`}
+      href={localeHref(locale, `/truyen/${s.slug}`)}
       className="flex gap-3 rounded border border-neutral-900 p-3 active:bg-neutral-900"
     >
       <Cover src={s.coverUrl} size={64} />
@@ -24,8 +26,8 @@ export function SeriesCard({ s }: { s: SeriesCardData }) {
         <div className="truncate text-sm">{s.title}</div>
         <div className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.description}</div>
         <div className="mt-1.5 text-xs text-neutral-600">
-          {s.episodeCount} episodes · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? " · ongoing" : ""}
+          {t.episodeCount(s.episodeCount)} · {s.genre}
+          {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
         </div>
       </div>
     </Link>

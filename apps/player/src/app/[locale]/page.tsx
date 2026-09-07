@@ -5,8 +5,13 @@ import { ContinueListening, type ResumableEpisode } from "@/components/ContinueL
 import { Cover } from "@/components/Cover";
 import { GenreFilter } from "@/components/GenreFilter";
 import { Row, SeriesCard, type SeriesCardData } from "@/components/SeriesCard";
+import { catalogueLanguage, dict, localeAlternates, localeHref, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+
+export function generateMetadata() {
+  return { alternates: localeAlternates("/") };
+}
 
 /**
  * How many episodes are sent to the browser for "Continue listening".
@@ -19,26 +24,42 @@ export const dynamic = "force-dynamic";
 const RESUMABLE_LIMIT = 200;
 
 export default async function HomePage({
+  params,
   searchParams,
 }: {
-  searchParams: Promise<{ "the-loai"?: string }>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ "the-loai"?: string; tieng?: string }>;
 }) {
-  const genre = (await searchParams)["the-loai"];
+  const locale = (await params).locale as Locale;
+  const t = dict(locale);
+  const sp = await searchParams;
+  const genre = sp["the-loai"];
 
-  const [latest, allSeries, resumable] = await Promise.all([
+  // The language filter applies to the CATALOGUE queries but not to the language chips
+  // themselves — those are built from every language present, or switching to a language
+  // would remove the chip you would need to switch back.
+  const language = catalogueLanguage(sp.tieng, locale);
+  const inLanguage = language ? { language } : {};
+
+  const [latest, allSeries, everyLanguage, resumable] = await Promise.all([
     prisma.episode.findMany({
-      where: { ...PUBLISHED, ...(genre ? { series: { genre } } : {}) },
+      where: { ...PUBLISHED, series: { ...inLanguage, ...(genre ? { genre } : {}) } },
       orderBy: { publishedAt: "desc" },
       take: 12,
       include: { series: { select: { title: true, slug: true, genre: true, coverUrl: true } } },
     }),
     prisma.series.findMany({
-      where: { episodes: { some: PUBLISHED } },
+      where: { episodes: { some: PUBLISHED }, ...inLanguage },
       orderBy: { updatedAt: "desc" },
       include: { _count: { select: { episodes: { where: PUBLISHED } } } },
     }),
+    prisma.series.findMany({
+      where: { episodes: { some: PUBLISHED } },
+      distinct: ["language"],
+      select: { language: true },
+    }),
     prisma.episode.findMany({
-      where: PUBLISHED,
+      where: { ...PUBLISHED, series: inLanguage },
       orderBy: { publishedAt: "desc" },
       take: RESUMABLE_LIMIT,
       select: {
@@ -54,15 +75,16 @@ export default async function HomePage({
   if (allSeries.length === 0) {
     return (
       <div className="rounded border border-dashed border-neutral-800 p-8 text-center">
-        <p className="text-sm text-neutral-400">No episodes published yet.</p>
+        <p className="text-sm text-neutral-400">{t.nothingPublished}</p>
         <p className="mt-2 text-xs text-neutral-600">
-          Open Studio, pick an episode that has audio, and click “Publish”.
+          {t.nothingPublishedHint}
         </p>
       </div>
     );
   }
 
   const genres = [...new Set(allSeries.map((s) => s.genre))].sort();
+  const languages = everyLanguage.map((s) => s.language);
   const shown = genre ? allSeries.filter((s) => s.genre === genre) : allSeries;
 
   const card = (s: (typeof allSeries)[number]): SeriesCardData => ({
@@ -92,20 +114,20 @@ export default async function HomePage({
 
   return (
     <div className="space-y-10">
-      <GenreFilter genres={genres} />
+      <GenreFilter genres={genres} languages={languages} />
 
-      {featured && <Banner s={card(featured)} />}
+      {featured && <Banner s={card(featured)} locale={locale} t={t} />}
 
       <ContinueListening episodes={resumableData} />
 
       {latest.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-neutral-300">Latest episodes</h2>
+          <h2 className="mb-3 text-sm font-medium text-neutral-300">{t.latestEpisodes}</h2>
           <div className="divide-y divide-neutral-900 rounded border border-neutral-900">
             {latest.map((ep) => (
               <Link
                 key={ep.id}
-                href={`/nghe/${ep.id}`}
+                href={localeHref(locale, `/nghe/${ep.id}`)}
                 className="flex items-center gap-3 px-4 py-3 active:bg-neutral-900"
               >
                 <Cover src={ep.series.coverUrl} size={44} />
@@ -125,20 +147,20 @@ export default async function HomePage({
       )}
 
       {ongoing.length > 0 && (
-        <Row title="Serials in progress" hint={`${ongoing.length} stories`}>
+        <Row title={t.ongoingSerials} hint={t.storyCount(ongoing.length)}>
           {ongoing.map((s) => (
             <div key={s.id} className="w-72 shrink-0 snap-start">
-              <SeriesCard s={card(s)} />
+              <SeriesCard s={card(s)} locale={locale} />
             </div>
           ))}
         </Row>
       )}
 
       {shorts.length > 0 && (
-        <Row title="Short stories" hint={`${shorts.length} stories`}>
+        <Row title={t.shortStories} hint={t.storyCount(shorts.length)}>
           {shorts.map((s) => (
             <div key={s.id} className="w-72 shrink-0 snap-start">
-              <SeriesCard s={card(s)} />
+              <SeriesCard s={card(s)} locale={locale} />
             </div>
           ))}
         </Row>
@@ -146,11 +168,11 @@ export default async function HomePage({
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-neutral-300">
-          {genre ? `All ${genre} stories` : "All stories"}
+          {genre ? t.allGenreStories(genre) : t.allStories}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {shown.map((s) => (
-            <SeriesCard key={s.id} s={card(s)} />
+            <SeriesCard key={s.id} s={card(s)} locale={locale} />
           ))}
         </div>
       </section>
@@ -159,20 +181,20 @@ export default async function HomePage({
 }
 
 /** The story featured at the top — the one most recently updated. */
-function Banner({ s }: { s: SeriesCardData }) {
+function Banner({ s, locale, t }: { s: SeriesCardData; locale: Locale; t: ReturnType<typeof dict> }) {
   return (
     <Link
-      href={`/truyen/${s.slug}`}
+      href={localeHref(locale, `/truyen/${s.slug}`)}
       className="flex gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 active:bg-neutral-900"
     >
       <Cover src={s.coverUrl} size={112} />
       <div className="min-w-0 flex-1">
-        <div className="text-xs text-neutral-500">Recently updated</div>
+        <div className="text-xs text-neutral-500">{t.recentlyUpdated}</div>
         <h1 className="mt-0.5 truncate text-lg font-semibold">{s.title}</h1>
         <p className="mt-1 line-clamp-3 text-sm text-neutral-400">{s.description}</p>
         <div className="mt-2 text-xs text-neutral-600">
-          {s.episodeCount} episodes · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? " · ongoing" : ""}
+          {t.episodeCount(s.episodeCount)} · {s.genre}
+          {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
         </div>
       </div>
     </Link>

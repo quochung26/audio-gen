@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { InteractionState } from "@/app/actions/interactions";
+import { useLocale } from "./LocaleProvider";
 
 export function FavoriteButton({
   action,
@@ -13,19 +14,22 @@ export function FavoriteButton({
   initial: boolean;
   loggedIn: boolean;
 }) {
+  const { t, href } = useLocale();
   const [state, formAction, pending] = useActionState(action, {});
 
   if (!loggedIn) {
     return (
-      <Link href="/dang-nhap" className="text-xs text-neutral-500 underline">
-        Sign in to save favourites
+      <Link href={href("/dang-nhap")} className="text-xs text-neutral-500 underline">
+        {t.signInToSaveFavourites}
       </Link>
     );
   }
 
   // The current state: after a click it comes from the returned result, before that from
   // the server-rendered data.
-  const saved = state.ok ? state.ok.startsWith("Saved") : initial;
+  // `state.saved` rather than reading the message: prose changes with the wording and with
+  // the language, and the button would go wrong silently either way.
+  const saved = state.saved ?? initial;
 
   return (
     <form action={formAction} className="inline-flex flex-col gap-1">
@@ -39,7 +43,7 @@ export function FavoriteButton({
             : "border-neutral-700 text-neutral-300"
         }`}
       >
-        {pending ? "…" : saved ? "★ Saved" : "☆ Save to favourites"}
+        {pending ? "…" : saved ? t.saved : t.saveToFavourites}
       </button>
       {state.error && <span className="text-xs text-red-300">{state.error}</span>}
     </form>

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { pickResumable, remaining, type Resumed, type ResumableEpisode } from "@/lib/resumable";
+import { pickResumable, minutesLeft, type Resumed, type ResumableEpisode } from "@/lib/resumable";
+import { useLocale } from "./LocaleProvider";
 import { Cover } from "./Cover";
 
 export type { ResumableEpisode };
@@ -16,6 +17,7 @@ const POS_KEY = "audio-truyen:pos";
  * does not know it. With nothing listened to yet it renders nothing and takes no space.
  */
 export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }) {
+  const { t, href } = useLocale();
   const [items, setItems] = useState<Resumed[]>([]);
 
   useEffect(() => {
@@ -29,18 +31,24 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
     setItems(pickResumable(episodes, positions));
   }, [episodes]);
 
+  const left = (durationMs: number | null, positionMs: number) => {
+    const min = minutesLeft(durationMs, positionMs);
+    if (min === null) return t.unknownLength;
+    return t.timeLeft(min < 1 ? t.underAMinute : t.minutes(min));
+  };
+
   if (items.length === 0) return null;
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-medium text-neutral-300">Continue listening</h2>
+      <h2 className="mb-3 text-sm font-medium text-neutral-300">{t.continueListening}</h2>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
         {items.map((e) => {
           const pct = e.durationMs ? Math.min(100, (e.positionMs / e.durationMs) * 100) : 0;
           return (
             <Link
               key={e.id}
-              href={`/nghe/${e.id}`}
+              href={href(`/nghe/${e.id}`)}
               className="w-44 shrink-0 rounded border border-neutral-900 p-2 active:bg-neutral-900"
             >
               <Cover src={e.coverUrl} size={160} />
@@ -49,9 +57,7 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
               <div className="mt-2 h-1 overflow-hidden rounded bg-neutral-800">
                 <div className="h-full bg-neutral-400" style={{ width: `${pct}%` }} />
               </div>
-              <div className="mt-1 text-xs text-neutral-600">
-                {remaining(e.durationMs, e.positionMs)} left
-              </div>
+              <div className="mt-1 text-xs text-neutral-600">{left(e.durationMs, e.positionMs)}</div>
             </Link>
           );
         })}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePlayer } from "./PlayerProvider";
+import { useLocale } from "../LocaleProvider";
 
 const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
 const SLEEP_OPTIONS = [10, 20, 30, 45, 60];
@@ -15,6 +16,7 @@ function fmt(ms: number): string {
 }
 
 export function MiniPlayer() {
+  const { t, href } = useLocale();
   const p = usePlayer();
   const [panel, setPanel] = useState<"none" | "rate" | "sleep">("none");
 
@@ -32,7 +34,7 @@ export function MiniPlayer() {
         max={Math.max(1, p.durationMs)}
         value={p.positionMs}
         onChange={(e) => p.seek(Number(e.target.value))}
-        aria-label="Playback position"
+        aria-label={t.playbackPosition}
         className="block h-1 w-full cursor-pointer appearance-none bg-neutral-800 accent-neutral-100"
         style={{
           background: `linear-gradient(to right, #e5e5e5 ${pct}%, #262626 ${pct}%)`,
@@ -69,7 +71,7 @@ export function MiniPlayer() {
               }}
               className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-neutral-300"
             >
-              {m} min
+              {t.minutes(m)}
             </button>
           ))}
           {p.sleepAt && (
@@ -80,7 +82,7 @@ export function MiniPlayer() {
               }}
               className="rounded px-3 py-1.5 text-sm text-neutral-500 underline"
             >
-              cancel timer
+              {t.cancelTimer}
             </button>
           )}
         </div>
@@ -88,18 +90,18 @@ export function MiniPlayer() {
 
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <Link href={`/nghe/${p.track.episodeId}`} className="block truncate text-sm">
+          <Link href={href(`/nghe/${p.track.episodeId}`)} className="block truncate text-sm">
             {p.track.title}
           </Link>
           <div className="truncate text-xs text-neutral-500">
             {p.track.seriesTitle} · {fmt(p.positionMs)} / {fmt(p.durationMs)}
-            {p.sleepAt ? ` · stops in ${fmt(sleepLeft)}` : ""}
+            {p.sleepAt ? t.stopsIn(fmt(sleepLeft)) : ""}
           </div>
         </div>
 
         <button
           onClick={() => p.skip(-15000)}
-          aria-label="Back 15 seconds"
+          aria-label={t.back15}
           className="shrink-0 px-2 py-1 text-xs text-neutral-400"
         >
           −15s
@@ -107,7 +109,7 @@ export function MiniPlayer() {
 
         <button
           onClick={p.toggle}
-          aria-label={p.playing ? "Pause" : "Play"}
+          aria-label={p.playing ? t.pause : t.play}
           className="grid size-11 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-900"
         >
           {p.playing ? "❚❚" : "▶"}
@@ -115,7 +117,7 @@ export function MiniPlayer() {
 
         <button
           onClick={() => p.skip(15000)}
-          aria-label="Forward 15 seconds"
+          aria-label={t.forward15}
           className="shrink-0 px-2 py-1 text-xs text-neutral-400"
         >
           +15s
@@ -130,7 +132,7 @@ export function MiniPlayer() {
 
         <button
           onClick={() => setPanel(panel === "sleep" ? "none" : "sleep")}
-          aria-label="Sleep timer"
+          aria-label={t.sleepTimer}
           className={`shrink-0 px-2 py-1 text-xs ${p.sleepAt ? "text-amber-400" : "text-neutral-400"}`}
         >
           ⏱

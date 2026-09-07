@@ -179,6 +179,10 @@ export function originFromHeaders(headers: Headers, fallback: string): string {
 /**
  * The AI disclosure, written in the story's own language.
  *
+ * Deliberately NOT the `aiDisclosure` string from lib/i18n: that one follows the READER's
+ * interface language, while a feed follows the STORY. A Vietnamese story's feed carries the
+ * Vietnamese sentence no matter who happened to browse the site in English.
+ *
  * One Vietnamese sentence sandwiched in an English description looks like a bug, and this
  * is precisely the sentence listeners have to be able to read.
  */

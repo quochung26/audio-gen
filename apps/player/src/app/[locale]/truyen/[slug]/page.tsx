@@ -4,13 +4,14 @@ import type { Metadata } from "next";
 import { prisma, PUBLISHED } from "@/lib/db";
 import { formatDuration } from "@audio/core";
 import { Cover } from "@/components/Cover";
+import { dict, localeAlternates, localeHref, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; locale: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
   const s = await prisma.series.findUnique({ where: { slug } });
@@ -18,13 +19,22 @@ export async function generateMetadata({
   return {
     title: s.title,
     description: s.description ?? undefined,
-    // So browsers and podcast tools discover the feed on their own.
-    alternates: { types: { "application/rss+xml": `/truyen/${s.slug}/rss.xml` } },
+    alternates: {
+      ...localeAlternates(`/truyen/${s.slug}`),
+      // So browsers and podcast tools discover the feed on their own. The feed itself is
+      // NOT localised — it carries the story, whose language is the story's own.
+      types: { "application/rss+xml": `/truyen/${s.slug}/rss.xml` },
+    },
   };
 }
 
-export default async function SeriesPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function SeriesPage({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }>;
+}) {
+  const { slug, locale } = await params;
+  const t = dict(locale as Locale);
 
   const series = await prisma.series.findUnique({
     where: { slug },
@@ -45,19 +55,19 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         <div className="min-w-60 flex-1">
         <h1 className="text-xl font-semibold">{series.title}</h1>
         <p className="mt-1 text-xs text-neutral-500">
-          {series.genre} · {series.episodes.length} episodes · {formatDuration(total)}
+          {series.genre} · {t.episodeCount(series.episodes.length)} · {formatDuration(total)}
         </p>
         {series.description && (
           <p className="mt-3 text-sm leading-relaxed text-neutral-400">{series.description}</p>
         )}
         {series.aiDisclosure && (
-          <p className="mt-3 text-xs text-neutral-600">This content was made with AI assistance.</p>
+          <p className="mt-3 text-xs text-neutral-600">{t.aiDisclosure}</p>
         )}
         <a
           href={`/truyen/${series.slug}/rss.xml`}
           className="mt-3 inline-block text-xs text-neutral-500 underline"
         >
-          Listen in a podcast app (RSS)
+          {t.listenInPodcastApp}
         </a>
         </div>
       </div>
@@ -66,7 +76,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         {series.episodes.map((ep) => (
           <Link
             key={ep.id}
-            href={`/nghe/${ep.id}`}
+            href={localeHref(locale as Locale, `/nghe/${ep.id}`)}
             className="flex items-center justify-between gap-3 px-4 py-3 active:bg-neutral-900"
           >
             <div className="min-w-0">

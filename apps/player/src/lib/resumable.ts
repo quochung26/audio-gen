@@ -40,9 +40,15 @@ export function pickResumable(
     .slice(0, MAX_ITEMS);
 }
 
-/** How much of the episode is left. */
-export function remaining(durationMs: number | null, positionMs: number): string {
-  if (!durationMs) return "—";
-  const min = Math.max(0, Math.round((durationMs - positionMs) / 60000));
-  return min < 1 ? "under 1 minute" : `${min} min`;
+/**
+ * Whole minutes left, or null when the length is not known yet.
+ *
+ * Returns a NUMBER rather than a formatted string so the wording can live in the
+ * dictionary: "20 min" and "20 phút" are the same fact said two ways, and building the
+ * sentence here would have meant passing a locale into a pure function that has no other
+ * reason to know about one.
+ */
+export function minutesLeft(durationMs: number | null, positionMs: number): number | null {
+  if (!durationMs) return null;
+  return Math.max(0, Math.round((durationMs - positionMs) / 60000));
 }

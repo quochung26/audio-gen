@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { AuthState } from "@/app/actions/auth";
+import { useLocale } from "./LocaleProvider";
 
 export function AuthForm({
   action,
@@ -12,6 +13,7 @@ export function AuthForm({
   submit: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLocale();
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
@@ -22,7 +24,7 @@ export function AuthForm({
         disabled={pending}
         className="w-full rounded bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-900 disabled:opacity-50"
       >
-        {pending ? "Working…" : submit}
+        {pending ? t.working : submit}
       </button>
       {state.error && (
         <p role="alert" className="rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">

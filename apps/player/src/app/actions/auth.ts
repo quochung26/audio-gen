@@ -2,6 +2,8 @@
 
 import { AuthError } from "next-auth";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@audio/core";
+import { dict, localeHref } from "@/lib/i18n";
+import { currentLocale } from "@/lib/request-locale";
 import { prismaPlayer } from "@audio/database";
 import { signIn, signOut } from "@/auth";
 import { checkRateLimit } from "@/lib/auth-rate-limit";
@@ -22,25 +24,27 @@ export async function register(_prev: AuthState, formData: FormData): Promise<Au
   const password = String(formData.get("password") ?? "");
   const name = String(formData.get("name") ?? "").trim();
 
-  if (!email.includes("@") || email.length < 5) return { error: "That email is not valid" };
+  const locale = await currentLocale();
+  const t = dict(locale);
+  if (!email.includes("@") || email.length < 5) return { error: t.errEmailInvalid };
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return { error: `The password must be at least ${MIN_PASSWORD_LENGTH} characters` };
+    return { error: t.errPasswordTooShort(MIN_PASSWORD_LENGTH) };
   }
   // Signing up also costs one hash, so it needs the same rate limit.
   if (!checkRateLimit(`register:${email}`).allowed) {
-    return { error: "Too many attempts. Wait a few minutes and try again." };
+    return { error: t.errTooManyAttempts };
   }
 
   const existing = await prismaPlayer.user.findUnique({ where: { email } });
   if (existing) {
-    return { error: "Could not create an account with this email. If you already have one, sign in." };
+    return { error: t.errCannotCreateAccount };
   }
 
   await prismaPlayer.user.create({
     data: { email, name: name || null, passwordHash: await hashPassword(password) },
   });
 
-  await signIn("credentials", { email, password, redirectTo: "/" });
+  await signIn("credentials", { email, password, redirectTo: localeHref(locale, "/") });
   return {};
 }
 
@@ -48,27 +52,32 @@ export async function loginWithPassword(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  // Read before the try: `signIn` signals success by THROWING a redirect, so anything
+  // computed inside would be skipped on the path that matters.
+  const locale = await currentLocale();
+  const t = dict(locale);
+
   try {
     await signIn("credentials", {
       email: String(formData.get("email") ?? "").trim().toLowerCase(),
       password: String(formData.get("password") ?? ""),
-      redirectTo: "/",
+      redirectTo: localeHref(locale, "/"),
     });
     return {};
   } catch (err) {
     // `signIn` redirects by THROWING a special error — catching everything would block the
     // success path too. Only real authentication errors are handled.
     if (err instanceof AuthError) {
-      return { error: "Wrong email or password." };
+      return { error: t.errWrongCredentials };
     }
     throw err;
   }
 }
 
 export async function loginWithGoogle(): Promise<void> {
-  await signIn("google", { redirectTo: "/" });
+  await signIn("google", { redirectTo: localeHref(await currentLocale(), "/") });
 }
 
 export async function logout(): Promise<void> {
-  await signOut({ redirectTo: "/" });
+  await signOut({ redirectTo: localeHref(await currentLocale(), "/") });
 }

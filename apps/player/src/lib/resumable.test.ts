@@ -4,7 +4,7 @@ import {
   MIN_PROGRESS_MS,
   NEAR_END_MS,
   pickResumable,
-  remaining,
+  minutesLeft,
   type ResumableEpisode,
 } from "./resumable";
 
@@ -61,21 +61,21 @@ describe("pickResumable", () => {
   });
 });
 
-describe("remaining", () => {
+describe("minutesLeft", () => {
   it("rounds to whole minutes", () => {
-    expect(remaining(1_200_000, 0)).toBe("20 min");
-    expect(remaining(1_200_000, 600_000)).toBe("10 min");
+    expect(minutesLeft(1_200_000, 0)).toBe(20);
+    expect(minutesLeft(1_200_000, 600_000)).toBe(10);
   });
 
-  it("under a minute is stated in words", () => {
-    expect(remaining(1_200_000, 1_180_000)).toBe("under 1 minute");
+  it("under a minute is 0, for the caller to word", () => {
+    expect(minutesLeft(1_200_000, 1_180_000)).toBe(0);
   });
 
-  it("an unknown length is not invented", () => {
-    expect(remaining(null, 100_000)).toBe("—");
+  it("an unknown length returns null rather than a guess", () => {
+    expect(minutesLeft(null, 100_000)).toBeNull();
   });
 
   it("a position past the end never gives a negative", () => {
-    expect(remaining(100_000, 200_000)).toBe("under 1 minute");
+    expect(minutesLeft(100_000, 200_000)).toBe(0);
   });
 });

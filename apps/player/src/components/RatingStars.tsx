@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { InteractionState } from "@/app/actions/interactions";
+import { useLocale } from "./LocaleProvider";
 
 export function RatingStars({
   action,
@@ -17,6 +18,7 @@ export function RatingStars({
   count: number;
   loggedIn: boolean;
 }) {
+  const { t, href } = useLocale();
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
@@ -41,17 +43,17 @@ export function RatingStars({
             ))}
           </form>
         ) : (
-          <Link href="/dang-nhap" className="text-xs text-neutral-500 underline">
-            Sign in to rate
+          <Link href={href("/dang-nhap")} className="text-xs text-neutral-500 underline">
+            {t.signInToRate}
           </Link>
         )}
 
         {count > 0 && average !== null ? (
           <span className="text-xs text-neutral-500">
-            {average.toFixed(1)} stars · {count} ratings
+            {t.ratingSummary(average.toFixed(1), count)}
           </span>
         ) : (
-          <span className="text-xs text-neutral-600">no ratings yet</span>
+          <span className="text-xs text-neutral-600">{t.noRatingsYet}</span>
         )}
       </div>
       {state.error && <p className="text-xs text-red-300">{state.error}</p>}

@@ -8,10 +8,21 @@ import {
   COMMENT_MAX_LENGTH,
   COMMENT_MIN_LENGTH,
 } from "@/lib/comment-limits";
+import { dict } from "@/lib/i18n";
+import { currentLocale } from "@/lib/request-locale";
 
 export interface InteractionState {
   error?: string;
   ok?: string;
+  /**
+   * Whether the episode is a favourite AFTER this action.
+   *
+   * A flag rather than the button reading the message: it used to test
+   * `ok.startsWith("Đã lưu")`, which quietly broke the moment the wording changed and would
+   * break again per language. The state the button renders should not be recovered from
+   * prose meant for a person.
+   */
+  saved?: boolean;
 }
 
 /** Who is signed in. Null means nobody — every action below requires it. */
@@ -39,8 +50,9 @@ export async function toggleFavorite(
   _prev: InteractionState,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Sign in to save favourites." };
-  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
+  const t = dict(await currentLocale());
+  if (!userId) return { error: t.errSignInFavourite };
+  if (!(await assertPublished(episodeId))) return { error: t.errEpisodeNotFound };
 
   const existing = await prismaPlayer.favorite.findUnique({
     where: { userId_episodeId: { userId, episodeId } },
@@ -54,7 +66,9 @@ export async function toggleFavorite(
 
   revalidatePath(`/nghe/${episodeId}`);
   revalidatePath("/yeu-thich");
-  return { ok: existing ? "Removed from favourites." : "Saved to favourites." };
+  return existing
+    ? { ok: t.okFavouriteRemoved, saved: false }
+    : { ok: t.okFavouriteAdded, saved: true };
 }
 
 export async function rateEpisode(
@@ -63,13 +77,14 @@ export async function rateEpisode(
   formData: FormData,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Sign in to rate." };
+  const t = dict(await currentLocale());
+  if (!userId) return { error: t.errSignInRate };
 
   const score = Number(formData.get("score"));
   if (!Number.isInteger(score) || score < 1 || score > 5) {
-    return { error: "The score has to be 1 to 5 stars." };
+    return { error: t.errScoreRange };
   }
-  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
+  if (!(await assertPublished(episodeId))) return { error: t.errEpisodeNotFound };
 
   // Upsert: rating again OVERWRITES the old score rather than adding a second vote.
   await prismaPlayer.rating.upsert({
@@ -79,7 +94,7 @@ export async function rateEpisode(
   });
 
   revalidatePath(`/nghe/${episodeId}`);
-  return { ok: `Rated ${score} stars.` };
+  return { ok: t.okRated(score) };
 }
 
 /**
@@ -97,14 +112,15 @@ export async function addComment(
   formData: FormData,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Sign in to comment." };
+  const t = dict(await currentLocale());
+  if (!userId) return { error: t.errSignInComment };
 
   const body = String(formData.get("body") ?? "").trim();
-  if (body.length < COMMENT_MIN_LENGTH) return { error: "That comment is too short." };
+  if (body.length < COMMENT_MIN_LENGTH) return { error: t.errCommentTooShort };
   if (body.length > COMMENT_MAX_LENGTH) {
-    return { error: `A comment is at most ${COMMENT_MAX_LENGTH} characters.` };
+    return { error: t.errCommentTooLong(COMMENT_MAX_LENGTH) };
   }
-  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
+  if (!(await assertPublished(episodeId))) return { error: t.errEpisodeNotFound };
 
   // Rate-limits posting. Without it one person could drop hundreds of comments into the
   // queue and a moderator would have to clear each by hand.
@@ -114,7 +130,7 @@ export async function addComment(
     select: { createdAt: true },
   });
   if (last && Date.now() - last.createdAt.getTime() < COMMENT_COOLDOWN_MS) {
-    return { error: "That was quick. Wait half a minute before posting again." };
+    return { error: t.errCommentTooFast };
   }
 
   const rawTs = Number(formData.get("timestampMs"));
@@ -125,7 +141,7 @@ export async function addComment(
   });
 
   revalidatePath(`/nghe/${episodeId}`);
-  return { ok: "Posted. Your comment appears once it is approved." };
+  return { ok: t.okCommentPosted };
 }
 
 /**
