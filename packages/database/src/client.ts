@@ -2,8 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { checkPrismaClient } from "./schema-check";
 
 /**
- * Studio + worker dùng DB local (đầy đủ: bản thảo, prompt, telemetry).
- * Player dùng DB hosted — xem client-player.ts và publish-scope.ts.
+ * Studio + worker use the local DB (everything: drafts, prompts, telemetry).
+ * The Player uses the hosted DB — see client-player.ts and publish-scope.ts.
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -13,9 +13,9 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
-// Client cũ hơn schema thì mọi chỗ chạm model mới đều chết bằng một TypeError
-// chẳng nói lên điều gì. Chặn ngay tại đây — chỗ duy nhất mà mọi tiến trình
-// chạm DB đều đi qua, kể cả các script chạy thẳng bằng tsx.
+// A client older than the schema makes every use of a new model die with a
+// TypeError that says nothing. Blocked right here — the one place every
+// DB-touching process goes through, including scripts run straight with tsx.
 checkPrismaClient(prisma);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

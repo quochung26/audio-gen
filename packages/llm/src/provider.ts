@@ -4,15 +4,15 @@ export interface GenerateOptions {
   system?: string;
   prompt: string;
   model?: string;
-  /** Văn sáng tạo dùng 0.85–1.0; việc cần logic chặt thì hạ xuống. */
+  /** Creative prose uses 0.85–1.0; work needing tight logic goes lower. */
   temperature?: number;
   topP?: number;
-  /** Chống lặp cụm từ — bệnh kinh niên của model nhỏ. */
+  /** Guards against repeated phrases — the chronic illness of small models. */
   repeatPenalty?: number;
-  /** Đừng để mặc định: Ollama mặc định 2048, đủ cắt mất Story Bible. */
+  /** Never leave this to the default: Ollama's is 2048, enough to cut off the Story Bible. */
   numCtx?: number;
   maxTokens?: number;
-  /** Nhận từng mẩu chữ khi model sinh, để stream về Studio. */
+  /** Receives each fragment as the model generates, for streaming to Studio. */
   onToken?: (chunk: string) => void;
   signal?: AbortSignal;
 }
@@ -28,11 +28,11 @@ export interface GenerateResult {
 
 export interface LlmProvider {
   readonly name: string;
-  /** Sinh văn bản tự do. */
+  /** Generate free-form text. */
   generate(opts: GenerateOptions): Promise<GenerateResult>;
   /**
-   * Sinh dữ liệu có cấu trúc, ép theo schema.
-   * Model nhỏ hay trả JSON hỏng nếu chỉ nhắc bằng lời — phải ép ở tầng API.
+   * Generate structured data, forced to a schema.
+   * Small models often return malformed JSON when only asked in words — it has to be forced at the API layer.
    */
   generateJson<T>(
     opts: GenerateOptions & { schema: z.ZodType<T> },

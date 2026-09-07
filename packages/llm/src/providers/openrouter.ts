@@ -3,12 +3,12 @@ import { LlmError, type GenerateOptions, type GenerateResult, type LlmProvider }
 import { readChatChunk, takeSseEvents } from "./sse";
 
 /**
- * Lột bỏ rào ```json quanh JSON.
+ * Strip the ```json fence around JSON.
  *
- * OpenRouter có `response_format` ép JSON, nhưng KHÔNG phải model nào cũng theo
- * — model không hỗ trợ thì OpenRouter lặng lẽ bỏ qua tham số đó, và model vẫn
- * trả về JSON bọc trong rào markdown như thường lệ. Không lột thì `JSON.parse`
- * chết ngay ký tự đầu.
+ * OpenRouter has `response_format` to force JSON, but NOT every model honours it —
+ * for a model that does not support it OpenRouter quietly drops the parameter, and
+ * the model returns JSON wrapped in a markdown fence as usual. Unstripped,
+ * `JSON.parse` dies on the first character.
  */
 export function stripJsonFence(text: string): string {
   const t = text.trim();
@@ -17,14 +17,14 @@ export function stripJsonFence(text: string): string {
 }
 
 /**
- * Client OpenRouter — một cổng vào hàng trăm model (Claude, GPT, Llama, Qwen…)
- * qua API kiểu OpenAI.
+ * The OpenRouter client — one gateway to hundreds of models (Claude, GPT, Llama,
+ * Qwen…) through an OpenAI-shaped API.
  *
- * ĐÁNH ĐỔI CẦN BIẾT: đây là dịch vụ đám mây. Mọi thứ gửi đi — Story Bible, bản
- * thảo, lời thoại nhân vật — đều rời khỏi máy này. Cả kiến trúc hai DB dựng lên
- * để bản nháp không ra khỏi máy, chọn provider này là tự tay mở ngoại lệ đó.
- * Dùng khi cần chất lượng văn mà model chạy local không với tới, và biết mình
- * đang đánh đổi cái gì.
+ * THE TRADE-OFF TO KNOW: this is a cloud service. Everything sent — the Story
+ * Bible, the drafts, the characters' dialogue — leaves this machine. The whole
+ * two-database architecture exists so drafts never leave; picking this provider is
+ * opening that exception by hand. Use it when the prose needs quality a local model
+ * cannot reach, and know what you are trading.
  */
 export class OpenRouterProvider implements LlmProvider {
   readonly name = "openrouter";
@@ -32,7 +32,7 @@ export class OpenRouterProvider implements LlmProvider {
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl = "https://openrouter.ai/api/v1",
-    /** Hiện trên bảng xếp hạng OpenRouter; không ảnh hưởng kết quả. */
+    /** Shown on the OpenRouter leaderboard; has no effect on results. */
     private readonly appName = "audio-gen",
   ) {}
 
@@ -53,7 +53,7 @@ export class OpenRouterProvider implements LlmProvider {
       parsed = JSON.parse(stripJsonFence(result.text));
     } catch (err) {
       throw new LlmError(
-        `Model trả về JSON không đọc được. 200 ký tự đầu: ${result.text.slice(0, 200)}`,
+        `The model returned unreadable JSON. First 200 characters: ${result.text.slice(0, 200)}`,
         err,
       );
     }
@@ -61,7 +61,7 @@ export class OpenRouterProvider implements LlmProvider {
     const check = opts.schema.safeParse(parsed);
     if (!check.success) {
       throw new LlmError(
-        `JSON không khớp schema: ${check.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`,
+        `JSON does not match the schema: ${check.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`,
       );
     }
 
@@ -71,8 +71,8 @@ export class OpenRouterProvider implements LlmProvider {
   async #call(opts: GenerateOptions, responseFormat: object | undefined): Promise<GenerateResult> {
     const model = opts.model?.trim();
     if (!model) {
-      // Gửi tên rỗng đi thì lỗi trả về khó hiểu; câu này chỉ thẳng chỗ sửa.
-      throw new LlmError("Chưa chọn model. Vào trang Model để chọn model mặc định.");
+      // Sending an empty name gets a baffling error back; this points at the fix.
+      throw new LlmError("No model selected. Pick a default on the Models page.");
     }
     const started = Date.now();
 
@@ -94,8 +94,8 @@ export class OpenRouterProvider implements LlmProvider {
           model,
           messages,
           stream: true,
-          // Không có cái này thì chunk cuối không kèm usage, mất sạch số token
-          // — mà token là tiền thật ở đây.
+          // Without this the last chunk carries no usage, losing the token counts
+          // entirely — and tokens are real money here.
           stream_options: { include_usage: true },
           temperature: opts.temperature ?? 0.9,
           top_p: opts.topP ?? 0.92,
@@ -105,14 +105,14 @@ export class OpenRouterProvider implements LlmProvider {
         }),
       });
     } catch (err) {
-      throw new LlmError(`Không gọi được OpenRouter ở ${this.baseUrl}. Kiểm tra mạng.`, err);
+      throw new LlmError(`Could not reach OpenRouter at ${this.baseUrl}. Check the network.`, err);
     }
 
     if (!res.ok) {
       throw new LlmError(await describeError(res));
     }
     if (!res.body) {
-      throw new LlmError("OpenRouter trả về thân rỗng.");
+      throw new LlmError("OpenRouter returned an empty body.");
     }
 
     const reader = res.body.getReader();
@@ -134,11 +134,11 @@ export class OpenRouterProvider implements LlmProvider {
       for (const ev of events) {
         if (ev.done || !ev.data) continue;
 
-        // Lỗi giữa luồng: model quá tải, hết tiền, nhà cung cấp phía sau chết.
-        // Lúc này HTTP đã 200 rồi nên không bắt được ở trên.
+        // A mid-stream error: model overloaded, out of credit, the upstream provider
+        // dead. HTTP was already 200 by then, so it cannot be caught above.
         const midStream = ev.data.error as { message?: string } | undefined;
         if (midStream) {
-          throw new LlmError(`OpenRouter dừng giữa chừng: ${midStream.message ?? "không rõ lý do"}`);
+          throw new LlmError(`OpenRouter stopped mid-stream: ${midStream.message ?? "no reason given"}`);
         }
 
         const chunk = readChatChunk(ev.data);
@@ -153,9 +153,9 @@ export class OpenRouterProvider implements LlmProvider {
     }
 
     if (finishReason === "length") {
-      // Im lặng thì cảnh cụt giữa câu mà không ai hiểu vì sao.
+      // Silently, the scene stops mid-sentence and nobody knows why.
       throw new LlmError(
-        `Model chạm trần ${opts.maxTokens ?? 1500} token và bị cắt giữa chừng. Tăng maxTokens hoặc chia nhỏ yêu cầu.`,
+        `The model hit its ${opts.maxTokens ?? 1500} token ceiling and was cut off. Raise maxTokens or split the request.`,
       );
     }
 
@@ -172,10 +172,10 @@ export class OpenRouterProvider implements LlmProvider {
 }
 
 /**
- * Dịch lỗi HTTP thành câu người đọc hiểu.
+ * Turn an HTTP error into a sentence a person can read.
  *
- * KHÔNG bao giờ đưa khoá API vào thông điệp: lỗi này chui vào `Job.error` trong
- * DB rồi hiện lên Studio.
+ * NEVER put the API key in the message: this ends up in `Job.error` in the DB and
+ * then on screen in Studio.
  */
 async function describeError(res: Response): Promise<string> {
   const body = await res.text().catch(() => "");
@@ -187,9 +187,9 @@ async function describeError(res: Response): Promise<string> {
     detail = body.slice(0, 200);
   }
 
-  if (res.status === 401) return "OpenRouter từ chối khoá API (401). Kiểm tra OPENROUTER_API_KEY.";
-  if (res.status === 402) return "Tài khoản OpenRouter hết tín dụng (402). Nạp thêm để chạy tiếp.";
-  if (res.status === 404) return `OpenRouter không có model này (404). ${detail}`;
-  if (res.status === 429) return "OpenRouter chặn vì gọi quá dày (429). Chờ rồi thử lại.";
-  return `OpenRouter trả lỗi ${res.status}: ${detail}`;
+  if (res.status === 401) return "OpenRouter rejected the API key (401). Check OPENROUTER_API_KEY.";
+  if (res.status === 402) return "The OpenRouter account is out of credit (402). Top it up to continue.";
+  if (res.status === 404) return `OpenRouter does not have this model (404). ${detail}`;
+  if (res.status === 429) return "OpenRouter is rate-limiting (429). Wait and try again.";
+  return `OpenRouter returned error ${res.status}: ${detail}`;
 }

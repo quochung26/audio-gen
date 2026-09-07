@@ -1,4 +1,4 @@
-// Schema đầy đủ + giải thích các quyết định thiết kế: docs/database.md
+// The full schema plus the reasoning behind the design: docs/database.md
 
 generator client {
   provider = "prisma-client-js"
@@ -56,15 +56,15 @@ enum JobLane {
 }
 
 enum JobType {
-  /// Đẩy lượt chạy hàng loạt sang bước kế tiếp. Không gắn với tập nào và
-  /// không tốn VRAM — chỉ đọc trạng thái rồi đẩy job thật vào hàng đợi.
-  /// Nhờ có nó, Studio chỉ cần enqueue chứ không phải mang theo logic điều phối.
+  /// Advances a batch run to its next step. Attached to no episode and using no
+  /// VRAM — it only reads state and queues the real job. Thanks to it, Studio only
+  /// has to enqueue rather than carry the orchestration logic.
   BATCH
   OUTLINE
   NEXT_EPISODE
   WRITE_SCENE
-  /// Viết lại bản thảo sang ngôn ngữ đầu ra. Chỉ chạy khi Series.draftLanguage
-  /// khác Series.language — xem packages/core/src/language.ts.
+  /// Rewrite the draft into the output language. Only runs when Series.draftLanguage
+  /// differs from Series.language — see packages/core/src/language.ts.
   TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
@@ -87,40 +87,42 @@ enum JobStatus {
 }
 
 enum ExportType {
-  /// Bản chính hiện tại — MP3 chuẩn −16 LUFS (podcast/web).
+  /// The current master — MP3 at −16 LUFS (podcast/web).
   AUDIO_MP3
-  /// Xuất cho nền tảng: hoãn. TikTok/YouTube đều yêu cầu VIDEO, không nhận MP3.
+  /// Platform exports: deferred. TikTok and YouTube both want VIDEO, not MP3.
   TIKTOK_MP4
   YOUTUBE_MP4
-  /// Kịch bản kèm timecode — hữu ích cho mô tả video và phụ đề.
+  /// The script with timecodes — useful for video descriptions and subtitles.
   SCRIPT_TXT
 }
 
-/// Thể loại truyện — danh mục dùng chung cho cả thể loại chính lẫn phụ.
+/// Story genres — one catalogue for both main and sub-genres.
 ///
-/// `description` KHÔNG phải ghi chú cho người đọc: nó đi vào Story Bible để
-/// model hiểu "kinh dị" theo nghĩa bạn định, thay vì nghĩa nó tự đoán. Đổi mô
-/// tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
+/// `description` is NOT a note for human readers: it goes into the Story Bible so
+/// the model reads "kinh dị" the way you mean it, rather than however it guesses.
+/// Changing a description changes how every story in that genre is written, from
+/// the next write onward.
 model Genre {
   id   String @id @default(cuid())
-  /// Đúng chuỗi nằm ở `Series.genre` và trong `Series.tags`.
+  /// Exactly the string in `Series.genre` and in `Series.tags`.
   ///
-  /// Vừa là KHOÁ tra cứu, vừa là NHÃN người nghe nhìn thấy: trang chủ Player
-  /// lọc theo nó, trang bộ truyện in nó, và nó vào `itunes:keywords` của feed
-  /// RSS. Nên nó giữ tiếng của người nghe, không đổi sang tiếng Anh.
+  /// Both the lookup KEY and the LABEL listeners see: the Player home page filters
+  /// on it, the story page prints it, and it goes into the RSS feed's
+  /// `itunes:keywords`. So it stays in the listener's language, never translated.
   name String @unique
 
-  /// Tên đưa cho MODEL đọc, thay cho `name`. Rỗng thì dùng luôn `name`.
+  /// The name handed to the MODEL instead of `name`. Blank falls back to `name`.
   ///
-  /// Tách ra vì hai việc kéo hai hướng: `kinh dị` là thứ người nghe tìm, còn
-  /// `horror` là thứ model 7–14B có liên tưởng dày hơn hẳn — nó thấy nhãn đó
-  /// hàng triệu lần lúc huấn luyện. Gộp một ô thì phải hy sinh một bên.
+  /// Separate because the two pull in opposite directions: `kinh dị` is what
+  /// listeners search for, while `horror` is what a 7–14B model has far richer
+  /// associations for — it saw that label millions of times in training. One field
+  /// would mean sacrificing one of them.
   promptName String @default("")
 
-  /// Nghĩa của thể loại, viết như CHỈ DẪN cho model. Xem seed.ts.
+  /// What the genre means, written as an INSTRUCTION to the model. See seed.ts.
   description String
 
-  /// Tắt thì không hiện ở ô chọn nữa, nhưng bộ đang dùng vẫn giữ nguyên.
+  /// Disabled hides it from the picker, but stories already using it keep it.
   enabled Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -129,10 +131,10 @@ model Genre {
 
 enum PromptStep {
   OUTLINE
-  /// Dựng dàn ý cho MỘT tập tiếp theo, dựa trên những tập đã có.
+  /// Outline ONE more episode, based on the ones that exist.
   NEXT_EPISODE
   WRITE_SCENE
-  /// Viết lại bản thảo sang ngôn ngữ đầu ra.
+  /// Rewrite the draft into the output language.
   TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
@@ -156,16 +158,16 @@ enum LicenseType {
   UNKNOWN
 }
 
-/// Loại sự kiện. Quan trọng vì cách truy hồi khác nhau:
-/// OPEN_THREAD được nạp BẤT KỂ độ tương đồng — đó là món nợ truyện phải trả.
+/// The kind of fact. It matters because retrieval differs:
+/// OPEN_THREAD is loaded WHATEVER the similarity — it is a debt the story owes.
 enum FactKind {
-  EVENT // việc đã xảy ra
-  REVELATION // điều nhân vật phát hiện ra
-  PROMISE // lời thề, lời hứa, cam kết
-  RELATION // quan hệ giữa các nhân vật thay đổi
-  OBJECT // vật phẩm quan trọng
-  PLACE // địa điểm có ý nghĩa
-  OPEN_THREAD // tình tiết bỏ ngỏ, chưa có lời giải
+  EVENT // something that happened
+  REVELATION // something a character found out
+  PROMISE // an oath, a promise, a commitment
+  RELATION // a relationship between characters changing
+  OBJECT // an important object
+  PLACE // a place that means something
+  OPEN_THREAD // an open thread, not yet resolved
 }
 
 enum ModerationStatus {
@@ -174,7 +176,7 @@ enum ModerationStatus {
   REJECTED
 }
 
-// ══════════════════ NỘI DUNG ══════════════════
+// ══════════════════ CONTENT ══════════════════
 
 model Series {
   id          String       @id @default(cuid())
@@ -187,37 +189,38 @@ model Series {
   tags        String[]     @default([])
   status      SeriesStatus @default(DRAFT)
 
-  /// Truyện viết bằng tiếng gì — "vi" hoặc "en". Xem packages/core/src/language.ts.
-  /// Gắn với BỘ chứ không gắn với từng tập: trộn tiếng giữa các tập thì tóm tắt
-  /// cung truyện, tên nhân vật và giọng đọc đều loạn.
+  /// What language the story is written in — "vi" or "en". See packages/core/src/language.ts.
+  /// Attached to the STORY rather than to each episode: mixing languages between
+  /// episodes wrecks the arc summary, the character names and the voices alike.
   language String @default("vi")
 
-  /// Viết BẢN THẢO bằng tiếng này rồi mới chuyển ngữ sang `language`.
+  /// Write the DRAFT in this language, then rewrite it into `language`.
   ///
-  /// Rỗng = viết thẳng bằng `language`, không có bước chuyển ngữ. Đặt giá trị
-  /// khi model viết hay nhất lại không viết được thứ tiếng đầu ra — ví dụ một
-  /// finetune sáng tác tiếng Anh dùng cho truyện tiếng Việt.
+  /// Blank = write directly in `language`, with no rewrite step. Set it when the
+  /// model that writes best cannot write the output language — for instance an
+  /// English creative-writing finetune used for a Vietnamese story.
   ///
-  /// Chỉ đổi ngôn ngữ của bước WRITE_SCENE. Dàn ý vẫn dựng bằng `language` để
-  /// tên nhân vật và địa danh là tên đúng tiếng ngay từ đầu — model viết văn
-  /// tiếng Anh với tên Việt có sẵn, thay vì đẻ ra Sarah rồi dịch mãi không hết.
+  /// Changes the language of the WRITE_SCENE step only. The outline is still built in
+  /// `language` so character and place names are right from the start — the model
+  /// writes English prose around existing Vietnamese names, rather than inventing a
+  /// Sarah you then translate forever.
   draftLanguage String @default("")
 
-  /// Luật thế giới, bối cảnh, giọng văn. Nhân vật KHÔNG để ở đây — xem model Character.
+  /// World rules, setting, prose voice. Characters do NOT live here — see the Character model.
   storyBible Json?
 
   aiDisclosure Boolean @default(true)
 
-  /// Giọng mặc định cho cả bộ. Hiện dùng MỘT giọng cho mọi block; casting
-  /// riêng theo nhân vật (Character.voiceId) chỉ dùng khi làm đa giọng.
+  /// The default voice for the whole story. Currently ONE voice for every block;
+  /// per-character casting (Character.voiceId) is only for multi-voice work.
   defaultVoiceId String?
   defaultVoice   Voice?  @relation("SeriesDefaultVoice", fields: [defaultVoiceId], references: [id])
 
-  /// Tóm tắt cung truyện — nén các tập cũ lại thành một khối.
-  /// Không có nó, tóm tắt từng tập tích luỹ tuyến tính và tràn ngữ cảnh
-  /// khoảng tập 35. Xem docs/database.md mục 2.9.
+  /// The arc summary — old episodes compressed into one block.
+  /// Without it, per-episode summaries accumulate linearly and overflow the context
+  /// around episode 35. See docs/database.md section 2.9.
   arcSummary        String?
-  /// Đã nén tới hết tập số mấy.
+  /// Which episode number the compression covers up to.
   arcThroughEpisode Int?
 
   episodes       Episode[]
@@ -247,11 +250,11 @@ model Episode {
   draftText  String?
   scriptText String?
   summary    String?
-  /// Một dòng ~15 từ cho mục lục truyện. Luôn được nạp (rẻ), để hệ thống và
-  /// người viết biết tập nào có gì — kể cả sau khi tóm tắt đã bị nén.
+  /// One ~15-word line for the story index. Always loaded (it is cheap), so the
+  /// system and the writer know what happened where — even after the summary was compressed.
   gist       String?
 
-  /// Chốt chặn: chưa duyệt thì không được chuyển sang bước tạo audio.
+  /// The gate: unapproved means it cannot move on to the audio step.
   humanReviewed Boolean   @default(false)
   reviewedAt    DateTime?
   reviewedBy    String?
@@ -267,9 +270,10 @@ model Episode {
   outroTrackId String?
 
   publishedAt DateTime?
-  /// Lần cuối đẩy sang DB hosted. So với `updatedAt` của tập, của block và của
-  /// bản xuất để biết live có đang lệch so với local không — sửa tiêu đề hay
-  /// xuất lại MP3 sau khi xuất bản thì live giữ bản cũ mà chẳng có gì báo.
+  /// The last push to the hosted DB. Compared against the episode's, the blocks' and
+  /// the exports' `updatedAt` to tell whether live has drifted from local — editing a
+  /// title or re-exporting the MP3 after publishing leaves live on the old version
+  /// with nothing to say so.
   syncedAt    DateTime?
 
   chapters   Chapter[]
@@ -301,50 +305,50 @@ model Character {
   role        String?
   description String?
 
-  /// Cách nói: nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động.
+  /// Speech: rhythm, verbal habits, forms of address, what they do when moved.
   ///
-  /// Tách khỏi `description` vì đây là thứ model bám vào khi viết LỜI THOẠI,
-  /// còn tính cách lái hành động và lựa chọn. Cũng KHÁC `voiceHint`: cái kia là
-  /// chất giọng để ghép giọng TTS và model không hề đọc nó.
+  /// Separate from `description` because this is what the model leans on when writing
+  /// DIALOGUE, while personality steers action and choices. Also DIFFERENT from
+  /// `voiceHint`: that one is the timbre for TTS casting, and the model never reads it.
   speech String?
 
-  /// Trang phục THƯỜNG THẤY — mặc định, không phải bất biến.
+  /// Their USUAL outfit — a default, not a constant.
   ///
-  /// Tầng gốc của chuỗi đè: mặc định ở đây → `Episode.setup` → `Scene.setup`.
-  /// Thiếu tầng này thì bộ nào chưa điền thiết lập chương là model chẳng có
-  /// thông tin quần áo nào, và mỗi chương nó bịa một kiểu.
+  /// The base tier of the override chain: this default → `Episode.setup` → `Scene.setup`.
+  /// Without this tier, a story with no chapter setup filled in leaves the model with
+  /// no clothing information at all, and it invents something new every chapter.
   ///
-  /// Khác `appearance` ở chỗ ĐÈ ĐƯỢC: `appearance` là dáng, mặt, sẹo — thứ
-  /// không đổi suốt bộ và không tầng nào đè lên.
+  /// Different from `appearance` in being OVERRIDABLE: `appearance` is build, face,
+  /// scars — things that do not change across the story and no tier overrides.
   outfit String?
 
-  /// Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo.
+  /// Appearance, UNCHANGING across the story: build, apparent age, face, scars.
   ///
-  /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
-  /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
-  /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  /// Separate from `description` because the two are used differently: personality
+  /// steers DIALOGUE, appearance steers DESCRIPTION and is the basis for the cover
+  /// image prompt. Merged, the model describes clothing in a passage that needed a voice.
   ///
-  /// Trang phục thì để ở `outfit`, vì nó đổi theo chương còn cái này thì không.
+  /// Outfits belong in `outfit`, which changes per chapter while this does not.
   appearance String?
 
   isNarrator Boolean @default(false)
 
-  /// Trạng thái hiện tại: đang ở đâu, biết gì, quan hệ đã đổi thế nào.
-  /// KHÁC `description` (tính cách, cách nói — tĩnh, do người viết đặt):
-  /// `state` thay đổi theo mạch truyện và được cập nhật sau mỗi tập.
+  /// Current state: where they are, what they know, how relationships have changed.
+  /// DIFFERENT from `description` (personality, speech — static, set by the writer):
+  /// `state` moves with the story and is updated after every episode.
   state               String?
-  /// Trạng thái phản ánh tới hết tập số mấy.
+  /// Which episode number the state reflects up to.
   stateThroughEpisode Int?
 
   voiceHint String?
   voiceId   String?
   voice     Voice?  @relation(fields: [voiceId], references: [id])
 
-  /// Thẻ nhân vật đã dùng để dựng nhân vật này, nếu có.
+  /// The character card this character was built from, if any.
   ///
-  /// Chỉ là XUẤT XỨ, không phải liên kết sống: sửa nhân vật trong một bộ không
-  /// đụng tới thẻ, và sửa thẻ không đụng tới các bộ đã dùng nó. Đưa bản sửa
-  /// ngược lên thẻ là một thao tác riêng, người viết phải bấm.
+  /// Only PROVENANCE, not a live link: editing a character inside a story does not
+  /// touch the card, and editing the card does not touch the stories that used it.
+  /// Pushing an edit back to the card is a separate action the writer has to click.
   cardId String?
   card   CharacterCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
@@ -358,55 +362,55 @@ model Character {
   @@index([cardId])
 }
 
-/// Thẻ nhân vật — nhân vật dùng lại được giữa các bộ truyện.
+/// Character cards — characters reusable across stories.
 ///
-/// Vì sao tách khỏi `Character`: `Character` gắn với MỘT bộ và mang trạng thái
-/// theo mạch truyện của bộ đó (`state`, `stateThroughEpisode`, block đã render).
-/// Thẻ thì không có mạch truyện nào cả — nó là bản mô tả gốc để mang sang bộ
-/// khác. Trộn chung thì "người dẫn giọng khàn" của bộ này kéo theo cả việc anh
-/// ta đã chết ở tập 12 của bộ kia.
+/// Why separate from `Character`: a `Character` belongs to ONE story and carries
+/// state along that story's arc (`state`, `stateThroughEpisode`, rendered blocks).
+/// A card has no arc at all — it is the source description to carry into another
+/// story. Merged, one story's "narrator with the hoarse voice" would drag along the
+/// fact that he died in episode 12 of another.
 ///
-/// Không đồng bộ sang Player: đây là bảng chỉ-ở-máy, như `Genre` và `Prompt`.
+/// Not synced to the Player: this is a local-only table, like `Genre` and `Prompt`.
 model CharacterCard {
   id String @id @default(cuid())
 
-  /// Duy nhất để báo trùng cho rõ ràng thay vì đẻ ra hai thẻ trông giống hệt.
+  /// Unique so a clash is reported clearly rather than producing two identical-looking cards.
   name        String  @unique
   role        String?
   description String?
 
-  /// Cách nói: nhịp, thói quen dùng từ, cách xưng hô, làm gì khi xúc động.
+  /// Speech: rhythm, verbal habits, forms of address, what they do when moved.
   ///
-  /// Tách khỏi `description` vì đây là thứ model bám vào khi viết LỜI THOẠI,
-  /// còn tính cách lái hành động và lựa chọn. Cũng KHÁC `voiceHint`: cái kia là
-  /// chất giọng để ghép giọng TTS và model không hề đọc nó.
+  /// Separate from `description` because this is what the model leans on when writing
+  /// DIALOGUE, while personality steers action and choices. Also DIFFERENT from
+  /// `voiceHint`: that one is the timbre for TTS casting, and the model never reads it.
   speech String?
 
-  /// Trang phục THƯỜNG THẤY — mặc định, không phải bất biến.
+  /// Their USUAL outfit — a default, not a constant.
   ///
-  /// Tầng gốc của chuỗi đè: mặc định ở đây → `Episode.setup` → `Scene.setup`.
-  /// Thiếu tầng này thì bộ nào chưa điền thiết lập chương là model chẳng có
-  /// thông tin quần áo nào, và mỗi chương nó bịa một kiểu.
+  /// The base tier of the override chain: this default → `Episode.setup` → `Scene.setup`.
+  /// Without this tier, a story with no chapter setup filled in leaves the model with
+  /// no clothing information at all, and it invents something new every chapter.
   ///
-  /// Khác `appearance` ở chỗ ĐÈ ĐƯỢC: `appearance` là dáng, mặt, sẹo — thứ
-  /// không đổi suốt bộ và không tầng nào đè lên.
+  /// Different from `appearance` in being OVERRIDABLE: `appearance` is build, face,
+  /// scars — things that do not change across the story and no tier overrides.
   outfit String?
 
-  /// Ngoại hình KHÔNG đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo.
+  /// Appearance, UNCHANGING across the story: build, apparent age, face, scars.
   ///
-  /// Tách khỏi `description` vì hai thứ này được dùng khác nhau: tính cách lái
-  /// LỜI THOẠI, ngoại hình lái phần TẢ và là căn cứ cho mô tả ảnh bìa. Gộp
-  /// chung thì model tả quần áo giữa một đoạn đang cần giọng nói.
+  /// Separate from `description` because the two are used differently: personality
+  /// steers DIALOGUE, appearance steers DESCRIPTION and is the basis for the cover
+  /// image prompt. Merged, the model describes clothing in a passage that needed a voice.
   ///
-  /// Trang phục thì để ở `outfit`, vì nó đổi theo chương còn cái này thì không.
+  /// Outfits belong in `outfit`, which changes per chapter while this does not.
   appearance String?
   voiceHint  String?
 
-  /// Thẻ này vốn là người dẫn truyện. Chỉ là giá trị mặc định lúc mang vào bộ —
-  /// mỗi bộ vẫn chỉ được có đúng một người dẫn, và đó là luật của bộ.
+  /// This card is a narrator by default. Only a default when brought into a story —
+  /// each story still gets exactly one narrator, and that is the story's rule.
   isNarrator Boolean @default(false)
 
-  /// Giọng ưa dùng. `Voice` là bảng dùng chung nên mang được sang bộ khác.
+  /// The preferred voice. `Voice` is a shared table, so it carries across stories.
   voiceId String?
   voice   Voice?  @relation(fields: [voiceId], references: [id])
 
@@ -418,15 +422,17 @@ model CharacterCard {
   @@index([name])
 }
 
-/// Chương — tầng giữa giữa TẬP và CẢNH.
+/// Chapter — the tier between EPISODE and SCENE.
 ///
-/// Một truyện có nhiều tập; một tập có nhiều chương; một chương có nhiều cảnh.
-/// Tập là đơn vị NGƯỜI NGHE nhận (một file MP3, một mục RSS); cảnh là đơn vị
-/// MODEL VIẾT một lượt (600–900 từ, quá ngưỡng đó model 14B mất mạch); chương
-/// là đơn vị KỂ nằm giữa — một mạch có mở có đóng, thường một buổi một chỗ.
+/// A story has many episodes; an episode has many chapters; a chapter has many
+/// scenes. The episode is what the LISTENER receives (one MP3, one RSS item); the
+/// scene is what the MODEL WRITES in one go (600–900 words, past which a 14B model
+/// loses the thread); the chapter is the unit of STORYTELLING in between — one
+/// movement with an opening and a close, usually one sitting in one place.
 ///
-/// `setup` trước đây nằm ở `Episode`, và đó là chỗ sai: nó vốn tả một mạch kể
-/// chứ không tả cả tập. Chuỗi đè giờ đúng ba tầng — thẻ nhân vật → chương → cảnh.
+/// `setup` used to live on `Episode`, and that was the wrong place: it describes one
+/// movement, not a whole episode. The override chain is now three proper tiers —
+/// character card → chapter → scene.
 model Chapter {
   id        String  @id @default(cuid())
   episodeId String
@@ -435,9 +441,9 @@ model Chapter {
   order Int
   title String?
 
-  /// Chương này hướng về điều gì, giọng riêng, việc phải xảy ra, điều cấm, và
-  /// ghi đè nhân vật (mặc gì, đang bị thương…). Ghi đè ở đây thắng Story Bible,
-  /// còn `Scene.setup` lại thắng nó. Xem packages/core/src/chapter-setup.ts.
+  /// What this chapter drives at, its own voice, what must happen, what is forbidden,
+  /// and character overrides (what they wear, injuries…). Overrides here beat the
+  /// Story Bible, and `Scene.setup` beats these. See packages/core/src/chapter-setup.ts.
   setup Json?
 
   scenes Scene[]
@@ -456,33 +462,33 @@ model Scene {
 
   order Int
   beat  String
-  /// Bản dùng thật — luôn ở ngôn ngữ đầu ra của bộ.
+  /// The version actually used — always in the story's output language.
   text  String?
 
-  /// Bản thảo trước khi chuyển ngữ, giữ lại để sửa prompt rồi chạy lại bước
-  /// TRANSLATE mà không phải viết lại cảnh. Null = cảnh chưa qua chuyển ngữ,
-  /// và đó cũng là dấu hiệu bước TRANSLATE dùng để biết còn gì phải làm.
+  /// The draft before the rewrite, kept so the prompt can be edited and TRANSLATE
+  /// rerun without rewriting the scene. Null = the scene has not been through the
+  /// rewrite, which is also how the TRANSLATE step knows what is left to do.
   sourceText String?
 
-  /// Ai có mặt trong cảnh này. RỖNG nghĩa là "chưa biết" chứ không phải "không
-  /// ai" — lúc đó Story Bible nạp đầy đủ mọi nhân vật, đúng hành vi cũ.
+  /// Who is present in this scene. EMPTY means "not known", not "nobody" — the Story
+  /// Bible then loads every character in full, which is the old behaviour.
   ///
-  /// Có danh sách thì chỉ những người này được tả đầy đủ trong Bible; người còn
-  /// lại chỉ còn tên và vai. Ngữ cảnh nhờ vậy không phình theo cỡ dàn — dàn 20
-  /// người mà cảnh có 2 người thì 18 mô tả kia là token trả tiền vô ích.
+  /// With a list, only these people are described in full in the Bible; the rest keep
+  /// only name and role. Context therefore does not grow with the cast — a 20-person
+  /// cast in a 2-person scene means 18 descriptions paid for and wasted.
   ///
-  /// Mặc định là "chưa biết" có chủ đích: đoán hụt một người thì chỉ mất phần
-  /// lọc, chứ không phải model viết cảnh mà thiếu mô tả của chính người trong đó.
+  /// The "not known" default is deliberate: guessing one person short only loses the
+  /// filtering, rather than making the model write a scene missing its own people.
   characterIds String[] @default([])
 
-  /// Thiết lập riêng của CẢNH: ghi chú, và ghi đè nhân vật cho riêng cảnh này.
-  /// Đè lên `Chapter.setup` theo TỪNG Ô — cảnh chỉ nói "đã thay áo mưa" thì ghi
-  /// chú "đang băng tay" của chương vẫn còn.
+  /// The SCENE's own setup: notes, and character overrides for this scene alone.
+  /// Overrides `Chapter.setup` FIELD BY FIELD — a scene saying only "changed into a
+  /// raincoat" leaves the chapter's "hand bandaged" note intact.
   setup Json?
 
-  /// Số hiệu các tập cũ mà cảnh này gọi lại.
-  /// Chỉ những tập được liệt kê ở đây mới được nạp tóm tắt ĐẦY ĐỦ — thay vì
-  /// nhồi mọi tóm tắt vào mỗi lần gọi. Hệ thống gợi ý, người viết sửa được.
+  /// The numbers of earlier episodes this scene calls back to.
+  /// Only the episodes listed here get their FULL summary loaded — instead of
+  /// stuffing in every summary each time. The system suggests, the writer can edit.
   refEpisodes Int[] @default([])
 
   approved Boolean @default(false)
@@ -496,11 +502,11 @@ model Scene {
   @@index([chapterId])
 }
 
-/// Cấu hình sửa được từ giao diện.
+/// Configuration editable from the UI.
 ///
-/// Vì sao cần bảng này thay vì cứ để trong `.env`: đổi model mặc định là việc
-/// làm thường xuyên khi đang thử model nào viết hay hơn, mà sửa `.env` thì phải
-/// khởi động lại worker. Env vẫn là giá trị lùi về khi chưa ai đặt gì.
+/// Why this table rather than leaving it in `.env`: changing the default model is a
+/// routine thing while trying out which one writes better, and editing `.env` means
+/// restarting the worker. Env is still the fallback when nothing has been set.
 model Setting {
   key   String @id
   value String
@@ -508,43 +514,44 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
-/// Sự kiện truyện — đơn vị truy hồi theo ngữ nghĩa.
+/// Story facts — the unit of semantic retrieval.
 ///
-/// Vì sao KHÔNG embed `Episode.summary`: một tóm tắt 200 từ gói 3–4 việc khác
-/// nhau, dồn vào một vector là nhoè hết. Tách thành từng câu một sự kiện thì
-/// mỗi vector sắc nét, và lấy được 5 sự kiện từ 5 tập khác nhau thay vì 3 tóm
-/// tắt nguyên khối.
+/// Why NOT embed `Episode.summary`: a 200-word summary packs 3–4 different things
+/// together, and one vector smears them. Split into one sentence per fact, each
+/// vector is sharp, and you can pull 5 facts from 5 different episodes rather than
+/// 3 monolithic summaries.
 ///
-/// Quan trọng hơn: sự kiện sống ĐỘC LẬP với việc nén tóm tắt. Job ARC_SUMMARY
-/// nén tóm tắt cũ và mất chi tiết, nhưng sự kiện vẫn nguyên ở đây.
+/// More importantly, facts live INDEPENDENTLY of summary compression. The
+/// ARC_SUMMARY job compresses old summaries and loses detail, but facts stay intact here.
 ///
-/// Cột `embedding` khai bằng `Unsupported` — Prisma không sinh được kiểu cho nó
-/// nên vẫn phải đọc/ghi bằng `$queryRaw`/`$executeRaw` (xem services/fact-store).
-/// Nhưng KHAI BÁO là bắt buộc: bỏ trống thì `prisma db push` coi cột này là thừa
-/// và xoá đi cùng toàn bộ vector đã nhúng. Xem packages/database/sql/.
+/// The `embedding` column is declared `Unsupported` — Prisma cannot generate a type
+/// for it, so it still has to be read and written with `$queryRaw`/`$executeRaw` (see
+/// services/fact-store). But DECLARING it is mandatory: left out, `prisma db push`
+/// treats the column as surplus and drops it along with every embedded vector. See
+/// packages/database/sql/.
 model StoryFact {
   id       String @id @default(cuid())
   seriesId String
   series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
-  /// Tập sinh ra sự kiện này. Giữ cả số hiệu để truy vấn không cần join.
+  /// The episode that produced this fact. Keeps the number too, so queries need no join.
   episodeId     String?
   episode       Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
   episodeNumber Int
 
   kind FactKind
-  /// Một câu, tự đứng được mà không cần ngữ cảnh.
-  /// VD: "Tài thề không bao giờ quay lại Bến Cũ sau đêm mưa."
+  /// One sentence, standing on its own without context.
+  /// E.g. "Tài thề không bao giờ quay lại Bến Cũ sau đêm mưa."
   text String
 
-  /// Tình tiết bỏ ngỏ đã có lời giải chưa. Chỉ áp dụng cho OPEN_THREAD.
+  /// Whether an open thread has been resolved. Applies to OPEN_THREAD only.
   resolved          Boolean @default(false)
   resolvedInEpisode Int?
 
-  /// Người viết ghim thì luôn được nạp, bất kể độ tương đồng.
+  /// Pinned by the writer means always loaded, whatever the similarity.
   pinned Boolean @default(false)
 
-  /// bge-m3 trả 1024 chiều. Đổi model thì phải đổi số này và nhúng lại tất cả.
+  /// bge-m3 returns 1024 dimensions. Changing model means changing this and re-embedding everything.
   embedding Unsupported("vector(1024)")?
 
   createdAt DateTime @default(now())
@@ -571,8 +578,8 @@ model Voice {
   accent    String?
   sampleUrl String?
 
-  /// Giọng này đọc được tiếng gì. Giọng tiếng Việt đọc văn tiếng Anh ra thứ
-  /// không ai nghe được, nên đây là điều kiện lọc chứ không phải ghi chú.
+  /// Which languages this voice can read. A Vietnamese voice reading English prose is
+  /// unlistenable, so this is a filter condition rather than a note.
   language String @default("vi")
 
   licenseType  LicenseType @default(UNKNOWN)
@@ -603,8 +610,8 @@ model Block {
   character    Character? @relation(fields: [characterId], references: [id])
   speakerLabel String
 
-  /// Bản chụp cấu hình lúc render — CỐ TÌNH không dùng khoá ngoại.
-  /// Đổi casting thì cacheKey đổi theo, hệ thống tự biết cần render lại.
+  /// A snapshot of the configuration at render time — DELIBERATELY not a foreign key.
+  /// Change the casting and the cacheKey changes with it, so the system knows to re-render.
   ttsEngine TtsEngine
   voiceId   String
   speed     Float     @default(1.0)
@@ -628,16 +635,16 @@ model Block {
   @@index([characterId])
 }
 
-/// Cache audio dùng chung mọi tập. Intro/outro cố định chỉ render một lần.
+/// An audio cache shared across every episode. A fixed intro/outro renders once.
 model AudioAsset {
   id String @id @default(cuid())
 
   /// sha256(text + ttsEngine + voiceId + speed + pitch)
   cacheKey String @unique
 
-  /// KHOÁ trong kho ("series/abc/blocks/x.wav"), KHÔNG phải đường dẫn tuyệt đối:
-  /// đổi tên thư mục dự án hay chuyển máy thì đường dẫn tuyệt đối hỏng sạch.
-  /// Giải theo gốc kho bằng `StorageDriver.resolve`.
+  /// The KEY in the store ("series/abc/blocks/x.wav"), NOT an absolute path: renaming
+  /// the project directory or moving machines breaks every absolute path. Resolved
+  /// against the store root by `StorageDriver.resolve`.
   url        String
   durationMs Int
   sizeBytes  Int
@@ -661,13 +668,13 @@ model AudioTrack {
   kind AudioTrackKind
 
   title      String
-  /// Khoá trong kho khi tự tải lên, hoặc URL `https://` khi dán nguồn ngoài.
+  /// The store key when uploaded, or an `https://` URL when an external source is pasted.
   url        String
   durationMs Int
   mood       String?
   tags       String[] @default([])
 
-  /// Bắt buộc — UNKNOWN bị chặn khi xuất bản.
+  /// Required — UNKNOWN blocks publishing.
   licenseType LicenseType @default(UNKNOWN)
   licenseNote String?
   attribution String?
@@ -684,7 +691,7 @@ model AudioTrack {
 model PronunciationEntry {
   id String @id @default(cuid())
 
-  /// null = từ điển dùng chung mọi truyện
+  /// null = the dictionary shared by every story
   seriesId String?
   series   Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
@@ -699,7 +706,7 @@ model PronunciationEntry {
   @@index([seriesId, term])
 }
 
-// ══════════════════ XUẤT BẢN ══════════════════
+// ══════════════════ PUBLISHING ══════════════════
 
 model Export {
   id        String  @id @default(cuid())
@@ -711,7 +718,7 @@ model Export {
   part      Int @default(1)
   partTotal Int @default(1)
 
-  /// Khoá trong kho — xem AudioAsset.url.
+  /// The store key — see AudioAsset.url.
   url        String
   sizeBytes  Int?
   durationMs Int?
@@ -732,14 +739,14 @@ model Export {
   @@index([type, publishedAt])
 }
 
-// ══════════════════ AI & HÀNG ĐỢI ══════════════════
+// ══════════════════ AI & QUEUE ══════════════════
 
 model Prompt {
   id      String     @id @default(cuid())
   step    PromptStep
-  /// Biến thể theo thể loại. "*" = áp dụng cho mọi thể loại.
-  /// Dùng "*" thay vì null vì Postgres coi mỗi NULL là khác nhau — ràng buộc
-  /// duy nhất trên cột nullable sẽ không chặn được bản ghi trùng.
+  /// The genre variant. "*" = applies to every genre.
+  /// "*" rather than null because Postgres treats every NULL as distinct — a unique
+  /// constraint on a nullable column would not block duplicate rows.
   genre   String     @default("*")
   version Int        @default(1)
 
@@ -759,8 +766,8 @@ model Prompt {
   @@index([step, active])
 }
 
-/// Telemetry mỗi lần gọi LLM. Ghi thời gian và tốc độ, không ghi tiền —
-/// với model local, thời gian máy mới là tài nguyên khan hiếm.
+/// Telemetry for every LLM call. Records time and speed, not money — with a local
+/// model, machine time is the scarce resource.
 model LlmRun {
   id String @id @default(cuid())
 
@@ -780,7 +787,7 @@ model LlmRun {
   durationMs   Int
   tokensPerSec Float
 
-  /// Điểm bạn tự chấm sau khi đọc — để biết prompt/tham số nào cho văn hay.
+  /// Your own score after reading — to learn which prompt and parameters write well.
   qualityRating Int?
   qualityNote   String?
 
@@ -793,9 +800,9 @@ model LlmRun {
   @@index([episodeId])
 }
 
-/// Trạng thái một lượt chạy hàng loạt.
-/// Tách khỏi JobStatus vì có thêm WAITING_REVIEW — trạng thái không job nào có:
-/// lượt chạy đang sống nhưng phải chờ người đọc duyệt bản thảo.
+/// The status of a batch run.
+/// Separate from JobStatus because of WAITING_REVIEW — a status no job has: the run
+/// is alive but waiting for a person to read and approve the draft.
 enum BatchStatus {
   RUNNING
   WAITING_REVIEW
@@ -804,12 +811,12 @@ enum BatchStatus {
   CANCELLED
 }
 
-/// Một lượt chạy hàng loạt: đưa từng tập của bộ đi hết chuỗi
-/// viết cảnh → (duyệt) → kịch bản audio → tóm tắt → TTS → ghép MP3.
+/// One batch run: carrying each episode of a story through the whole chain,
+/// write scene → (approve) → audio script → summary → TTS → mix MP3.
 ///
-/// Điều phối bằng SỰ KIỆN chứ không phải vòng lặp chờ: mỗi job xong thì
-/// `advanceBatch` xét trạng thái tập rồi đẩy bước kế tiếp. Vòng lặp chờ sẽ
-/// chiếm một chỗ trong làn suốt thời gian chạy, mà làn LLM chỉ có vài chỗ.
+/// Orchestrated by EVENTS rather than a polling loop: as each job finishes,
+/// `advanceBatch` reads the episode's status and queues the next step. A polling loop
+/// would hold a lane slot for its whole run, and the LLM lane has only a few slots.
 model BatchRun {
   id       String @id @default(cuid())
   seriesId String
@@ -817,12 +824,12 @@ model BatchRun {
 
   status BatchStatus @default(RUNNING)
 
-  /// Bỏ qua chốt duyệt bản thảo. CHỈ dùng khi thử — xem docs/database.md mục 4.
+  /// Skip the draft approval gate. For TESTING ONLY — see docs/database.md section 4.
   autoApprove Boolean @default(false)
-  /// Chạy tiếp TTS + ghép MP3, hay dừng sau khi có kịch bản audio.
+  /// Carry on into TTS + mixing the MP3, or stop once the audio script exists.
   withAudio   Boolean @default(true)
 
-  /// Tập đang xử lý — cũng là tập đang chờ duyệt khi status = WAITING_REVIEW.
+  /// The episode being processed — also the one awaiting approval when status = WAITING_REVIEW.
   currentEpisodeId String?
 
   error String?
@@ -842,7 +849,7 @@ model RenderJob {
   lane   JobLane
   status JobStatus @default(QUEUED)
 
-  /// VRAM job này cần. Job chạy CPU khai báo 0.
+  /// The VRAM this job needs. CPU jobs declare 0.
   vramMb Int @default(0)
 
   progress Int     @default(0)
@@ -861,7 +868,7 @@ model RenderJob {
   @@index([episodeId, status])
 }
 
-// ══════════════════ NGƯỜI NGHE ══════════════════
+// ══════════════════ LISTENERS ══════════════════
 
 model User {
   id            String    @id @default(cuid())
@@ -870,9 +877,9 @@ model User {
   image         String?
   emailVerified DateTime?
 
-  /// Băm scrypt, chỉ có khi đăng ký bằng mật khẩu. Đăng nhập bằng Google thì
-  /// null — và KHÔNG bao giờ được đặt, nếu không có đường dò mật khẩu vào một
-  /// tài khoản vốn không dùng mật khẩu.
+  /// A scrypt hash, present only for password signups. Signing in with Google leaves
+  /// it null — and it must NEVER be set, or there would be a way to brute-force into
+  /// an account that never had a password.
   passwordHash String?
 
   role String @default("listener")
@@ -888,8 +895,8 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-/// Tài khoản ở nhà cung cấp ngoài (Google…). Auth.js quản lý bảng này.
-/// Một User có thể gắn nhiều Account — đăng nhập Google rồi đặt thêm mật khẩu.
+/// An account at an external provider (Google…). Auth.js owns this table.
+/// One User can have several Accounts — sign in with Google, then add a password.
 model Account {
   userId            String
   type              String

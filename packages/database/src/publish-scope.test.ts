@@ -9,45 +9,45 @@ import {
 } from "./publish-scope";
 
 /**
- * Đây là ranh giới quyền riêng tư: thứ gì được rời khỏi máy sản xuất.
- * Sai ở đây thì bản thảo, Story Bible và prompt đi lên internet.
+ * This is the privacy boundary: what is allowed to leave the production machine.
+ * Get it wrong and drafts, the Story Bible and the prompts go onto the internet.
  */
 
 describe("stripPrivate", () => {
-  it("bỏ Story Bible khỏi Series", () => {
+  it("drops the Story Bible from Series", () => {
     const out = stripPrivate("Series", { id: "s1", title: "Đường về", storyBible: { world: {} } });
     expect(out).toEqual({ id: "s1", title: "Đường về" });
     expect("storyBible" in out).toBe(false);
   });
 
-  it("bỏ bản thảo và dấu vết người duyệt khỏi Episode", () => {
+  it("drops the draft and the approver's trail from Episode", () => {
     const out = stripPrivate("Episode", {
       id: "e1",
       title: "Tập 1",
-      draftText: "toàn bộ bản thảo",
+      draftText: "the entire draft",
       outline: { chapters: [] },
       reviewedBy: "hung",
       reviewedAt: new Date(),
-      summary: "tóm tắt công khai",
+      summary: "the public summary",
     });
-    expect(out).toEqual({ id: "e1", title: "Tập 1", summary: "tóm tắt công khai" });
+    expect(out).toEqual({ id: "e1", title: "Tập 1", summary: "the public summary" });
   });
 
-  it("bỏ mô tả tính cách khỏi Character", () => {
+  it("drops the personality description from Character", () => {
     const out = stripPrivate("Character", { id: "c1", name: "Tài", description: "cách nói" });
     expect(out).toEqual({ id: "c1", name: "Tài" });
   });
 
-  it("Export không có gì phải bỏ", () => {
+  it("Export has nothing to drop", () => {
     const row = { id: "x1", url: "series/a/b.mp3", sizeBytes: 1 };
     expect(stripPrivate("Export", row)).toEqual(row);
   });
 });
 
 describe("forPublish", () => {
-  it("xoá khoá ngoại trỏ sang bảng chỉ có ở local", () => {
-    // Không xoá thì DB hosted báo lỗi ràng buộc vì không có bảng Voice —
-    // và chỉ lỗi với nhân vật ĐÃ gán giọng, nên rất dễ lọt qua lúc thử.
+  it("nulls foreign keys pointing at local-only tables", () => {
+    // Left in, the hosted DB fails on a constraint because it has no Voice table —
+    // and only for characters that HAVE a voice, which is very easy to miss in testing.
     expect(forPublish("Character", { id: "c1", name: "Tài", voiceId: "v1" })).toEqual({
       id: "c1",
       name: "Tài",
@@ -55,63 +55,63 @@ describe("forPublish", () => {
     });
   });
 
-  it("xoá nhạc nền khỏi Episode", () => {
+  it("nulls the background music on Episode", () => {
     expect(forPublish("Episode", { id: "e1", bgmTrackId: "t1", introTrackId: "t2" })).toMatchObject({
       bgmTrackId: null,
       introTrackId: null,
     });
   });
 
-  it("xoá giọng mặc định khỏi Series", () => {
+  it("nulls the default voice on Series", () => {
     expect(forPublish("Series", { id: "s1", defaultVoiceId: "v1" })).toEqual({
       id: "s1",
       defaultVoiceId: null,
     });
   });
 
-  it("làm CẢ hai việc: bỏ cột riêng tư VÀ xoá khoá ngoại", () => {
+  it("does BOTH: drops private columns AND nulls foreign keys", () => {
     const out = forPublish("Character", {
       id: "c1",
       name: "Tài",
-      description: "riêng tư",
+      description: "private",
       voiceId: "v1",
     });
     expect(out).toEqual({ id: "c1", name: "Tài", voiceId: null });
   });
 
-  it("không tự thêm cột mà bản ghi vốn không có", () => {
-    // Bản ghi thiếu cột thì để nguyên thiếu, không nhét null vào — nhét vào là
-    // ghi đè giá trị đang có ở hosted khi upsert.
+  it("never adds a column the record did not have", () => {
+    // A record missing a column stays missing it, with no null inserted — inserting
+    // one would overwrite the hosted value on upsert.
     expect(forPublish("Character", { id: "c1", name: "Tài" })).toEqual({ id: "c1", name: "Tài" });
   });
 });
 
-describe("khai báo phạm vi", () => {
-  it("mọi bảng công khai đều có mục trong hai bảng cấu hình", () => {
+describe("the scope declaration", () => {
+  it("every public table has an entry in both config tables", () => {
     for (const t of PUBLIC_TABLES) {
-      expect(PRIVATE_COLUMNS[t], `PRIVATE_COLUMNS thiếu ${t}`).toBeDefined();
-      expect(DANGLING_FK_COLUMNS[t], `DANGLING_FK_COLUMNS thiếu ${t}`).toBeDefined();
+      expect(PRIVATE_COLUMNS[t], `PRIVATE_COLUMNS is missing ${t}`).toBeDefined();
+      expect(DANGLING_FK_COLUMNS[t], `DANGLING_FK_COLUMNS is missing ${t}`).toBeDefined();
     }
   });
 
-  it("bảng chỉ-local không được nằm trong danh sách công khai", () => {
+  it("a local-only table must not appear in the public list", () => {
     for (const t of LOCAL_ONLY_TABLES) {
       expect(PUBLIC_TABLES).not.toContain(t as never);
     }
   });
 
-  it("bản thảo và Story Bible nằm trong danh sách cấm — khoá lại để không ai gỡ", () => {
+  it("the draft and the Story Bible are on the forbidden list — locked so nobody removes them", () => {
     expect(PRIVATE_COLUMNS.Episode).toContain("draftText");
     expect(PRIVATE_COLUMNS.Series).toContain("storyBible");
   });
 
-  it("Prompt và LlmRun chỉ ở local", () => {
+  it("Prompt and LlmRun are local-only", () => {
     expect(LOCAL_ONLY_TABLES).toContain("Prompt");
     expect(LOCAL_ONLY_TABLES).toContain("LlmRun");
   });
 });
 
-describe("Block — lời truyện", () => {
+describe("Block — the story's lines", () => {
   const row = {
     id: "b1",
     episodeId: "e1",
@@ -125,48 +125,48 @@ describe("Block — lời truyện", () => {
     speed: 1.05,
     pitch: null,
     approved: true,
-    sfxHint: "tiếng phanh",
+    sfxHint: "brakes",
     sfxTrackId: "t1",
     audioAssetId: "a1",
   };
 
-  it("LỜI ĐƯỢC đi — đó là thứ phát ra trong MP3", () => {
-    // Khác `Episode.draftText` là bản thảo thô. Lời đã duyệt thì đăng kèm audio
-    // là bình thường, và trang nghe dùng nó cho mục "Đọc lời truyện".
+  it("the LINE DOES go — it is what the MP3 says", () => {
+    // Unlike `Episode.draftText`, the raw draft. An approved line published alongside
+    // the audio is normal, and the player uses it for "Read the transcript".
     const out = forPublish("Block", row);
     expect(out.text).toBe("Trời tối, xe chạy chậm lại.");
     expect(out.speakerLabel).toBe("narrator");
     expect(out.order).toBe(1);
   });
 
-  it("bỏ chi tiết sản xuất bỏ được", () => {
+  it("drops the production detail that can be dropped", () => {
     const out = forPublish("Block", row);
     for (const col of ["speed", "pitch", "approved", "sfxHint"]) {
-      expect(out, `${col} không cần rời máy`).not.toHaveProperty(col);
+      expect(out, `${col} does not need to leave the machine`).not.toHaveProperty(col);
     }
   });
 
-  it("GIỮ ttsEngine và voiceId vì chúng NOT NULL bên hosted", () => {
-    // Không phải vì chúng đáng công khai, mà vì hai DB dùng chung một schema:
-    // bỏ cột bắt buộc là `create` bên hosted lỗi "Argument is missing".
+  it("KEEPS ttsEngine and voiceId because they are NOT NULL on the hosted side", () => {
+    // Not because they deserve publishing, but because the two DBs share one schema:
+    // dropping a required column makes the hosted `create` fail with "Argument is missing".
     const out = forPublish("Block", row);
     expect(out.ttsEngine).toBe("KOKORO");
     expect(out.voiceId).toBe("vn-male-1");
   });
 
-  it("xoá khoá ngoại trỏ sang bảng không đồng bộ", () => {
+  it("nulls foreign keys pointing at unsynced tables", () => {
     const out = forPublish("Block", row);
     expect(out.sfxTrackId).toBeNull();
     expect(out.audioAssetId).toBeNull();
-    // characterId GIỮ: Character có trong danh sách đồng bộ.
+    // characterId STAYS: Character is on the sync list.
     expect(out.characterId).toBe("c1");
   });
 });
 
-describe("mọi bảng công khai đều được job PUBLISH đụng tới", () => {
-  it("không bảng nào lọt khe", async () => {
-    // Bug đã gặp: Block không có trong PUBLIC_TABLES lẫn LOCAL_ONLY_TABLES nên
-    // không ai đồng bộ, và tính năng đọc lời truyện âm thầm biến mất.
+describe("every public table is touched by the PUBLISH job", () => {
+  it("no table falls through the gap", async () => {
+    // A bug that happened: Block was in neither PUBLIC_TABLES nor LOCAL_ONLY_TABLES so
+    // nothing synced it, and the transcript feature quietly disappeared.
     const { readFile } = await import("node:fs/promises");
     const job = await readFile(
       new URL("../../../apps/worker/src/jobs/publish.job.ts", import.meta.url),
@@ -174,16 +174,16 @@ describe("mọi bảng công khai đều được job PUBLISH đụng tới", ()
     );
     for (const t of PUBLIC_TABLES) {
       const model = t[0]!.toLowerCase() + t.slice(1);
-      expect(job, `publish.job không ghi bảng ${t}`).toContain(`prismaPlayer.${model}.upsert`);
+      expect(job, `publish.job does not write table ${t}`).toContain(`prismaPlayer.${model}.upsert`);
     }
   });
 });
 
-describe("chỉ bỏ được cột mà DB hosted chấp nhận thiếu", () => {
-  it("mọi cột trong PRIVATE_COLUMNS đều nullable hoặc có @default", async () => {
-    // Bug đã gặp: bỏ `Block.ttsEngine` (NOT NULL) làm job đồng bộ chết với
-    // "Argument `ttsEngine` is missing" — mà chỉ chết lúc chạy thật, không phải
-    // lúc build. Hai DB dùng chung một schema nên cột bắt buộc phải đi theo.
+describe("only columns the hosted DB tolerates missing may be dropped", () => {
+  it("every column in PRIVATE_COLUMNS is nullable or has @default", async () => {
+    // A bug that happened: dropping `Block.ttsEngine` (NOT NULL) killed the sync job
+    // with "Argument `ttsEngine` is missing" — and only at run time, not at build
+    // time. The two DBs share one schema, so a required column has to travel.
     const { readFile } = await import("node:fs/promises");
     const schema = await readFile(
       new URL("../prisma/schema.prisma", import.meta.url),
@@ -192,19 +192,19 @@ describe("chỉ bỏ được cột mà DB hosted chấp nhận thiếu", () => 
 
     for (const table of PUBLIC_TABLES) {
       const model = new RegExp(`^model ${table} \\{([\\s\\S]*?)^\\}`, "m").exec(schema)?.[1];
-      expect(model, `không tìm thấy model ${table}`).toBeDefined();
+      expect(model, `model ${table} not found`).toBeDefined();
 
       for (const col of PRIVATE_COLUMNS[table]) {
         const line = model!
           .split("\n")
           .find((l) => new RegExp(`^\\s+${col}\\s`).test(l));
-        expect(line, `${table}.${col} không có trong schema`).toBeDefined();
+        expect(line, `${table}.${col} is not in the schema`).toBeDefined();
 
         const optional = /\?\s*($|\/\/)/.test(line!) || /\?\s/.test(line!);
         const hasDefault = line!.includes("@default");
         expect(
           optional || hasDefault,
-          `${table}.${col} là NOT NULL và không có @default — bỏ nó đi thì job đồng bộ chết`,
+          `${table}.${col} is NOT NULL with no @default — dropping it kills the sync job`,
         ).toBe(true);
       }
     }

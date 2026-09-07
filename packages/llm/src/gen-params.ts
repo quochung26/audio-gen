@@ -1,10 +1,10 @@
 /**
- * Tham số sinh — những nút vặn quyết định model viết ra thứ gì.
+ * Generation parameters — the knobs that decide what the model writes.
  *
- * Trước đây sửa bằng cách gõ JSON tay ở trang Prompt: gõ sai tên khoá thì không
- * có gì báo, tham số lặng lẽ bị bỏ qua và văn vẫn ra — chỉ là ra bằng giá trị
- * mặc định. Khai báo tập trung ở đây để giao diện dựng ô nhập, và để giá trị
- * ngoài khoảng bị chặn ngay lúc lưu.
+ * These used to be edited by hand-typing JSON on the Prompt page: a mistyped key
+ * said nothing, the parameter was quietly ignored, and prose still came out — just
+ * at the default value. Declared centrally here so the UI can build the inputs, and
+ * so out-of-range values are caught at save time.
  */
 export interface GenParamSpec {
   key: string;
@@ -12,9 +12,9 @@ export interface GenParamSpec {
   hint: string;
   min: number;
   max: number;
-  /** Bước nhảy của ô nhập. Số nguyên thì để 1. */
+  /** The input's step size. Use 1 for integers. */
   step: number;
-  /** Provider dùng gì khi không ai đặt — hiện làm gợi ý trong ô trống. */
+  /** What the provider uses when nobody sets it — shown as a hint in the empty box. */
   fallback: number;
 }
 
@@ -22,10 +22,10 @@ export const GEN_PARAMS: GenParamSpec[] = [
   {
     key: "temperature",
     label: "temperature",
-    hint: "Cao thì văn biến hoá hơn nhưng dễ lạc đề. Bước biên tập và tóm tắt nên để thấp.",
+    hint: "Higher is more varied prose but wanders more easily. Editing and summarising should stay low.",
     min: 0,
-    // Trên 1.5 thì phần lớn model bắt đầu nói lảm nhảm; chặn ở đây để khỏi phải
-    // đi tìm nguyên nhân một tập hỏng.
+    // Above 1.5 most models start babbling; capped here to save anyone hunting down
+    // the cause of a ruined episode.
     max: 1.5,
     step: 0.05,
     fallback: 0.9,
@@ -33,7 +33,7 @@ export const GEN_PARAMS: GenParamSpec[] = [
   {
     key: "topP",
     label: "topP",
-    hint: "Chỉ lấy trong nhóm từ chiếm ngần này xác suất. Hạ xuống là văn an toàn hơn, nhạt hơn.",
+    hint: "Only sample from the tokens covering this much probability. Lower is safer prose, and flatter.",
     min: 0.1,
     max: 1,
     step: 0.01,
@@ -42,7 +42,7 @@ export const GEN_PARAMS: GenParamSpec[] = [
   {
     key: "repeatPenalty",
     label: "repeatPenalty",
-    hint: "Phạt lặp cụm từ — bệnh kinh niên của model nhỏ. Quá cao thì câu cụt và gượng.",
+    hint: "Penalise repeated phrases — the chronic illness of small models. Too high and sentences turn clipped and awkward.",
     min: 1,
     max: 1.5,
     step: 0.01,
@@ -51,7 +51,7 @@ export const GEN_PARAMS: GenParamSpec[] = [
   {
     key: "numCtx",
     label: "numCtx",
-    hint: "Trần ngữ cảnh. Hạ xuống là cắt mất phần đầu prompt — mất luôn Story Bible mà không báo gì.",
+    hint: "The context ceiling. Lowering it cuts off the start of the prompt — losing the Story Bible with nothing to say so.",
     min: 2048,
     max: 131072,
     step: 1024,
@@ -60,7 +60,7 @@ export const GEN_PARAMS: GenParamSpec[] = [
   {
     key: "maxTokens",
     label: "maxTokens",
-    hint: "Trần độ dài câu trả lời. Đặt thấp là cảnh cụt giữa câu.",
+    hint: "The ceiling on reply length. Set it low and scenes stop mid-sentence.",
     min: 128,
     max: 32768,
     step: 128,
@@ -72,16 +72,16 @@ const BY_KEY = new Map(GEN_PARAMS.map((p) => [p.key, p]));
 
 export interface ParsedGenParams {
   params: Record<string, number>;
-  /** Ô nào sai và sai thế nào — trả về chứ không ném, để form hiện tại chỗ. */
+  /** Which field is wrong and how — returned rather than thrown, so the form shows it inline. */
   errors: string[];
 }
 
 /**
- * Đọc tham số từ form.
+ * Read parameters out of a form.
  *
- * Ô để trống nghĩa là KHÔNG đặt, khác hẳn với đặt bằng 0: bỏ trống thì rơi về
- * mặc định của provider, còn `temperature: 0` là một lựa chọn thật (văn lặp
- * đi lặp lại nhưng tất định).
+ * A blank field means NOT SET, which is quite different from setting 0: blank falls
+ * back to the provider's default, while `temperature: 0` is a real choice (repetitive
+ * prose, but deterministic).
  */
 export function parseGenParams(input: Record<string, unknown>): ParsedGenParams {
   const params: Record<string, number> = {};
@@ -93,11 +93,11 @@ export function parseGenParams(input: Record<string, unknown>): ParsedGenParams 
 
     const n = Number(String(raw).trim());
     if (!Number.isFinite(n)) {
-      errors.push(`${spec.label}: "${String(raw)}" không phải số`);
+      errors.push(`${spec.label}: "${String(raw)}" is not a number`);
       continue;
     }
     if (n < spec.min || n > spec.max) {
-      errors.push(`${spec.label}: phải trong khoảng ${spec.min}–${spec.max}, đang là ${n}`);
+      errors.push(`${spec.label}: must be between ${spec.min} and ${spec.max}, got ${n}`);
       continue;
     }
     params[spec.key] = spec.step >= 1 ? Math.round(n) : n;
@@ -106,10 +106,10 @@ export function parseGenParams(input: Record<string, unknown>): ParsedGenParams 
 }
 
 /**
- * Lọc tham số đã lưu trong DB về những khoá THẬT SỰ có tác dụng.
+ * Filter parameters stored in the DB down to the keys that ACTUALLY do something.
  *
- * Provider chỉ đọc các khoá đã biết, nên khoá lạ trong `Prompt.params` xưa nay
- * bị bỏ qua âm thầm. Lọc ở đây để giao diện hiện đúng thứ đang có hiệu lực.
+ * Providers only read the keys they know, so a stray key in `Prompt.params` has
+ * always been ignored silently. Filtered here so the UI shows what really applies.
  */
 export function knownGenParams(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
@@ -124,7 +124,7 @@ export function knownGenParams(raw: unknown): Record<string, number> {
   return out;
 }
 
-/** Khoá có trong dữ liệu cũ nhưng không provider nào đọc tới. */
+/** Keys present in old data that no provider reads. */
 export function unknownGenParamKeys(raw: unknown): string[] {
   if (!raw || typeof raw !== "object") return [];
   return Object.keys(raw as Record<string, unknown>).filter((k) => !BY_KEY.has(k));

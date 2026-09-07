@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Ngôn ngữ mặc định cho truyện mới — cùng lối như model mặc định: `.env` là giá
- * trị khởi đầu, lựa chọn trên giao diện ghi vào `Setting` và đè lên.
+ * The default language for new stories — the same shape as the default model:
+ * `.env` is the starting value, and a UI choice writes to `Setting` and overrides it.
  */
 const settings = new Map<string, string>();
 
@@ -33,33 +33,33 @@ beforeEach(() => {
   env.language = "vi";
 });
 
-describe("ngôn ngữ mặc định", () => {
-  it("chưa đặt gì thì lấy từ .env", async () => {
+describe("the default language", () => {
+  it("unset, it comes from .env", async () => {
     env.language = "en";
     expect(await getDefaultLanguage()).toBe("en");
   });
 
-  it("đặt trên giao diện thì đè lên .env", async () => {
+  it("a UI setting overrides .env", async () => {
     await setDefaultLanguage("en");
     expect(await getDefaultLanguage()).toBe("en");
   });
 
-  it("xoá thì quay về .env", async () => {
+  it("clearing it reverts to .env", async () => {
     await setDefaultLanguage("en");
     await setDefaultLanguage("");
     expect(await getDefaultLanguage()).toBe("vi");
   });
 
-  it("từ chối mã lạ", async () => {
+  it("rejects an unknown code", async () => {
     await expect(setDefaultLanguage("fr")).rejects.toThrow(/fr/);
   });
 
-  it("giá trị rác trong DB lùi về .env chứ không làm chết job", async () => {
+  it("junk in the DB falls back to .env rather than killing a job", async () => {
     settings.set("content.language", "klingon");
     expect(await getDefaultLanguage()).toBe("vi");
   });
 
-  it("nói rõ đang lấy từ đâu", async () => {
+  it("says where it is coming from", async () => {
     expect(await getDefaultLanguageSource()).toEqual({ value: "vi", fromEnv: true });
     await setDefaultLanguage("en");
     expect(await getDefaultLanguageSource()).toEqual({ value: "en", fromEnv: false });

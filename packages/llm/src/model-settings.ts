@@ -4,52 +4,53 @@ import { isProviderName, type ProviderName } from "./providers/active";
 import { listInstalledModels, pickInstalledModel } from "./installed-models";
 
 /**
- * Model nào cho việc gì.
+ * Which model does which job.
  *
- * Ba tầng, cụ thể hơn thì thắng:
+ * Three tiers, the more specific winning:
  *
- *   1. Model chọn cho LẦN CHẠY này  — "viết tập này bằng model to xem sao"
- *   2. Model của PROMPT              — bước này luôn dùng model nhỏ hơn
- *   3. Model MẶC ĐỊNH                — bảng Setting, lùi về .env nếu chưa đặt
+ *   1. The model chosen for THIS RUN     — "try this episode on the big model"
+ *   2. The PROMPT's model                — this step always uses a smaller one
+ *   3. The DEFAULT model                 — the Setting table, falling back to .env
  *
- * Tầng mặc định nằm trong DB chứ không chỉ trong `.env` vì đổi model mặc định
- * là việc làm thường xuyên lúc đang thử; sửa `.env` thì phải khởi động lại
- * worker.
+ * The default tier lives in the DB rather than only in `.env` because changing the
+ * default model is a routine thing while experimenting; editing `.env` would mean
+ * restarting
  */
 export type ModelKind = "write" | "utility" | "embed";
 
 const PROVIDER_KEY = "llm.provider";
 
 /**
- * Khoá lưu model mặc định — TÁCH THEO PROVIDER.
+ * The key storing the default model — SPLIT BY PROVIDER.
  *
- * Nếu dùng chung một khoá thì đổi sang OpenRouter, chọn claude-sonnet, rồi đổi
- * về Ollama là mọi job đi hỏi Ollama một model tên "anthropic/claude-sonnet-4.5"
- * và chết. Mà đổi qua đổi lại chính là việc người ta sẽ làm.
+ * Sharing one key means switching to OpenRouter, picking claude-sonnet, then
+ * switching back to Ollama sends every job asking Ollama for a model called
+ * "anthropic/claude-sonnet-4.5", and it dies. And switching back and forth is
+ * exactly what people do.
  *
- * Nhúng vector không tách: nó luôn chạy tại chỗ.
+ * Embeddings are not split: they always run locally.
  */
 function settingKey(kind: ModelKind, provider: ProviderName): string {
   return kind === "embed" ? "model.embed" : `model.${storageProvider(provider)}.${kind}`;
 }
 
 /**
- * Provider nào dùng chung ô lưu model mặc định.
+ * Which providers share a default-model slot.
  *
- * `mock` dùng chung với `ollama`: nó vốn là bản đứng thay cho model chạy tại
- * chỗ và nhận cùng kiểu tên model. Tách ra thì cấu hình đặt lúc đang chạy giả
- * lập — tức là lúc phần lớn người ta dựng máy — biến mất ngay khi chuyển sang
- * Ollama thật, mà chẳng có gì báo.
+ * `mock` shares with `ollama`: it stands in for a local model and takes the same
+ * kind of model name. Split apart, configuration set while running the mock — which
+ * is most of the time while setting a machine up — would vanish the moment you
+ * switched to real Ollama, with nothing to say so.
  */
 function storageProvider(provider: ProviderName): "ollama" | "openrouter" {
   return provider === "openrouter" ? "openrouter" : "ollama";
 }
 
 /**
- * Provider đang bật. Một tại một thời điểm.
+ * The active provider. One at a time.
  *
- * `.env` là giá trị khởi đầu; đổi trên giao diện thì ghi vào `Setting` và ăn
- * ngay, không phải khởi động lại worker.
+ * `.env` is the starting value; changing it in the UI writes to `Setting` and takes
+ * effect immediately, with no worker restart.
  */
 export async function getActiveProvider(): Promise<ProviderName> {
   const row = await prisma.setting.findUnique({ where: { key: PROVIDER_KEY } });
@@ -58,14 +59,14 @@ export async function getActiveProvider(): Promise<ProviderName> {
   return loadEnv().LLM_PROVIDER;
 }
 
-/** Đổi provider. Chuỗi rỗng = xoá, quay về giá trị trong `.env`. */
+/** Change provider. An empty string clears it, back to the `.env` value. */
 export async function setActiveProvider(value: string): Promise<void> {
   const v = value.trim();
   if (!v) {
     await prisma.setting.deleteMany({ where: { key: PROVIDER_KEY } });
     return;
   }
-  if (!isProviderName(v)) throw new Error(`Provider không hợp lệ: "${v}"`);
+  if (!isProviderName(v)) throw new Error(`Invalid provider: "${v}"`);
   await prisma.setting.upsert({
     where: { key: PROVIDER_KEY },
     create: { key: PROVIDER_KEY, value: v },
@@ -74,12 +75,12 @@ export async function setActiveProvider(value: string): Promise<void> {
 }
 
 /**
- * Mặc định đến từ đâu.
+ * Where the default came from.
  *
- * `none` là một trạng thái THẬT, không phải lỗi: máy chưa tải model nào hợp
- * việc đó. Trước đây chỗ này lùi về một tên ghi sẵn trong `.env`, và cái tên đó
- * thành lời nói dối ngay khi máy không có model đó — job chết giữa chừng với
- * "không tìm thấy model", chứ không phải báo ngay lúc mở Studio.
+ * `none` is a REAL state, not an error: the machine has no model downloaded that
+ * suits that job. This used to fall back to a name written into `.env`, and that
+ * name became a lie the moment the machine did not have that model — the job died
+ * mid-run with "model not found", rather than saying so when Studio opened.
  */
 export type ModelSource = "setting" | "installed" | "none";
 
@@ -94,11 +95,11 @@ async function resolveDefault(kind: ModelKind): Promise<{ value: string; source:
   const stored = row?.value?.trim();
   if (stored) return { value: stored, source: "setting" };
 
-  // Provider giả lập bỏ qua tên model — và cả lý do nó tồn tại là chạy được khi
-  // máy chưa có model nào. Bắt nó phải có model là phá đúng công dụng đó.
+  // The mock provider ignores the model name — and its whole reason to exist is
+  // running with no models on the machine. Requiring one breaks exactly that.
   if (provider === "mock") return { value: "mock", source: "installed" };
 
-  // OpenRouter không có khái niệm "đã tải" — phải chọn tay ở trang Model.
+  // OpenRouter has no notion of "downloaded" — it has to be picked on the Models page.
   if (provider === "openrouter") return { value: "", source: "none" };
 
   const value = pickInstalledModel({
@@ -117,7 +118,7 @@ export async function getDefaultModels(): Promise<
   return out;
 }
 
-/** Đặt model mặc định cho provider đang bật. Chuỗi rỗng = quay về `.env`. */
+/** Set the default model for the active provider. An empty string reverts to `.env`. */
 export async function setDefaultModel(kind: ModelKind, value: string): Promise<void> {
   const provider = await getActiveProvider();
   const key = settingKey(kind, provider);
@@ -131,11 +132,11 @@ export async function setDefaultModel(kind: ModelKind, value: string): Promise<v
 }
 
 /**
- * Chọn model cho một lần gọi.
+ * Pick the model for one call.
  *
- * Chuỗi rỗng ở tầng trên coi như KHÔNG đặt — form gửi lên `model=""` khi người
- * dùng để trống, mà coi chuỗi rỗng là một lựa chọn thì provider nhận model tên
- * rỗng và báo lỗi khó hiểu.
+ * An empty string at a higher tier counts as NOT SET — the form posts `model=""`
+ * when the user leaves it blank, and treating that as a choice hands the provider
+ * an empty model name and a baffling error.
  */
 export async function resolveModel(input: {
   requested?: string | null;
@@ -150,23 +151,23 @@ export async function resolveModel(input: {
 
   const fallback = await getDefaultModel(input.kind);
   if (!fallback) {
-    // Dừng ở ĐÂY chứ không gửi tên model rỗng đi: provider sẽ báo một lỗi khó
-    // hiểu, còn câu này chỉ thẳng chỗ cần sửa.
+    // Stop HERE rather than sending an empty model name: the provider would report
+    // something baffling, while this points straight at what to fix.
     throw new Error(
-      `Chưa có model cho bước "${input.kind}". Vào trang Model: tải một model về ` +
-        `hoặc chọn model mặc định. (Đang chạy provider "${await getActiveProvider()}".)`,
+      `No model for step "${input.kind}". Go to the Models page: download one ` +
+        `or pick a default. (Running provider "${await getActiveProvider()}".)`,
     );
   }
   return fallback;
 }
 
 /**
- * Lượt chạy này có cần GPU ở máy không.
+ * Whether this run needs the machine's GPU.
  *
- * Job LLM giữ chỗ `VRAM_LLM_MB` (mặc định 12 GB) suốt thời gian chạy. Gọi lên
- * OpenRouter thì không dùng một MB VRAM nào, mà một lượt gọi mạng kéo dài hàng
- * chục giây — giữ chỗ trong lúc đó là chặn đứng clone giọng và mọi việc GPU
- * khác mà chẳng để làm gì.
+ * An LLM job reserves `VRAM_LLM_MB` (12 GB by default) for its whole run. A call
+ * to OpenRouter uses no VRAM at all, while a network round trip lasts tens of
+ * seconds — holding the reservation through that blocks voice cloning and every
+ * other GPU job for nothing.
  */
 export async function needsLocalGpu(): Promise<boolean> {
   return (await getActiveProvider()) === "ollama";

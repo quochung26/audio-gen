@@ -10,11 +10,11 @@ export interface TelemetryContext {
 }
 
 /**
- * Ghi lại mỗi lần gọi LLM.
+ * Record every LLM call.
  *
- * Ghi thời gian và tốc độ chứ không ghi tiền: với model chạy tại chỗ, thời gian
- * máy mới là tài nguyên khan hiếm. Bảng này là cách duy nhất để sau này trả lời
- * "model nào, tham số nào cho ra văn hay" thay vì đoán.
+ * Records time and speed rather than money: with a local model, machine time is the
+ * scarce resource. This table is the only way to later answer "which model and which
+ * parameters give the best prose" instead of guessing.
  */
 export async function recordRun(
   ctx: TelemetryContext,
@@ -36,7 +36,7 @@ export async function recordRun(
       },
     })
     .catch(() => {
-      // Telemetry hỏng không được làm hỏng job đang chạy.
+      // A broken telemetry write must not break the job it is recording.
     });
 }
 

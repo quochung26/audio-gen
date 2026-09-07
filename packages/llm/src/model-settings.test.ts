@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Luật chọn model — ba tầng, cụ thể hơn thì thắng.
+ * The model selection rule — three tiers, the more specific winning.
  *
- * Giả lập `prisma` và `loadEnv` để test chạy không cần DB: thứ đáng kiểm ở đây
- * là THỨ TỰ ưu tiên, không phải Prisma có hoạt động không.
+ * `prisma` and `loadEnv` are mocked so the tests run without a DB: what is worth
+ * checking here is the PRIORITY ORDER, not whether Prisma works.
  */
 const settings = new Map<string, string>();
 
@@ -27,14 +27,14 @@ vi.mock("@audio/database", () => ({
   },
 }));
 
-/** Provider mặc định — đổi được trong từng test. */
+/** The default provider — changeable per test. */
 const env = { provider: "ollama" as "mock" | "ollama" | "openrouter" };
 
 vi.mock("@audio/config", () => ({
   loadEnv: () => ({
     LLM_PROVIDER: env.provider,
-    // Cổng không ai nghe: `listInstalledModels` phải nuốt lỗi và trả mảng rỗng,
-    // chứ không được làm chết việc lấy model mặc định.
+    // A port nobody is listening on: `listInstalledModels` has to swallow the error
+    // and return an empty array rather than killing default-model resolution.
     OLLAMA_URL: "http://127.0.0.1:9",
   }),
 }));
@@ -54,39 +54,39 @@ beforeEach(() => {
   env.provider = "ollama";
 });
 
-describe("mặc định", () => {
-  it("provider giả lập vẫn chạy được khi máy chưa có model nào", async () => {
-    // Cả lý do "mock" tồn tại là dựng được Studio/worker trước khi có model.
+describe("defaults", () => {
+  it("the mock provider still works with no models on the machine", async () => {
+    // The whole reason "mock" exists is building Studio/worker before any model.
     await setActiveProvider("mock");
     expect(await getDefaultModel("write")).toBe("mock");
     await expect(resolveModel({ kind: "write" })).resolves.toBe("mock");
   });
 
-  it("chưa đặt gì và chưa tải model nào thì KHÔNG chọn gì", async () => {
-    await setActiveProvider("ollama");
-    // Không bịa ra một tên: bịa thì job chết giữa chừng với "không tìm thấy
-    // model", thay vì báo ngay lúc mở Studio.
+  it("nothing set and nothing downloaded means NOTHING is chosen", async () => {
+
+    // No invented name: inventing one kills the job mid-run with "model not found",
+    // instead of saying so when Studio opens.
     expect(await getDefaultModel("write")).toBe("");
     expect(await getDefaultModel("utility")).toBe("");
     expect(await getDefaultModel("embed")).toBe("");
   });
 
-  it("đặt ở giao diện thì thắng mặc định tự chọn", async () => {
+  it("a UI setting beats the auto-chosen default", async () => {
     await setActiveProvider("ollama");
     await setDefaultModel("write", "qwen3:32b");
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
-    // Không đụng tới loại khác.
+    // Leaves the other kinds alone.
     expect(await getDefaultModel("utility")).toBe("");
   });
 
-  it("xoá thì quay về mặc định tự chọn", async () => {
+  it("clearing it reverts to the auto-chosen default", async () => {
     await setActiveProvider("ollama");
     await setDefaultModel("write", "qwen3:32b");
     await setDefaultModel("write", "");
     expect(await getDefaultModel("write")).toBe("");
   });
 
-  it("cắt khoảng trắng thừa; toàn khoảng trắng coi như xoá", async () => {
+  it("trims whitespace; all-whitespace counts as clearing", async () => {
     await setActiveProvider("ollama");
     await setDefaultModel("write", "  qwen3:32b  ");
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
@@ -94,96 +94,96 @@ describe("mặc định", () => {
     expect(await getDefaultModel("write")).toBe("");
   });
 
-  it("getDefaultModels nói rõ giá trị đến TỪ ĐÂU", async () => {
+  it("getDefaultModels says WHERE each value came from", async () => {
     await setActiveProvider("ollama");
-    // Ba nguồn khác nhau, và giao diện phải phân biệt được: người dùng cần biết
-    // khi nào mình đang xem lựa chọn của chính mình, khi nào là máy tự suy ra.
+    // Three different sources, and the UI has to tell them apart: the user needs to
+    // know when they are looking at their own choice and when at the machine's guess.
     await setDefaultModel("write", "qwen3:32b");
     const all = await getDefaultModels();
     expect(all.write).toMatchObject({ value: "qwen3:32b", source: "setting" });
-    // Ollama không chạy trong test nên danh sách rỗng → không có gì để chọn.
+    // Ollama is not running in tests, so the list is empty → nothing to choose.
     expect(all.utility).toMatchObject({ value: "", source: "none" });
   });
 
 
 });
 
-describe("resolveModel — ba tầng ưu tiên", () => {
-  it("model của lần chạy thắng tất cả", async () => {
+describe("resolveModel — the three priority tiers", () => {
+  it("the run's model beats everything", async () => {
     await setDefaultModel("write", "mac-dinh");
     expect(await resolveModel({ requested: "chon-tay", prompt: "cua-prompt", kind: "write" })).toBe(
       "chon-tay",
     );
   });
 
-  it("không chọn tay thì lấy của prompt", async () => {
+  it("with no manual pick it takes the prompt's", async () => {
     await setDefaultModel("write", "mac-dinh");
     expect(await resolveModel({ prompt: "cua-prompt", kind: "write" })).toBe("cua-prompt");
   });
 
-  it("không có gì thì lấy mặc định", async () => {
+  it("with nothing at all it takes the default", async () => {
     await setDefaultModel("write", "mac-dinh");
     expect(await resolveModel({ kind: "write" })).toBe("mac-dinh");
   });
 
-  it("CHUỖI RỖNG coi như không đặt, không phải một lựa chọn", async () => {
-    // Form gửi model="" khi người dùng để trống. Coi nó là lựa chọn thì Ollama
-    // nhận model tên rỗng và báo lỗi khó hiểu.
+  it("an EMPTY STRING counts as unset, not as a choice", async () => {
+    // The form posts model="" when the user leaves it blank. Treated as a choice,
+    // Ollama receives an empty model name and reports something baffling.
     expect(await resolveModel({ requested: "", prompt: "cua-prompt", kind: "write" })).toBe(
       "cua-prompt",
     );
     await expect(resolveModel({ requested: "  ", prompt: "", kind: "write" })).rejects.toThrow(
-      /Chưa có model/,
+      /No model/,
     );
   });
 
-  it("hết đường thì DỪNG với lời chỉ rõ chỗ sửa", async () => {
-    // Gửi tên model rỗng đi thì provider báo một lỗi khó hiểu.
+  it("out of options it STOPS, naming what to fix", async () => {
+    // Sending an empty model name makes the provider report something baffling.
     await expect(resolveModel({ requested: null, prompt: null, kind: "utility" })).rejects.toThrow(
-      /trang Model/,
+      /Models page/,
     );
   });
 
-  it("cắt khoảng trắng quanh model chọn tay", async () => {
+  it("trims whitespace around a manually picked model", async () => {
     expect(await resolveModel({ requested: "  qwen3:32b ", kind: "write" })).toBe("qwen3:32b");
   });
 });
 
-describe("provider đang bật — một trong hai", () => {
-  it("chưa chọn gì thì lấy từ .env", async () => {
+describe("the active provider — one of the three", () => {
+  it("unset, it comes from .env", async () => {
     env.provider = "openrouter";
     expect(await getActiveProvider()).toBe("openrouter");
   });
 
-  it("chọn trên giao diện thì đè lên .env", async () => {
+  it("a UI choice overrides .env", async () => {
     env.provider = "ollama";
     await setActiveProvider("openrouter");
     expect(await getActiveProvider()).toBe("openrouter");
   });
 
-  it("xoá thì quay về .env", async () => {
+  it("clearing it reverts to .env", async () => {
     env.provider = "ollama";
     await setActiveProvider("openrouter");
     await setActiveProvider("");
     expect(await getActiveProvider()).toBe("ollama");
   });
 
-  it("từ chối tên provider lạ", async () => {
+  it("rejects an unknown provider name", async () => {
     await expect(setActiveProvider("openai")).rejects.toThrow(/openai/);
   });
 
-  it("giá trị rác trong DB không làm chết — lùi về .env", async () => {
-    // Sửa tay trong DB, hoặc dữ liệu cũ từ bản trước.
+  it("junk in the DB does not kill it — it falls back to .env", async () => {
+    // Hand-edited in the DB, or old data from an earlier version.
     settings.set("llm.provider", "khong-ton-tai");
     env.provider = "ollama";
     expect(await getActiveProvider()).toBe("ollama");
   });
 });
 
-describe("model mặc định tách theo provider", () => {
-  it("mỗi provider nhớ model riêng, đổi qua đổi lại không mất", async () => {
-    // Dùng chung một khoá thì đổi sang OpenRouter, chọn claude, rồi đổi về
-    // Ollama là mọi job đi hỏi Ollama model tên "anthropic/..." và chết.
+describe("the default model is split by provider", () => {
+  it("each provider remembers its own model, and switching back and forth loses neither", async () => {
+    // Sharing one key means switching to OpenRouter, picking claude, then switching
+    // back to Ollama sends every job asking Ollama for "anthropic/...", and it dies.
     await setActiveProvider("ollama");
     await setDefaultModel("write", "qwen3:32b");
 
@@ -195,9 +195,9 @@ describe("model mặc định tách theo provider", () => {
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
   });
 
-  it("mock dùng CHUNG ô lưu với ollama", async () => {
-    // Phần lớn thời gian dựng máy là chạy giả lập. Tách ra thì model đặt lúc đó
-    // biến mất ngay khi chuyển sang Ollama thật, mà chẳng có gì báo.
+  it("mock SHARES its slot with ollama", async () => {
+    // Most of the time spent setting a machine up is on the mock. Split apart, a model
+    // set then would vanish the moment you switched to real Ollama, with nothing to say so.
     await setActiveProvider("mock");
     await setDefaultModel("write", "qwen3:32b");
 
@@ -205,34 +205,34 @@ describe("model mặc định tách theo provider", () => {
     expect(await getDefaultModel("write")).toBe("qwen3:32b");
   });
 
-  it("nhúng vector KHÔNG tách — luôn chạy tại chỗ", async () => {
+  it("embeddings are NOT split — they always run locally", async () => {
     await setActiveProvider("ollama");
     await setDefaultModel("embed", "bge-m3-custom");
     await setActiveProvider("openrouter");
     expect(await getDefaultModel("embed")).toBe("bge-m3-custom");
   });
 
-  it("OpenRouter chưa chọn gì thì cũng KHÔNG có mặc định", async () => {
-    // Không có khái niệm "đã tải" nên phải chọn tay ở trang Model.
+  it("OpenRouter with nothing chosen also has NO default", async () => {
+    // It has no notion of "downloaded", so it has to be picked on the Models page.
     await setActiveProvider("openrouter");
     expect(await getDefaultModel("write")).toBe("");
   });
 });
 
 describe("needsLocalGpu", () => {
-  it("chạy Ollama thì giữ chỗ VRAM", async () => {
+  it("running on Ollama reserves VRAM", async () => {
     await setActiveProvider("ollama");
     expect(await needsLocalGpu()).toBe(true);
   });
 
-  it("chạy OpenRouter thì KHÔNG giữ chỗ", async () => {
-    // Một lượt gọi mạng kéo dài hàng chục giây; giữ 12 GB trong lúc đó là chặn
-    // đứng clone giọng mà chẳng để làm gì.
+  it("running on OpenRouter reserves NOTHING", async () => {
+    // A network round trip lasts tens of seconds; holding 12 GB through it blocks
+    // voice cloning for nothing.
     await setActiveProvider("openrouter");
     expect(await needsLocalGpu()).toBe(false);
   });
 
-  it("mock cũng không cần GPU", async () => {
+  it("the mock needs no GPU either", async () => {
     await setActiveProvider("mock");
     expect(await needsLocalGpu()).toBe(false);
   });

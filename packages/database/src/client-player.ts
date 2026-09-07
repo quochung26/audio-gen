@@ -2,18 +2,18 @@ import { PrismaClient } from "@prisma/client";
 import { prisma } from "./client";
 
 /**
- * Client cho DB hosted mà Player đọc.
+ * The client for the hosted DB the Player reads.
  *
- * Hai DB, một chiều đồng bộ:
- * - DB local (`DATABASE_URL`)  — Studio + worker. Đầy đủ: bản thảo, prompt,
- *   telemetry, sự kiện truy hồi. KHÔNG BAO GIỜ rời máy.
- * - DB hosted (`PLAYER_DATABASE_URL`) — Player đọc. Chỉ nội dung đã xuất bản,
- *   do job PUBLISH đẩy sang theo đúng khai báo ở publish-scope.ts.
+ * Two databases, one sync direction:
+ * - The local DB (`DATABASE_URL`)  — Studio + worker. Everything: drafts, prompts,
+ *   telemetry, retrieved facts. It NEVER leaves the machine.
+ * - The hosted DB (`PLAYER_DATABASE_URL`) — what the Player reads. Only published
+ *   content, pushed by the PUBLISH job under the declaration in publish-scope.ts.
  *
- * `PLAYER_DATABASE_URL` để trống thì dùng lại DB local. Đây là chế độ chạy tại
- * chỗ: một máy, một DB, không phải dựng gì thêm. Nhưng lúc đó KHÔNG còn ranh
- * giới nào — Player nhìn thấy cả bản thảo, chỉ là không truy vấn tới. Trước khi
- * deploy Player ra ngoài PHẢI đặt biến này.
+ * With `PLAYER_DATABASE_URL` blank it reuses the local DB. That is the local mode:
+ * one machine, one database, nothing extra to set up. But then there is NO boundary
+ * at all — the Player can see the drafts, it merely does not query them. Before
+ * deploying the Player anywhere public this variable MUST be set.
  */
 const globalForPlayer = globalThis as unknown as { prismaPlayer?: PrismaClient };
 
@@ -31,5 +31,5 @@ export const prismaPlayer = globalForPlayer.prismaPlayer ?? create();
 
 if (process.env.NODE_ENV !== "production") globalForPlayer.prismaPlayer = prismaPlayer;
 
-/** DB hosted có tách riêng thật không, hay đang dùng chung với local. */
+/** Whether the hosted DB is genuinely separate, or shared with the local one. */
 export const playerDbIsSeparate = Boolean(process.env.PLAYER_DATABASE_URL);

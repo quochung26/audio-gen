@@ -4,13 +4,14 @@ import { PrismaClient, PromptStep, TtsEngine, VoiceTier, LicenseType } from "@pr
 
 const prisma = new PrismaClient();
 
-/** Thư mục prompts/ ở gốc repo, so với packages/database/prisma/ */
+/** The prompts/ directory at the repo root, relative to packages/database/prisma/ */
 const PROMPTS_DIR = join(import.meta.dirname, "../../../prompts");
 
 /**
- * `model` để trống nghĩa là dùng model theo cấu hình cho bước đó. Trước đây ba
- * bước phụ ghi "utility" — đó KHÔNG phải tên model nào cả, và giờ job đọc
- * `Prompt.model` thật nên để vậy là gọi Ollama với model tên "utility".
+ * A blank `model` means use whatever model is configured for that step. Three of the
+ * utility steps used to say "utility" — which is NOT the name of any model, and now
+ * that jobs actually read `Prompt.model`, leaving it would call Ollama asking for a
+ * model called "utility".
  */
 const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = [
   { step: "OUTLINE", file: "outline.md" },
@@ -23,20 +24,20 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "METADATA", file: "metadata.md" },
 ];
 
-/** Tham số sinh theo từng bước — văn sáng tạo cần temperature cao hơn việc phụ. */
+/** Generation parameters per step — creative prose needs a higher temperature than utility work. */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
-  // Ngữ cảnh rộng hơn OUTLINE vì phải nạp cả tóm tắt các tập cũ.
+  // A wider context than OUTLINE because it has to load the earlier episodes' summaries.
   NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
-  // `maxTokens` phải rộng hơn hẳn số từ đích: 1.800 token ≈ 1.000 từ, chỉ hơn
-  // mục tiêu 750 có một phần ba — model viết kỹ là chạm trần rồi bị cắt. 2.600
-  // token ≈ 1.450 từ, đủ chỗ cho cả cảnh 900 từ viết rộng tay.
+  // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
+  // words, only a third above the 750 target — a model writing thoroughly hits the
+  // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
   //
-  // `repeatPenalty` hạ từ 1.12 xuống 1.05: phạt lặp nặng tay cũng dập luôn lặp
-  // CÓ CHỦ Ý, mà đó là một thủ pháp thật — "Tiếng gõ. Rồi lại tiếng gõ."
+  // `repeatPenalty` lowered from 1.12 to 1.05: a heavy repetition penalty also
+  // crushes DELIBERATE repetition, which is a real device — "A knock. Then another knock."
   WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
-  // Thấp hơn viết cảnh vì tình tiết đã chốt, cao hơn biên tập audio vì vẫn
-  // là viết văn: 0.4 cho ra bản dịch phẳng, đọc lên nghe như bản tin.
+  // Lower than scene writing because the plot is already fixed, higher than audio
+  // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.5, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
@@ -66,29 +67,29 @@ async function seedPrompts() {
 }
 
 /**
- * Giọng giả lập để pipeline chạy được trước khi có Kokoro thật.
- * Giọng thật thêm ở Phase 3 bằng scripts/seed-voices.
+ * Mock voices so the pipeline runs before real Kokoro exists.
+ * Real voices are added in Phase 3 by scripts/seed-voices.
  */
 /**
- * Ghi đè nội dung đã có trong DB thay vì chỉ tạo cái còn thiếu.
+ * Overwrite content already in the DB rather than only creating what is missing.
  *
- * Có để những thứ seed mang theo — mô tả thể loại chẳng hạn — cập nhật được ở
- * máy đã cài từ trước. Không có nó thì bản mô tả mới chỉ tới được DB mới toanh,
- * còn máy đang dùng thì mãi giữ bản đầu tiên.
+ * So the things the seed carries — genre descriptions, for instance — can be updated
+ * on a machine set up earlier. Without it, a new description only ever reaches a
+ * brand-new DB, while a machine in use keeps the first version forever.
  */
 const OVERWRITE = process.env.SEED_OVERWRITE === "1";
 
 /**
- * Thể loại khởi đầu.
+ * The starting genres.
  *
- * Mô tả viết như CHỈ DẪN cho model, không phải định nghĩa từ điển: nó được nhét
- * vào Story Bible nên câu chữ ở đây ảnh hưởng thẳng tới văn.
+ * The descriptions are written as INSTRUCTIONS to the model, not dictionary
+ * definitions: they go into the Story Bible, so the wording here affects the prose directly.
  *
- * Vì là chỉ dẫn nên viết bằng TIẾNG ANH, giống mọi prompt khác — nó nằm giữa
- * khối chỉ dẫn tiếng Anh, và model 7–14B tuân thủ chỉ dẫn tiếng Anh chặt hơn
- * hẳn. Riêng TÊN thể loại giữ nguyên tiếng Việt: đó là khoá tra cứu
- * (`Series.genre`) và là khoá chọn biến thể prompt, đổi tên là các bộ đang
- * dùng tên cũ lặng lẽ mất phần mô tả trong Bible.
+ * Being instructions, they are written in ENGLISH like every other prompt — they sit
+ * inside an English instruction block, and 7–14B models follow English instructions
+ * markedly more closely. The NAMES stay Vietnamese: they are the lookup key
+ * (`Series.genre`) and the key for choosing a prompt variant, and renaming one
+ * silently strips the description from the Bible of every story using the old name.
  */
 async function seedGenres() {
   const genres = [
@@ -130,19 +131,19 @@ async function seedGenres() {
   for (const g of genres) {
     await prisma.genre.upsert({
       where: { name: g.name },
-      // Mặc định KHÔNG ghi đè mô tả đã có: đây là thứ người viết chỉnh theo
-      // giọng của mình, chạy lại seed mà mất là rất khó chịu. Chỉ ghi đè khi
-      // được bảo thẳng — xem OVERWRITE.
+      // By default do NOT overwrite an existing description: this is what the writer
+      // tunes to their own voice, and losing it on a reseed is deeply annoying. Only
+      // overwritten when explicitly asked — see OVERWRITE.
       //
-      // `enabled` không đụng tới kể cả khi ghi đè: thể loại đã ẩn đi mà seed
-      // bật lại thì nó hiện lại ở ô chọn, và chẳng ai hiểu vì sao.
+      // `enabled` is left alone even when overwriting: a genre hidden on purpose that
+      // the seed switches back on reappears in the picker with no explanation.
       update: OVERWRITE ? { description: g.description, promptName: g.promptName } : {},
       create: g,
     });
   }
 
-  // Nói rõ đã làm gì. Bản trước luôn in "✔ 5 thể loại" kể cả khi không đụng
-  // hàng nào — chạy lại để lấy mô tả mới mà tưởng là xong.
+  // Say what was actually done. The previous version always printed "✔ 5 genres" even
+  // when it touched nothing — rerunning for new descriptions looked like it worked.
   const created = genres.filter((g) => !have.has(g.name)).length;
   const kept = genres.length - created;
   console.log(
@@ -156,9 +157,9 @@ async function seedGenres() {
 }
 
 async function seedVoices() {
-  // Mỗi thứ tiếng phải có bộ giọng riêng: giọng sai tiếng bị bộ giải giọng bỏ
-  // qua, nên thiếu là truyện tiếng Anh không dựng được audio dù đang chạy giả
-  // lập. Xem apps/worker/src/services/voice-resolver.ts.
+  // Each language needs its own voice set: a voice in the wrong language is skipped by
+  // the voice resolver, so a gap means an English story cannot build audio even on the
+  // mock. See apps/worker/src/services/voice-resolver.ts.
   const voices = [
     { externalVoiceId: "mock-narrator", name: "Người dẫn (giả lập)", gender: "male", ageRange: "adult", language: "vi" },
     { externalVoiceId: "mock-male", name: "Nam trung niên (giả lập)", gender: "male", ageRange: "adult", language: "vi" },
@@ -173,8 +174,8 @@ async function seedVoices() {
   for (const v of voices) {
     await prisma.voice.upsert({
       where: { engine_externalVoiceId: { engine: TtsEngine.MOCK, externalVoiceId: v.externalVoiceId } },
-      // Cập nhật `language` cả với hàng đã có: bản trước chưa có cột này nên
-      // mọi giọng cũ đều mang giá trị mặc định "vi".
+      // Update `language` on existing rows too: the column did not exist in the
+      // previous version, so every old voice carries the "vi" default.
       update: { language: v.language },
       create: {
         engine: TtsEngine.MOCK,
@@ -188,7 +189,7 @@ async function seedVoices() {
   console.log(`✔ ${voices.length} giọng giả lập (vi + en)`);
 }
 
-/** Từ điển phát âm chung — những thứ TTS tiếng Việt hay đọc sai. */
+/** The shared pronunciation dictionary — what Vietnamese TTS routinely mispronounces. */
 async function seedPronunciations() {
   const entries = [
     { term: "wifi", replacement: "quai phai" },

@@ -20,12 +20,12 @@ export * from "./providers/active";
 let cached: LlmProvider | undefined;
 
 /**
- * Provider dùng chung cho mọi job.
+ * The provider shared by every job.
  *
- * MỘT provider chạy tại một thời điểm: hoặc Ollama tại chỗ, hoặc OpenRouter
- * trên mây. Lựa chọn nằm trong bảng `Setting` (lùi về `LLM_PROVIDER` trong
- * `.env`) và được hỏi lại ở mỗi lượt gọi, nên đổi trên giao diện là ăn ngay,
- * không phải khởi động lại worker.
+ * ONE provider runs at a time: either local Ollama or OpenRouter in the cloud. The
+ * choice lives in the `Setting` table (falling back to `LLM_PROVIDER` in `.env`) and
+ * is re-read on every call, so changing it in the UI takes effect immediately, with
+ * no worker restart.
  */
 export function getLlm(): LlmProvider {
   if (cached) return cached;
@@ -38,7 +38,7 @@ export function getLlm(): LlmProvider {
       openrouter: () => {
         if (!env.OPENROUTER_API_KEY) {
           throw new Error(
-            "Chưa đặt OPENROUTER_API_KEY trong .env — không gọi được model trên OpenRouter.",
+            "OPENROUTER_API_KEY is not set in .env — cannot call models on OpenRouter.",
           );
         }
         return new OpenRouterProvider(env.OPENROUTER_API_KEY, env.OPENROUTER_URL);

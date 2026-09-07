@@ -3,11 +3,12 @@ import { prisma } from "@audio/database";
 import { isLanguage, type LanguageCode } from "@audio/core";
 
 /**
- * Ngôn ngữ mặc định cho truyện MỚI.
+ * The default language for NEW stories.
  *
- * Chỉ là giá trị khởi đầu khi tạo bộ: tạo xong thì ngôn ngữ nằm ở
- * `Series.language`, và đổi mặc định ở đây không đụng tới bộ truyện đã có —
- * đổi ngôn ngữ một bộ đang viết dở là chuyện khác hẳn, phải viết lại từ đầu.
+ * Only the starting value at creation: once created, the language lives in
+ * `Series.language`, and changing this default leaves existing stories alone —
+ * changing the language of a story already underway is another matter entirely, and
+ * means rewriting from scratch.
  */
 const KEY = "content.language";
 
@@ -18,18 +19,18 @@ export async function getDefaultLanguage(): Promise<LanguageCode> {
   return loadEnv().CONTENT_LANGUAGE;
 }
 
-/** Chuỗi rỗng = xoá, quay về giá trị trong `.env`. */
+/** An empty string clears it, back to the `.env` value. */
 export async function setDefaultLanguage(value: string): Promise<void> {
   const v = value.trim();
   if (!v) {
     await prisma.setting.deleteMany({ where: { key: KEY } });
     return;
   }
-  if (!isLanguage(v)) throw new Error(`Ngôn ngữ không hợp lệ: "${v}"`);
+  if (!isLanguage(v)) throw new Error(`Invalid language: "${v}"`);
   await prisma.setting.upsert({ where: { key: KEY }, create: { key: KEY, value: v }, update: { value: v } });
 }
 
-/** Mặc định đang lấy từ `.env` hay từ lựa chọn trên giao diện. */
+/** Whether the default currently comes from `.env` or from a choice made in the UI. */
 export async function getDefaultLanguageSource(): Promise<{
   value: LanguageCode;
   fromEnv: boolean;

@@ -2,24 +2,24 @@ import { loadEnv } from "@audio/config";
 import { LlmError } from "./provider";
 
 /**
- * Số chiều của vector. Phải khớp `vector(1024)` trong sql/001-vector.sql.
- * Đổi model embedding thì phải đổi cả hai và tạo lại toàn bộ embedding.
+ * The vector's dimension. Must match `vector(1024)` in sql/001-vector.sql.
+ * Changing the embedding model means changing both and rebuilding every embedding.
  */
 export const EMBED_DIM = 1024;
 
 export interface EmbeddingProvider {
   readonly name: string;
   readonly dim: number;
-  /** Nhúng nhiều đoạn một lượt — embedding rẻ, gọi theo lô hiệu quả hơn nhiều. */
+  /** Embed several passages at once — embeddings are cheap, and batching is far more efficient. */
   embed(texts: string[]): Promise<number[][]>;
 }
 
 /**
  * Ollama embedding.
  *
- * bge-m3 mạnh với tiếng Việt và trả 1024 chiều. **Chạy CPU là đủ** — nhúng một
- * câu tốn vài mili-giây, không đáng để chiếm VRAM của model viết truyện. Cùng
- * lý do đã đặt Kokoro lên CPU (PLAN.md mục 6.1).
+ * bge-m3 is strong on Vietnamese and returns 1024 dimensions. **CPU is enough** —
+ * embedding one sentence takes a few milliseconds, not worth taking VRAM from the
+ * writing model. The same reasoning put Kokoro on the CPU (PLAN.md section 6.1).
  */
 class OllamaEmbedding implements EmbeddingProvider {
   readonly name = "ollama";
@@ -41,30 +41,30 @@ class OllamaEmbedding implements EmbeddingProvider {
         body: JSON.stringify({ model: this.model, input: texts }),
       });
     } catch (err) {
-      throw new LlmError(`Không kết nối được Ollama ở ${this.baseUrl} để nhúng vector.`, err);
+      throw new LlmError(`Could not reach Ollama at ${this.baseUrl} to embed.`, err);
     }
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      // Lỗi hay gặp nhất: chưa `ollama pull bge-m3`.
+      // The most common cause: `ollama pull bge-m3` has not been run.
       throw new LlmError(
-        `Ollama trả lỗi ${res.status} khi nhúng vector: ${body}\n` +
-          `Đã chạy \`ollama pull ${this.model}\` chưa?`,
+        `Ollama returned error ${res.status} while embedding: ${body}\n` +
+          `Has \`ollama pull ${this.model}\` been run?`,
       );
     }
 
     const data = (await res.json()) as { embeddings?: number[][] };
     if (!data.embeddings || data.embeddings.length !== texts.length) {
       throw new LlmError(
-        `Ollama trả ${data.embeddings?.length ?? 0} vector cho ${texts.length} đoạn văn.`,
+        `Ollama returned ${data.embeddings?.length ?? 0} vectors for ${texts.length} passages.`,
       );
     }
 
     for (const v of data.embeddings) {
       if (v.length !== this.dim) {
         throw new LlmError(
-          `Model "${this.model}" trả vector ${v.length} chiều, nhưng cột DB là ${this.dim}. ` +
-            `Sửa EMBED_DIM và sql/001-vector.sql, rồi tạo lại toàn bộ embedding.`,
+          `Model "${this.model}" returned ${v.length}-dimensional vectors, but the DB column is ${this.dim}. ` +
+            `Fix EMBED_DIM and sql/001-vector.sql, then rebuild every embedding.`,
         );
       }
     }
@@ -73,11 +73,11 @@ class OllamaEmbedding implements EmbeddingProvider {
 }
 
 /**
- * Embedding giả lập — băm nội dung thành vector đơn vị tất định.
+ * Mock embeddings — hash the content into a deterministic unit vector.
  *
- * KHÔNG mang ngữ nghĩa: hai câu cùng chủ đề sẽ không gần nhau. Nó chỉ để kiểm
- * chứng đường đi dữ liệu (lưu, truy vấn, xếp hạng) mà chưa cần tải model. Đừng
- * đánh giá chất lượng truy hồi qua nó.
+ * Carries NO meaning: two sentences on one topic will not be near each other. It
+ * exists only to verify the data path (storing, querying, ranking) without
+ * downloading a model. Do not judge retrieval quality by it.
  */
 class MockEmbedding implements EmbeddingProvider {
   readonly name = "mock";
@@ -89,8 +89,9 @@ class MockEmbedding implements EmbeddingProvider {
 }
 
 function hashVector(text: string, dim: number): number[] {
-  // Băm từng từ vào các chiều — cùng từ thì cùng chiều, nên câu chia sẻ nhiều
-  // từ sẽ gần nhau. Đủ để kiểm chứng xếp hạng, không phải ngữ nghĩa thật.
+  // Hash each word into dimensions — the same word hits the same dimension, so
+  // sentences sharing words end up near each other. Enough to verify ranking, not
+  // real semantics.
   const v = new Array<number>(dim).fill(0);
   for (const word of text.toLowerCase().split(/\s+/).filter(Boolean)) {
     let h = 2166136261;
@@ -108,11 +109,11 @@ function hashVector(text: string, dim: number): number[] {
 let cached: EmbeddingProvider | undefined;
 
 /**
- * Provider nhúng vector.
+ * The embedding provider.
  *
- * Model KHÔNG lấy từ `.env` nữa mà từ cấu hình ở trang Model (hoặc model đã tải
- * hợp việc nhúng). Vì thế hàm này async — provider phải biết model trước khi
- * dựng, chứ không thể để trống rồi gửi tên rỗng lên Ollama.
+ * The model no longer comes from `.env` but from the Models page (or a downloaded
+ * model suited to embedding). Hence this being async — the provider has to know its
+ * model before being built, rather than leaving it blank and sending Ollama nothing.
  */
 export async function getEmbedding(): Promise<EmbeddingProvider> {
   if (cached) return cached;
@@ -127,12 +128,12 @@ export async function getEmbedding(): Promise<EmbeddingProvider> {
   return cached;
 }
 
-/** Quên provider đang nhớ — gọi khi đổi model nhúng. */
+/** Forget the remembered provider — call when the embedding model changes. */
 export function forgetEmbedding(): void {
   cached = undefined;
 }
 
-/** Định dạng vector cho pgvector: '[0.1,0.2,...]' */
+/** Format a vector for pgvector: '[0.1,0.2,...]' */
 export function toVectorLiteral(v: number[]): string {
   return `[${v.join(",")}]`;
 }

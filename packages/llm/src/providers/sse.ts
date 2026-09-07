@@ -1,22 +1,22 @@
 /**
- * Bóc luồng SSE của API kiểu OpenAI.
+ * Parse the SSE stream of an OpenAI-shaped API.
  *
- * Tách khỏi provider để test được: một khối dữ liệu từ mạng có thể cắt ngang
- * giữa dòng `data:`, và parse ngay là lỗi cú pháp — kiểu hỏng chỉ xuất hiện khi
- * mạng chậm hoặc câu trả lời dài, tức là đúng lúc khó gỡ nhất.
+ * Separate from the provider so it can be tested: a network chunk can cut through
+ * the middle of a `data:` line, and parsing that is a syntax error — a failure that
+ * only appears on a slow network or a long reply, exactly when it is hardest to debug.
  */
 
 export interface SseEvent {
-  /** JSON đã parse. `null` nếu là dòng kết thúc `[DONE]`. */
+  /** The parsed JSON. `null` for the terminating `[DONE]` line. */
   data: Record<string, unknown> | null;
   done: boolean;
 }
 
 /**
- * Tách các sự kiện hoàn chỉnh khỏi bộ đệm, trả kèm phần dư.
+ * Split complete events out of the buffer, returning the remainder with them.
  *
- * Bỏ qua dòng trống, dòng bình luận (`:` mở đầu — OpenRouter gửi `: OPENROUTER
- * PROCESSING` để giữ kết nối) và dòng JSON hỏng.
+ * Skips blank lines, comment lines (leading `:` — OpenRouter sends `: OPENROUTER
+ * PROCESSING` as a keep-alive) and malformed JSON lines.
  */
 export function takeSseEvents(buffer: string): { events: SseEvent[]; rest: string } {
   const parts = buffer.split("\n");
@@ -36,7 +36,7 @@ export function takeSseEvents(buffer: string): { events: SseEvent[]; rest: strin
     try {
       events.push({ data: JSON.parse(payload) as Record<string, unknown>, done: false });
     } catch {
-      // Dòng hỏng thì bỏ — mất một mẩu chữ còn hơn chết cả lượt sinh.
+      // Drop a broken line — losing one fragment of text beats killing the generation.
     }
   }
   return { events, rest };
@@ -46,11 +46,11 @@ export interface ChatDelta {
   content: string;
   inputTokens: number;
   outputTokens: number;
-  /** Lý do dừng — `length` nghĩa là bị cắt vì chạm trần token. */
+  /** The stop reason — `length` means it was cut off at the token ceiling. */
   finishReason: string | null;
 }
 
-/** Đọc một sự kiện chat-completions thành mẩu chữ và số token. */
+/** Read one chat-completions event into a text fragment and token counts. */
 export function readChatChunk(data: Record<string, unknown>): ChatDelta {
   const choices = data.choices as
     | Array<{ delta?: { content?: string }; finish_reason?: string | null }>

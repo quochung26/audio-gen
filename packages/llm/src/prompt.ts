@@ -1,7 +1,7 @@
 import { prisma, type PromptStep } from "@audio/database";
 import { LlmError } from "./provider";
 
-/** Thay {{bien}} bằng giá trị. Biến thiếu là lỗi, không âm thầm để trống. */
+/** Replace {{var}} with a value. A missing variable is an error, never a silent blank. */
 export function renderTemplate(template: string, vars: Record<string, string | number>): string {
   const missing: string[] = [];
   const out = template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
@@ -13,34 +13,35 @@ export function renderTemplate(template: string, vars: Record<string, string | n
     return String(v);
   });
   if (missing.length > 0) {
-    throw new LlmError(`Prompt thiếu biến: ${missing.join(", ")}`);
+    throw new LlmError(`Prompt is missing variables: ${missing.join(", ")}`);
   }
   return out;
 }
 
 /**
- * Biến mà mỗi bước TRUYỀN VÀO prompt.
+ * The variables each step PASSES INTO its prompt.
  *
- * Phải khớp với object đưa cho `renderTemplate` trong job tương ứng. Sai một
- * tên là job chết giữa chừng — `renderTemplate` cố ý ném lỗi thay vì âm thầm
- * để trống, vì prompt thiếu một khối ngữ cảnh thì model vẫn trả về văn trông
- * bình thường, và cái sai chỉ lộ ra ở chất lượng.
+ * Must match the object handed to `renderTemplate` in the corresponding job. One
+ * wrong name kills the job mid-run — `renderTemplate` throws deliberately rather
+ * than blanking silently, because a prompt missing a context block still gets
+ * normal-looking prose back, and the mistake only shows up as quality.
  *
- * Studio dùng bảng này để chặn ngay lúc lưu, chứ không đợi tới lúc chạy.
+ * Studio uses this table to block at save time rather than waiting for a run.
  */
 export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
-  // `world` và `cast` là hai khối người viết đặt trước: rỗng thì AI tự nghĩ,
-  // có thì AI phải bám theo. Xem renderWorldForOutline / renderCastForOutline.
+  // `world` and `cast` are the two blocks the writer sets up front: empty means the
+  // AI invents them, present means the AI follows them. See renderWorldForOutline /
+  // renderCastForOutline.
   OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
-  // Viết tiếp thì không cần ý tưởng gốc — cần biết đã xảy ra những gì.
+  // Continuing needs no original idea — it needs to know what has happened.
   NEXT_EPISODE: ["bible", "context", "episodeNumber", "chapterCount", "scenesPerChapter", "sceneWords"],
-  // Cả ngữ cảnh gộp thành MỘT biến: Story Bible, tóm tắt cung truyện, sự kiện
-  // truy hồi, cảnh trước, beat, số từ đích — xem `renderContext` ở @audio/core.
+  // The whole context folded into ONE variable: Story Bible, arc summary, retrieved
+  // facts, previous scene, beat, target words — see `renderContext` in @audio/core.
   WRITE_SCENE: ["context"],
-  // Chỉ Bible và chính đoạn cần viết lại: chuyển ngữ KHÔNG được nhìn tóm tắt
-  // hay sự kiện cũ. Cho nó ngữ cảnh câu chuyện là mời nó "kể lại cho hay hơn",
-  // mà việc của nó là giữ nguyên từng tình tiết. Bible vào để lấy tên riêng,
-  // thuật ngữ và cách xưng hô — đúng những thứ không được tự đặt lại.
+  // Only the Bible and the passage being rewritten: the rewrite step must NOT see
+  // summaries or old facts. Giving it story context invites it to "retell this
+  // better", when its job is to preserve every detail. The Bible goes in for proper
+  // nouns, terminology and forms of address — exactly what it must not re-invent.
   TRANSLATE: ["bible", "text"],
   AUDIO_EDIT: ["characters", "draft"],
   SUMMARIZE: ["characters", "text"],
@@ -49,14 +50,14 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
 };
 
 export interface PromptCheck {
-  /** Biến prompt dùng nhưng bước này không truyền → job sẽ chết. */
+  /** Variables the prompt uses but this step does not pass → the job will die. */
   unknown: string[];
-  /** Biến bước này truyền nhưng prompt không dùng → chỉ là lãng phí ngữ cảnh. */
+  /** Variables this step passes but the prompt does not use → merely wasted context. */
   unused: string[];
   used: string[];
 }
 
-/** Đối chiếu biến trong prompt với biến bước đó thật sự truyền vào. */
+/** Check a prompt's variables against what the step actually passes in. */
 export function checkPromptVariables(step: PromptStep, content: string): PromptCheck {
   const available = PROMPT_VARIABLES[step] ?? [];
   const used = [...new Set([...content.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]!))];
@@ -75,18 +76,18 @@ export interface LoadedPrompt {
 }
 
 /**
- * Lấy prompt đang hoạt động cho một bước.
- * Ưu tiên biến thể theo thể loại; không có thì dùng bản mặc định (genre = null).
+ * Get the active prompt for a step.
+ * Prefers the genre variant; without one, the default (genre = null).
  */
 /**
- * Trong các bản đang bật, bản nào được dùng cho thể loại này.
+ * Among the active ones, which is used for this genre.
  *
- * Tách riêng để Studio hiển thị ĐÚNG bản sẽ chạy, thay vì tự đoán lại luật —
- * hai chỗ suy luận khác nhau là kiểu sai không ai phát hiện cho tới khi văn ra
- * khác mong đợi.
+ * Kept separate so Studio can show the EXACT one that will run, rather than
+ * re-deriving the rule — two places reasoning differently is the kind of bug nobody
+ * spots until the prose comes out wrong.
  *
- * Luật: biến thể theo thể loại thắng bản mặc định `*`; cùng thể loại thì bản
- * `version` cao hơn thắng.
+ * The rule: a genre variant beats the `*` default; within a genre, the higher
+ * `version` wins.
  */
 export function pickPrompt<T extends { genre: string; version: number }>(
   candidates: readonly T[],
@@ -108,7 +109,7 @@ export async function loadPrompt(step: PromptStep, genre?: string): Promise<Load
 
   if (!chosen) {
     throw new LlmError(
-      `Chưa có prompt cho bước ${step}. Chạy \`pnpm db:seed\` để nạp bộ prompt mặc định.`,
+      `No prompt for step ${step}. Run \`pnpm db:seed\` to load the default prompt set.`,
     );
   }
 

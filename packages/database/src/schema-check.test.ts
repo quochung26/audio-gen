@@ -18,52 +18,52 @@ model Genre {
 `;
 
 describe("staleClientMessage", () => {
-  it("nêu tên model có trong schema mà client chưa sinh, kèm lệnh cần chạy", () => {
+  it("names models in the schema the client has not generated, with the command to run", () => {
     const msg = staleClientMessage(SCHEMA, ["Series"]);
     expect(msg).toContain("Genre");
     expect(msg).not.toContain("Series");
     expect(msg).toContain("pnpm db:generate");
   });
 
-  it("client đủ model thì im lặng", () => {
+  it("stays silent when the client has every model", () => {
     expect(staleClientMessage(SCHEMA, ["Series", "Genre"])).toBeNull();
   });
 
-  it("client thừa model thì cũng im lặng — chỉ THIẾU mới là lỗi", () => {
+  it("stays silent when the client has extra models — only MISSING ones are an error", () => {
     expect(staleClientMessage(SCHEMA, ["Series", "Genre", "Voice"])).toBeNull();
   });
 
-  it("không nhầm `generator`, `datasource` hay chữ model giữa dòng là model", () => {
+  it("does not mistake `generator`, `datasource` or the word model mid-line for a model", () => {
     const text = `
 datasource db {
   provider = "postgresql"
 }
 
-/// Ghi chú có chữ model Fake { để thử
+/// A comment containing the word model Fake { to test with
 model Real {
   note String /// model Khac {
 }
 `;
-    // Khớp cả dấu chấm cuối: danh sách phải đúng bằng một cái tên, không kèm
-    // `db` của datasource hay tên nằm trong ghi chú.
-    expect(staleClientMessage(text, [])).toMatch(/thiếu model Real\./);
+    // Matching the trailing period too: the list has to be exactly one name, with no
+    // datasource `db` and no name from a comment.
+    expect(staleClientMessage(text, [])).toMatch(/missing model Real\./);
   });
 });
 
 describe("accessorName", () => {
-  it("chỉ hạ chữ cái đầu, giữ nguyên phần còn lại", () => {
+  it("lowercases only the first letter, leaving the rest", () => {
     expect(accessorName("Genre")).toBe("genre");
     expect(accessorName("AudioTrack")).toBe("audioTrack");
-    // Prisma KHÔNG hạ cả cụm viết hoa liền: `LlmRun` chứ không phải `lLMRun`.
+    // Prisma does NOT lowercase a whole run of capitals: `LlmRun`, not `lLMRun`.
     expect(accessorName("LlmRun")).toBe("llmRun");
   });
 });
 
 describe("checkPrismaClient", () => {
-  // Dùng schema.prisma THẬT chứ không phải chuỗi dựng sẵn: đường dẫn tới schema
-  // nằm trong chính schema-check.ts, và nó sai thì guard im lặng bỏ qua — một
-  // kiểu hỏng không để lại dấu vết nào nếu test chỉ kiểm phần thuần logic.
-  it("client đủ accessor thì không ném", () => {
+  // Uses the REAL schema.prisma rather than a hand-built string: the path to the
+  // schema lives inside schema-check.ts itself, and if it is wrong the guard skips
+  // silently — a failure that leaves no trace if the test only checks pure logic.
+  it("does not throw when the client has every accessor", () => {
     const schema = readSchema();
     const fake = Object.fromEntries(
       [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => [accessorName(m[1]!), {}]),
@@ -71,14 +71,14 @@ describe("checkPrismaClient", () => {
     expect(() => checkPrismaClient(fake)).not.toThrow();
   });
 
-  it("thiếu một accessor là ném kèm tên model và lệnh cần chạy", () => {
+  it("a missing accessor throws with the model name and the command to run", () => {
     const schema = readSchema();
     const models = [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]!);
     const fake = Object.fromEntries(
       models.slice(1).map((name) => [accessorName(name), {}]),
     );
     expect(() => checkPrismaClient(fake)).toThrow(
-      new RegExp(`thiếu model ${models[0]}\\b.*pnpm db:generate`, "s"),
+      new RegExp(`missing model ${models[0]}\\b.*pnpm db:generate`, "s"),
     );
   });
 });

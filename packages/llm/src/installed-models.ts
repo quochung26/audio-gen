@@ -1,18 +1,18 @@
 /**
- * Chọn model mặc định theo model THẬT SỰ đã tải.
+ * Pick the default model from what is ACTUALLY downloaded.
  *
- * `.env` ghi sẵn "qwen3:14b", nhưng máy chỉ có "qwen3:8b" thì job chết giữa
- * chừng với lỗi không tìm thấy model — mà lỗi đó xuất hiện lúc đang viết dở một
- * tập, không phải lúc mở Studio.
+ * `.env` says "qwen3:14b", but if the machine only has "qwen3:8b" the job dies
+ * mid-run with a model-not-found error — and that error appears while an episode is
+ * half written, not when Studio opens.
  */
 
 /**
- * Model nhìn tên là biết dùng để NHÚNG VECTOR chứ không phải để viết.
+ * A model whose name says it is for EMBEDDING rather than writing.
  *
- * Là phỏng đoán theo tên, không có cách nào chắc chắn hơn: Ollama không nói
- * model nào làm được việc gì. Nhưng đoán nhầm ở đây rẻ — cùng lắm là gợi ý sai
- * một lần rồi người dùng chọn tay — còn không đoán thì mặc định của bước nhúng
- * lại rơi vào một model viết truyện, và vector ra sẽ vô nghĩa mà không báo lỗi.
+ * A guess from the name, with no more reliable option: Ollama does not say what a
+ * model is good for. But guessing wrong here is cheap — at worst one bad suggestion
+ * before the user picks by hand — while not guessing lets the embedding step default
+ * to a story-writing model, and the vectors come out meaningless with no error.
  */
 const EMBED_HINTS = ["embed", "bge", "gte-", "minilm", "e5-"];
 
@@ -27,14 +27,14 @@ export interface InstalledModel {
 }
 
 /**
- * Model đã tải đầu tiên hợp với loại việc. Chuỗi rỗng nghĩa là KHÔNG CÓ.
+ * The first downloaded model suited to a kind of work. An empty string means NONE.
  *
- * Trả rỗng chứ không bịa ra một tên: trước đây chỗ này lùi về tên ghi sẵn trong
- * `.env`, và cái tên đó thành lời nói dối ngay khi máy không có model đó — job
- * chết giữa chừng với "không tìm thấy model" thay vì báo ngay lúc mở Studio.
+ * Returns empty rather than inventing a name: this used to fall back to the name in
+ * `.env`, and that name became a lie the moment the machine did not have that model
+ * — the job died mid-run with "model not found" instead of saying so when Studio opened.
  *
- * Sắp theo TÊN cho tất định. Dựa vào thứ tự Ollama trả về thì cùng một máy, hai
- * lần mở cho ra hai model khác nhau.
+ * Sorted BY NAME for determinism. Relying on Ollama's ordering means the same
+ * machine picks different models on two different launches.
  */
 export function pickInstalledModel(input: {
   installed: InstalledModel[];
@@ -46,14 +46,14 @@ export function pickInstalledModel(input: {
 }
 
 /**
- * Hỏi Ollama xem đã tải những model nào.
+ * Ask Ollama which models are downloaded.
  *
- * Nhớ tạm 15 giây: một lượt chạy hàng loạt gọi `getDefaultModel` hàng chục lần
- * trong vài giây, mà danh sách model thì gần như không đổi. Đủ ngắn để vừa
- * `ollama pull` xong là thấy ngay.
+ * Cached for 15 seconds: a batch run calls `getDefaultModel` dozens of times within
+ * seconds, and the model list barely changes. Short enough that a finished
+ * `ollama pull` shows up right away.
  *
- * KHÔNG bao giờ ném lỗi: đây chỉ là bước gợi ý mặc định. Ollama chưa chạy thì
- * lùi về giá trị `.env`, chứ không làm chết cả job.
+ * NEVER throws: this only suggests defaults. With Ollama not running it falls back
+ * to the `.env` value rather than killing the job.
  */
 let cache: { at: number; models: InstalledModel[] } | null = null;
 const CACHE_MS = 15_000;
@@ -63,8 +63,8 @@ export async function listInstalledModels(baseUrl: string): Promise<InstalledMod
 
   try {
     const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/tags`, {
-      // Ngắn: đây nằm trên đường đi của MỌI job, Ollama treo thì không được kéo
-      // theo cả hàng đợi.
+      // Short: this sits on EVERY job's path, and Ollama hanging must not take the
+      // whole queue down with it.
       signal: AbortSignal.timeout(2000),
     });
     if (!res.ok) return [];
@@ -78,7 +78,7 @@ export async function listInstalledModels(baseUrl: string): Promise<InstalledMod
   }
 }
 
-/** Quên danh sách đang nhớ — gọi sau khi tải xong hoặc xoá một model. */
+/** Forget the cached list — call after a pull finishes or a model is deleted. */
 export function forgetInstalledModels(): void {
   cache = null;
 }

@@ -4,7 +4,7 @@ import { LlmError, type GenerateOptions, type GenerateResult, type LlmProvider }
 interface OllamaChunk {
   response?: string;
   done?: boolean;
-  /** "stop" là sinh xong tự nhiên; "length" là chạm trần `num_predict`. */
+  /** "stop" means it finished naturally; "length" means it hit the `num_predict` ceiling. */
   done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
@@ -15,9 +15,9 @@ interface OllamaChunk {
 /**
  * Client Ollama.
  *
- * Luôn dùng stream: sinh một cảnh 800 từ mất 40–70 giây trên 5060 Ti, và
- * request không stream với `num_predict` lớn dễ chạm timeout HTTP. Stream còn
- * cho Studio hiện chữ chạy dần thay vì màn hình trắng.
+ * Always streams: generating an 800-word scene takes 40–70 seconds on a 5060 Ti,
+ * and a non-streaming request with a large `num_predict` easily hits the HTTP
+ * timeout. Streaming also lets Studio show text appearing rather than a blank screen.
  */
 export class OllamaProvider implements LlmProvider {
   readonly name = "ollama";
@@ -38,7 +38,7 @@ export class OllamaProvider implements LlmProvider {
       parsed = JSON.parse(result.text);
     } catch (err) {
       throw new LlmError(
-        `Model trả về JSON không đọc được. 200 ký tự đầu: ${result.text.slice(0, 200)}`,
+        `The model returned unreadable JSON. First 200 characters: ${result.text.slice(0, 200)}`,
         err,
       );
     }
@@ -46,7 +46,7 @@ export class OllamaProvider implements LlmProvider {
     const check = opts.schema.safeParse(parsed);
     if (!check.success) {
       throw new LlmError(
-        `JSON không khớp schema: ${check.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`,
+        `JSON does not match the schema: ${check.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`,
       );
     }
 
@@ -56,8 +56,8 @@ export class OllamaProvider implements LlmProvider {
   async #call(opts: GenerateOptions, format: object | undefined): Promise<GenerateResult> {
     const model = opts.model?.trim();
     if (!model) {
-      // Gửi tên rỗng đi thì lỗi trả về khó hiểu; câu này chỉ thẳng chỗ sửa.
-      throw new LlmError("Chưa chọn model. Vào trang Model để chọn model mặc định.");
+      // Sending an empty name gets a baffling error back; this points at the fix.
+      throw new LlmError("No model selected. Pick a default on the Models page.");
     }
     const started = Date.now();
 
@@ -74,7 +74,7 @@ export class OllamaProvider implements LlmProvider {
           stream: true,
           format,
           options: {
-            // Mặc định 2048 sẽ cắt mất Story Bible — model quên sạch nhân vật.
+            // The 2048 default would cut off the Story Bible — the model forgets every character.
             num_ctx: opts.numCtx ?? 16384,
             temperature: opts.temperature ?? 0.9,
             top_p: opts.topP ?? 0.92,
@@ -85,13 +85,13 @@ export class OllamaProvider implements LlmProvider {
       });
     } catch (err) {
       throw new LlmError(
-        `Không kết nối được Ollama ở ${this.baseUrl}. Đã chạy \`ollama serve\` chưa?`,
+        `Could not reach Ollama at ${this.baseUrl}. Has \`ollama serve\` been run?`,
         err,
       );
     }
 
     if (!res.ok || !res.body) {
-      throw new LlmError(`Ollama trả lỗi ${res.status}: ${await res.text().catch(() => "")}`);
+      throw new LlmError(`Ollama returned error ${res.status}: ${await res.text().catch(() => "")}`);
     }
 
     const reader = res.body.getReader();
@@ -133,16 +133,16 @@ export class OllamaProvider implements LlmProvider {
     }
 
     if (truncated) {
-      // Khớp với provider OpenRouter: im lặng thì cảnh cụt giữa câu được lưu y
-      // như cảnh viết trọn, và cái sai chỉ lộ ra lúc ngồi nghe lại cả tập.
+      // Matching the OpenRouter provider: silently, a scene cut mid-sentence is saved
+      // exactly like a complete one, and the mistake only shows up listening back.
       throw new LlmError(
-        `Model chạm trần ${opts.maxTokens ?? 1500} token và bị cắt giữa chừng. Tăng maxTokens hoặc chia nhỏ yêu cầu.`,
+        `The model hit its ${opts.maxTokens ?? 1500} token ceiling and was cut off. Raise maxTokens or split the request.`,
       );
     }
 
     const durationMs = Date.now() - started;
-    // eval_duration của Ollama chính xác hơn wall-clock vì không tính thời gian
-    // nạp model; nhưng nếu thiếu thì rơi về wall-clock.
+    // Ollama's eval_duration is more accurate than wall-clock because it excludes
+    // model load time; it falls back to wall-clock when absent.
     const tokensPerSec =
       evalDurationNs > 0
         ? outputTokens / (evalDurationNs / 1e9)

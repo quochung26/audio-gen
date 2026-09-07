@@ -1,54 +1,55 @@
 /**
- * Chốt chặn quyền riêng tư.
+ * The privacy gate.
  *
- * Studio chạy trên máy bạn với DB local đầy đủ; Player chạy trên Vercel với DB
- * hosted. Job PUBLISH đồng bộ một chiều local → hosted. File này khai báo
- * tường minh thứ ĐƯỢC PHÉP rời khỏi máy — mọi thứ khác mặc định là không.
+ * Studio runs on your machine with the full local DB; the Player runs on Vercel
+ * with the hosted DB. The PUBLISH job syncs one way, local → hosted. This file
+ * declares explicitly what is ALLOWED to leave the machine — everything else is not.
  *
- * Xem PLAN.md mục 3 điểm 5.
+ * See PLAN.md section 3, point 5.
  */
 
-/** Chỉ những bảng này mới được đồng bộ ra DB hosted. */
+/** Only these tables may sync to the hosted DB. */
 export const PUBLIC_TABLES = ["Series", "Episode", "Character", "Block", "Export"] as const;
 export type PublicTable = (typeof PUBLIC_TABLES)[number];
 
-/** Cột KHÔNG BAO GIỜ rời máy, kể cả khi tập đã xuất bản. */
+/** Columns that NEVER leave the machine, published episode or not. */
 export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
   Series: ["storyBible"],
   Episode: ["draftText", "outline", "reviewedBy", "reviewedAt", "syncedAt"],
   Character: ["description"],
-  // `text` ĐƯỢC đi: đó là lời đã duyệt, đúng những gì phát ra trong MP3 —
-  // đăng kèm audio là chuyện bình thường và giúp người khiếm thính đọc được.
-  // Khác hẳn `Episode.draftText` là bản thảo thô, không bao giờ rời máy.
+  // `text` DOES go: it is the approved line, exactly what the MP3 says — publishing
+  // it alongside the audio is normal and makes it readable for deaf listeners.
+  // Quite different from `Episode.draftText`, the raw draft, which never leaves.
   //
-  // Chỉ bỏ được cột NULLABLE hoặc có `@default`. `ttsEngine` và `voiceId` là
-  // NOT NULL nên buộc phải đi theo — hai DB dùng chung một schema (xem README
-  // mục "Hai cơ sở dữ liệu"), bỏ cột bắt buộc là `create` bên hosted lỗi ngay.
-  // Chúng cũng không phải bí mật gì: engine nào đọc và giọng số mấy.
+  // Only NULLABLE columns or ones with `@default` can be dropped. `ttsEngine` and
+  // `voiceId` are NOT NULL so they must travel — the two DBs share one schema (see
+  // the README's "Two databases"), and dropping a required column makes the hosted
+  // `create` fail immediately. They are hardly secrets either: which engine read it
+  // and which voice number.
   Block: ["speed", "pitch", "approved", "sfxHint"],
   Export: [],
 };
 
-/** Bảng chỉ tồn tại phía Studio, không có bản sao nào ở DB hosted. */
+/** Tables that exist only on the Studio side, with no hosted counterpart. */
 export const LOCAL_ONLY_TABLES = [
   "Setting",
   "Scene",
   "LlmRun",
   "Prompt",
-  // Mô tả thể loại là chỉ dẫn cho model lúc viết — Player không cần, và nó là
-  // cách viết riêng của người làm truyện.
+  // A genre description is an instruction to the model at writing time — the Player
+  // does not need it, and it is the writer's own phrasing.
   "Genre",
   "RenderJob",
   "AudioAsset",
   "PronunciationEntry",
 ] as const;
 
-/** Bảng chỉ tồn tại phía Player (do người nghe sinh ra). */
+/** Tables that exist only on the Player side (created by listeners). */
 export const PLAYER_ONLY_TABLES = [
   "User",
-  // Auth.js quản lý ba bảng này. Chúng chứa token của nhà cung cấp ngoài nên
-  // TUYỆT ĐỐI không được đồng bộ đi đâu — và cũng không có gì để đồng bộ, vì
-  // chúng chỉ sinh ra ở phía người nghe.
+  // Auth.js owns these three. They hold third-party provider tokens so they must
+  // NEVER sync anywhere — and there is nothing to sync anyway, since they are only
+  // ever created on the listener's side.
   "Account",
   "Session",
   "VerificationToken",
@@ -59,11 +60,11 @@ export const PLAYER_ONLY_TABLES = [
 ] as const;
 
 /**
- * Cột khoá ngoại trỏ sang bảng KHÔNG có ở DB hosted — phải xoá về null.
+ * Foreign keys pointing at tables the hosted DB does NOT have — they must be nulled.
  *
- * Khác `PRIVATE_COLUMNS` về lý do: đây không phải chuyện riêng tư mà là chuyện
- * toàn vẹn dữ liệu. Copy nguyên `voiceId` sang DB hosted là vi phạm khoá ngoại
- * vì bảng Voice không được đồng bộ. Player cũng không dùng tới chúng.
+ * A different reason from `PRIVATE_COLUMNS`: not privacy but referential integrity.
+ * Copying `voiceId` across violates a foreign key, because the Voice table is not
+ * synced. The Player does not use them either.
  */
 export const DANGLING_FK_COLUMNS: Record<PublicTable, string[]> = {
   Series: ["defaultVoiceId"],
@@ -73,7 +74,7 @@ export const DANGLING_FK_COLUMNS: Record<PublicTable, string[]> = {
   Export: [],
 };
 
-/** Bỏ các cột riêng tư khỏi một bản ghi trước khi đẩy đi. */
+/** Drop the private columns from a record before pushing it. */
 export function stripPrivate<T extends Record<string, unknown>>(
   table: PublicTable,
   row: T,
@@ -85,12 +86,12 @@ export function stripPrivate<T extends Record<string, unknown>>(
 }
 
 /**
- * Chuẩn bị một bản ghi để đẩy sang DB hosted: bỏ cột riêng tư và xoá khoá ngoại
- * trỏ sang bảng chỉ có ở local.
+ * Prepare a record for the hosted DB: drop the private columns and null the foreign
+ * keys pointing at local-only tables.
  *
- * Dùng hàm NÀY chứ không phải `stripPrivate` trực tiếp — quên bước xoá khoá
- * ngoại thì job đồng bộ chết vì lỗi ràng buộc, và chỉ chết với tập có gán giọng
- * hoặc nhạc nền nên rất dễ lọt qua lúc thử.
+ * Use THIS rather than `stripPrivate` directly — forget the foreign-key step and the
+ * sync job dies on a constraint error, and only for episodes with an assigned voice
+ * or background music, which is very easy to miss in testing.
  */
 export function forPublish<T extends Record<string, unknown>>(
   table: PublicTable,

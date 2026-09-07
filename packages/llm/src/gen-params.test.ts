@@ -6,8 +6,8 @@ import {
   unknownGenParamKeys,
 } from "./gen-params";
 
-describe("bảng khai báo", () => {
-  it("mọi tham số đều có khoảng hợp lệ và giá trị mặc định nằm trong khoảng", () => {
+describe("the declaration table", () => {
+  it("every parameter has a valid range and a default inside it", () => {
     for (const p of GEN_PARAMS) {
       expect(p.min).toBeLessThan(p.max);
       expect(p.fallback).toBeGreaterThanOrEqual(p.min);
@@ -16,7 +16,7 @@ describe("bảng khai báo", () => {
     }
   });
 
-  it("có đủ những nút vặn provider thật sự đọc", () => {
+  it("has all the knobs providers actually read", () => {
     expect(GEN_PARAMS.map((p) => p.key).sort()).toEqual(
       ["maxTokens", "numCtx", "repeatPenalty", "temperature", "topP"].sort(),
     );
@@ -24,52 +24,52 @@ describe("bảng khai báo", () => {
 });
 
 describe("parseGenParams", () => {
-  it("đọc số bình thường", () => {
+  it("reads ordinary numbers", () => {
     const r = parseGenParams({ temperature: "0.85", numCtx: "16384" });
     expect(r.params).toEqual({ temperature: 0.85, numCtx: 16384 });
     expect(r.errors).toEqual([]);
   });
 
-  it("ô TRỐNG nghĩa là không đặt, khác với đặt bằng 0", () => {
-    // Bỏ trống thì rơi về mặc định của provider; temperature 0 là lựa chọn thật.
+  it("a BLANK field means unset, different from setting 0", () => {
+    // Blank falls back to the provider's default; temperature 0 is a real choice.
     expect(parseGenParams({ temperature: "" }).params).toEqual({});
     expect(parseGenParams({ temperature: "   " }).params).toEqual({});
     expect(parseGenParams({}).params).toEqual({});
     expect(parseGenParams({ temperature: "0" }).params).toEqual({ temperature: 0 });
   });
 
-  it("chặn giá trị ngoài khoảng, nói rõ khoảng nào", () => {
-    // temperature 3 thì model nói lảm nhảm; không chặn thì phải đi tìm nguyên
-    // nhân một tập hỏng.
+  it("rejects out-of-range values, naming the range", () => {
+    // At temperature 3 the model babbles; unblocked, you would be hunting down the
+    // cause of a ruined episode.
     const r = parseGenParams({ temperature: "3" });
     expect(r.params).toEqual({});
-    expect(r.errors[0]).toMatch(/0–1.5/);
-    expect(r.errors[0]).toMatch(/đang là 3/);
+    expect(r.errors[0]).toMatch(/between 0 and 1.5/);
+    expect(r.errors[0]).toMatch(/got 3/);
   });
 
-  it("chặn numCtx quá nhỏ — thứ âm thầm cắt mất Story Bible", () => {
+  it("rejects a numCtx that is too small — the thing that silently cuts off the Story Bible", () => {
     expect(parseGenParams({ numCtx: "512" }).errors).toHaveLength(1);
   });
 
-  it("chặn thứ không phải số", () => {
-    const r = parseGenParams({ temperature: "cao" });
-    expect(r.errors[0]).toMatch(/không phải số/);
+  it("rejects non-numbers", () => {
+    const r = parseGenParams({ temperature: "high" });
+    expect(r.errors[0]).toMatch(/is not a number/);
     expect(r.params).toEqual({});
   });
 
-  it("làm tròn tham số nguyên", () => {
+  it("rounds integer parameters", () => {
     expect(parseGenParams({ numCtx: "16384.7" }).params.numCtx).toBe(16385);
-    // Tham số thập phân thì giữ nguyên.
+    // Decimal parameters are left as they are.
     expect(parseGenParams({ temperature: "0.85" }).params.temperature).toBe(0.85);
   });
 
-  it("một ô sai không làm mất các ô đúng", () => {
+  it("one bad field does not lose the good ones", () => {
     const r = parseGenParams({ temperature: "0.8", topP: "99" });
     expect(r.params).toEqual({ temperature: 0.8 });
     expect(r.errors).toHaveLength(1);
   });
 
-  it("nhận cả biên", () => {
+  it("accepts the boundaries", () => {
     const r = parseGenParams({ temperature: "1.5", topP: "0.1" });
     expect(r.errors).toEqual([]);
     expect(r.params).toEqual({ temperature: 1.5, topP: 0.1 });
@@ -77,28 +77,28 @@ describe("parseGenParams", () => {
 });
 
 describe("knownGenParams", () => {
-  it("giữ khoá provider đọc được", () => {
+  it("keeps the keys providers read", () => {
     expect(knownGenParams({ temperature: 0.9, numCtx: 8192 })).toEqual({
       temperature: 0.9,
       numCtx: 8192,
     });
   });
 
-  it("bỏ khoá lạ — xưa nay chúng bị bỏ qua âm thầm", () => {
+  it("drops unknown keys — which have always been ignored silently", () => {
     expect(knownGenParams({ temperature: 0.9, top_k: 40, nonsense: 1 })).toEqual({
       temperature: 0.9,
     });
   });
 
-  it("và chỉ ra chúng để người dùng biết mình gõ thừa", () => {
+  it("and names them so the user knows what they typed for nothing", () => {
     expect(unknownGenParamKeys({ temperature: 0.9, top_k: 40 })).toEqual(["top_k"]);
     expect(unknownGenParamKeys({ temperature: 0.9 })).toEqual([]);
   });
 
-  it("dữ liệu rác không làm chết", () => {
+  it("junk data does not kill it", () => {
     expect(knownGenParams(null)).toEqual({});
-    expect(knownGenParams("chuỗi")).toEqual({});
-    expect(knownGenParams({ temperature: "không phải số" })).toEqual({});
+    expect(knownGenParams("a string")).toEqual({});
+    expect(knownGenParams({ temperature: "not a number" })).toEqual({});
     expect(unknownGenParamKeys(null)).toEqual([]);
   });
 });

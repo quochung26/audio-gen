@@ -2,14 +2,14 @@ import { z } from "zod";
 import type { GenerateOptions, GenerateResult, LlmProvider } from "../provider";
 
 /**
- * Provider giả lập.
+ * The mock provider.
  *
- * Mục đích: chạy trọn pipeline — dàn ý → cảnh → kịch bản → block — mà chưa cần
- * GPU hay model. Nhờ vậy dựng và kiểm thử Studio/worker được ngay, việc thử
- * model thật để sau.
+ * Its purpose: run the whole pipeline — outline → scene → script → blocks —
+ * without a GPU or any model. That makes Studio and the worker buildable and
+ * testable straight away, leaving real models for later.
  *
- * Nó KHÔNG viết văn hay. Đầu ra là văn bản giữ chỗ có hình dạng đúng, đủ để
- * kiểm chứng đường đi dữ liệu. Đừng đánh giá chất lượng sản phẩm qua nó.
+ * It does NOT write well. The output is placeholder text of the right shape,
+ * enough to verify the data path. Do not judge the product's quality by it.
  */
 export class MockProvider implements LlmProvider {
   readonly name = "mock";
@@ -25,9 +25,9 @@ export class MockProvider implements LlmProvider {
   async generateJson<T>(
     opts: GenerateOptions & { schema: z.ZodType<T> },
   ): Promise<GenerateResult & { data: T }> {
-    // Đọc số tập từ prompt để sinh đúng số lượng — cần cho việc kiểm chứng
-    // tính nhất quán xuyên tập ở truyện dài. Nhận cả nhãn tiếng Việt cũ, cùng
-    // lý do với `extractTargetWords`.
+    // Read the episode count out of the prompt so the right number is generated —
+    // needed to verify cross-episode consistency in a long story. Also accepts the
+    // old Vietnamese label, for the same reason as `extractTargetWords`.
     const episodeCount = Number(
       opts.prompt.match(/(?:Episode count|Số tập):\s*(\d+)/i)?.[1] ?? 1,
     );
@@ -37,7 +37,7 @@ export class MockProvider implements LlmProvider {
     return { ...result, data };
   }
 
-  /** Mô phỏng tốc độ sinh chữ để Studio thấy được luồng stream thật. */
+  /** Simulate generation speed so Studio sees a realistic stream. */
   async #emit(text: string, opts: GenerateOptions): Promise<GenerateResult> {
     const started = Date.now();
     const outputTokens = Math.ceil(text.length / 3);
@@ -46,7 +46,7 @@ export class MockProvider implements LlmProvider {
       const chunks = text.match(/.{1,24}/gs) ?? [text];
       const perChunkMs = Math.max(1, Math.round((24 / 3 / this.tokensPerSec) * 1000));
       for (const chunk of chunks) {
-        if (opts.signal?.aborted) throw new Error("Đã huỷ");
+        if (opts.signal?.aborted) throw new Error("Cancelled");
         await sleep(perChunkMs);
         opts.onToken(chunk);
       }
@@ -69,13 +69,14 @@ export class MockProvider implements LlmProvider {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Số từ đích, đọc ngược ra từ prompt.
+ * The target word count, read back out of the prompt.
  *
- * Nhận CẢ HAI thứ tiếng. Prompt gốc giờ viết bằng tiếng Anh, nhưng bảng
- * `Prompt` trong DB có thể vẫn giữ bản tiếng Việt cũ cho tới khi chạy lại
- * `pnpm db:seed` — và khối ngữ cảnh cũng từng là tiếng Việt. Khớp hụt thì
- * không có gì báo: mọi cảnh giả lập lặng lẽ ra đúng 300 từ, nên số từ và thời
- * lượng ước tính của cả bộ đều bằng nhau mà trông vẫn hợp lý.
+ * Accepts BOTH languages. The shipped prompts are English now, but the `Prompt`
+ * table in the DB may still hold the old Vietnamese ones until `pnpm db:seed` is
+ * run again — and the context blocks used to be Vietnamese too. A missed match
+ * says nothing: every mock scene quietly comes out at exactly 300 words, so a
+ * whole story's word count and estimated duration are all equal but still look
+ * plausible.
  */
 function extractTargetWords(prompt: string): number | undefined {
   const m = prompt.match(/(?:about|khoảng)\s+(\d+)\s+(?:words|từ)/i);
@@ -93,10 +94,10 @@ const SENTENCES = [
   "Mưa bắt đầu rơi, thoạt đầu nhẹ, rồi nặng hạt dần.",
 ];
 
-/** Sinh văn bản giữ chỗ có độ dài xấp xỉ yêu cầu. */
+/** Generate placeholder text of roughly the requested length. */
 function vietnameseFiller(targetWords: number, seed: string): string {
   const rng = seededRandom(seed);
-  const out: string[] = ["[VĂN BẢN GIẢ LẬP — đổi LLM_PROVIDER=ollama để dùng model thật]", ""];
+  const out: string[] = ["[MOCK TEXT — set LLM_PROVIDER=ollama to use a real model]", ""];
   let words = 0;
   let paragraph: string[] = [];
 
@@ -114,7 +115,7 @@ function vietnameseFiller(targetWords: number, seed: string): string {
   return out.join("\n");
 }
 
-/** Ngẫu nhiên có hạt giống — cùng prompt cho ra cùng kết quả, dễ kiểm thử. */
+/** Seeded randomness — the same prompt gives the same result, which is testable. */
 function seededRandom(seed: string): () => number {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -130,8 +131,8 @@ function seededRandom(seed: string): () => number {
 }
 
 /**
- * Sinh dữ liệu giả khớp một Zod schema bất kỳ.
- * Dùng `.description` của từng trường để chọn nội dung cho hợp cảnh.
+ * Generate fake data matching any Zod schema.
+ * Uses each field's `.description` to pick content that fits the context.
  */
 function fakeFromSchema(
   schema: z.ZodTypeAny,
@@ -148,7 +149,7 @@ function fakeFromSchema(
     case z.ZodFirstPartyTypeKind.ZodObject: {
       const shape = (schema as z.ZodObject<z.ZodRawShape>).shape;
       return Object.fromEntries(
-        // Truyền chỉ số phần tử xuống các trường con để mỗi nhân vật một tên.
+        // Pass the element index down to child fields so each character gets a name.
         Object.entries(shape).map(([k, v]) => [k, fakeFromSchema(v, k, depth + 1, index, opts)]),
       );
     }
@@ -184,7 +185,7 @@ function fakeFromSchema(
   }
 }
 
-/** Bao nhiêu phần tử cho mỗi mảng trong schema. Số nào thiếu thì mặc định 2. */
+/** How many elements for each array in the schema. Anything unlisted defaults to 2. */
 const FAKE_COUNT: Record<string, number> = {
   facts: 7,
   chapters: 3,
@@ -195,11 +196,11 @@ const FAKE_COUNT: Record<string, number> = {
 const NAMES = ["Tài", "Cô gái áo trắng", "Ông Bảy", "Hạnh", "Lâm"];
 
 function fakeString(base: string, desc: string, index: number): string {
-  // Block chẵn là lời dẫn, block lẻ là thoại — để kiểm chứng ánh xạ người nói.
+  // Even blocks are narration, odd ones dialogue — to verify speaker mapping.
   if (base === "speaker") return index % 2 === 0 ? "narrator" : NAMES[1]!;
   if (base === "name") return NAMES[index % NAMES.length]!;
   if (base === "title") return index === 0 ? "Chuyến xe cuối cùng" : `Tập ${index + 1}: Đường về`;
-  if (base === "chapters") return `Chương ${index + 1} (giả lập)`;
+  if (base === "chapters") return `Chương ${index + 1} (mock)`;
   if (base === "logline") return "Một tài xế xe khách đêm nhận ra hành khách cuối cùng đã chết.";
   if (base === "genre") return "kinh dị";
   if (base === "setting") return "Quốc lộ miền Trung, thập niên 1970, những chuyến xe đêm.";
@@ -224,7 +225,7 @@ function fakeString(base: string, desc: string, index: number): string {
       index % 3
     ]!;
   }
-  if (base === "beats") return `Nhịp ${index + 1} (giả lập) — việc xảy ra trong cảnh này.`;
+  if (base === "beats") return `Beat ${index + 1} (mock) — what happens in this scene.`;
   if (base === "hook") return "Ghế số 12 vẫn trống, nhưng cửa xe đã mở.";
   if (base === "gist") return "Tài chở người khách cuối cùng về Bến Cũ và phát hiện ghế trống.";
   if (base === "text" && desc.includes("ONE sentence")) {
@@ -239,8 +240,8 @@ function fakeString(base: string, desc: string, index: number): string {
     ][index % 7]!;
   }
   if (base === "text") return "Đêm xuống, con đường vắng chỉ còn tiếng gió lùa qua hàng cây.";
-  if (base === "description") return "Mô tả giả lập cho mục đích kiểm thử.";
+  if (base === "description") return "Mock description, for testing.";
   if (base === "coverPrompt") return "Chiếc xe khách cũ dưới ánh đèn đường vàng, sương mù.";
   if (base === "hashtags") return "#truyenma";
-  return `[${base} giả lập]`;
+  return `[mock ${base}]`;
 }

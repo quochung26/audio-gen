@@ -8,16 +8,15 @@ export function isProviderName(v: string): v is ProviderName {
 }
 
 /**
- * Provider đang bật — MỘT tại một thời điểm.
+ * The active provider — ONE at a time.
  *
- * Hỏi lại lựa chọn ở mỗi lượt gọi thay vì nhớ sẵn: lựa chọn nằm trong bảng
- * `Setting` và đổi được ngay trên giao diện, mà worker là tiến trình chạy dài —
- * nhớ sẵn thì đổi xong vẫn phải khởi động lại worker mới ăn. Một truy vấn
- * Setting là vài mili giây, so với một lượt sinh hàng chục giây thì không đáng
- * kể.
+ * The choice is re-read on every call rather than cached: it lives in the `Setting`
+ * table and can be changed from the UI, while the worker is a long-running process —
+ * cached, a change would need a worker restart to take effect. One Setting query is a
+ * few milliseconds, negligible against a generation lasting tens of seconds.
  *
- * Provider dựng lười và nhớ lại: không có khoá OpenRouter mà đang chạy Ollama
- * thì cũng không sao.
+ * The provider is built lazily and remembered: having no OpenRouter key while
+ * running Ollama is fine.
  */
 export class ActiveProvider implements LlmProvider {
   readonly name = "active";
