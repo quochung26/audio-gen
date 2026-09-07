@@ -866,7 +866,7 @@ Cần đăng nhập. Đều gắn theo **tập**, không phải theo bộ.
 
 | | |
 |---|---|
-| Yêu thích | Danh sách ở `/yeu-thich`. Tập bị gỡ xuất bản thì ẩn khỏi danh sách nhưng **giữ** bản ghi — xuất bản lại là thấy ngay. |
+| Yêu thích | Danh sách ở `/favourites`. Tập bị gỡ xuất bản thì ẩn khỏi danh sách nhưng **giữ** bản ghi — xuất bản lại là thấy ngay. |
 | Đánh giá | 1–5 sao. Chấm lại thì **đè** lên điểm cũ, không cộng thêm phiếu. |
 | Bình luận | Vào **hàng chờ duyệt**, không hiện ngay. Neo được vào một mốc trong tập (`timestampMs`). |
 
@@ -884,7 +884,9 @@ Route kiểm duyệt dùng `prismaPlayer` chứ không phải `prisma` như các
 
 ## Nghe bằng app podcast
 
-Mỗi bộ có một feed RSS: `/truyen/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
+Mỗi bộ có một feed RSS: `/story/<slug>/rss.xml`. Dán URL đó vào app podcast bất kỳ.
+Đường dẫn cũ `/truyen/<slug>/rss.xml` vẫn chuyển hướng 308 sang đó, nên feed đã phát
+trước đây không gãy.
 
 Chỉ tập **đã xuất bản và đã có bản MP3** vào feed — cùng chốt chặn với trang nghe.
 
