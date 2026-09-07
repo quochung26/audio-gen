@@ -12,7 +12,7 @@ import { dict, localeHref, type Dict, type Locale } from "@/lib/i18n";
  * a whole chain each time one of them needs one more string.
  *
  * Exposes `href` as well as `t`, because every link a client component builds has to carry
- * the locale — a hardcoded `/nghe/x` inside the English tree silently drops the reader back
+ * the locale — a hardcoded `/listen/x` inside the English tree silently drops the reader back
  * into Vietnamese, and nothing about the page would look wrong until they read it.
  */
 interface LocaleValue {

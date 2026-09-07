@@ -116,13 +116,13 @@ describe("buildRssFeed", () => {
   it("atom:link points back at the feed itself", () => {
     const xml = buildRssFeed(series(), opts);
     expect(xml).toContain(
-      'href="https://truyen.example.com/truyen/duong-ve/rss.xml" rel="self"',
+      'href="https://truyen.example.com/story/duong-ve/rss.xml" rel="self"',
     );
   });
 
   it("strips a trailing / from baseUrl", () => {
     const xml = buildRssFeed(series(), { baseUrl: "https://truyen.example.com///" });
-    expect(xml).toContain("<link>https://truyen.example.com/truyen/duong-ve</link>");
+    expect(xml).toContain("<link>https://truyen.example.com/story/duong-ve</link>");
     expect(xml).not.toContain("example.com//");
   });
 

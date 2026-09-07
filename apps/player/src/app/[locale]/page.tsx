@@ -28,17 +28,17 @@ export default async function HomePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ "the-loai"?: string; tieng?: string }>;
+  searchParams: Promise<{ "genre"?: string; lang?: string }>;
 }) {
   const locale = (await params).locale as Locale;
   const t = dict(locale);
   const sp = await searchParams;
-  const genre = sp["the-loai"];
+  const genre = sp["genre"];
 
   // The language filter applies to the CATALOGUE queries but not to the language chips
   // themselves — those are built from every language present, or switching to a language
   // would remove the chip you would need to switch back.
-  const language = catalogueLanguage(sp.tieng, locale);
+  const language = catalogueLanguage(sp.lang, locale);
   const inLanguage = language ? { language } : {};
 
   const [latest, allSeries, everyLanguage, resumable] = await Promise.all([
@@ -127,7 +127,7 @@ export default async function HomePage({
             {latest.map((ep) => (
               <Link
                 key={ep.id}
-                href={localeHref(locale, `/nghe/${ep.id}`)}
+                href={localeHref(locale, `/listen/${ep.id}`)}
                 className="flex items-center gap-3 px-4 py-3 active:bg-neutral-900"
               >
                 <Cover src={ep.series.coverUrl} size={44} />
@@ -184,7 +184,7 @@ export default async function HomePage({
 function Banner({ s, locale, t }: { s: SeriesCardData; locale: Locale; t: ReturnType<typeof dict> }) {
   return (
     <Link
-      href={localeHref(locale, `/truyen/${s.slug}`)}
+      href={localeHref(locale, `/story/${s.slug}`)}
       className="flex gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 active:bg-neutral-900"
     >
       <Cover src={s.coverUrl} size={112} />

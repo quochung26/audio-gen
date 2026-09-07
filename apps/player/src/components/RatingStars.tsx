@@ -43,7 +43,7 @@ export function RatingStars({
             ))}
           </form>
         ) : (
-          <Link href={href("/dang-nhap")} className="text-xs text-neutral-500 underline">
+          <Link href={href("/sign-in")} className="text-xs text-neutral-500 underline">
             {t.signInToRate}
           </Link>
         )}

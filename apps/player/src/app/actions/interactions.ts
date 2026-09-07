@@ -64,8 +64,10 @@ export async function toggleFavorite(
     await prismaPlayer.favorite.create({ data: { userId, episodeId } });
   }
 
-  revalidatePath(`/nghe/${episodeId}`);
-  revalidatePath("/yeu-thich");
+  // Route PATTERNS, not concrete paths: the pages live under `[locale]`, and a literal
+  // `/listen/x` matches no route now, so the call silently does nothing.
+  revalidatePath("/[locale]/listen/[id]", "page");
+  revalidatePath("/[locale]/favourites", "page");
   return existing
     ? { ok: t.okFavouriteRemoved, saved: false }
     : { ok: t.okFavouriteAdded, saved: true };
@@ -93,7 +95,7 @@ export async function rateEpisode(
     update: { score },
   });
 
-  revalidatePath(`/nghe/${episodeId}`);
+  revalidatePath("/[locale]/listen/[id]", "page");
   return { ok: t.okRated(score) };
 }
 
@@ -140,7 +142,7 @@ export async function addComment(
     data: { userId, episodeId, body, timestampMs },
   });
 
-  revalidatePath(`/nghe/${episodeId}`);
+  revalidatePath("/[locale]/listen/[id]", "page");
   return { ok: t.okCommentPosted };
 }
 

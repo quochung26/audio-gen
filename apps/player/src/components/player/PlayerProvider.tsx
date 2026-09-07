@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { saveProgress } from "@/app/actions/interactions";
+import { useLocale } from "../LocaleProvider";
 
 export interface Track {
   episodeId: string;
@@ -62,6 +63,7 @@ export function getSavedPosition(episodeId: string): number {
 }
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  const { href } = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [track, setTrack] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -192,7 +194,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(POS_KEY, JSON.stringify(positions));
 
       if (track.nextEpisodeId && sleepAt === null) {
-        window.location.href = `/nghe/${track.nextEpisodeId}?autoplay=1`;
+        // Through `href`, not a bare path: autoplaying out of the English tree with a
+        // hardcoded URL drops the listener into Vietnamese mid-story.
+        window.location.href = href(`/listen/${track.nextEpisodeId}?autoplay=1`);
       }
     };
     el.addEventListener("ended", onEnded);

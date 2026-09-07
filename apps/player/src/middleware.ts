@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LOCALE, LOCALES, localeFromAcceptLanguage } from "@/lib/i18n";
+import { renamedPath, renamedQuery } from "@/lib/legacy-paths";
 
 /**
  * Puts a locale on every request, without putting one on every URL.
  *
  * The route tree lives under `app/[locale]/`, but the default locale carries no prefix in
- * public URLs — `/truyen/x` has to keep working, because podcast apps already hold RSS
- * links built that way and nobody can go back and update them. So an un-prefixed path is
- * REWRITTEN to `/vi/...`: the URL in the address bar is untouched while the router still
- * sees a locale segment.
+ * public URLs, so an un-prefixed path is REWRITTEN to `/vi/...`: the address bar is
+ * untouched while the router still sees a locale segment.
  *
  * Two headers ride along:
  * - `x-locale`   — for server actions, which get no route params and so cannot read
@@ -26,6 +25,21 @@ export function middleware(req: NextRequest) {
   if (pathname === `/${DEFAULT_LOCALE}` || pathname.startsWith(`/${DEFAULT_LOCALE}/`)) {
     const rest = pathname.slice(`/${DEFAULT_LOCALE}`.length) || "/";
     return NextResponse.redirect(new URL(`${rest}${search}`, req.url));
+  }
+
+  // The old Vietnamese vocabulary, moved permanently. Done before the locale is worked out
+  // so the prefix survives: `/en/truyen/x` lands on `/en/story/x`, not on `/story/x`.
+  const localePrefix = LOCALES.find((l) => l !== DEFAULT_LOCALE && isPrefix(pathname, l));
+  const prefixLen = localePrefix ? `/${localePrefix}`.length : 0;
+  const movedTo = renamedPath(pathname.slice(prefixLen) || "/");
+  const movedQuery = renamedQuery(search);
+
+  if (movedTo || movedQuery !== null) {
+    const target = pathname.slice(0, prefixLen) + (movedTo ?? pathname.slice(prefixLen));
+    const qs = movedQuery ?? search.replace(/^\?/, "");
+    // 308 rather than 307: the move is permanent, and a search engine that keeps following
+    // a temporary redirect never transfers the ranking to the new address.
+    return NextResponse.redirect(new URL(`${target}${qs ? `?${qs}` : ""}`, req.url), 308);
   }
 
   const prefix = LOCALES.find((l) => l !== DEFAULT_LOCALE && isPrefix(pathname, l));

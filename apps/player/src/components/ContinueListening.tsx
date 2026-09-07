@@ -48,7 +48,7 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
           return (
             <Link
               key={e.id}
-              href={href(`/nghe/${e.id}`)}
+              href={href(`/listen/${e.id}`)}
               className="w-44 shrink-0 rounded border border-neutral-900 p-2 active:bg-neutral-900"
             >
               <Cover src={e.coverUrl} size={160} />

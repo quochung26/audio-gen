@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   return {
     title: dict((await params).locale as Locale).signUp,
-    alternates: localeAlternates("/dang-ky"),
+    alternates: localeAlternates("/sign-up"),
   };
 }
 
@@ -43,7 +43,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ local
 
       <p className="text-sm text-neutral-500">
         {t.haveAccount}{" "}
-        <Link href={localeHref(locale, "/dang-nhap")} className="underline">
+        <Link href={localeHref(locale, "/sign-in")} className="underline">
           {t.signIn}
         </Link>
       </p>

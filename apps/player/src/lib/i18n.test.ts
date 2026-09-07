@@ -55,12 +55,12 @@ describe("dictionaries", () => {
 describe("localeHref", () => {
   it("the default locale carries NO prefix", () => {
     // This is what keeps already-published RSS links alive.
-    expect(localeHref("vi", "/truyen/abc")).toBe("/truyen/abc");
+    expect(localeHref("vi", "/story/abc")).toBe("/story/abc");
     expect(localeHref("vi", "/")).toBe("/");
   });
 
   it("other locales are prefixed", () => {
-    expect(localeHref("en", "/truyen/abc")).toBe("/en/truyen/abc");
+    expect(localeHref("en", "/story/abc")).toBe("/en/story/abc");
   });
 
   it("the home page does not end up as /en/", () => {
@@ -68,21 +68,21 @@ describe("localeHref", () => {
   });
 
   it("tolerates a path with no leading slash", () => {
-    expect(localeHref("en", "truyen/abc")).toBe("/en/truyen/abc");
+    expect(localeHref("en", "story/abc")).toBe("/en/story/abc");
   });
 
   it("keeps the query string", () => {
-    expect(localeHref("en", "/?the-loai=kinh%20d%E1%BB%8B")).toBe("/en/?the-loai=kinh%20d%E1%BB%8B");
+    expect(localeHref("en", "/?genre=kinh%20d%E1%BB%8B")).toBe("/en/?genre=kinh%20d%E1%BB%8B");
   });
 });
 
 describe("splitLocale", () => {
   it("reads a prefixed path", () => {
-    expect(splitLocale("/en/truyen/abc")).toEqual({ locale: "en", rest: "/truyen/abc" });
+    expect(splitLocale("/en/story/abc")).toEqual({ locale: "en", rest: "/story/abc" });
   });
 
   it("an un-prefixed path is the default locale", () => {
-    expect(splitLocale("/truyen/abc")).toEqual({ locale: "vi", rest: "/truyen/abc" });
+    expect(splitLocale("/story/abc")).toEqual({ locale: "vi", rest: "/story/abc" });
   });
 
   it("/en alone is the English home page", () => {
@@ -92,16 +92,16 @@ describe("splitLocale", () => {
   it("does NOT treat /vi as a prefix — the default has none", () => {
     // Accepting both /vi/x and /x would serve one page at two URLs, which splits the search
     // ranking and makes the language switcher able to build a URL it cannot then parse back.
-    expect(splitLocale("/vi/truyen/abc")).toEqual({ locale: "vi", rest: "/vi/truyen/abc" });
+    expect(splitLocale("/vi/story/abc")).toEqual({ locale: "vi", rest: "/vi/story/abc" });
   });
 
   it("a story slug that looks like a locale is not eaten", () => {
-    expect(splitLocale("/truyen/en")).toEqual({ locale: "vi", rest: "/truyen/en" });
+    expect(splitLocale("/story/en")).toEqual({ locale: "vi", rest: "/story/en" });
   });
 
   it("round-trips with localeHref", () => {
     for (const locale of LOCALES) {
-      for (const path of ["/", "/truyen/abc", "/nghe/x", "/yeu-thich"]) {
+      for (const path of ["/", "/story/abc", "/listen/x", "/favourites"]) {
         expect(splitLocale(localeHref(locale, path))).toEqual({ locale, rest: path });
       }
     }
@@ -162,8 +162,8 @@ describe("catalogueLanguage", () => {
 
 describe("localeAlternates", () => {
   it("names this page's address in every language", () => {
-    expect(localeAlternates("/dang-nhap")).toEqual({
-      languages: { vi: "/dang-nhap", en: "/en/dang-nhap" },
+    expect(localeAlternates("/sign-in")).toEqual({
+      languages: { vi: "/sign-in", en: "/en/sign-in" },
     });
   });
 
@@ -171,9 +171,9 @@ describe("localeAlternates", () => {
     // The bug this replaced: one declaration on the layout, built from a request path that
     // is empty at build time, told search engines every page's other-language version was
     // the home page.
-    const { languages } = localeAlternates("/truyen/chuyen-xe-cuoi-cung");
-    expect(languages.vi).toBe("/truyen/chuyen-xe-cuoi-cung");
-    expect(languages.en).toBe("/en/truyen/chuyen-xe-cuoi-cung");
+    const { languages } = localeAlternates("/story/chuyen-xe-cuoi-cung");
+    expect(languages.vi).toBe("/story/chuyen-xe-cuoi-cung");
+    expect(languages.en).toBe("/en/story/chuyen-xe-cuoi-cung");
   });
 
   it("covers every locale, so none is left undeclared", () => {

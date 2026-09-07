@@ -25,7 +25,7 @@ const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_
 const nextAuth = NextAuth({
   adapter: PrismaAdapter(prismaPlayer),
   session: { strategy: "jwt" },
-  pages: { signIn: "/dang-nhap" },
+  pages: { signIn: "/sign-in" },
 
   providers: [
     ...(googleConfigured ? [Google] : []),

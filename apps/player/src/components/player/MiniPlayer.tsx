@@ -90,7 +90,7 @@ export function MiniPlayer() {
 
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <Link href={href(`/nghe/${p.track.episodeId}`)} className="block truncate text-sm">
+          <Link href={href(`/listen/${p.track.episodeId}`)} className="block truncate text-sm">
             {p.track.title}
           </Link>
           <div className="truncate text-xs text-neutral-500">

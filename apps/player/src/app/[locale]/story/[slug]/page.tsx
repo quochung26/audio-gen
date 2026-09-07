@@ -20,10 +20,10 @@ export async function generateMetadata({
     title: s.title,
     description: s.description ?? undefined,
     alternates: {
-      ...localeAlternates(`/truyen/${s.slug}`),
+      ...localeAlternates(`/story/${s.slug}`),
       // So browsers and podcast tools discover the feed on their own. The feed itself is
       // NOT localised — it carries the story, whose language is the story's own.
-      types: { "application/rss+xml": `/truyen/${s.slug}/rss.xml` },
+      types: { "application/rss+xml": `/story/${s.slug}/rss.xml` },
     },
   };
 }
@@ -64,7 +64,7 @@ export default async function SeriesPage({
           <p className="mt-3 text-xs text-neutral-600">{t.aiDisclosure}</p>
         )}
         <a
-          href={`/truyen/${series.slug}/rss.xml`}
+          href={`/story/${series.slug}/rss.xml`}
           className="mt-3 inline-block text-xs text-neutral-500 underline"
         >
           {t.listenInPodcastApp}
@@ -76,7 +76,7 @@ export default async function SeriesPage({
         {series.episodes.map((ep) => (
           <Link
             key={ep.id}
-            href={localeHref(locale as Locale, `/nghe/${ep.id}`)}
+            href={localeHref(locale as Locale, `/listen/${ep.id}`)}
             className="flex items-center justify-between gap-3 px-4 py-3 active:bg-neutral-900"
           >
             <div className="min-w-0">

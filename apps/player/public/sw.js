@@ -1,5 +1,5 @@
 /**
- * Service worker cho nghe offline.
+ * The service worker for offline listening.
  *
  * Two separate stores, deliberately:
  * - SHELL: the app shell (HTML, JS, CSS). Freely disposable, a reload brings it back.

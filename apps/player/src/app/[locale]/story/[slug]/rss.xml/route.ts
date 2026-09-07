@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * The podcast RSS for one story: `/truyen/<slug>/rss.xml`
+ * The podcast RSS for one story: `/story/<slug>/rss.xml`
  *
  * Only PUBLISHED episodes that already have an MP3. Episodes still rendering or unapproved
  * do not get out — the same gate as the player page.

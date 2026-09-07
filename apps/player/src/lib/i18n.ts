@@ -333,13 +333,12 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
  * Which story language the catalogue is filtered to. `null` means every language.
  *
  * Defaults to the language being READ rather than showing everything: an audio story you
- * cannot understand is not a result, it is noise between the ones you can. `?tieng=all` is
+ * cannot understand is not a result, it is noise between the ones you can. `?lang=all` is
  * the way out, because hiding the rest outright would leave someone unable to reach a story
  * they know exists.
  *
- * The parameter keeps its Vietnamese name alongside `the-loai`: the URL vocabulary is one
- * set of words shared by both languages, so `/en/...` and `/...` stay the same route tree
- * rather than two that can drift apart.
+ * The parameter is named the same in both languages, like every other word in the URL
+ * vocabulary — one route tree serves both locales, rather than two that can drift apart.
  */
 export function catalogueLanguage(param: string | undefined, locale: Locale): Locale | null {
   if (param === "all") return null;
@@ -352,7 +351,7 @@ export function catalogueLanguage(param: string | undefined, locale: Locale): Lo
  * Takes the path EXPLICITLY, and lives on each page rather than on the layout, because a
  * layout cannot know which sub-page is rendering at metadata time. Declared once for the
  * whole tree it pointed every page at the home page — which says the Vietnamese version of
- * `/en/dang-nhap` is `/`, worse than declaring nothing.
+ * `/en/sign-in` is `/`, worse than declaring nothing.
  */
 export function localeAlternates(path: string) {
   return { languages: Object.fromEntries(LOCALES.map((l) => [l, localeHref(l, path)])) };

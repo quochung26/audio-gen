@@ -62,7 +62,7 @@ export function Comments({
         </form>
       ) : (
         <p className="text-sm text-neutral-500">
-          <Link href={href("/dang-nhap")} className="underline">
+          <Link href={href("/sign-in")} className="underline">
             {t.signIn}
           </Link>{" "}
           {t.signInToComment}

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   return {
     title: dict((await params).locale as Locale).favourites,
-    alternates: localeAlternates("/yeu-thich"),
+    alternates: localeAlternates("/favourites"),
   };
 }
 
@@ -23,7 +23,7 @@ export default async function FavoritesPage({
   const locale = (await params).locale as Locale;
   const t = dict(locale);
   const session = await auth();
-  if (!session?.user?.id) redirect(localeHref(locale, "/dang-nhap"));
+  if (!session?.user?.id) redirect(localeHref(locale, "/sign-in"));
 
   const favorites = await prisma.favorite.findMany({
     where: { userId: session.user.id },
@@ -53,7 +53,7 @@ export default async function FavoritesPage({
           {visible.map((f) => (
             <Link
               key={f.episodeId}
-              href={localeHref(locale, `/nghe/${f.episodeId}`)}
+              href={localeHref(locale, `/listen/${f.episodeId}`)}
               className="flex items-center gap-3 px-4 py-3 active:bg-neutral-900"
             >
               <Cover src={f.episode.series.coverUrl} size={44} />

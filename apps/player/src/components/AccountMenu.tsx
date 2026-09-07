@@ -15,7 +15,7 @@ export async function AccountMenu({ locale }: { locale: Locale }) {
 
   if (!session?.user) {
     return (
-      <Link href={localeHref(locale, "/dang-nhap")} className="text-sm text-neutral-400 hover:text-neutral-100">
+      <Link href={localeHref(locale, "/sign-in")} className="text-sm text-neutral-400 hover:text-neutral-100">
         {t.signIn}
       </Link>
     );
@@ -25,7 +25,7 @@ export async function AccountMenu({ locale }: { locale: Locale }) {
 
   return (
     <div className="flex items-center gap-3">
-      <Link href={localeHref(locale, "/yeu-thich")} className="text-sm text-neutral-400 hover:text-neutral-100">
+      <Link href={localeHref(locale, "/favourites")} className="text-sm text-neutral-400 hover:text-neutral-100">
         {t.favourites}
       </Link>
       <span className="max-w-24 truncate text-sm text-neutral-500">{label}</span>

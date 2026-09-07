@@ -27,7 +27,7 @@ export async function generateMetadata({
     include: { series: { select: { title: true } } },
   });
   return ep
-    ? { title: `${ep.title} — ${ep.series.title}`, alternates: localeAlternates(`/nghe/${id}`) }
+    ? { title: `${ep.title} — ${ep.series.title}`, alternates: localeAlternates(`/listen/${id}`) }
     : {};
 }
 
@@ -100,7 +100,7 @@ export default async function ListenPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href={localeHref(l, `/truyen/${episode.series.slug}`)} className="text-xs text-neutral-500 underline">
+        <Link href={localeHref(l, `/story/${episode.series.slug}`)} className="text-xs text-neutral-500 underline">
           ← {episode.series.title}
         </Link>
         <h1 className="mt-2 text-xl font-semibold">

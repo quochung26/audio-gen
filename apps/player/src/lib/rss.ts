@@ -74,7 +74,7 @@ export function absoluteAudioUrl(ref: string, baseUrl: string): string {
 
 export function buildRssFeed(series: FeedSeries, opts: FeedOptions): string {
   const base = opts.baseUrl.replace(/\/+$/, "");
-  const link = `${base}/truyen/${series.slug}`;
+  const link = `${base}/story/${series.slug}`;
   const author = opts.author ?? "Audio Truyện";
 
   const description = [
@@ -136,7 +136,7 @@ function renderItem(ep: FeedEpisode, series: FeedSeries, base: string, author: s
   const summary = ep.summary ?? ep.gist ?? "";
   const parts = [
     `      <title>${escapeXml(`${ep.number}. ${ep.title}`)}</title>`,
-    `      <link>${escapeXml(`${base}/nghe/${ep.id}`)}</link>`,
+    `      <link>${escapeXml(`${base}/listen/${ep.id}`)}</link>`,
     `      <description>${escapeXml(summary)}</description>`,
     // isPermaLink="false" because this is an internal id, not a URL.
     `      <guid isPermaLink="false">${escapeXml(ep.id)}</guid>`,

@@ -20,8 +20,8 @@ import { useLocale } from "./LocaleProvider";
 export function GenreFilter({ genres, languages }: { genres: string[]; languages: string[] }) {
   const { t, href, locale } = useLocale();
   const params = useSearchParams();
-  const genre = params.get("the-loai");
-  const lang = params.get("tieng");
+  const genre = params.get("genre");
+  const lang = params.get("lang");
 
   const withParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(params);
@@ -43,11 +43,11 @@ export function GenreFilter({ genres, languages }: { genres: string[]; languages
             result. But hiding the rest outright would leave someone unable to find a story
             they know exists.
           */}
-          <Chip href={withParam("tieng", "all")} label={t.allLanguages} active={lang === "all"} />
+          <Chip href={withParam("lang", "all")} label={t.allLanguages} active={lang === "all"} />
           {LOCALES.filter((l) => languages.includes(l)).map((l) => (
             <Chip
               key={l}
-              href={withParam("tieng", l === locale ? null : l)}
+              href={withParam("lang", l === locale ? null : l)}
               label={languageNativeName(l)}
               active={lang === l || (!lang && l === locale)}
             />
@@ -57,9 +57,9 @@ export function GenreFilter({ genres, languages }: { genres: string[]; languages
 
       {genres.length > 1 && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          <Chip href={withParam("the-loai", null)} label={t.allGenres} active={!genre} />
+          <Chip href={withParam("genre", null)} label={t.allGenres} active={!genre} />
           {genres.map((g) => (
-            <Chip key={g} href={withParam("the-loai", g)} label={g} active={genre === g} />
+            <Chip key={g} href={withParam("genre", g)} label={g} active={genre === g} />
           ))}
         </div>
       )}

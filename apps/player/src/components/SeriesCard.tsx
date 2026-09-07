@@ -18,7 +18,7 @@ export function SeriesCard({ s, locale }: { s: SeriesCardData; locale: Locale })
   const t = dict(locale);
   return (
     <Link
-      href={localeHref(locale, `/truyen/${s.slug}`)}
+      href={localeHref(locale, `/story/${s.slug}`)}
       className="flex gap-3 rounded border border-neutral-900 p-3 active:bg-neutral-900"
     >
       <Cover src={s.coverUrl} size={64} />

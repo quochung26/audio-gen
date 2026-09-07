@@ -7,7 +7,7 @@
  * - Server actions, which are POSTs with no route segment of their own. Their messages are
  *   rendered straight into the page, so they have to match the language around them.
  * - The language switcher, which needs the PUBLIC path. After the middleware rewrite the
- *   router sees `/vi/truyen/x` while the address bar says `/truyen/x`, so the original has
+ *   router sees `/vi/story/x` while the address bar says `/story/x`, so the original has
  *   to be carried across explicitly rather than recovered.
  *
  * Both fall back to the default rather than throwing: a request that somehow skipped the
