@@ -116,10 +116,20 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
     written.push(text);
 
+    // So với số từ đích chứ không chỉ in ra: cảnh ngắn hơn nửa mục tiêu thường
+    // là model hiểu beat quá hẹp, và đó là thứ chỉ lộ ra khi ngồi đọc lại cả tập.
+    const words = countWords(text);
+    const target = Math.min(SCENE_MAX_WORDS, context.targetWords);
     logger.info(
-      `[write-scene] chương ${scene.chapter.order} cảnh ${scene.order} — ${countWords(text)} từ, ` +
-        `${result.tokensPerSec.toFixed(1)} tok/s`,
+      `[write-scene] chương ${scene.chapter.order} cảnh ${scene.order} — ` +
+        `${words}/${target} từ, ${result.tokensPerSec.toFixed(1)} tok/s`,
     );
+    if (words < target * 0.5) {
+      logger.warn(
+        `[write-scene] cảnh ${scene.chapter.order}.${scene.order} chỉ ${words} từ, ` +
+          `chưa tới nửa mục tiêu ${target}. Beat có thể quá hẹp, hoặc model cắt sớm.`,
+      );
+    }
     await setProgress(Math.round(((index + 1) / scenes.length) * 90));
   }
 

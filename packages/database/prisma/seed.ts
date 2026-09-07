@@ -28,10 +28,16 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
   // Ngữ cảnh rộng hơn OUTLINE vì phải nạp cả tóm tắt các tập cũ.
   NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
-  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.12, numCtx: 16384, maxTokens: 1800 },
+  // `maxTokens` phải rộng hơn hẳn số từ đích: 1.800 token ≈ 1.000 từ, chỉ hơn
+  // mục tiêu 750 có một phần ba — model viết kỹ là chạm trần rồi bị cắt. 2.600
+  // token ≈ 1.450 từ, đủ chỗ cho cả cảnh 900 từ viết rộng tay.
+  //
+  // `repeatPenalty` hạ từ 1.12 xuống 1.05: phạt lặp nặng tay cũng dập luôn lặp
+  // CÓ CHỦ Ý, mà đó là một thủ pháp thật — "Tiếng gõ. Rồi lại tiếng gõ."
+  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   // Thấp hơn viết cảnh vì tình tiết đã chốt, cao hơn biên tập audio vì vẫn
   // là viết văn: 0.4 cho ra bản dịch phẳng, đọc lên nghe như bản tin.
-  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 2000 },
+  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.5, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
   ARC_SUMMARY: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 800 },

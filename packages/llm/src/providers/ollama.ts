@@ -4,6 +4,8 @@ import { LlmError, type GenerateOptions, type GenerateResult, type LlmProvider }
 interface OllamaChunk {
   response?: string;
   done?: boolean;
+  /** "stop" là sinh xong tự nhiên; "length" là chạm trần `num_predict`. */
+  done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
   eval_duration?: number;
@@ -99,6 +101,7 @@ export class OllamaProvider implements LlmProvider {
     let inputTokens = 0;
     let outputTokens = 0;
     let evalDurationNs = 0;
+    let truncated = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -124,8 +127,17 @@ export class OllamaProvider implements LlmProvider {
           inputTokens = chunk.prompt_eval_count ?? 0;
           outputTokens = chunk.eval_count ?? 0;
           evalDurationNs = chunk.eval_duration ?? 0;
+          truncated = chunk.done_reason === "length";
         }
       }
+    }
+
+    if (truncated) {
+      // Khớp với provider OpenRouter: im lặng thì cảnh cụt giữa câu được lưu y
+      // như cảnh viết trọn, và cái sai chỉ lộ ra lúc ngồi nghe lại cả tập.
+      throw new LlmError(
+        `Model chạm trần ${opts.maxTokens ?? 1500} token và bị cắt giữa chừng. Tăng maxTokens hoặc chia nhỏ yêu cầu.`,
+      );
     }
 
     const durationMs = Date.now() - started;
