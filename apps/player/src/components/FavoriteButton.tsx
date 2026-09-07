@@ -18,14 +18,14 @@ export function FavoriteButton({
   if (!loggedIn) {
     return (
       <Link href="/dang-nhap" className="text-xs text-neutral-500 underline">
-        Đăng nhập để lưu yêu thích
+        Sign in to save favourites
       </Link>
     );
   }
 
   // The current state: after a click it comes from the returned result, before that from
   // the server-rendered data.
-  const saved = state.ok ? state.ok.startsWith("Đã lưu") : initial;
+  const saved = state.ok ? state.ok.startsWith("Saved") : initial;
 
   return (
     <form action={formAction} className="inline-flex flex-col gap-1">
@@ -39,7 +39,7 @@ export function FavoriteButton({
             : "border-neutral-700 text-neutral-300"
         }`}
       >
-        {pending ? "…" : saved ? "★ Đã lưu" : "☆ Lưu yêu thích"}
+        {pending ? "…" : saved ? "★ Saved" : "☆ Save to favourites"}
       </button>
       {state.error && <span className="text-xs text-red-300">{state.error}</span>}
     </form>

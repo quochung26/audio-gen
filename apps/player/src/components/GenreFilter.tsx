@@ -16,7 +16,7 @@ export function GenreFilter({ genres }: { genres: string[] }) {
 
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-      <Chip href="/" label="Tất cả" active={!current} />
+      <Chip href="/" label="All" active={!current} />
       {genres.map((g) => (
         <Chip key={g} href={`/?the-loai=${encodeURIComponent(g)}`} label={g} active={current === g} />
       ))}

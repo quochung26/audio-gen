@@ -10,10 +10,10 @@ import {
 
 const ep = (id: string, durationMs: number | null = 1_200_000): ResumableEpisode => ({
   id,
-  title: `Tập ${id}`,
+  title: `Episode ${id}`,
   number: 1,
   durationMs,
-  seriesTitle: "Đường về",
+  seriesTitle: "The Way Back",
   coverUrl: null,
 });
 
@@ -57,18 +57,18 @@ describe("pickResumable", () => {
 
   it("keeps the episode data intact, only adding positionMs", () => {
     const [r] = pickResumable([ep("a")], { a: 100_000 });
-    expect(r).toMatchObject({ id: "a", title: "Tập a", seriesTitle: "Đường về", positionMs: 100_000 });
+    expect(r).toMatchObject({ id: "a", title: "Episode a", seriesTitle: "The Way Back", positionMs: 100_000 });
   });
 });
 
 describe("remaining", () => {
   it("rounds to whole minutes", () => {
-    expect(remaining(1_200_000, 0)).toBe("20 phút");
-    expect(remaining(1_200_000, 600_000)).toBe("10 phút");
+    expect(remaining(1_200_000, 0)).toBe("20 min");
+    expect(remaining(1_200_000, 600_000)).toBe("10 min");
   });
 
   it("under a minute is stated in words", () => {
-    expect(remaining(1_200_000, 1_180_000)).toBe("dưới 1 phút");
+    expect(remaining(1_200_000, 1_180_000)).toBe("under 1 minute");
   });
 
   it("an unknown length is not invented", () => {
@@ -76,6 +76,6 @@ describe("remaining", () => {
   });
 
   it("a position past the end never gives a negative", () => {
-    expect(remaining(100_000, 200_000)).toBe("dưới 1 phút");
+    expect(remaining(100_000, 200_000)).toBe("under 1 minute");
   });
 });

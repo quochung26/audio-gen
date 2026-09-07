@@ -6,7 +6,7 @@ import { AuthForm, AuthInput } from "@/components/AuthForm";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Đăng nhập" };
+export const metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   if (await auth()) redirect("/");
@@ -14,12 +14,12 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto max-w-sm space-y-6 py-6">
       <div>
-        <h1 className="text-xl font-semibold">Đăng nhập</h1>
+        <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Đăng nhập để đồng bộ vị trí nghe giữa các máy và lưu truyện yêu thích.
+          Sign in to sync your listening position across devices and save favourites.
         </p>
         <p className="mt-2 text-xs text-neutral-600">
-          Không đăng nhập vẫn nghe được bình thường — vị trí nghe lưu trên chính máy này.
+          You can listen perfectly well without signing in — the position is kept on this device.
         </p>
       </div>
 
@@ -30,22 +30,22 @@ export default async function LoginPage() {
               type="submit"
               className="w-full rounded border border-neutral-700 px-4 py-2.5 text-sm hover:bg-neutral-900"
             >
-              Đăng nhập bằng Google
+              Sign in with Google
             </button>
           </form>
           <div className="flex items-center gap-3 text-xs text-neutral-600">
             <span className="h-px flex-1 bg-neutral-900" />
-            hoặc
+            or
             <span className="h-px flex-1 bg-neutral-900" />
           </div>
         </>
       )}
 
-      <AuthForm action={loginWithPassword} submit="Đăng nhập">
+      <AuthForm action={loginWithPassword} submit="Sign in">
         <AuthInput name="email" label="Email" type="email" autoComplete="email" required />
         <AuthInput
           name="password"
-          label="Mật khẩu"
+          label="Password"
           type="password"
           autoComplete="current-password"
           required
@@ -53,9 +53,9 @@ export default async function LoginPage() {
       </AuthForm>
 
       <p className="text-sm text-neutral-500">
-        Chưa có tài khoản?{" "}
+        No account yet?{" "}
         <Link href="/dang-ky" className="underline">
-          Đăng ký
+          Sign up
         </Link>
       </p>
     </div>

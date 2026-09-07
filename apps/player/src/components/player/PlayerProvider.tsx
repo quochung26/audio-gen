@@ -238,6 +238,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
 export function usePlayer(): PlayerState {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("usePlayer phải nằm trong PlayerProvider");
+  if (!ctx) throw new Error("usePlayer must be inside PlayerProvider");
   return ctx;
 }

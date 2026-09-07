@@ -42,7 +42,7 @@ export function useOffline(src: string) {
       if (d.type === "removed") setState("absent");
       if (d.type === "download-failed") {
         setState("failed");
-        setError(String(d.error ?? "không rõ"));
+        setError(String(d.error ?? "unknown"));
       }
     }
     navigator.serviceWorker.addEventListener("message", onMessage);

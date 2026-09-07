@@ -24,8 +24,8 @@ export function SeriesCard({ s }: { s: SeriesCardData }) {
         <div className="truncate text-sm">{s.title}</div>
         <div className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.description}</div>
         <div className="mt-1.5 text-xs text-neutral-600">
-          {s.episodeCount} tập · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? " · đang ra" : ""}
+          {s.episodeCount} episodes · {s.genre}
+          {s.kind === "LONG" && s.status === "ONGOING" ? " · ongoing" : ""}
         </div>
       </div>
     </Link>

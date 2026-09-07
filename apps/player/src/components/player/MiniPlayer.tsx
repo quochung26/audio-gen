@@ -25,14 +25,14 @@ export function MiniPlayer() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur">
-      {/* Thanh tiến độ kéo được — nằm sát mép trên cho dễ chạm bằng ngón cái */}
+      {/* A draggable progress bar — right at the top edge, easy to reach with a thumb */}
       <input
         type="range"
         min={0}
         max={Math.max(1, p.durationMs)}
         value={p.positionMs}
         onChange={(e) => p.seek(Number(e.target.value))}
-        aria-label="Vị trí phát"
+        aria-label="Playback position"
         className="block h-1 w-full cursor-pointer appearance-none bg-neutral-800 accent-neutral-100"
         style={{
           background: `linear-gradient(to right, #e5e5e5 ${pct}%, #262626 ${pct}%)`,
@@ -69,7 +69,7 @@ export function MiniPlayer() {
               }}
               className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-neutral-300"
             >
-              {m} phút
+              {m} min
             </button>
           ))}
           {p.sleepAt && (
@@ -80,7 +80,7 @@ export function MiniPlayer() {
               }}
               className="rounded px-3 py-1.5 text-sm text-neutral-500 underline"
             >
-              huỷ hẹn giờ
+              cancel timer
             </button>
           )}
         </div>
@@ -93,13 +93,13 @@ export function MiniPlayer() {
           </Link>
           <div className="truncate text-xs text-neutral-500">
             {p.track.seriesTitle} · {fmt(p.positionMs)} / {fmt(p.durationMs)}
-            {p.sleepAt ? ` · tắt sau ${fmt(sleepLeft)}` : ""}
+            {p.sleepAt ? ` · stops in ${fmt(sleepLeft)}` : ""}
           </div>
         </div>
 
         <button
           onClick={() => p.skip(-15000)}
-          aria-label="Lùi 15 giây"
+          aria-label="Back 15 seconds"
           className="shrink-0 px-2 py-1 text-xs text-neutral-400"
         >
           −15s
@@ -107,7 +107,7 @@ export function MiniPlayer() {
 
         <button
           onClick={p.toggle}
-          aria-label={p.playing ? "Tạm dừng" : "Phát"}
+          aria-label={p.playing ? "Pause" : "Play"}
           className="grid size-11 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-900"
         >
           {p.playing ? "❚❚" : "▶"}
@@ -115,7 +115,7 @@ export function MiniPlayer() {
 
         <button
           onClick={() => p.skip(15000)}
-          aria-label="Tiến 15 giây"
+          aria-label="Forward 15 seconds"
           className="shrink-0 px-2 py-1 text-xs text-neutral-400"
         >
           +15s
@@ -130,7 +130,7 @@ export function MiniPlayer() {
 
         <button
           onClick={() => setPanel(panel === "sleep" ? "none" : "sleep")}
-          aria-label="Hẹn giờ tắt"
+          aria-label="Sleep timer"
           className={`shrink-0 px-2 py-1 text-xs ${p.sleepAt ? "text-amber-400" : "text-neutral-400"}`}
         >
           ⏱

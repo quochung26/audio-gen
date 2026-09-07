@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Audio Truyện", template: "%s · Audio Truyện" },
-  description: "Nghe truyện ngắn và truyện dài",
+  description: "Short stories and serials, read aloud",
   manifest: "/manifest.json",
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          {/* pb-28: chừa chỗ cho mini-player cố định dưới đáy */}
+          {/* pb-28: leaves room for the mini player pinned to the bottom */}
           <main className="mx-auto max-w-3xl px-4 py-6 pb-28">{children}</main>
 
           <MiniPlayer />

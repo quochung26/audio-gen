@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { Cover } from "@/components/Cover";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Yêu thích" };
+export const metadata = { title: "Favourites" };
 
 export default async function FavoritesPage() {
   const session = await auth();
@@ -28,11 +28,11 @@ export default async function FavoritesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Yêu thích</h1>
+      <h1 className="text-xl font-semibold">Favourites</h1>
 
       {visible.length === 0 ? (
         <p className="rounded border border-dashed border-neutral-800 p-6 text-sm text-neutral-500">
-          Chưa lưu tập nào. Bấm <span className="text-neutral-300">☆ Lưu yêu thích</span> ở trang
+          Nothing saved yet. Click <span className="text-neutral-300">☆ Save to favourites</span> on an
           nghe.
         </p>
       ) : (

@@ -26,7 +26,7 @@ export function PlayButton({
   }, []);
 
   const resumeMs = typeof window !== "undefined" ? getSavedPosition(track.episodeId) : 0;
-  const text = isCurrent && p.playing ? "Tạm dừng" : resumeMs > 5000 ? "Nghe tiếp" : (label ?? "Phát");
+  const text = isCurrent && p.playing ? "Pause" : resumeMs > 5000 ? "Resume" : (label ?? "Play");
 
   return (
     <button

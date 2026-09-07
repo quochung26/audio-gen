@@ -54,9 +54,9 @@ export default async function HomePage({
   if (allSeries.length === 0) {
     return (
       <div className="rounded border border-dashed border-neutral-800 p-8 text-center">
-        <p className="text-sm text-neutral-400">Chưa có tập nào được xuất bản.</p>
+        <p className="text-sm text-neutral-400">No episodes published yet.</p>
         <p className="mt-2 text-xs text-neutral-600">
-          Vào Studio, mở một tập đã có audio rồi bấm “Xuất bản”.
+          Open Studio, pick an episode that has audio, and click “Publish”.
         </p>
       </div>
     );
@@ -100,7 +100,7 @@ export default async function HomePage({
 
       {latest.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-neutral-300">Tập mới nhất</h2>
+          <h2 className="mb-3 text-sm font-medium text-neutral-300">Latest episodes</h2>
           <div className="divide-y divide-neutral-900 rounded border border-neutral-900">
             {latest.map((ep) => (
               <Link
@@ -125,7 +125,7 @@ export default async function HomePage({
       )}
 
       {ongoing.length > 0 && (
-        <Row title="Truyện dài đang ra" hint={`${ongoing.length} bộ`}>
+        <Row title="Serials in progress" hint={`${ongoing.length} stories`}>
           {ongoing.map((s) => (
             <div key={s.id} className="w-72 shrink-0 snap-start">
               <SeriesCard s={card(s)} />
@@ -135,7 +135,7 @@ export default async function HomePage({
       )}
 
       {shorts.length > 0 && (
-        <Row title="Truyện ngắn" hint={`${shorts.length} bộ`}>
+        <Row title="Short stories" hint={`${shorts.length} stories`}>
           {shorts.map((s) => (
             <div key={s.id} className="w-72 shrink-0 snap-start">
               <SeriesCard s={card(s)} />
@@ -146,7 +146,7 @@ export default async function HomePage({
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-neutral-300">
-          {genre ? `Tất cả truyện ${genre}` : "Tất cả truyện"}
+          {genre ? `All ${genre} stories` : "All stories"}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {shown.map((s) => (
@@ -167,12 +167,12 @@ function Banner({ s }: { s: SeriesCardData }) {
     >
       <Cover src={s.coverUrl} size={112} />
       <div className="min-w-0 flex-1">
-        <div className="text-xs text-neutral-500">Mới cập nhật</div>
+        <div className="text-xs text-neutral-500">Recently updated</div>
         <h1 className="mt-0.5 truncate text-lg font-semibold">{s.title}</h1>
         <p className="mt-1 line-clamp-3 text-sm text-neutral-400">{s.description}</p>
         <div className="mt-2 text-xs text-neutral-600">
-          {s.episodeCount} tập · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? " · đang ra" : ""}
+          {s.episodeCount} episodes · {s.genre}
+          {s.kind === "LONG" && s.status === "ONGOING" ? " · ongoing" : ""}
         </div>
       </div>
     </Link>

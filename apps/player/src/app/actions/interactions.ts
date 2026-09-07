@@ -39,8 +39,8 @@ export async function toggleFavorite(
   _prev: InteractionState,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Đăng nhập để lưu truyện yêu thích." };
-  if (!(await assertPublished(episodeId))) return { error: "Không tìm thấy tập này." };
+  if (!userId) return { error: "Sign in to save favourites." };
+  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
 
   const existing = await prismaPlayer.favorite.findUnique({
     where: { userId_episodeId: { userId, episodeId } },
@@ -54,7 +54,7 @@ export async function toggleFavorite(
 
   revalidatePath(`/nghe/${episodeId}`);
   revalidatePath("/yeu-thich");
-  return { ok: existing ? "Đã bỏ khỏi yêu thích." : "Đã lưu vào yêu thích." };
+  return { ok: existing ? "Removed from favourites." : "Saved to favourites." };
 }
 
 export async function rateEpisode(
@@ -63,13 +63,13 @@ export async function rateEpisode(
   formData: FormData,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Đăng nhập để đánh giá." };
+  if (!userId) return { error: "Sign in to rate." };
 
   const score = Number(formData.get("score"));
   if (!Number.isInteger(score) || score < 1 || score > 5) {
-    return { error: "Điểm phải từ 1 tới 5 sao." };
+    return { error: "The score has to be 1 to 5 stars." };
   }
-  if (!(await assertPublished(episodeId))) return { error: "Không tìm thấy tập này." };
+  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
 
   // Upsert: rating again OVERWRITES the old score rather than adding a second vote.
   await prismaPlayer.rating.upsert({
@@ -79,7 +79,7 @@ export async function rateEpisode(
   });
 
   revalidatePath(`/nghe/${episodeId}`);
-  return { ok: `Đã chấm ${score} sao.` };
+  return { ok: `Rated ${score} stars.` };
 }
 
 /**
@@ -97,14 +97,14 @@ export async function addComment(
   formData: FormData,
 ): Promise<InteractionState> {
   const userId = await currentUserId();
-  if (!userId) return { error: "Đăng nhập để bình luận." };
+  if (!userId) return { error: "Sign in to comment." };
 
   const body = String(formData.get("body") ?? "").trim();
-  if (body.length < COMMENT_MIN_LENGTH) return { error: "Bình luận quá ngắn." };
+  if (body.length < COMMENT_MIN_LENGTH) return { error: "That comment is too short." };
   if (body.length > COMMENT_MAX_LENGTH) {
-    return { error: `Bình luận tối đa ${COMMENT_MAX_LENGTH} ký tự.` };
+    return { error: `A comment is at most ${COMMENT_MAX_LENGTH} characters.` };
   }
-  if (!(await assertPublished(episodeId))) return { error: "Không tìm thấy tập này." };
+  if (!(await assertPublished(episodeId))) return { error: "Episode not found." };
 
   // Rate-limits posting. Without it one person could drop hundreds of comments into the
   // queue and a moderator would have to clear each by hand.
@@ -114,7 +114,7 @@ export async function addComment(
     select: { createdAt: true },
   });
   if (last && Date.now() - last.createdAt.getTime() < COMMENT_COOLDOWN_MS) {
-    return { error: "Gửi hơi nhanh. Đợi nửa phút rồi gửi tiếp." };
+    return { error: "That was quick. Wait half a minute before posting again." };
   }
 
   const rawTs = Number(formData.get("timestampMs"));
@@ -125,7 +125,7 @@ export async function addComment(
   });
 
   revalidatePath(`/nghe/${episodeId}`);
-  return { ok: "Đã gửi. Bình luận sẽ hiện sau khi được duyệt." };
+  return { ok: "Posted. Your comment appears once it is approved." };
 }
 
 /**

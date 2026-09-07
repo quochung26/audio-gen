@@ -44,5 +44,5 @@ export function pickResumable(
 export function remaining(durationMs: number | null, positionMs: number): string {
   if (!durationMs) return "—";
   const min = Math.max(0, Math.round((durationMs - positionMs) / 60000));
-  return min < 1 ? "dưới 1 phút" : `${min} phút`;
+  return min < 1 ? "under 1 minute" : `${min} min`;
 }

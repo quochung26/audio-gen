@@ -33,7 +33,7 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-medium text-neutral-300">Tiếp tục nghe</h2>
+      <h2 className="mb-3 text-sm font-medium text-neutral-300">Continue listening</h2>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
         {items.map((e) => {
           const pct = e.durationMs ? Math.min(100, (e.positionMs / e.durationMs) * 100) : 0;
@@ -50,7 +50,7 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
                 <div className="h-full bg-neutral-400" style={{ width: `${pct}%` }} />
               </div>
               <div className="mt-1 text-xs text-neutral-600">
-                còn {remaining(e.durationMs, e.positionMs)}
+                {remaining(e.durationMs, e.positionMs)} left
               </div>
             </Link>
           );

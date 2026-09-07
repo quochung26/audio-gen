@@ -42,16 +42,16 @@ export function RatingStars({
           </form>
         ) : (
           <Link href="/dang-nhap" className="text-xs text-neutral-500 underline">
-            Đăng nhập để đánh giá
+            Sign in to rate
           </Link>
         )}
 
         {count > 0 && average !== null ? (
           <span className="text-xs text-neutral-500">
-            {average.toFixed(1)} sao · {count} lượt
+            {average.toFixed(1)} stars · {count} ratings
           </span>
         ) : (
-          <span className="text-xs text-neutral-600">chưa có đánh giá</span>
+          <span className="text-xs text-neutral-600">no ratings yet</span>
         )}
       </div>
       {state.error && <p className="text-xs text-red-300">{state.error}</p>}

@@ -26,29 +26,29 @@ import type { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
   const legacyPath = req.nextUrl.searchParams.get("path");
-  if (!key && !legacyPath) return new Response("thiếu tham số key", { status: 400 });
+  if (!key && !legacyPath) return new Response("the key parameter is required", { status: 400 });
 
   const root = storageRoot();
   const target = key ? resolve(join(root, key)) : resolve(legacyPath!);
 
   // The gate: the resolved path has to sit inside the storage directory.
   if (target !== root && !target.startsWith(root + "/")) {
-    return new Response("đường dẫn ngoài thư mục lưu trữ", { status: 403 });
+    return new Response("path outside the storage directory", { status: 403 });
   }
 
   let info;
   try {
     info = await stat(target);
   } catch {
-    return new Response("không tìm thấy file", { status: 404 });
+    return new Response("file not found", { status: 404 });
   }
-  if (!info.isFile()) return new Response("không phải file", { status: 400 });
+  if (!info.isFile()) return new Response("not a file", { status: 400 });
 
   const type = contentType(target);
   const range = parseRange(req.headers.get("range"), info.size);
 
   if (range === "unsatisfiable") {
-    return new Response("khoảng byte không hợp lệ", {
+    return new Response("invalid byte range", {
       status: 416,
       headers: { "content-range": `bytes */${info.size}`, "accept-ranges": "bytes" },
     });

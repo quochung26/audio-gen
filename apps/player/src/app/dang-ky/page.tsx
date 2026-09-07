@@ -6,7 +6,7 @@ import { AuthForm, AuthInput } from "@/components/AuthForm";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Đăng ký" };
+export const metadata = { title: "Sign up" };
 
 export default async function RegisterPage() {
   if (await auth()) redirect("/");
@@ -14,18 +14,18 @@ export default async function RegisterPage() {
   return (
     <div className="mx-auto max-w-sm space-y-6 py-6">
       <div>
-        <h1 className="text-xl font-semibold">Đăng ký</h1>
+        <h1 className="text-xl font-semibold">Sign up</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Chỉ cần email và mật khẩu. Không cần xác minh gì thêm.
+          Just an email and a password. Nothing else to verify.
         </p>
       </div>
 
-      <AuthForm action={register} submit="Tạo tài khoản">
-        <AuthInput name="name" label="Tên hiển thị (tuỳ chọn)" autoComplete="nickname" />
+      <AuthForm action={register} submit="Create account">
+        <AuthInput name="name" label="Display name (optional)" autoComplete="nickname" />
         <AuthInput name="email" label="Email" type="email" autoComplete="email" required />
         <AuthInput
           name="password"
-          label="Mật khẩu — ít nhất 8 ký tự"
+          label="Password — at least 8 characters"
           type="password"
           autoComplete="new-password"
           minLength={8}
@@ -34,9 +34,9 @@ export default async function RegisterPage() {
       </AuthForm>
 
       <p className="text-sm text-neutral-500">
-        Đã có tài khoản?{" "}
+        Already have an account?{" "}
         <Link href="/dang-nhap" className="underline">
-          Đăng nhập
+          Sign in
         </Link>
       </p>
     </div>

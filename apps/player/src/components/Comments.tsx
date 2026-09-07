@@ -32,7 +32,7 @@ export function Comments({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-medium text-neutral-300">Bình luận ({comments.length})</h2>
+      <h2 className="text-sm font-medium text-neutral-300">Comments ({comments.length})</h2>
 
       {loggedIn ? (
         <form action={formAction} className="space-y-2">
@@ -40,7 +40,7 @@ export function Comments({
             name="body"
             rows={3}
             maxLength={maxLength}
-            placeholder="Nghĩ gì về tập này?"
+            placeholder="What did you make of this episode?"
             className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm outline-none placeholder:text-neutral-700 focus:border-neutral-600"
           />
           <div className="flex flex-wrap items-center gap-3">
@@ -49,10 +49,10 @@ export function Comments({
               disabled={pending}
               className="rounded bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 disabled:opacity-50"
             >
-              {pending ? "Đang gửi…" : "Gửi"}
+              {pending ? "Posting…" : "Post"}
             </button>
             <span className="text-xs text-neutral-600">
-              Bình luận hiện sau khi được duyệt.
+              Comments appear once approved.
             </span>
           </div>
           {state.error && <p className="text-sm text-red-300">{state.error}</p>}
@@ -61,14 +61,14 @@ export function Comments({
       ) : (
         <p className="text-sm text-neutral-500">
           <Link href="/dang-nhap" className="underline">
-            Đăng nhập
+            Sign in
           </Link>{" "}
-          để bình luận.
+          to comment.
         </p>
       )}
 
       {comments.length === 0 ? (
-        <p className="text-sm text-neutral-600">Chưa có bình luận nào.</p>
+        <p className="text-sm text-neutral-600">No comments yet.</p>
       ) : (
         <ul className="space-y-3">
           {comments.map((c) => (
@@ -76,7 +76,7 @@ export function Comments({
               <div className="flex flex-wrap items-baseline gap-2 text-xs text-neutral-500">
                 <span className="text-neutral-300">{c.authorName}</span>
                 {c.timestampMs !== null && (
-                  <span className="text-neutral-600">tại {fmt(c.timestampMs)}</span>
+                  <span className="text-neutral-600">at {fmt(c.timestampMs)}</span>
                 )}
                 <span className="text-neutral-700">
                   {new Date(c.createdAt).toLocaleDateString("vi")}

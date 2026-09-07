@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     },
   });
 
-  if (!series) return new Response("không tìm thấy bộ truyện", { status: 404 });
+  if (!series) return new Response("story not found", { status: 404 });
 
   // The environment variable wins; the headers are only used when it is not configured.
   const configured = loadEnv().PLAYER_PUBLIC_URL;

@@ -45,19 +45,19 @@ export default async function SeriesPage({ params }: { params: Promise<{ slug: s
         <div className="min-w-60 flex-1">
         <h1 className="text-xl font-semibold">{series.title}</h1>
         <p className="mt-1 text-xs text-neutral-500">
-          {series.genre} · {series.episodes.length} tập · {formatDuration(total)}
+          {series.genre} · {series.episodes.length} episodes · {formatDuration(total)}
         </p>
         {series.description && (
           <p className="mt-3 text-sm leading-relaxed text-neutral-400">{series.description}</p>
         )}
         {series.aiDisclosure && (
-          <p className="mt-3 text-xs text-neutral-600">Nội dung có sự hỗ trợ của AI.</p>
+          <p className="mt-3 text-xs text-neutral-600">This content was made with AI assistance.</p>
         )}
         <a
           href={`/truyen/${series.slug}/rss.xml`}
           className="mt-3 inline-block text-xs text-neutral-500 underline"
         >
-          Nghe bằng app podcast (RSS)
+          Listen in a podcast app (RSS)
         </a>
         </div>
       </div>

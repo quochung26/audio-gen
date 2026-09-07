@@ -14,22 +14,22 @@ export async function AccountMenu() {
   if (!session?.user) {
     return (
       <Link href="/dang-nhap" className="text-sm text-neutral-400 hover:text-neutral-100">
-        Đăng nhập
+        Sign in
       </Link>
     );
   }
 
-  const label = session.user.name || session.user.email || "Tài khoản";
+  const label = session.user.name || session.user.email || "Account";
 
   return (
     <div className="flex items-center gap-3">
       <Link href="/yeu-thich" className="text-sm text-neutral-400 hover:text-neutral-100">
-        Yêu thích
+        Favourites
       </Link>
       <span className="max-w-24 truncate text-sm text-neutral-500">{label}</span>
       <form action={logout}>
         <button type="submit" className="text-sm text-neutral-500 hover:text-neutral-200">
-          Thoát
+          Sign out
         </button>
       </form>
     </div>

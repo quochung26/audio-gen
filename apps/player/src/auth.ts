@@ -32,7 +32,7 @@ const nextAuth = NextAuth({
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Mật khẩu", type: "password" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(raw) {
         const email = String(raw?.email ?? "").trim().toLowerCase();

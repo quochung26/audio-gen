@@ -22,18 +22,18 @@ export async function register(_prev: AuthState, formData: FormData): Promise<Au
   const password = String(formData.get("password") ?? "");
   const name = String(formData.get("name") ?? "").trim();
 
-  if (!email.includes("@") || email.length < 5) return { error: "Email không hợp lệ" };
+  if (!email.includes("@") || email.length < 5) return { error: "That email is not valid" };
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return { error: `Mật khẩu phải từ ${MIN_PASSWORD_LENGTH} ký tự trở lên` };
+    return { error: `The password must be at least ${MIN_PASSWORD_LENGTH} characters` };
   }
   // Signing up also costs one hash, so it needs the same rate limit.
   if (!checkRateLimit(`register:${email}`).allowed) {
-    return { error: "Thử quá nhiều lần. Đợi ít phút rồi thử lại." };
+    return { error: "Too many attempts. Wait a few minutes and try again." };
   }
 
   const existing = await prismaPlayer.user.findUnique({ where: { email } });
   if (existing) {
-    return { error: "Không tạo được tài khoản với email này. Nếu đã có, hãy đăng nhập." };
+    return { error: "Could not create an account with this email. If you already have one, sign in." };
   }
 
   await prismaPlayer.user.create({
@@ -59,7 +59,7 @@ export async function loginWithPassword(
     // `signIn` redirects by THROWING a special error — catching everything would block the
     // success path too. Only real authentication errors are handled.
     if (err instanceof AuthError) {
-      return { error: "Email hoặc mật khẩu không đúng." };
+      return { error: "Wrong email or password." };
     }
     throw err;
   }

@@ -94,9 +94,9 @@ describe("useOffline", () => {
     await waitFor(() => expect(result.current.state).toBe("absent"));
     act(() => result.current.download());
 
-    await fromWorker({ type: "download-failed", url: KEY, error: "mất mạng" });
+    await fromWorker({ type: "download-failed", url: KEY, error: "network lost" });
     expect(result.current.state).toBe("failed");
-    expect(result.current.error).toBe("mất mạng");
+    expect(result.current.error).toBe("network lost");
   });
 
   it("IGNORES messages about another episode", async () => {

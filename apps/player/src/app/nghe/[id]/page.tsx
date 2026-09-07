@@ -99,7 +99,7 @@ export default async function ListenPage({
           ← {episode.series.title}
         </Link>
         <h1 className="mt-2 text-xl font-semibold">
-          Tập {episode.number}: {episode.title}
+          Episode {episode.number}: {episode.title}
         </h1>
         <p className="mt-1 text-xs text-neutral-500">
           {episode.durationMs ? formatDuration(episode.durationMs) : ""}
@@ -127,8 +127,8 @@ export default async function ListenPage({
 
       {next && (
         <p className="text-xs text-neutral-600">
-          Hết tập sẽ tự chuyển sang <span className="text-neutral-400">{next.title}</span> — trừ khi
-          đang hẹn giờ tắt.
+          At the end it moves on to <span className="text-neutral-400">{next.title}</span> — unless
+          a sleep timer is running.
         </p>
       )}
 
@@ -141,14 +141,14 @@ export default async function ListenPage({
           body: c.body,
           timestampMs: c.timestampMs,
           createdAt: c.createdAt.toISOString(),
-          authorName: c.user.name ?? "Người nghe",
+          authorName: c.user.name ?? "Listener",
         }))}
       />
 
       {episode.blocks.length > 0 && (
         <details className="rounded border border-neutral-900">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-400">
-            Đọc lời truyện
+            Read the transcript
           </summary>
           <div className="space-y-3 border-t border-neutral-900 px-4 py-4">
             {episode.blocks.map((b, i) => (

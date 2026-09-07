@@ -13,9 +13,9 @@ export function OfflineButton({ src, sizeBytes }: { src: string; sizeBytes: numb
   if (off.state === "ready") {
     return (
       <div className="flex items-center gap-3 text-xs">
-        <span className="text-emerald-400">Đã tải về — nghe được khi mất mạng</span>
+        <span className="text-emerald-400">Downloaded — playable offline</span>
         <button onClick={off.remove} className="text-neutral-500 underline">
-          xoá khỏi máy
+          remove from device
         </button>
       </div>
     );
@@ -28,10 +28,10 @@ export function OfflineButton({ src, sizeBytes }: { src: string; sizeBytes: numb
         disabled={off.state === "downloading"}
         className="rounded border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 disabled:opacity-50"
       >
-        {off.state === "downloading" ? "Đang tải…" : `Tải về nghe offline${size}`}
+        {off.state === "downloading" ? "Downloading…" : `Download for offline${size}`}
       </button>
       {off.state === "failed" && (
-        <p className="text-xs text-red-300">Tải không xong: {off.error}</p>
+        <p className="text-xs text-red-300">Download failed: {off.error}</p>
       )}
     </div>
   );
