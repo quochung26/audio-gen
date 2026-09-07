@@ -1,7 +1,7 @@
 export type TtsTier = "FAST" | "EXPRESSIVE";
 
 export interface TtsVoice {
-  /** ID mà engine hiểu — voicepack Kokoro, tên model Piper… */
+  /** The id the engine understands — a Kokoro voicepack, a Piper model name… */
   externalVoiceId: string;
   name: string;
   gender?: string;
@@ -12,14 +12,14 @@ export interface TtsVoice {
 export interface SynthesizeInput {
   text: string;
   voiceId: string;
-  /** Mẫu giọng tham chiếu cho engine clone giọng (viXTTS/F5-TTS). */
+  /** The reference sample for voice-cloning engines (viXTTS/F5-TTS). */
   refAudio?: Buffer;
   speed?: number;
   pitch?: number;
 }
 
 export interface SynthesizeResult {
-  /** WAV mono. Ghép và chuẩn hoá về sau đều do ffmpeg lo. */
+  /** Mono WAV. Joining and normalising later are ffmpeg's job. */
   audio: Buffer;
   durationMs: number;
   sampleRate: number;
@@ -29,11 +29,11 @@ export interface TTSProvider {
   readonly name: string;
   readonly tier: TtsTier;
   /**
-   * VRAM cần. Kokoro và Piper chạy CPU nên khai báo 0 — đây là con số worker
-   * dùng để quyết định nhận job hay xếp hàng chờ (PLAN.md mục 6.1).
+   * The VRAM needed. Kokoro and Piper run on CPU so they declare 0 — this is the number
+   * the worker uses to decide whether to take a job or queue it (PLAN.md section 6.1).
    */
   readonly vramMb: number;
-  /** Có được dùng thương mại không. Chốt chặn khi xuất bản. */
+  /** Whether commercial use is allowed. The gate at publish time. */
   readonly commercialOk: boolean;
 
   listVoices(): Promise<TtsVoice[]>;

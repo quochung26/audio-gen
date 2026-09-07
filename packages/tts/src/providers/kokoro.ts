@@ -3,21 +3,21 @@ import { TtsError, type SynthesizeInput, type SynthesizeResult, type TTSProvider
 /**
  * Kokoro TTS qua HTTP.
  *
- * **Chạy CPU, khai báo vramMb = 0.** Model chỉ 82M tham số (bản ONNX lượng tử
- * hoá chưa tới 100MB) nên CPU xử lý nhanh hơn thời gian thực nhiều lần. Đặt lên
- * GPU chỉ nhanh thêm chút ít nhưng tranh mất VRAM của model viết truyện —
- * xem PLAN.md mục 6.1.
+ * **Runs on CPU, declares vramMb = 0.** The model is only 82M parameters (the quantised
+ * ONNX build is under 100MB), so the CPU handles it many times faster than real time.
+ * Putting it on the GPU is only slightly faster while taking VRAM from the writing model
+ * — see PLAN.md section 6.1.
  *
- * ⚠️ Kokoro bản chính thức CHƯA hỗ trợ tiếng Việt. Adapter này nhằm vào các bản
- * fine-tune cộng đồng (`anthupl/Kokoro-Vietnamese`, `contextboxai/Kokoro-Vietnamese`)
- * chạy sau một HTTP wrapper. Chất lượng phải tự nghe và đánh giá ở Phase 0 —
- * xem docs/setup-wsl2.md bước 5.
+ * ⚠️ Official Kokoro does NOT support Vietnamese yet. This adapter targets the community
+ * fine-tunes (`anthupl/Kokoro-Vietnamese`, `contextboxai/Kokoro-Vietnamese`) running behind
+ * an HTTP wrapper. Their quality has to be listened to and judged in Phase 0 — see
+ * docs/setup-wsl2.md step 5.
  */
 export class KokoroProvider implements TTSProvider {
   readonly name = "kokoro";
   readonly tier = "FAST" as const;
   readonly vramMb = 0;
-  /** Kokoro là Apache 2.0. Bản fine-tune cộng đồng cần kiểm tra riêng. */
+  /** Kokoro is Apache 2.0. Community fine-tunes need checking separately. */
   readonly commercialOk = true;
 
   constructor(private readonly baseUrl: string) {}
@@ -46,8 +46,8 @@ export class KokoroProvider implements TTSProvider {
     const audio = Buffer.from(await res.arrayBuffer());
     if (audio.length < 44 || audio.subarray(0, 4).toString() !== "RIFF") {
       throw new TtsError(
-        `Kokoro trả về dữ liệu không phải WAV (${audio.length} byte). ` +
-          `Kiểm tra wrapper HTTP ở ${this.baseUrl}.`,
+        `Kokoro returned something that is not a WAV (${audio.length} bytes). ` +
+          `Check the HTTP wrapper at ${this.baseUrl}.`,
       );
     }
 
@@ -64,21 +64,21 @@ export class KokoroProvider implements TTSProvider {
       res = await fetch(`${this.baseUrl}${path}`, init);
     } catch (err) {
       throw new TtsError(
-        `Không kết nối được Kokoro ở ${this.baseUrl}. Đã chạy wrapper HTTP chưa?`,
+        `Could not reach Kokoro at ${this.baseUrl}. Is the HTTP wrapper running?`,
         err,
       );
     }
     if (!res.ok) {
-      throw new TtsError(`Kokoro trả lỗi ${res.status}: ${await res.text().catch(() => "")}`);
+      throw new TtsError(`Kokoro returned error ${res.status}: ${await res.text().catch(() => "")}`);
     }
     return res;
   }
 }
 
-/** Đọc thời lượng từ header WAV thay vì gọi ffprobe — nhanh hơn nhiều. */
+/** Read the duration from the WAV header instead of calling ffprobe — far faster. */
 export function wavDurationMs(wav: Buffer): number {
   const byteRate = wav.readUInt32LE(28);
   if (byteRate === 0) return 0;
-  // Bỏ qua 44 byte header; đủ chính xác cho WAV chuẩn không có chunk lạ.
+  // Skips the 44-byte header; accurate enough for a standard WAV with no odd chunks.
   return Math.round(((wav.length - 44) / byteRate) * 1000);
 }

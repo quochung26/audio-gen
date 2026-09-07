@@ -12,12 +12,12 @@ export { wavDurationMs } from "./providers/kokoro";
 const cache = new Map<string, TTSProvider>();
 
 /**
- * Lấy provider theo tên engine.
+ * Get the provider for an engine name.
  *
- * Chiến lược hai tầng (PLAN.md mục 6.1): người dẫn truyện dùng tầng FAST chạy
- * CPU, nhân vật dùng tầng EXPRESSIVE clone giọng trên GPU. Router đọc
- * `block.ttsEngine` — bản chụp lưu lúc tạo kịch bản — nên đổi casting về sau
- * không làm sai audio đã render.
+ * The two-tier strategy (PLAN.md section 6.1): the narrator uses the FAST tier on CPU,
+ * characters use the EXPRESSIVE tier cloning voices on GPU. The router reads
+ * `block.ttsEngine` — the snapshot taken when the script was made — so changing the
+ * casting later does not invalidate audio already rendered.
  */
 export function getTts(engine?: string): TTSProvider {
   const env = loadEnv();
@@ -35,25 +35,25 @@ export function getTts(engine?: string): TTSProvider {
       break;
     case "vixtts":
     case "f5tts":
-      // Tầng EXPRESSIVE để Phase 5. Ném lỗi rõ ràng thay vì rơi ngầm về mock —
-      // im lặng đổi engine là kiểu lỗi rất khó truy.
+      // The EXPRESSIVE tier is Phase 5. Throws clearly rather than falling back to the
+      // mock — silently switching engine is a very hard bug to trace.
       throw new Error(
-        `Engine "${name}" chưa cài (Phase 5 — đa giọng nhân vật). ` +
-          `⚠️ Kiểm tra giấy phép trước khi dùng: XTTS-v2/viXTTS CẤM dùng thương mại. ` +
-          `Xem PLAN.md mục 6.3.`,
+        `Engine "${name}" is not installed (Phase 5 — multi-voice characters). ` +
+          `⚠️ Check the licence before using it: XTTS-v2/viXTTS FORBID commercial use. ` +
+          `See PLAN.md section 6.3.`,
       );
     case "mock":
       p = new MockTtsProvider();
       break;
     default:
-      throw new Error(`Engine TTS không biết: "${name}"`);
+      throw new Error(`Unknown TTS engine: "${name}"`);
   }
 
   cache.set(name, p);
   return p;
 }
 
-/** Engine nào đang phục vụ tầng nào — dùng khi gán giọng cho block. */
+/** Which engine serves which tier — used when assigning a voice to a block. */
 export function engineForTier(tier: TtsTier): string {
   const env = loadEnv();
   return tier === "FAST" ? env.TTS_PROVIDER : env.TTS_EXPRESSIVE_PROVIDER;

@@ -4,55 +4,55 @@ import { checkCover, COVER_MAX_BYTES } from "./cover";
 const good = { codec: "mjpeg", width: 3000, height: 3000, sizeBytes: 1_000_000 };
 
 describe("checkCover", () => {
-  it("ảnh đạt chuẩn thì sạch cả lỗi lẫn cảnh báo", () => {
+  it("a conforming image is clean of both errors and warnings", () => {
     expect(checkCover(good)).toEqual({ ok: true, errors: [], warnings: [] });
   });
 
-  it("png cũng đạt", () => {
+  it("png conforms too", () => {
     expect(checkCover({ ...good, codec: "png" }).warnings).toEqual([]);
   });
 
-  it("không đọc được kích thước thì CHẶN — có thể không phải ảnh", () => {
+  it("unreadable dimensions BLOCK — it may not be an image", () => {
     const r = checkCover({ ...good, width: 0, height: 0 });
     expect(r.ok).toBe(false);
-    expect(r.errors[0]).toMatch(/có phải ảnh không/);
+    expect(r.errors[0]).toMatch(/is this file an image/);
   });
 
-  it("nặng quá 5 MB thì chặn", () => {
+  it("over 5 MB is blocked", () => {
     const r = checkCover({ ...good, sizeBytes: COVER_MAX_BYTES + 1 });
     expect(r.ok).toBe(false);
-    expect(r.errors[0]).toMatch(/tối đa 5 MB/);
+    expect(r.errors[0]).toMatch(/maximum is 5 MB/);
   });
 
-  it("ảnh nhỏ thì CẢNH BÁO chứ không chặn", () => {
-    // Vẫn dùng được cho trang nghe; chỉ Apple Podcasts mới từ chối. Chặn hẳn
-    // thì không ai đặt được bìa tạm trong lúc chờ ảnh thật.
+  it("a small image WARNS rather than blocking", () => {
+    // It still works for the player; only Apple Podcasts rejects it. Blocking outright
+    // would stop anyone putting up a placeholder while waiting for the real art.
     const r = checkCover({ ...good, width: 800, height: 800 });
     expect(r.ok).toBe(true);
-    expect(r.warnings[0]).toMatch(/nhỏ hơn 1400×1400/);
+    expect(r.warnings[0]).toMatch(/smaller than 1400×1400/);
   });
 
-  it("ảnh không vuông thì cảnh báo", () => {
+  it("a non-square image warns", () => {
     expect(checkCover({ ...good, width: 3000, height: 2000 }).warnings.join()).toMatch(
-      /không vuông/,
+      /not square/,
     );
   });
 
-  it("định dạng lạ thì cảnh báo, không chặn", () => {
+  it("an unusual format warns rather than blocking", () => {
     const r = checkCover({ ...good, codec: "webp" });
     expect(r.ok).toBe(true);
-    expect(r.warnings.join()).toMatch(/chỉ nhận JPEG hoặc PNG/);
+    expect(r.warnings.join()).toMatch(/only accepts JPEG or PNG/);
   });
 
-  it("ảnh quá lớn cũng cảnh báo", () => {
+  it("an oversized image warns too", () => {
     expect(checkCover({ ...good, width: 4000, height: 4000 }).warnings.join()).toMatch(
-      /lớn hơn 3000×3000/,
+      /larger than 3000×3000/,
     );
   });
 
-  it("gộp nhiều cảnh báo cùng lúc", () => {
+  it("collects several warnings at once", () => {
     const r = checkCover({ codec: "webp", width: 500, height: 300, sizeBytes: 1000 });
     expect(r.ok).toBe(true);
-    expect(r.warnings.length).toBe(3); // định dạng + không vuông + quá nhỏ
+    expect(r.warnings.length).toBe(3); // format + not square + too small
   });
 });

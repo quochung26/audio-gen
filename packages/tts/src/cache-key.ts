@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
 /**
- * Khoá cache của một block audio.
+ * The cache key for one audio block.
  *
- * Gồm cả tham số render, không chỉ nội dung: đổi giọng hay đổi tốc độ là ra
- * file khác, nên khoá phải đổi theo. Đây là lý do `Block` lưu BẢN CHỤP
- * engine/voice thay vì khoá ngoại tới `Voice` — xem docs/database.md mục 2.7.
+ * Covers the render parameters, not only the content: changing voice or speed produces a
+ * different file, so the key has to change with them. That is why `Block` stores a SNAPSHOT
+ * of engine/voice rather than a foreign key to `Voice` — see docs/database.md section 2.7.
  */
 export function audioCacheKey(input: {
   text: string;
@@ -15,8 +15,8 @@ export function audioCacheKey(input: {
   pitch?: number | null;
 }): string {
   const parts = [
-    // Chuẩn hoá khoảng trắng: hai block chỉ khác nhau ở dấu cách thừa thì
-    // dùng chung được một file audio.
+    // Whitespace is normalised: two blocks differing only in stray spaces can share one
+    // audio file.
     input.text.trim().replace(/\s+/g, " "),
     input.ttsEngine,
     input.voiceId,

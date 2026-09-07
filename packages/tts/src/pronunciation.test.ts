@@ -8,85 +8,85 @@ const r = (term: string, replacement: string, isRegex = false): PronunciationRul
 });
 
 describe("applyPronunciation", () => {
-  it("thay từ vay mượn", () => {
+  it("replaces a loanword", () => {
     expect(applyPronunciation("mở wifi lên", [r("wifi", "quai phai")])).toBe("mở quai phai lên");
   });
 
-  it("QUY TẮC DÀI ÁP TRƯỚC QUY TẮC NGẮN", () => {
-    // Không có thứ tự này thì "Bến" ăn mất một nửa "Bến Cũ" và ra
-    // "Bấn Cũ" — sai mà nghe vẫn trôi, nên rất khó phát hiện.
+  it("LONGER RULES APPLY BEFORE SHORTER ONES", () => {
+    // Without that ordering, "Bến" eats half of "Bến Cũ" and gives "Bấn Cũ" — wrong but
+    // still plausible to the ear, so very hard to notice.
     const rules = [r("Bến", "Bấn"), r("Bến Cũ", "Bấn Cuu")];
     expect(applyPronunciation("về Bến Cũ", rules)).toBe("về Bấn Cuu");
   });
 
-  it("thứ tự dài-trước đúng bất kể thứ tự đưa vào", () => {
+  it("longest-first holds whatever order the rules arrive in", () => {
     const a = [r("Bến Cũ", "X"), r("Bến", "Y")];
     const b = [r("Bến", "Y"), r("Bến Cũ", "X")];
     expect(applyPronunciation("Bến Cũ", a)).toBe(applyPronunciation("Bến Cũ", b));
   });
 
-  it("không phân biệt hoa thường", () => {
+  it("is case-insensitive", () => {
     expect(applyPronunciation("WIFI và WiFi", [r("wifi", "quai phai")])).toBe(
       "quai phai và quai phai",
     );
   });
 
-  it("thay mọi lần xuất hiện", () => {
+  it("replaces every occurrence", () => {
     expect(applyPronunciation("taxi rồi taxi", [r("taxi", "tắc xi")])).toBe("tắc xi rồi tắc xi");
   });
 
-  it("ký tự đặc biệt trong term được hiểu theo NGHĨA ĐEN, không phải regex", () => {
-    // Không escape thì "C++" là regex hỏng, hoặc "a.b" khớp cả "axb".
+  it("special characters in a term are taken LITERALLY, not as a regex", () => {
+    // Unescaped, "C++" is a broken regex, or "a.b" also matches "axb".
     expect(applyPronunciation("học C++ đi", [r("C++", "xi cộng cộng")])).toBe(
       "học xi cộng cộng đi",
     );
     expect(applyPronunciation("axb", [r("a.b", "SAI")])).toBe("axb");
   });
 
-  it("bật isRegex thì dùng như regex", () => {
+  it("with isRegex on it is used as a regex", () => {
     expect(applyPronunciation("tập 12 và tập 7", [r("\\d+", "số", true)])).toBe(
       "tập số và tập số",
     );
   });
 
-  it("regex gõ sai KHÔNG làm hỏng job, các quy tắc khác vẫn chạy", () => {
-    // Một dấu ngoặc thừa trong ô nhập không được phép giết cả lượt render.
+  it("a mistyped regex does NOT break the job — the other rules still run", () => {
+    // One stray bracket in an input field must not kill a whole render.
     const rules = [r("([", "X", true), r("wifi", "quai phai")];
     expect(applyPronunciation("mở wifi", rules)).toBe("mở quai phai");
   });
 
-  it("bỏ qua term rỗng", () => {
+  it("skips an empty term", () => {
     expect(applyPronunciation("giữ nguyên", [r("", "X")])).toBe("giữ nguyên");
   });
 
-  it("không có quy tắc nào thì giữ nguyên", () => {
+  it("no rules leaves the text as it is", () => {
     expect(applyPronunciation("giữ nguyên", [])).toBe("giữ nguyên");
   });
 });
 
 describe("normalizeForTts", () => {
-  it("bỏ ký tự markdown chỉ có nghĩa khi đọc bằng mắt", () => {
+  it("strips markdown that only means something on the page", () => {
     expect(normalizeForTts("**đậm** _nghiêng_ `mã` #tiêu")).toBe("đậm nghiêng mã tiêu");
   });
 
-  it("giữ chữ trong link, bỏ URL", () => {
+  it("keeps a link's text and drops the URL", () => {
     expect(normalizeForTts("xem [Bến Cũ](https://x.test) nhé")).toBe("xem Bến Cũ nhé");
   });
 
-  it("đổi dấu ba chấm và gạch dài thành dạng engine đọc được", () => {
+  it("converts the ellipsis and em dash into forms the engine reads", () => {
     expect(normalizeForTts("chờ… rồi — đi")).toBe("chờ... rồi - đi");
   });
 
-  it("GIỮ dấu ngoặc kép thoại", () => {
-    // Nhiều engine dùng dấu ngoặc kép để lên ngữ điệu — bỏ đi là mất chỗ nhấn.
+  it("KEEPS dialogue quotation marks", () => {
+    // Many engines use quotation marks for intonation — dropping them loses the emphasis.
     expect(normalizeForTts('anh nói "đi thôi"')).toBe('anh nói "đi thôi"');
   });
 
-  it("gộp khoảng trắng và cắt hai đầu", () => {
+  it("collapses whitespace and trims both ends", () => {
     expect(normalizeForTts("  a\n\n  b  ")).toBe("a b");
   });
 
-  it("giữ nguyên dấu tiếng Việt", () => {
+  it("leaves Vietnamese diacritics alone", () => {
     expect(normalizeForTts("Đường về đêm mưa")).toBe("Đường về đêm mưa");
   });
 });

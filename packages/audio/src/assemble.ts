@@ -4,19 +4,18 @@ import { DEFAULT_BGM_VOLUME, LUFS_TIKTOK, LUFS_WEB, LUFS_YOUTUBE } from "@audio/
 import { ffmpeg, ffprobe } from "./ffmpeg";
 
 export interface BlockAudio {
-  /** Đường dẫn file WAV của block */
+  /** Path to the block's WAV file */
   path: string;
-  /** Số mili-giây lặng chèn SAU block này */
+  /** Milliseconds of silence inserted AFTER this block */
   pauseAfterMs: number;
 }
 
 /**
- * Ghép các block thành một file, chèn khoảng lặng giữa chúng.
+ * Join the blocks into one file, with silence between them.
  *
- * Cách làm: chuyển từng khoảng lặng thành một file WAV lặng rồi dùng concat
- * demuxer. Thử `adelay`/`apad` trong filter_complex sẽ đụng giới hạn số input
- * của ffmpeg khi tập có hàng trăm block; concat demuxer đọc từ file danh sách
- * nên không có trần đó.
+ * How: turn each pause into a silent WAV file and use the concat demuxer. Trying
+ * `adelay`/`apad` in filter_complex runs into ffmpeg's input limit once an episode has
+ * hundreds of blocks; the concat demuxer reads from a list file and has no such ceiling.
  */
 export async function concatBlocks(input: {
   blocks: BlockAudio[];
@@ -24,7 +23,7 @@ export async function concatBlocks(input: {
   workDir: string;
   sampleRate?: number;
 }): Promise<{ durationMs: number }> {
-  if (input.blocks.length === 0) throw new Error("Không có block nào để ghép");
+  if (input.blocks.length === 0) throw new Error("No blocks to join");
 
   const sampleRate = input.sampleRate ?? 24000;
   const dir = join(input.workDir, "concat");
@@ -38,8 +37,8 @@ export async function concatBlocks(input: {
       lines.push(`file '${b.path.replace(/'/g, "'\\''")}'`);
 
       if (b.pauseAfterMs > 0 && i < input.blocks.length - 1) {
-        // Cùng độ dài thì dùng lại một file lặng — tập 200 block thường chỉ có
-        // 3–4 giá trị pauseAfter khác nhau.
+        // The same length reuses one silent file — a 200-block episode usually has only
+        // 3–4 distinct pauseAfter values.
         let silence = silenceCache.get(b.pauseAfterMs);
         if (!silence) {
           silence = join(dir, `silence-${b.pauseAfterMs}.wav`);
@@ -63,8 +62,8 @@ export async function concatBlocks(input: {
       "-f", "concat",
       "-safe", "0",
       "-i", listFile,
-      // Chuẩn hoá sample rate về một mức: block từ engine khác nhau có thể
-      // khác tần số, ghép trực tiếp sẽ méo tiếng.
+      // Normalise the sample rate to one value: blocks from different engines may differ,
+      // and joining them directly distorts the sound.
       "-ar", String(sampleRate),
       "-ac", "1",
       "-c:a", "pcm_s16le",
@@ -79,24 +78,24 @@ export async function concatBlocks(input: {
 }
 
 export interface SfxCue {
-  /** File hiệu ứng. */
+  /** The effect file. */
   path: string;
-  /** Chèn vào mốc nào của bản lời, tính từ đầu tập. */
+  /** Where in the speech track it goes, measured from the start of the episode. */
   atMs: number;
-  /** 0–1. Mặc định 0,6 — nghe rõ mà không lấn lời. */
+  /** 0–1. Default 0.6 — audible without covering the speech. */
   volume?: number;
 }
 
 /**
- * Chèn hiệu ứng âm thanh vào bản lời đã ghép.
+ * Insert sound effects into the joined speech track.
  *
- * Chèn TRƯỚC khi trộn nhạc nền, có chủ đích: ducking lấy bản lời làm tín hiệu
- * điều khiển, nên hiệu ứng nằm trong bản lời thì tiếng cửa đập cũng kéo nhạc
- * xuống — đúng như một cảnh audio drama thật. Chèn sau thì nhạc dửng dưng với
- * mọi thứ trừ giọng nói.
+ * Inserted BEFORE the music is mixed, deliberately: ducking uses the speech track as its
+ * control signal, so an effect inside that track makes a slamming door pull the music down
+ * too — exactly as in a real audio drama. Inserted afterwards, the music would be
+ * indifferent to everything but the voice.
  *
- * Hiệu ứng KHÔNG kéo dài tập: `duration=first` giữ độ dài theo bản lời, hiệu
- * ứng nào tràn quá đuôi thì bị cắt. Tập dài thêm vì một tiếng gió là sai.
+ * Effects do NOT lengthen the episode: `duration=first` keeps the speech track's length,
+ * and any effect overrunning the end is cut. An episode growing for a gust of wind is wrong.
  */
 export async function mixSfx(input: {
   voicePath: string;
@@ -104,7 +103,7 @@ export async function mixSfx(input: {
   outPath: string;
   sampleRate?: number;
 }): Promise<{ durationMs: number }> {
-  if (input.cues.length === 0) throw new Error("Không có hiệu ứng nào để chèn");
+  if (input.cues.length === 0) throw new Error("No effects to insert");
 
   const sampleRate = input.sampleRate ?? 24000;
   const format = `aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono`;
@@ -115,8 +114,8 @@ export async function mixSfx(input: {
   for (const [i, cue] of input.cues.entries()) {
     const volume = Math.min(1, Math.max(0, cue.volume ?? 0.6));
     const label = `[sfx${i}]`;
-    // `all=1` vì adelay mặc định chỉ trễ kênh đầu — với nguồn stereo thì kênh
-    // phải phát ngay, nghe như hai tiếng lệch nhau.
+    // `all=1` because adelay only delays the first channel by default — with a stereo
+    // source the right channel would play immediately, sounding like two offset copies.
     parts.push(
       `[${i + 1}:a]${format},volume=${volume.toFixed(3)},` +
         `adelay=${Math.max(0, Math.round(cue.atMs))}:all=1${label}`,
@@ -124,8 +123,8 @@ export async function mixSfx(input: {
     labels.push(label);
   }
 
-  // normalize=0 vì amix mặc định chia biên độ cho số input — lời sẽ bé đi theo
-  // số hiệu ứng, tức là tập nào nhiều sfx thì lời nhỏ hơn.
+  // normalize=0 because amix divides the amplitude by the input count by default — the
+  // speech would get quieter with each effect, so an episode with many SFX has quieter speech.
   parts.push(`${labels.join("")}amix=inputs=${labels.length}:duration=first:normalize=0[out]`);
 
   const args = ["-i", input.voicePath];
@@ -146,9 +145,9 @@ export async function mixSfx(input: {
 }
 
 /**
- * Ducking mặc định — xem `mixBgm` để biết vì sao là những số này.
+ * The ducking defaults — see `mixBgm` for why these numbers.
  *
- * `threshold` tính theo biên độ tuyến tính (0–1), không phải dB: 0,1 ≈ −20 dBFS.
+ * `threshold` is in linear amplitude (0–1), not dB: 0.1 ≈ −20 dBFS.
  */
 const DUCK_THRESHOLD = 0.1;
 const DUCK_RATIO = 4;
@@ -156,42 +155,44 @@ const DUCK_ATTACK_MS = 20;
 const DUCK_RELEASE_MS = 400;
 
 /**
- * Trộn nhạc nền dưới lời đọc, có ducking.
+ * Mix background music under the narration, with ducking.
  *
- * Ducking = nhạc tự nhỏ lại khi có lời, tự to lên khi im. Làm bằng
- * `sidechaincompress`: nhạc là tín hiệu BỊ nén, lời là tín hiệu ĐIỀU KHIỂN.
- * Vặn nhạc nhỏ cố định thay cho ducking thì hoặc lời bị lấn, hoặc nhạc nhỏ tới
- * mức vô nghĩa — không có mức nào đúng cho cả hai.
+ * Ducking = the music drops on its own when there is speech and comes back in the silence.
+ * Done with `sidechaincompress`: the music is the signal being COMPRESSED, the speech is
+ * the CONTROL signal. A fixed low music level instead of ducking either covers the speech
+ * or makes the music pointlessly quiet — no single level is right for both.
  *
- * Vì sao các tham số nén là như hiện tại:
- * - `threshold=0,1` (≈ −20 dBFS) — dưới mức lời đọc bình thường, nên hễ có lời
- *   là ducking ăn; nhưng trên mức nhiễu nền, nên đoạn lặng nhạc được về đủ to.
- * - `ratio=4` — đo thực tế: lời ở RMS −14 dBFS (mức giọng đọc sau chuẩn hoá)
- *   kéo nhạc xuống ~8 dB. Đây là mức podcast hay dùng: nghe rõ lời mà vẫn còn
- *   cảm được nhạc. Ratio 8–12 dìm nhạc gần như tắt hẳn, lúc đó thà bỏ nhạc còn hơn.
- * - `attack=20ms` — kịp bắt đầu câu, không nghe thấy nhạc "vọt" lên ở phụ âm đầu.
- * - `release=400ms` — đủ chậm để nhạc không phập phồng theo từng chữ, đủ nhanh
- *   để khoảng nghỉ giữa hai đoạn được trả lại nhạc.
+ * Why the compressor parameters are what they are:
+ * - `threshold=0.1` (≈ −20 dBFS) — below normal narration level, so any speech triggers
+ *   the duck; but above the noise floor, so the music comes fully back in the silence.
+ * - `ratio=4` — measured: speech at −14 dBFS RMS (the narration level after normalising)
+ *   pulls the music down ~8 dB. This is the level podcasts commonly use: the speech is
+ *   clear while the music is still felt. Ratio 8–12 buries the music almost entirely, and
+ *   at that point dropping the music is better.
+ * - `attack=20ms` — in time for the start of a sentence, with no audible music "surge" on
+ *   the opening consonant.
+ * - `release=400ms` — slow enough that the music does not pump word by word, fast enough
+ *   that a pause between passages gets the music back.
  *
- * Ba chỗ dễ sai đã xử lý sẵn trong filter:
- * - `sidechaincompress` cần hai nguồn cùng sample rate và channel layout. ffmpeg
- *   tự chèn chuyển đổi được (thử trên 9.0.1: bỏ `aformat` đi vẫn ducking đúng
- *   với nhạc stereo 48 kHz), nhưng `aformat` ghim rõ định dạng thay vì phó mặc
- *   cho cơ chế thương lượng có thể khác giữa các bản ffmpeg.
- * - `amix` mặc định chia biên độ cho số input (lời tự nhiên bé đi một nửa) —
- *   phải `normalize=0`. Cần ffmpeg ≥ 4.4.
- * - Nhạc ngắn hơn tập thì `-stream_loop -1` cho lặp; dài hơn thì `atrim` cắt.
+ * Three easy mistakes already handled in the filter:
+ * - `sidechaincompress` needs both sources at the same sample rate and channel layout.
+ *   ffmpeg can insert the conversion itself (tested on 9.0.1: dropping `aformat` still
+ *   ducks correctly with stereo 48 kHz music), but `aformat` pins the format explicitly
+ *   rather than trusting a negotiation that may differ between ffmpeg builds.
+ * - `amix` divides the amplitude by the input count by default (the speech naturally
+ *   halves) — hence `normalize=0`. Needs ffmpeg ≥ 4.4.
+ * - Music shorter than the episode gets `-stream_loop -1` to repeat; longer gets `atrim`.
  *
- * GIỚI HẠN ĐÃ BIẾT: vòng lặp nối thẳng, KHÔNG crossfade — nhạc 3 phút dưới tập
- * 20 phút sẽ có ~6 chỗ nối nghe được. Chọn track dài xấp xỉ tập là cách tránh
- * rẻ nhất; Studio hiển thị sẵn số vòng lặp để biết trước.
+ * A KNOWN LIMITATION: the loop is a straight join with NO crossfade — three minutes of
+ * music under a 20-minute episode has ~6 audible seams. Picking a track close to the
+ * episode's length is the cheapest way around it; Studio shows the loop count up front.
  */
 export async function mixBgm(input: {
-  /** File lời đọc đã ghép (`concatBlocks`). Quyết định độ dài bản trộn. */
+  /** The joined speech file (`concatBlocks`). It determines the mix's length. */
   voicePath: string;
   bgmPath: string;
   outPath: string;
-  /** Âm lượng nhạc lúc KHÔNG có lời (0–1). Ducking trừ tiếp từ mức này. */
+  /** The music level when there is NO speech (0–1). Ducking subtracts from this. */
   volume?: number;
   sampleRate?: number;
   fadeInMs?: number;
@@ -201,7 +202,7 @@ export async function mixBgm(input: {
   const volume = Math.min(1, Math.max(0, input.volume ?? DEFAULT_BGM_VOLUME));
 
   const voice = await ffprobe(input.voicePath);
-  if (voice.durationMs <= 0) throw new Error("File lời đọc rỗng, không trộn được nhạc nền");
+  if (voice.durationMs <= 0) throw new Error("The speech file is empty, cannot mix music under it");
 
   const durationSec = voice.durationMs / 1000;
   const fadeIn = Math.min((input.fadeInMs ?? 2000) / 1000, durationSec / 2);
@@ -211,7 +212,7 @@ export async function mixBgm(input: {
   const format = `aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono`;
 
   const filter = [
-    // Lời vừa là tín hiệu chính vừa là tín hiệu điều khiển ducking → tách đôi.
+    // The speech is both the main signal and the ducking control signal → split in two.
     `[0:a]${format},asplit=2[voice][key]`,
     `[1:a]${format},atrim=0:${durationSec.toFixed(3)},asetpts=N/SR/TB,volume=${volume.toFixed(3)},` +
       `afade=t=in:st=0:d=${fadeIn.toFixed(3)},` +
@@ -223,7 +224,7 @@ export async function mixBgm(input: {
 
   await ffmpeg([
     "-i", input.voicePath,
-    // Lặp vô hạn; `atrim` + `-t` mới là thứ quyết định điểm dừng.
+    // Loops forever; `atrim` + `-t` are what decide where it stops.
     "-stream_loop", "-1",
     "-i", input.bgmPath,
     "-filter_complex", filter,
@@ -240,19 +241,21 @@ export async function mixBgm(input: {
 }
 
 /**
- * Chuẩn hoá loudness.
+ * Normalise loudness.
  *
- * Mặc định `web` (−16 LUFS, chuẩn podcast). Các đích khác chỉ dùng khi thật sự
- * xuất cho nền tảng đó — YouTube và TikTok đều chỉ vặn XUỐNG chứ không vặn lên,
- * nên master quá nhỏ là phát ra nhỏ, không cứu được.
+ * Defaults to `web` (−16 LUFS, the podcast standard). The other targets are only for
+ * actually exporting to that platform — YouTube and TikTok both only turn things DOWN,
+ * never up, so a master that is too quiet just plays quietly, unrecoverably.
  *
- * Dùng loudnorm hai lượt: lượt một đo, lượt hai áp số đo được. Một lượt chạy ở
- * chế độ động, bám theo từng đoạn nên nén mất dynamic range của cả file — nghe
- * rõ nhất ở tập có nhạc nền, chỗ chuyển giữa đoạn có lời và đoạn chỉ có nhạc bị
- * "bơm" lên xuống. Lượt hai `linear=true` chỉ dịch nguyên khối một mức gain.
+ * Uses two-pass loudnorm: the first measures, the second applies what was measured. A
+ * single pass runs in dynamic mode, following each passage and compressing the whole
+ * file's dynamic range away — most audible on an episode with music, where the transitions
+ * between speech and music-only "pump". The second pass with `linear=true` shifts the
+ * whole thing by one gain figure.
  *
- * Nếu lượt đo không đọc được số (file quá ngắn, hoặc lặng hoàn toàn nên loudnorm
- * trả `-inf`) thì lùi về một lượt — thà kém chính xác còn hơn hỏng cả bản xuất.
+ * When the measuring pass returns no readable numbers (the file is too short, or entirely
+ * silent so loudnorm returns `-inf`) it falls back to a single pass — less accurate beats
+ * a broken export.
  */
 export async function normalizeLoudness(input: {
   inPath: string;
@@ -265,7 +268,7 @@ export async function normalizeLoudness(input: {
   const lra = 11;
   const base = `loudnorm=I=${lufs}:TP=${tp}:LRA=${lra}`;
 
-  // Lượt 1 — chỉ đo, không ghi file (`-f null`).
+  // Pass 1 — measure only, writing no file (`-f null`).
   const measured = await measureLoudness(input.inPath, `${base}:print_format=json`);
 
   const filter = measured
@@ -291,7 +294,7 @@ interface LoudnormMeasurement {
   target_offset: string;
 }
 
-/** Chạy lượt đo và bóc JSON loudnorm in ra stderr. `null` nếu không đọc được. */
+/** Run the measuring pass and pull the loudnorm JSON out of stderr. `null` when unreadable. */
 async function measureLoudness(
   inPath: string,
   filter: string,
@@ -303,7 +306,7 @@ async function measureLoudness(
     return null;
   }
 
-  // JSON của loudnorm là khối phẳng in ở cuối stderr, nên cắt từ dấu `{` cuối.
+  // loudnorm's JSON is a flat block printed at the end of stderr, so slice from the last `{`.
   const start = stderr.lastIndexOf("{");
   const end = stderr.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
@@ -315,7 +318,7 @@ async function measureLoudness(
 
     for (const f of fields) {
       const v = parsed[f];
-      // File lặng cho `-inf`; truyền tiếp vào lượt hai là ffmpeg lỗi.
+      // A silent file gives `-inf`; passing that into pass two makes ffmpeg fail.
       if (v === undefined || !Number.isFinite(Number(v))) return null;
       out[f] = String(v);
     }
@@ -325,7 +328,7 @@ async function measureLoudness(
   }
 }
 
-/** Xuất MP3 cho web/podcast. */
+/** Export MP3 for web/podcast. */
 export async function exportMp3(input: {
   inPath: string;
   outPath: string;

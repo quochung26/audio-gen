@@ -3,18 +3,18 @@ import { TtsError, type SynthesizeInput, type SynthesizeResult, type TTSProvider
 import { wavDurationMs } from "./kokoro";
 
 /**
- * Piper TTS — gọi trực tiếp qua CLI, không cần HTTP wrapper.
+ * Piper TTS — called directly through the CLI, with no HTTP wrapper.
  *
- * Vai trò: **phương án dự phòng sạch về pháp lý.** Giấy phép MIT, có sẵn giọng
- * `vi_VN`, chạy CPU rất nhanh. Chất lượng máy móc hơn Kokoro, nhưng khi cần
- * chắc chắn được dùng thương mại thì đây là lựa chọn an toàn — xem PLAN.md
- * mục 6.3 về rủi ro giấy phép của các engine clone giọng.
+ * Its role: **the legally clean fallback.** MIT licensed, ships a `vi_VN` voice, and runs
+ * very fast on CPU. More robotic than Kokoro, but when commercial use has to be certain
+ * this is the safe choice — see PLAN.md section 6.3 on the licensing risk of voice-cloning
+ * engines.
  */
 export class PiperProvider implements TTSProvider {
   readonly name = "piper";
   readonly tier = "FAST" as const;
   readonly vramMb = 0;
-  /** MIT — thoải mái thương mại. Đây là lý do chính giữ Piper trong hệ thống. */
+  /** MIT — commercially unrestricted. That is the main reason Piper is kept around. */
   readonly commercialOk = true;
 
   constructor(
@@ -23,8 +23,8 @@ export class PiperProvider implements TTSProvider {
   ) {}
 
   async listVoices(): Promise<TtsVoice[]> {
-    // Piper không có API liệt kê giọng; giọng do người dùng tải về và khai báo
-    // trong bảng Voice. Trả rỗng và để seed-voices lo.
+    // Piper has no voice-listing API; voices are downloaded by the user and declared in
+    // the Voice table. Returns empty and leaves it to seed-voices.
     return [];
   }
 
@@ -32,7 +32,7 @@ export class PiperProvider implements TTSProvider {
     const model = this.voicesDir ? `${this.voicesDir}/${input.voiceId}.onnx` : input.voiceId;
     const args = ["-m", model, "--output_file", "-"];
     if (input.speed && input.speed !== 1) {
-      // Piper dùng length_scale: >1 chậm hơn, nên phải nghịch đảo.
+      // Piper uses length_scale: >1 is slower, so it has to be inverted.
       args.push("--length_scale", String(1 / input.speed));
     }
 
@@ -40,7 +40,7 @@ export class PiperProvider implements TTSProvider {
 
     if (audio.length < 44 || audio.subarray(0, 4).toString() !== "RIFF") {
       throw new TtsError(
-        `Piper không trả WAV (${audio.length} byte). Kiểm tra model "${model}" có tồn tại không.`,
+        `Piper did not return a WAV (${audio.length} bytes). Check that model "${model}" exists.`,
       );
     }
 
@@ -64,14 +64,14 @@ function run(binary: string, args: string[], stdin: string): Promise<Buffer> {
     proc.on("error", (e) =>
       reject(
         new TtsError(
-          `Không chạy được "${binary}". Đã cài chưa? (pip install piper-tts)`,
+          `Could not run "${binary}". Is it installed? (pip install piper-tts)`,
           e,
         ),
       ),
     );
     proc.on("close", (code) => {
       if (code === 0) resolve(Buffer.concat(out));
-      else reject(new TtsError(`Piper thoát với mã ${code}: ${Buffer.concat(err).toString()}`));
+      else reject(new TtsError(`Piper exited with code ${code}: ${Buffer.concat(err).toString()}`));
     });
 
     proc.stdin.write(stdin);

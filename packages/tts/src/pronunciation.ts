@@ -5,13 +5,14 @@ export interface PronunciationRule {
 }
 
 /**
- * Áp từ điển phát âm TRƯỚC khi đưa vào engine.
+ * Apply the pronunciation dictionary BEFORE handing text to the engine.
  *
- * Cần thiết vì G2P tiếng Việt của các engine local hay sai tên riêng, số và từ
- * vay mượn. Đặt ở tầng này thay vì sửa engine, để đổi engine mà không mất từ điển.
+ * Needed because local engines' Vietnamese G2P routinely mishandles proper nouns, numbers
+ * and loanwords. Done at this layer rather than by patching the engine, so the engine can
+ * change without losing the dictionary.
  *
- * Quy tắc dài áp trước quy tắc ngắn — nếu không thì "Bến Cũ" sẽ bị quy tắc
- * "Bến" ăn mất một nửa.
+ * Longer rules apply before shorter ones — otherwise the "Bến" rule eats half of
+ * "Bến Cũ".
  */
 export function applyPronunciation(text: string, rules: PronunciationRule[]): string {
   const sorted = [...rules].sort((a, b) => b.term.length - a.term.length);
@@ -23,7 +24,7 @@ export function applyPronunciation(text: string, rules: PronunciationRule[]): st
       try {
         out = out.replace(new RegExp(rule.term, "gi"), rule.replacement);
       } catch {
-        // Regex người dùng gõ sai không được làm hỏng cả job render.
+        // A regex the user mistyped must not break the whole render job.
       }
     } else {
       out = out.replace(new RegExp(escapeRegex(rule.term), "gi"), rule.replacement);
@@ -37,8 +38,8 @@ function escapeRegex(s: string): string {
 }
 
 /**
- * Chuẩn hoá văn bản cho TTS: bỏ ký tự chỉ có nghĩa khi đọc bằng mắt.
- * Giữ dấu ngoặc kép thoại — nhiều engine dùng nó để lên ngữ điệu.
+ * Normalise text for TTS: strip characters that only mean something on the page.
+ * Keeps dialogue quotation marks — many engines use them for intonation.
  */
 export function normalizeForTts(text: string): string {
   return text

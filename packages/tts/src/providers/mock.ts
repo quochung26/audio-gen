@@ -4,15 +4,15 @@ import type { SynthesizeInput, SynthesizeResult, TTSProvider, TtsVoice } from ".
 const SAMPLE_RATE = 24000;
 
 /**
- * TTS giả lập — sinh WAV THẬT, không phải file rỗng.
+ * The mock TTS — it generates a REAL WAV, not an empty file.
  *
- * Vì sao phải là WAV thật: bước sau là ffmpeg ghép, ducking, chuẩn hoá loudness
- * rồi xuất MP3. Nếu mock trả file rỗng thì toàn bộ chuỗi đó không kiểm chứng
- * được, và lỗi ffmpeg chỉ lộ ra khi đã cắm Kokoro vào.
+ * Why it has to be a real WAV: the next steps are ffmpeg joining, ducking, loudness
+ * normalisation and MP3 export. An empty file from the mock leaves that whole chain
+ * unverified, and ffmpeg errors only surface once Kokoro is plugged in.
  *
- * Âm thanh là chuỗi âm có biên độ nhấp nhô theo nhịp nói, độ dài tính từ số từ.
- * Nghe được, phân biệt được giọng (mỗi voiceId một cao độ khác nhau), nhưng
- * hiển nhiên không phải tiếng người.
+ * The audio is a tone whose amplitude undulates at a speaking rhythm, with the length
+ * derived from the word count. Audible, and the voices are distinguishable (each voiceId
+ * gets its own pitch), while being obviously not a human voice.
  */
 export class MockTtsProvider implements TTSProvider {
   readonly name = "mock";
@@ -36,7 +36,7 @@ export class MockTtsProvider implements TTSProvider {
       Math.round((words / WORDS_PER_MINUTE) * 60_000 / speed),
     );
 
-    // Mỗi giọng một cao độ nền khác nhau để nghe ra được block nào giọng nào.
+    // A different base pitch per voice, so you can hear which block is which voice.
     const baseHz = 110 + (hashString(input.voiceId) % 5) * 30;
     const audio = renderTone(durationMs, baseHz, SAMPLE_RATE);
 
@@ -60,13 +60,13 @@ function renderTone(durationMs: number, baseHz: number, sampleRate: number): Buf
 
   for (let i = 0; i < samples; i++) {
     const t = i / sampleRate;
-    // Biên độ nhấp nhô ~3,5 lần/giây, xấp xỉ nhịp âm tiết tiếng Việt.
+    // The amplitude undulates ~3.5 times a second, roughly the Vietnamese syllable rate.
     const envelope = 0.35 * (0.55 + 0.45 * Math.sin(2 * Math.PI * 3.5 * t));
-    // Hài bậc hai làm âm bớt khô, dễ nghe hơn sin thuần.
+    // A second harmonic takes the dryness off — easier to listen to than a pure sine.
     const wave =
       Math.sin(2 * Math.PI * baseHz * t) * 0.7 +
       Math.sin(2 * Math.PI * baseHz * 2 * t) * 0.3;
-    // Vào/ra mềm 20ms để không nghe tiếng "cụp" ở mối ghép.
+    // A 20ms fade in and out, so there is no "click" at the joins.
     const fade = Math.min(1, i / (sampleRate * 0.02), (samples - i) / (sampleRate * 0.02));
     pcm.writeInt16LE(Math.round(wave * envelope * fade * 32767), i * 2);
   }
@@ -80,13 +80,13 @@ function wrapWav(pcm: Buffer, sampleRate: number): Buffer {
   header.writeUInt32LE(36 + pcm.length, 4);
   header.write("WAVE", 8);
   header.write("fmt ", 12);
-  header.writeUInt32LE(16, 16); // kích thước khối fmt
+  header.writeUInt32LE(16, 16); // fmt chunk size
   header.writeUInt16LE(1, 20); // PCM
   header.writeUInt16LE(1, 22); // mono
   header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * 2, 28); // byte/giây
+  header.writeUInt32LE(sampleRate * 2, 28); // bytes per second
   header.writeUInt16LE(2, 32); // byte/khung
-  header.writeUInt16LE(16, 34); // bit/mẫu
+  header.writeUInt16LE(16, 34); // bits per sample
   header.write("data", 36);
   header.writeUInt32LE(pcm.length, 40);
   return Buffer.concat([header, pcm]);

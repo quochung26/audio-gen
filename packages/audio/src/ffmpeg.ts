@@ -11,26 +11,26 @@ export class FfmpegError extends Error {
 }
 
 /**
- * Chạy ffmpeg. Luôn thêm `-nostdin` và `-y`.
+ * Run ffmpeg. Always adds `-nostdin` and `-y`.
  *
- * `-nostdin` quan trọng khi chạy trong worker: không có nó, ffmpeg có thể chiếm
- * stdin của tiến trình cha và làm treo cả worker.
+ * `-nostdin` matters inside the worker: without it ffmpeg can take over the parent
+ * process's stdin and hang the whole worker.
  */
 export async function ffmpeg(
   args: string[],
   onProgress?: (seconds: number) => void,
 ): Promise<string> {
-  // Trả về stderr thay vì bỏ đi: loudnorm lượt đo in kết quả ra đây, không có
-  // cách nào khác lấy được số đo. Nơi khác gọi thì cứ bỏ qua giá trị trả về.
+  // Returns stderr rather than discarding it: loudnorm's measuring pass prints its result
+  // there, and there is no other way to get the numbers. Other callers ignore the return.
   return run("ffmpeg", ["-nostdin", "-hide_banner", "-y", ...args], onProgress);
 }
 
 /**
- * Chạy ffprobe và trả về JSON đã parse.
+ * Run ffprobe and return the parsed JSON.
  *
- * Đọc được cả ẢNH: ffprobe coi ảnh là video một khung hình, nên `width`/`height`
- * có giá trị còn `sampleRate`/`channels` bằng 0. Nhờ vậy không phải thêm thư
- * viện đọc ảnh chỉ để kiểm kích thước bìa.
+ * Reads IMAGES too: ffprobe treats an image as a one-frame video, so `width`/`height` have
+ * values while `sampleRate`/`channels` are 0. That saves adding an image library purely to
+ * check a cover's dimensions.
  */
 export async function ffprobe(file: string): Promise<{
   durationMs: number;
@@ -86,7 +86,7 @@ function run(
       const text = c.toString();
       chunks.push(text);
       if (onProgress) {
-        // ffmpeg báo tiến độ ở stderr dạng "time=00:01:23.45"
+        // ffmpeg reports progress on stderr as "time=00:01:23.45"
         const m = /time=(\d+):(\d+):(\d+)\.(\d+)/.exec(text);
         if (m) {
           onProgress(Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]) / 100);
@@ -97,7 +97,7 @@ function run(
     proc.on("error", (e) =>
       reject(
         new FfmpegError(
-          `Không chạy được "${binary}". Đã cài ffmpeg chưa? (brew install ffmpeg / apt install ffmpeg)`,
+          `Could not run "${binary}". Is ffmpeg installed? (brew install ffmpeg / apt install ffmpeg)`,
           String(e),
         ),
       ),
@@ -106,13 +106,13 @@ function run(
     proc.on("close", (code) => {
       const output = chunks.join("");
       if (code === 0) resolve(output);
-      // ffmpeg viết mọi thứ ra stderr nên chỉ lấy phần cuối cho dễ đọc.
-      else reject(new FfmpegError(`${binary} thoát với mã ${code}`, output.slice(-1200)));
+      // ffmpeg writes everything to stderr, so only the tail is kept for readability.
+      else reject(new FfmpegError(`${binary} exited with code ${code}`, output.slice(-1200)));
     });
   });
 }
 
-/** ffmpeg có sẵn và đủ filter cần dùng không. */
+/** Whether ffmpeg is present and has every filter needed. */
 export async function checkFfmpeg(): Promise<{ ok: boolean; missing: string[] }> {
   const needed = ["loudnorm", "sidechaincompress", "showwaves", "aresample"];
   try {
@@ -120,6 +120,6 @@ export async function checkFfmpeg(): Promise<{ ok: boolean; missing: string[] }>
     const missing = needed.filter((f) => !new RegExp(`\\b${f}\\b`).test(out));
     return { ok: missing.length === 0, missing };
   } catch {
-    return { ok: false, missing: ["ffmpeg không cài được/không tìm thấy"] };
+    return { ok: false, missing: ["ffmpeg is not installed / not found"] };
   }
 }
