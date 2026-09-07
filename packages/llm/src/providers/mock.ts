@@ -154,16 +154,7 @@ function fakeFromSchema(
     }
     case z.ZodFirstPartyTypeKind.ZodArray: {
       const inner = (schema as z.ZodArray<z.ZodTypeAny>).element;
-      const count =
-        key === "facts"
-          ? 7
-          : key === "episodes"
-          ? (opts.episodeCount ?? 1)
-          : key === "beats"
-            ? 3
-            : key === "blocks"
-              ? 4
-              : 2;
+      const count = FAKE_COUNT[key] ?? (key === "episodes" ? (opts.episodeCount ?? 1) : 2);
       return Array.from({ length: count }, (_, i) =>
         fakeFromSchema(inner, key, depth + 1, i, opts),
       );
@@ -193,6 +184,14 @@ function fakeFromSchema(
   }
 }
 
+/** Bao nhiêu phần tử cho mỗi mảng trong schema. Số nào thiếu thì mặc định 2. */
+const FAKE_COUNT: Record<string, number> = {
+  facts: 7,
+  chapters: 3,
+  beats: 2,
+  blocks: 4,
+};
+
 const NAMES = ["Tài", "Cô gái áo trắng", "Ông Bảy", "Hạnh", "Lâm"];
 
 function fakeString(base: string, desc: string, index: number): string {
@@ -200,6 +199,7 @@ function fakeString(base: string, desc: string, index: number): string {
   if (base === "speaker") return index % 2 === 0 ? "narrator" : NAMES[1]!;
   if (base === "name") return NAMES[index % NAMES.length]!;
   if (base === "title") return index === 0 ? "Chuyến xe cuối cùng" : `Tập ${index + 1}: Đường về`;
+  if (base === "chapters") return `Chương ${index + 1} (giả lập)`;
   if (base === "logline") return "Một tài xế xe khách đêm nhận ra hành khách cuối cùng đã chết.";
   if (base === "genre") return "kinh dị";
   if (base === "setting") return "Quốc lộ miền Trung, thập niên 1970, những chuyến xe đêm.";

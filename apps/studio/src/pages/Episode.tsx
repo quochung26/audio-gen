@@ -22,7 +22,7 @@ interface SceneSetup {
   note: string;
   characters: CharacterOverride[];
 }
-interface EpisodeSetup {
+interface ChapterSetup {
   focus: string;
   tone: string;
   mustHappen: string[];
@@ -39,6 +39,13 @@ interface Scene {
   text: string | null;
   /** Bản thảo trước chuyển ngữ. Null = cảnh này chưa qua bước đó. */
   sourceText: string | null;
+}
+interface Chapter {
+  id: string;
+  order: number;
+  title: string | null;
+  setup: ChapterSetup | null;
+  scenes: Scene[];
 }
 interface Block {
   id: string;
@@ -60,7 +67,6 @@ interface Ep {
   summary: string | null;
   humanReviewed: boolean;
   reviewedAt: string | null;
-  setup: EpisodeSetup | null;
   series: {
     id: string;
     title: string;
@@ -68,7 +74,7 @@ interface Ep {
     draftLanguage: string;
     characters: Array<{ id: string; name: string; isNarrator: boolean }>;
   };
-  scenes: Scene[];
+  chapters: Chapter[];
   blocks: Block[];
   renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
 }
@@ -107,11 +113,14 @@ export function Episode() {
 
   if (isLoading || !ep) return <Loading />;
 
-  const written = ep.scenes.filter((s) => s.text).length;
-  const allWritten = written === ep.scenes.length && ep.scenes.length > 0;
+  // Đếm trên TOÀN TẬP: chương chỉ là cách nhóm, còn "viết xong chưa" thì hỏi cả
+  // tập — chốt duyệt và bước biên tập audio đều làm việc ở mức tập.
+  const scenes = ep.chapters.flatMap((ch) => ch.scenes);
+  const written = scenes.filter((s) => s.text).length;
+  const allWritten = written === scenes.length && scenes.length > 0;
   // Bộ viết thẳng thì `draftLanguage` rỗng và cả khối chuyển ngữ biến mất.
   const untranslated = ep.series.draftLanguage
-    ? ep.scenes.filter((s) => s.text && !s.sourceText).length
+    ? scenes.filter((s) => s.text && !s.sourceText).length
     : 0;
 
   return (
@@ -127,7 +136,7 @@ export function Episode() {
           <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>
         </div>
         <p className="mt-1 text-sm text-neutral-500">
-          {written}/{ep.scenes.length} cảnh
+          {ep.chapters.length} chương · {written}/{scenes.length} cảnh
           {ep.wordCount ? ` · ${ep.wordCount} từ` : ""}
           {ep.durationMs ? ` · ~${formatDuration(ep.durationMs)}` : ""}
         </p>
@@ -142,11 +151,11 @@ export function Episode() {
         </Link>
       )}
 
-      <Section title="Cảnh">
+      <Section title="Chương & cảnh">
         {!allWritten && !active && (
           <Form
             path={`/api/episodes/${ep.id}/write-scenes`}
-            submit={`Viết cả ${ep.scenes.length - written} cảnh còn lại`}
+            submit={`Viết cả ${scenes.length - written} cảnh còn lại`}
             className="max-w-md rounded border border-neutral-800 p-4"
           >
             <ModelPicker />
@@ -158,130 +167,151 @@ export function Episode() {
           </Form>
         )}
 
-        <details className="mb-4 rounded border border-neutral-800">
-          <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
-            Thiết lập chương{" "}
-            <span className="text-neutral-600">— áp cho mọi cảnh của chương này</span>
-          </summary>
-          <div className="border-t border-neutral-800 px-4 py-4">
-            <p className="mb-3 text-xs text-neutral-500">
-              Tầng giữa: bộ có <strong className="text-neutral-400">Thiết lập thế giới</strong>,
-              cảnh có <strong className="text-neutral-400">beat</strong>, còn đây là thứ đúng cho
-              riêng chương này. Ghi đè nhân vật ở đây thắng Story Bible; ghi đè ở từng cảnh lại
-              thắng ở đây.
-            </p>
-            <Form path={`/api/episodes/${ep.id}/setup`} method="PUT" submit="Lưu" className="space-y-3">
-              <Field
-                name="focus"
-                label="Chương này hướng về điều gì"
-                hint="Câu hỏi chương phải trả lời, hoặc cảm giác nó phải để lại."
-                placeholder="Tài phải chọn: nói thật với bà Tư, hay giữ lời hứa với người đã chết."
-                rows={2}
-                defaultValue={ep.setup?.focus ?? ""}
-              />
-              <Field
-                name="tone"
-                label="Giọng riêng chương này"
-                hint="Đè lên giọng của cả bộ. Bỏ trống thì giữ nguyên."
-                placeholder="Chậm hơn thường lệ. Mưa suốt chương, tiếng mưa lấp gần hết lời thoại."
-                rows={2}
-                defaultValue={ep.setup?.tone ?? ""}
-              />
-              <Field
-                name="mustHappen"
-                label="Việc phải xảy ra — mỗi dòng một việc"
-                placeholder={"Tài quay lại Bến Cũ\nBà Tư nhắc tới cái tên chưa ai nói ra"}
-                rows={2}
-                defaultValue={(ep.setup?.mustHappen ?? []).join("\n")}
-              />
-              <Field
-                name="constraints"
-                label="Điều cấm riêng chương — mỗi dòng một điều"
-                placeholder="Không cho ông Bảy xuất hiện"
-                rows={2}
-                defaultValue={(ep.setup?.constraints ?? []).join("\n")}
-              />
-              <Field
-                name="characters"
-                label="Ghi đè nhân vật — mỗi dòng một người"
-                hint="Dạng: Tên: mặc gì | ghi chú. Đè lên Story Bible cho riêng chương này."
-                placeholder={"Tài: áo mưa rách, ủng cao su | tay trái băng kín\nBà Tư: áo bà ba nâu"}
-                rows={3}
-                defaultValue={renderOverrides(ep.setup?.characters)}
-              />
-            </Form>
-          </div>
-        </details>
-
-        <div className="space-y-3">
-          {ep.scenes.map((scene) => (
-            <div key={scene.id} className="rounded border border-neutral-800">
-              <div className="flex items-center justify-between border-b border-neutral-900 px-4 py-2">
-                <span className="text-xs text-neutral-500">
-                  Cảnh {scene.order} · {scene.beat}
+        <div className="space-y-6">
+          {ep.chapters.map((chapter) => (
+            <div key={chapter.id}>
+              <div className="mb-2 flex flex-wrap items-baseline gap-2">
+                <h2 className="text-sm font-medium text-neutral-200">
+                  Chương {chapter.order}
+                  {chapter.title ? `: ${chapter.title}` : ""}
+                </h2>
+                <span className="text-xs text-neutral-600">
+                  {chapter.scenes.filter((sc) => sc.text).length}/{chapter.scenes.length} cảnh
                 </span>
-                {/* Viết từng cảnh một: cảnh 600–900 từ đã mất vài chục giây
-                    trên GPU thật, nên cả tập là một lần chờ dài mà không xem
-                    được gì. Cùng một endpoint — đặt `text` về null rồi đẩy
-                    WRITE_SCENE cho đúng cảnh đó, nên cảnh chưa viết cũng chạy. */}
-                {!active && (
-                  <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
-                    {scene.text ? "viết lại" : "viết cảnh này"}
-                  </ActionButton>
-                )}
-              </div>
-              <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
-                {stream && stream.sceneId === scene.id ? (
-                  <>
-                    {stream.text}
-                    {/* Con trỏ nhấp nháy: phân biệt "đang viết" với "viết xong
-                        mà ngắn thế thôi". */}
-                    <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
-                  </>
-                ) : (
-                  (scene.text ?? <span className="text-neutral-600">chưa viết</span>)
-                )}
               </div>
 
-              <details className="border-t border-neutral-900">
+              <details className="mb-3 rounded border border-neutral-800">
                 <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
-                  Chỉ dẫn cho cảnh này
+                  Thiết lập chương {chapter.order} — áp cho mọi cảnh trong chương
                 </summary>
-                <div className="border-t border-neutral-900 px-4 py-3">
+                <div className="border-t border-neutral-800 px-4 py-4">
+                  <p className="mb-3 text-xs text-neutral-500">
+                    Tầng giữa: bộ có <strong className="text-neutral-400">Thiết lập thế giới</strong>
+                    , cảnh có <strong className="text-neutral-400">beat</strong>, còn đây là thứ
+                    đúng cho riêng chương này. Ghi đè nhân vật ở đây thắng Story Bible; ghi đè ở
+                    từng cảnh lại thắng ở đây.
+                  </p>
                   <Form
-                    path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                    path={`/api/episodes/${ep.id}/chapters/${chapter.id}/setup`}
                     method="PUT"
-                    submit="Lưu chỉ dẫn"
+                    submit="Lưu"
                     className="space-y-3"
                   >
                     <Field
-                      name="beat"
-                      label="Beat — việc xảy ra trong cảnh"
+                      name="focus"
+                      label="Chương này hướng về điều gì"
+                      hint="Câu hỏi chương phải trả lời, hoặc cảm giác nó phải để lại."
+                      placeholder="Tài phải chọn: nói thật với bà Tư, hay giữ lời hứa với người đã chết."
                       rows={2}
-                      defaultValue={scene.beat}
-                    />
-                    <ScenePeoplePicker
-                      characters={ep.series.characters}
-                      initial={scene.characterIds}
+                      defaultValue={chapter.setup?.focus ?? ""}
                     />
                     <Field
-                      name="note"
-                      label="Ghi chú riêng cảnh"
-                      placeholder="Cảnh này không có thoại. Chỉ tiếng mưa và tiếng bước chân."
+                      name="tone"
+                      label="Giọng riêng chương này"
+                      hint="Đè lên giọng của cả bộ. Bỏ trống thì giữ nguyên."
+                      placeholder="Chậm hơn thường lệ. Mưa suốt chương, tiếng mưa lấp gần hết lời thoại."
                       rows={2}
-                      defaultValue={scene.setup?.note ?? ""}
+                      defaultValue={chapter.setup?.tone ?? ""}
+                    />
+                    <Field
+                      name="mustHappen"
+                      label="Việc phải xảy ra — mỗi dòng một việc"
+                      placeholder={"Tài quay lại Bến Cũ\nBà Tư nhắc tới cái tên chưa ai nói ra"}
+                      rows={2}
+                      defaultValue={(chapter.setup?.mustHappen ?? []).join("\n")}
+                    />
+                    <Field
+                      name="constraints"
+                      label="Điều cấm riêng chương — mỗi dòng một điều"
+                      placeholder="Không cho ông Bảy xuất hiện"
+                      rows={2}
+                      defaultValue={(chapter.setup?.constraints ?? []).join("\n")}
                     />
                     <Field
                       name="characters"
-                      label="Ghi đè nhân vật cho riêng cảnh này"
-                      hint="Dạng: Tên: mặc gì | ghi chú. Đè lên thiết lập chương, theo TỪNG Ô — chỉ ghi phần khác đi."
-                      placeholder="Tài: đã cởi áo mưa"
-                      rows={2}
-                      defaultValue={renderOverrides(scene.setup?.characters)}
+                      label="Ghi đè nhân vật — mỗi dòng một người"
+                      hint="Dạng: Tên: mặc gì | ghi chú. Đè lên Story Bible cho riêng chương này."
+                      placeholder={"Tài: áo mưa rách, ủng cao su | tay trái băng kín\nBà Tư: áo bà ba nâu"}
+                      rows={3}
+                      defaultValue={renderOverrides(chapter.setup?.characters)}
                     />
                   </Form>
                 </div>
               </details>
+
+              <div className="space-y-3">
+                {chapter.scenes.map((scene) => (
+                  <div key={scene.id} className="rounded border border-neutral-800">
+                    <div className="flex items-center justify-between border-b border-neutral-900 px-4 py-2">
+                      <span className="text-xs text-neutral-500">
+                        Cảnh {chapter.order}.{scene.order} · {scene.beat}
+                      </span>
+                      {/* Viết từng cảnh một: cảnh 600–900 từ đã mất vài chục
+                          giây trên GPU thật, nên cả tập là một lần chờ dài mà
+                          không xem được gì. Cùng một endpoint — đặt `text` về
+                          null rồi đẩy WRITE_SCENE cho đúng cảnh đó, nên cảnh
+                          chưa viết cũng chạy. */}
+                      {!active && (
+                        <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
+                          {scene.text ? "viết lại" : "viết cảnh này"}
+                        </ActionButton>
+                      )}
+                    </div>
+                    <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
+                      {stream && stream.sceneId === scene.id ? (
+                        <>
+                          {stream.text}
+                          {/* Con trỏ nhấp nháy: phân biệt "đang viết" với "viết
+                              xong mà ngắn thế thôi". */}
+                          <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
+                        </>
+                      ) : (
+                        (scene.text ?? <span className="text-neutral-600">chưa viết</span>)
+                      )}
+                    </div>
+
+                    <details className="border-t border-neutral-900">
+                      <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
+                        Chỉ dẫn cho cảnh này
+                      </summary>
+                      <div className="border-t border-neutral-900 px-4 py-3">
+                        <Form
+                          path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                          method="PUT"
+                          submit="Lưu chỉ dẫn"
+                          className="space-y-3"
+                        >
+                          <Field
+                            name="beat"
+                            label="Beat — việc xảy ra trong cảnh"
+                            rows={2}
+                            defaultValue={scene.beat}
+                          />
+                          <ScenePeoplePicker
+                            characters={ep.series.characters}
+                            initial={scene.characterIds}
+                          />
+                          <Field
+                            name="note"
+                            label="Ghi chú riêng cảnh"
+                            placeholder="Cảnh này không có thoại. Chỉ tiếng mưa và tiếng bước chân."
+                            rows={2}
+                            defaultValue={scene.setup?.note ?? ""}
+                          />
+                          <Field
+                            name="characters"
+                            label="Ghi đè nhân vật cho riêng cảnh này"
+                            hint="Dạng: Tên: mặc gì | ghi chú. Đè lên thiết lập chương, theo TỪNG Ô — chỉ ghi phần khác đi."
+                            placeholder="Tài: đã cởi áo mưa"
+                            rows={2}
+                            defaultValue={renderOverrides(scene.setup?.characters)}
+                          />
+                        </Form>
+                      </div>
+                    </details>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -305,7 +335,7 @@ export function Episode() {
         >
           <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-400">
             {untranslated > 0
-              ? `Bản thảo đang là ${languageLabel(ep.series.draftLanguage)}. Còn ${untranslated}/${ep.scenes.length} cảnh chưa viết lại sang ${languageLabel(ep.series.language)}.`
+              ? `Bản thảo đang là ${languageLabel(ep.series.draftLanguage)}. Còn ${untranslated}/${scenes.length} cảnh chưa viết lại sang ${languageLabel(ep.series.language)}.`
               : `Đã viết lại toàn bộ sang ${languageLabel(ep.series.language)}. Bản thảo ${languageLabel(ep.series.draftLanguage)} vẫn được giữ, sửa prompt rồi làm lại được.`}
           </p>
         </Section>

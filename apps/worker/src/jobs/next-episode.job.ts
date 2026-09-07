@@ -1,9 +1,10 @@
 import {
   namesMentionedIn,
   nextEpisodePlanSchema,
-  planScenes,
+  planChapters,
   renderEpisodeContext,
-  suggestSceneCount,
+  suggestChapterCount,
+  suggestScenesPerChapter,
   toLanguage,
   withLanguage,
 } from "@audio/core";
@@ -85,7 +86,8 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
         bible,
         context,
         episodeNumber,
-        sceneCount: suggestSceneCount(EPISODE_TARGET_WORDS),
+        chapterCount: suggestChapterCount(EPISODE_TARGET_WORDS),
+        scenesPerChapter: suggestScenesPerChapter(),
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
       }),
       ...(prompt.params as object),
@@ -99,7 +101,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(80);
 
   const plan = result.data;
-  const scenes = planScenes(plan.beats);
+  const chapters = planChapters(plan.chapters);
 
   // Đoán trước ai có mặt trong từng cảnh — xem outline.job. Rỗng thì Bible nạp
   // đầy đủ mọi nhân vật, đúng hành vi cũ.
@@ -119,26 +121,36 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
       status: EpisodeStatus.OUTLINED,
       // Ghi lại kèm số tập server đã chốt, để trang tập hiện đúng dàn ý.
       outline: { ...plan, number: episodeNumber },
-      scenes: {
-        create: scenes.map((s) => ({
-          order: s.order,
-          beat: s.beat,
-          characterIds: namesMentionedIn(s.beat, names)
-            .map((n) => idOfName.get(n))
-            .filter((id): id is string => Boolean(id)),
+      chapters: {
+        create: chapters.map((ch) => ({
+          order: ch.order,
+          title: ch.title,
+          scenes: {
+            create: ch.scenes.map((sc) => ({
+              order: sc.order,
+              beat: sc.beat,
+              characterIds: namesMentionedIn(sc.beat, names)
+                .map((n) => idOfName.get(n))
+                .filter((id): id is string => Boolean(id)),
+            })),
+          },
         })),
       },
     },
   });
 
   await setProgress(100);
-  logger.info(`[next-episode] tập ${episodeNumber} "${plan.title}" — ${scenes.length} cảnh`);
+  logger.info(
+    `[next-episode] tập ${episodeNumber} "${plan.title}" — ${chapters.length} chương, ` +
+      `${chapters.reduce((n, ch) => n + ch.scenes.length, 0)} cảnh`,
+  );
 
   return {
     episodeId: episode.id,
     number: episodeNumber,
     title: plan.title,
-    scenes: scenes.length,
+    chapters: chapters.length,
+    scenes: chapters.reduce((n, ch) => n + ch.scenes.length, 0),
     tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
   };
 };

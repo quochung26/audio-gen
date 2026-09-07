@@ -1,27 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
-  EMPTY_EPISODE_SETUP,
-  isEpisodeSetupEmpty,
+  EMPTY_CHAPTER_SETUP,
+  isChapterSetupEmpty,
   mergeOverrides,
-  parseEpisodeSetup,
+  parseChapterSetup,
   parseSceneSetup,
-  renderEpisodeSetup,
+  renderChapterSetup,
   renderOverrides,
-} from "./episode-setup";
+} from "./chapter-setup";
 
-const setup = (over = {}) => ({ ...EMPTY_EPISODE_SETUP, ...over });
+const setup = (over = {}) => ({ ...EMPTY_CHAPTER_SETUP, ...over });
 
 describe("parse — dữ liệu rác không được làm chết job", () => {
   it("cột rỗng hoặc rác lùi về thiết lập trống", () => {
     // `Episode.setup` là JSON tự do trong DB, sửa tay được, và hàng cũ từ bản
     // trước không có cột này.
-    expect(parseEpisodeSetup(null)).toEqual(EMPTY_EPISODE_SETUP);
-    expect(parseEpisodeSetup("rác")).toEqual(EMPTY_EPISODE_SETUP);
+    expect(parseChapterSetup(null)).toEqual(EMPTY_CHAPTER_SETUP);
+    expect(parseChapterSetup("rác")).toEqual(EMPTY_CHAPTER_SETUP);
     expect(parseSceneSetup(undefined)).toEqual({ note: "", characters: [] });
   });
 
   it("thiếu trường thì điền mặc định chứ không ném", () => {
-    expect(parseEpisodeSetup({ focus: "một câu" })).toMatchObject({
+    expect(parseChapterSetup({ focus: "một câu" })).toMatchObject({
       focus: "một câu",
       mustHappen: [],
       characters: [],
@@ -62,14 +62,14 @@ describe("mergeOverrides — cảnh đè lên chương THEO TỪNG Ô", () => {
   });
 });
 
-describe("renderEpisodeSetup", () => {
+describe("renderChapterSetup", () => {
   it("không đặt gì thì trả về rỗng — ngữ cảnh không thêm khối trống", () => {
-    expect(renderEpisodeSetup(EMPTY_EPISODE_SETUP)).toBe("");
-    expect(isEpisodeSetupEmpty(EMPTY_EPISODE_SETUP)).toBe(true);
+    expect(renderChapterSetup(EMPTY_CHAPTER_SETUP)).toBe("");
+    expect(isChapterSetupEmpty(EMPTY_CHAPTER_SETUP)).toBe(true);
   });
 
   it("nêu đủ bốn phần khi có", () => {
-    const out = renderEpisodeSetup(
+    const out = renderChapterSetup(
       setup({
         focus: "Tài phải chọn",
         tone: "chậm, mưa suốt",
@@ -85,7 +85,7 @@ describe("renderEpisodeSetup", () => {
   });
 
   it("phần nào trống thì bỏ hẳn, không in tiêu đề rỗng", () => {
-    const out = renderEpisodeSetup(setup({ focus: "một câu" }));
+    const out = renderChapterSetup(setup({ focus: "một câu" }));
     expect(out).not.toMatch(/must happen/i);
     expect(out).not.toMatch(/Not in this chapter/i);
   });

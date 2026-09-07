@@ -104,7 +104,7 @@ export function renderBible(input: {
     /** Chưa chọn ai đọc phần dẫn thì bỏ trống — Bible không in gì cả. */
     isNarrator?: boolean;
   }>;
-  episodes?: Array<{ number: number; title: string; beats: string[] }>;
+  episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
   /**
    * Tên những người CÓ MẶT trong cảnh sắp viết.
    *
@@ -211,7 +211,11 @@ export function renderBible(input: {
     parts.push(
       ``,
       `## Episode outline`,
-      ...input.episodes.map((e) => `${e.number}. ${e.title} — ${e.beats.join(" / ")}`),
+      // Gộp nhịp của mọi chương thành một dòng: đây là mục lục để model nhớ
+      // tập nào có gì, không phải chỗ dựng lại cấu trúc chương.
+      ...input.episodes.map(
+        (e) => `${e.number}. ${e.title} — ${e.chapters.flatMap((c) => c.beats).join(" / ")}`,
+      ),
     );
   }
 

@@ -26,7 +26,7 @@ export type CharacterOverride = z.infer<typeof characterOverrideSchema>;
  * còn chương thì không mang được gì. Muốn cả chương chậm lại, hay muốn nó dồn
  * về một câu hỏi, chỉ còn cách chép câu đó vào từng beat.
  */
-export const episodeSetupSchema = z.object({
+export const chapterSetupSchema = z.object({
   /** Chương này hướng về điều gì — câu hỏi nó phải trả lời. */
   focus: z.string().default(""),
   /** Giọng riêng chương này, đè lên giọng của bộ. */
@@ -38,7 +38,7 @@ export const episodeSetupSchema = z.object({
   characters: z.array(characterOverrideSchema).default([]),
 });
 
-export type EpisodeSetup = z.infer<typeof episodeSetupSchema>;
+export type ChapterSetup = z.infer<typeof chapterSetupSchema>;
 
 /** Thiết lập riêng của một CẢNH. Hẹp hơn chương, và đè lên chương. */
 export const sceneSetupSchema = z.object({
@@ -49,7 +49,7 @@ export const sceneSetupSchema = z.object({
 
 export type SceneSetup = z.infer<typeof sceneSetupSchema>;
 
-export const EMPTY_EPISODE_SETUP: EpisodeSetup = {
+export const EMPTY_CHAPTER_SETUP: ChapterSetup = {
   focus: "",
   tone: "",
   mustHappen: [],
@@ -59,9 +59,9 @@ export const EMPTY_EPISODE_SETUP: EpisodeSetup = {
 
 export const EMPTY_SCENE_SETUP: SceneSetup = { note: "", characters: [] };
 
-export function parseEpisodeSetup(value: unknown): EpisodeSetup {
-  const parsed = episodeSetupSchema.safeParse(value);
-  return parsed.success ? parsed.data : { ...EMPTY_EPISODE_SETUP };
+export function parseChapterSetup(value: unknown): ChapterSetup {
+  const parsed = chapterSetupSchema.safeParse(value);
+  return parsed.success ? parsed.data : { ...EMPTY_CHAPTER_SETUP };
 }
 
 export function parseSceneSetup(value: unknown): SceneSetup {
@@ -69,7 +69,7 @@ export function parseSceneSetup(value: unknown): SceneSetup {
   return parsed.success ? parsed.data : { ...EMPTY_SCENE_SETUP };
 }
 
-export function isEpisodeSetupEmpty(s: EpisodeSetup): boolean {
+export function isChapterSetupEmpty(s: ChapterSetup): boolean {
   return (
     !s.focus.trim() &&
     !s.tone.trim() &&
@@ -112,7 +112,7 @@ export function mergeOverrides(
 }
 
 /** Khối chỉ dẫn riêng của chương, nạp vào ngữ cảnh mọi cảnh thuộc chương. */
-export function renderEpisodeSetup(setup: EpisodeSetup): string {
+export function renderChapterSetup(setup: ChapterSetup): string {
   const parts: string[] = [];
 
   if (setup.focus.trim()) parts.push(`What this chapter is driving at: ${setup.focus.trim()}`);

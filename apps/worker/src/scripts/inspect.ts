@@ -16,7 +16,10 @@ const series = id
         episodes: {
           orderBy: { number: "asc" },
           include: {
-            scenes: { orderBy: { order: "asc" } },
+            chapters: {
+              orderBy: { order: "asc" },
+              include: { scenes: { orderBy: { order: "asc" } } },
+            },
             blocks: { orderBy: { order: "asc" }, include: { character: true } },
           },
         },
@@ -29,7 +32,10 @@ const series = id
         episodes: {
           orderBy: { number: "asc" },
           include: {
-            scenes: { orderBy: { order: "asc" } },
+            chapters: {
+              orderBy: { order: "asc" },
+              include: { scenes: { orderBy: { order: "asc" } } },
+            },
             blocks: { orderBy: { order: "asc" }, include: { character: true } },
           },
         },
@@ -54,11 +60,15 @@ for (const ep of series.episodes) {
       `duyệt: ${ep.humanReviewed ? "rồi" : "chưa"}`,
   );
 
-  console.log(`\nCảnh (${ep.scenes.length}):`);
-  for (const s of ep.scenes) {
-    const preview = (s.text ?? "").replace(/\s+/g, " ").slice(0, 70);
-    console.log(`  ${s.order}. [${s.beat.slice(0, 45)}]`);
-    console.log(`     ${preview}${preview ? "…" : "(chưa viết)"}`);
+  const sceneCount = ep.chapters.reduce((n, ch) => n + ch.scenes.length, 0);
+  console.log(`\nChương (${ep.chapters.length}) · cảnh (${sceneCount}):`);
+  for (const ch of ep.chapters) {
+    console.log(`  ${ch.order}. ${ch.title ?? "(chưa đặt tên)"}`);
+    for (const s of ch.scenes) {
+      const preview = (s.text ?? "").replace(/\s+/g, " ").slice(0, 70);
+      console.log(`     ${ch.order}.${s.order} [${s.beat.slice(0, 45)}]`);
+      console.log(`        ${preview}${preview ? "…" : "(chưa viết)"}`);
+    }
   }
 
   if (ep.blocks.length > 0) {

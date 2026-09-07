@@ -244,14 +244,6 @@ model Episode {
 
   outline Json?
 
-  /// Thiết lập riêng của CHƯƠNG — tầng giữa giữa `Series.storyBible.world` và
-  /// `Scene.beat`.
-  ///
-  /// Chương này hướng về điều gì, giọng riêng, việc phải xảy ra, điều cấm, và
-  /// ghi đè nhân vật (mặc gì, đang bị thương…). Ghi đè ở đây thắng Story Bible,
-  /// và `Scene.setup` lại thắng nó. Xem packages/core/src/episode-setup.ts.
-  setup Json?
-
   draftText  String?
   scriptText String?
   summary    String?
@@ -280,7 +272,7 @@ model Episode {
   /// xuất lại MP3 sau khi xuất bản thì live giữ bản cũ mà chẳng có gì báo.
   syncedAt    DateTime?
 
-  scenes     Scene[]
+  chapters   Chapter[]
   blocks     Block[]
   exports    Export[]
   facts      StoryFact[]
@@ -426,10 +418,41 @@ model CharacterCard {
   @@index([name])
 }
 
-model Scene {
+/// Chương — tầng giữa giữa TẬP và CẢNH.
+///
+/// Một truyện có nhiều tập; một tập có nhiều chương; một chương có nhiều cảnh.
+/// Tập là đơn vị NGƯỜI NGHE nhận (một file MP3, một mục RSS); cảnh là đơn vị
+/// MODEL VIẾT một lượt (600–900 từ, quá ngưỡng đó model 14B mất mạch); chương
+/// là đơn vị KỂ nằm giữa — một mạch có mở có đóng, thường một buổi một chỗ.
+///
+/// `setup` trước đây nằm ở `Episode`, và đó là chỗ sai: nó vốn tả một mạch kể
+/// chứ không tả cả tập. Chuỗi đè giờ đúng ba tầng — thẻ nhân vật → chương → cảnh.
+model Chapter {
   id        String  @id @default(cuid())
   episodeId String
   episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  order Int
+  title String?
+
+  /// Chương này hướng về điều gì, giọng riêng, việc phải xảy ra, điều cấm, và
+  /// ghi đè nhân vật (mặc gì, đang bị thương…). Ghi đè ở đây thắng Story Bible,
+  /// còn `Scene.setup` lại thắng nó. Xem packages/core/src/chapter-setup.ts.
+  setup Json?
+
+  scenes Scene[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([episodeId, order])
+  @@index([episodeId])
+}
+
+model Scene {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   order Int
   beat  String
@@ -453,7 +476,7 @@ model Scene {
   characterIds String[] @default([])
 
   /// Thiết lập riêng của CẢNH: ghi chú, và ghi đè nhân vật cho riêng cảnh này.
-  /// Đè lên `Episode.setup` theo TỪNG Ô — cảnh chỉ nói "đã thay áo mưa" thì ghi
+  /// Đè lên `Chapter.setup` theo TỪNG Ô — cảnh chỉ nói "đã thay áo mưa" thì ghi
   /// chú "đang băng tay" của chương vẫn còn.
   setup Json?
 
@@ -469,7 +492,8 @@ model Scene {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([episodeId, order])
+  @@unique([chapterId, order])
+  @@index([chapterId])
 }
 
 /// Cấu hình sửa được từ giao diện.

@@ -169,8 +169,11 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
     // Bộ viết thẳng thì khỏi hỏi: không có bước này thì mọi cảnh đều "chưa
     // chuyển ngữ" và lượt chạy sẽ kẹt ở một bước không bao giờ chạy.
     plan.translate
-      ? prisma.scene.findMany({
-          where: { episode: { seriesId }, text: { not: null }, sourceText: null },
+      ? prisma.chapter.findMany({
+          where: {
+            episode: { seriesId },
+            scenes: { some: { text: { not: null }, sourceText: null } },
+          },
           select: { episodeId: true },
           distinct: ["episodeId"],
         })
@@ -178,7 +181,7 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
   ]);
 
   const hasDraft = new Set(drafted.map((e) => e.id));
-  const pendingTranslate = new Set(untranslated.map((s) => s.episodeId));
+  const pendingTranslate = new Set(untranslated.map((ch) => ch.episodeId));
 
   return episodes.map((e) => ({
     id: e.id,

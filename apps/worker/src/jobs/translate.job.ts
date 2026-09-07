@@ -47,8 +47,8 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
   const scenes = await prisma.scene.findMany({
     // `sourceText` null nghĩa là cảnh chưa qua chuyển ngữ. Nhờ vậy chạy lại job
     // trên tập đã dịch xong là không có gì để làm, thay vì dịch lại lần nữa.
-    where: { episodeId, text: { not: null }, ...(force ? {} : { sourceText: null }) },
-    orderBy: { order: "asc" },
+    where: { chapter: { episodeId }, text: { not: null }, ...(force ? {} : { sourceText: null }) },
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
   });
 
   if (scenes.length === 0) {

@@ -29,7 +29,7 @@ export interface SeriesBibleInput {
     /** Tình trạng ở cuối tập gần nhất. */
     state?: string | null;
   }>;
-  episodes?: Array<{ number: number; title: string; beats: string[] }>;
+  episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
   /** Tên người có mặt trong cảnh sắp viết. Rỗng = tả đầy đủ tất cả. */
   spotlight?: string[];
 }

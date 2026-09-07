@@ -4,7 +4,7 @@ import {
   toLanguage,
   withLanguage,
   outlineSchema,
-  planScenes,
+  planChapters,
   mergeCast,
   namesMentionedIn,
   normalizeCast,
@@ -14,7 +14,8 @@ import {
   type CastMember,
   renderWorldForOutline,
   slugify,
-  suggestSceneCount,
+  suggestChapterCount,
+  suggestScenesPerChapter,
 } from "@audio/core";
 import { EpisodeStatus, SeriesKind, SeriesStatus, prisma } from "@audio/database";
 import {
@@ -74,7 +75,8 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   );
   const modelName = (label: string) => forModel.get(label.trim().toLowerCase()) ?? label;
 
-  const sceneCount = suggestSceneCount(EPISODE_TARGET_WORDS);
+  const chapterCount = suggestChapterCount(EPISODE_TARGET_WORDS);
+  const scenesPerChapter = suggestScenesPerChapter();
   const prompt = await loadPrompt("OUTLINE", genre);
   const params = prompt.params;
 
@@ -101,7 +103,8 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         idea,
         genre: modelName(genre),
         episodeCount,
-        sceneCount,
+        chapterCount,
+        scenesPerChapter,
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
         tags: tags.length > 0 ? tags.map(modelName).join(", ") : "(none)",
         world: renderWorldForOutline(world),
@@ -175,7 +178,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const names = roster.map((c) => c.name);
 
   for (const plan of outline.episodes) {
-    const scenes = planScenes(plan.beats);
     await prisma.episode.create({
       data: {
         seriesId: series.id,
@@ -184,13 +186,19 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         slug: await freeSlug(`${outline.title} tap ${plan.number}`),
         status: EpisodeStatus.OUTLINED,
         outline: plan,
-        scenes: {
-          create: scenes.map((s) => ({
-            order: s.order,
-            beat: s.beat,
-            characterIds: namesMentionedIn(s.beat, names)
-              .map((n) => idOfName.get(n))
-              .filter((id): id is string => Boolean(id)),
+        chapters: {
+          create: planChapters(plan.chapters).map((ch) => ({
+            order: ch.order,
+            title: ch.title,
+            scenes: {
+              create: ch.scenes.map((sc) => ({
+                order: sc.order,
+                beat: sc.beat,
+                characterIds: namesMentionedIn(sc.beat, names)
+                  .map((n) => idOfName.get(n))
+                  .filter((id): id is string => Boolean(id)),
+              })),
+            },
           })),
         },
       },

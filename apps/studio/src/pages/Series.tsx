@@ -18,7 +18,7 @@ interface Ep {
   status: string;
   wordCount: number | null;
   durationMs: number | null;
-  _count: { scenes: number; blocks: number };
+  _count: { chapters: number; blocks: number };
   exports: Array<{ id: string }>;
 }
 interface Char {
@@ -75,7 +75,7 @@ export function Series() {
 
   // Đếm theo dữ liệu thật chứ không theo Episode.status: status lệch được khi
   // bấm tay giữa chừng, còn "có bao nhiêu block" thì luôn đúng.
-  const written = s.episodes.filter((e) => e._count.scenes > 0).length;
+  const written = s.episodes.filter((e) => e._count.chapters > 0).length;
   const scripted = s.episodes.filter((e) => e._count.blocks > 0).length;
   const exported = s.episodes.filter((e) => e.exports.length > 0).length;
   const worldThin = s.world.rules.length === 0 && !s.world.tone.trim();

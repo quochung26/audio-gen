@@ -1,10 +1,10 @@
 import { EPISODE_TARGET_WORDS } from "@audio/config";
 import {
   mergeOverrides,
-  parseEpisodeSetup,
+  parseChapterSetup,
   parseSceneSetup,
   parseWorld,
-  renderEpisodeSetup,
+  renderChapterSetup,
   renderOverrides,
   seriesBible,
   type StoryBibleRecord,
@@ -57,15 +57,22 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const scene = await prisma.scene.findUniqueOrThrow({
     where: { id: sceneId },
     include: {
-      episode: {
+      chapter: {
         include: {
-          series: { include: { characters: { orderBy: [{ isNarrator: "desc" }, { name: "asc" }] } } },
+          episode: {
+            include: {
+              series: {
+                include: { characters: { orderBy: [{ isNarrator: "desc" }, { name: "asc" }] } },
+              },
+            },
+          },
         },
       },
     },
   });
 
-  const { episode } = scene;
+  const { chapter } = scene;
+  const { episode } = chapter;
   const { series } = episode;
 
   // Ai có mặt trong cảnh này — người ngoài danh sách chỉ còn tên và vai trong
@@ -104,19 +111,22 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     ...retrieved.filter((r) => !pinned.some((p) => p.text === r.text)),
   ];
 
-  const previousScene =
-    scene.order > 1
-      ? await prisma.scene.findFirst({
-          where: { episodeId: episode.id, order: scene.order - 1 },
-          select: { text: true },
-        })
-      : null;
+  // Cảnh liền trước tính theo thứ tự ĐỌC của cả tập, không theo `order` trong
+  // chương: cảnh trước cảnh 1 của chương 2 là cảnh CUỐI của chương 1. Xét theo
+  // `order` thôi thì mở đầu mỗi chương đều mất mạch nối, mà không có gì báo.
+  const ordered = await prisma.scene.findMany({
+    where: { chapter: { episodeId: episode.id } },
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
+    select: { id: true, text: true },
+  });
+  const at = ordered.findIndex((s) => s.id === scene.id);
+  const previousScene = at > 0 ? ordered[at - 1]! : null;
 
-  const sceneCount = await prisma.scene.count({ where: { episodeId: episode.id } });
+  const sceneCount = ordered.length;
 
   // Ba tầng chỉ dẫn về nhân vật: Story Bible (cả bộ) → chương → cảnh. Gộp theo
   // TỪNG Ô nên cảnh chỉ cần nói phần khác đi.
-  const chapterSetup = parseEpisodeSetup(episode.setup);
+  const chapterSetup = parseChapterSetup(chapter.setup);
   const sceneSetup = parseSceneSetup(scene.setup);
 
   return {
@@ -131,7 +141,7 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     facts,
     openThreads: threads,
     previousScene: previousScene?.text ?? undefined,
-    chapter: renderEpisodeSetup(chapterSetup),
+    chapter: renderChapterSetup(chapterSetup),
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
     sceneNote: sceneSetup.note,
     targetWords: Math.round(EPISODE_TARGET_WORDS / Math.max(1, sceneCount)),

@@ -31,9 +31,9 @@ export function renderTemplate(template: string, vars: Record<string, string | n
 export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // `world` và `cast` là hai khối người viết đặt trước: rỗng thì AI tự nghĩ,
   // có thì AI phải bám theo. Xem renderWorldForOutline / renderCastForOutline.
-  OUTLINE: ["idea", "genre", "tags", "episodeCount", "sceneCount", "sceneWords", "world", "cast"],
+  OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
   // Viết tiếp thì không cần ý tưởng gốc — cần biết đã xảy ra những gì.
-  NEXT_EPISODE: ["bible", "context", "episodeNumber", "sceneCount", "sceneWords"],
+  NEXT_EPISODE: ["bible", "context", "episodeNumber", "chapterCount", "scenesPerChapter", "sceneWords"],
   // Cả ngữ cảnh gộp thành MỘT biến: Story Bible, tóm tắt cung truyện, sự kiện
   // truy hồi, cảnh trước, beat, số từ đích — xem `renderContext` ở @audio/core.
   WRITE_SCENE: ["context"],

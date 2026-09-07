@@ -36,13 +36,24 @@ export const characterSchema = z.object({
   // viết đặt ở trang Nhân vật khi nào cần dựng audio.
 });
 
+/**
+ * Một CHƯƠNG trong dàn ý.
+ *
+ * Tầng giữa giữa tập và cảnh: một mạch có mở có đóng, thường một buổi một chỗ.
+ * Mỗi nhịp trong `beats` thành một cảnh, và cảnh là đơn vị model viết một lượt.
+ */
+export const chapterPlanSchema = z.object({
+  title: z.string().min(1).describe("Title of this chapter — what happens in it, in a few words"),
+  beats: z
+    .array(z.string())
+    .min(1)
+    .describe("The beats of this chapter, in order; each beat becomes one scene"),
+});
+
 export const episodePlanSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1),
-  beats: z
-    .array(z.string())
-    .min(2)
-    .describe("The main beats of the episode; each beat becomes one scene"),
+  chapters: z.array(chapterPlanSchema).min(1),
   hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
 });
 
@@ -54,10 +65,7 @@ export const episodePlanSchema = z.object({
  */
 export const nextEpisodePlanSchema = z.object({
   title: z.string().min(1),
-  beats: z
-    .array(z.string())
-    .min(2)
-    .describe("The main beats of the episode; each beat becomes one scene"),
+  chapters: z.array(chapterPlanSchema).min(1),
   hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
 });
 
@@ -73,6 +81,7 @@ export const outlineSchema = z.object({
 });
 
 export type CharacterPlan = z.infer<typeof characterSchema>;
+export type ChapterPlanned = z.infer<typeof chapterPlanSchema>;
 export type EpisodePlan = z.infer<typeof episodePlanSchema>;
 export type Outline = z.infer<typeof outlineSchema>;
 

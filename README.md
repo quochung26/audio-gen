@@ -63,6 +63,19 @@ Hoặc dùng giao diện: `http://localhost:3000/series/new`.
 
 Chuỗi chạy: **ý tưởng → dàn ý (JSON có schema) → viết từng cảnh → [người duyệt] → kịch bản audio + tách block → tóm tắt**.
 
+### Truyện → tập → chương → cảnh
+
+| Tầng | Model | Là đơn vị gì | Cỡ |
+|---|---|---|---|
+| Truyện | `Series` | cả bộ | — |
+| **Tập** | `Episode` | **người nghe nhận** — một file MP3, một mục RSS, một lần nghe | ~4.500 từ · ~28 phút |
+| **Chương** | `Chapter` | **kể** — một mạch có mở có đóng, thường một buổi một chỗ | 3 chương/tập |
+| **Cảnh** | `Scene` | **model viết một lượt** | 600–900 từ · 2 cảnh/chương |
+
+Cỡ của **cảnh** không phải lựa chọn kể chuyện mà là ràng buộc của model: quá ~900 từ liên tục là model 14B mất mạch. Cỡ của **tập** thì suy ra từ đó — `EPISODE_TARGET_WORDS` trong `packages/config/src/constants.ts` được tính bằng `CHAPTERS_PER_EPISODE × SCENES_PER_CHAPTER × 750`, sửa một trong ba số là cả chuỗi đi theo.
+
+Chốt duyệt, kịch bản audio, tóm tắt và xuất bản đều làm việc ở mức **tập**. Chương chỉ sống trong giai đoạn viết: nó mang `setup` riêng, và là chỗ đặt câu hỏi *"đoạn này hướng về đâu"* mà tập thì quá to còn beat thì quá nhỏ để trả lời.
+
 **Xem chữ chạy trực tiếp.** Trong lúc model viết, trang tập hiện chữ ngay tại chỗ của cảnh đó, kèm con trỏ nhấp nháy. Worker vốn đã stream sẵn (`onToken`) — nó có từ đầu để tránh timeout HTTP — chỉ là chưa ai đọc.
 
 Đường đi: worker ghi bản nháp dở vào Redis (`stream:episode:<id>`, hạn 5 phút, tối đa hai lần ghi mỗi giây), API đọc lại qua `GET /api/episodes/:id/stream`, Studio hỏi mỗi 700ms **chỉ khi** có job `WRITE_SCENE`/`TRANSLATE` đang chạy. Qua Redis vì worker và API là hai tiến trình, mà Redis thì đã có sẵn cho hàng đợi.
@@ -137,10 +150,10 @@ Ba tầng chỉ dẫn, tầng hẹp hơn thắng tầng rộng hơn:
 | Tầng | Ở đâu | Nói gì |
 |---|---|---|
 | Bộ | `Series.storyBible.world` + Story Bible | bối cảnh, luật, giọng, nhân vật nói chung |
-| **Chương** | `Episode.setup` | chương hướng về đâu, giọng riêng, việc phải xảy ra, điều cấm, **ghi đè nhân vật** |
+| **Chương** | `Chapter.setup` | chương hướng về đâu, giọng riêng, việc phải xảy ra, điều cấm, **ghi đè nhân vật** |
 | **Cảnh** | `Scene.beat` + `Scene.setup` | việc xảy ra, ghi chú riêng, **ghi đè nhân vật** |
 
-Trước đây tầng giữa hổng hẳn: bộ có thiết lập thế giới, cảnh có beat, còn chương không mang được gì — muốn cả chương chậm lại thì chỉ còn cách chép câu đó vào từng beat.
+Trước đây tầng giữa hổng hẳn: bộ có thiết lập thế giới, cảnh có beat, còn chương không mang được gì — muốn cả chương chậm lại thì chỉ còn cách chép câu đó vào từng beat. Bản đầu tôi gắn nhầm `setup` vào `Episode`; giờ nó nằm đúng chỗ, trên `Chapter`.
 
 **Ghi đè nhân vật** gõ mỗi dòng một người, dạng `Tên: mặc gì | ghi chú`:
 

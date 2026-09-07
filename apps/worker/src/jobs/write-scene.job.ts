@@ -21,16 +21,18 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   const sceneId = job.data.sceneId ? String(job.data.sceneId) : undefined;
   const episodeId = job.data.episodeId ? String(job.data.episodeId) : undefined;
 
-  const scenes = sceneId
-    ? await prisma.scene.findMany({ where: { id: sceneId } })
-    : await prisma.scene.findMany({
-        where: { episodeId, text: null },
-        orderBy: { order: "asc" },
-      });
+  // Cảnh thuộc về CHƯƠNG, nên lọc theo tập phải đi qua chương — và thứ tự viết
+  // là chương trước, cảnh trong chương sau.
+  const where = sceneId ? { id: sceneId } : { chapter: { episodeId }, text: null };
+  const scenes = await prisma.scene.findMany({
+    where,
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
+    include: { chapter: { select: { episodeId: true, order: true } } },
+  });
 
   if (scenes.length === 0) throw new Error("Không tìm thấy cảnh nào cần viết");
 
-  const targetEpisodeId = scenes[0]!.episodeId;
+  const targetEpisodeId = scenes[0]!.chapter.episodeId;
   await prisma.episode.update({
     where: { id: targetEpisodeId },
     data: { status: EpisodeStatus.DRAFTING },
@@ -44,7 +46,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     const prompt = await loadPrompt("WRITE_SCENE", context.genre);
     const ctx = {
       step: "WRITE_SCENE" as const,
-      episodeId: scene.episodeId,
+      episodeId: scene.chapter.episodeId,
       sceneId: scene.id,
       promptId: prompt.id,
       params: prompt.params,
@@ -53,7 +55,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     // Chữ chảy về Studio trong lúc model đang viết. Cảnh 800 từ mất 40–70 giây
     // trên GPU thật; không có nó thì cả phút đó là màn hình trắng.
     const stream = openSceneStream({
-      episodeId: scene.episodeId,
+      episodeId: scene.chapter.episodeId,
       sceneId: scene.id,
       order: scene.order,
     });
@@ -115,7 +117,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     written.push(text);
 
     logger.info(
-      `[write-scene] cảnh ${scene.order} — ${countWords(text)} từ, ` +
+      `[write-scene] chương ${scene.chapter.order} cảnh ${scene.order} — ${countWords(text)} từ, ` +
         `${result.tokensPerSec.toFixed(1)} tok/s`,
     );
     await setProgress(Math.round(((index + 1) / scenes.length) * 90));

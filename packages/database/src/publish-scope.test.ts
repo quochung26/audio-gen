@@ -25,7 +25,7 @@ describe("stripPrivate", () => {
       id: "e1",
       title: "Tập 1",
       draftText: "toàn bộ bản thảo",
-      outline: { beats: [] },
+      outline: { chapters: [] },
       reviewedBy: "hung",
       reviewedAt: new Date(),
       summary: "tóm tắt công khai",

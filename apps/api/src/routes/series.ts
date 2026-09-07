@@ -56,7 +56,7 @@ series.get("/:id", async (c) => {
       episodes: {
         orderBy: { number: "asc" },
         include: {
-          _count: { select: { scenes: true, blocks: true } },
+          _count: { select: { chapters: true, blocks: true } },
           exports: { where: { type: "AUDIO_MP3" }, select: { id: true } },
         },
       },

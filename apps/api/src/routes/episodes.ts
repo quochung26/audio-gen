@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { AudioTrackKind, EpisodeStatus, JobStatus, prisma } from "@audio/database";
 import {
   assertTransition,
-  episodeSetupSchema,
+  chapterSetupSchema,
   sceneSetupSchema,
   syncState,
   type CharacterOverride,
@@ -34,7 +34,10 @@ episodes.get("/:id", async (c) => {
           },
         },
       },
-      scenes: { orderBy: { order: "asc" } },
+      chapters: {
+        orderBy: { order: "asc" },
+        include: { scenes: { orderBy: { order: "asc" } } },
+      },
       blocks: { orderBy: { order: "asc" } },
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
     },
@@ -144,13 +147,13 @@ function parseOverrides(value: unknown): CharacterOverride[] {
 }
 
 /**
- * Thiết lập riêng của chương — tầng giữa giữa thiết lập thế giới và beat.
+ * Thiết lập riêng của một CHƯƠNG — tầng giữa giữa thiết lập thế giới và beat.
  *
  * Ghi đè ở đây thắng Story Bible, và `Scene.setup` lại thắng nó.
  */
-episodes.put("/:id/setup", async (c) => {
+episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   const body = await c.req.parseBody();
-  const setup = episodeSetupSchema.parse({
+  const setup = chapterSetupSchema.parse({
     focus: field(body, "focus"),
     tone: field(body, "tone"),
     mustHappen: splitLines(body.mustHappen),
@@ -158,8 +161,18 @@ episodes.put("/:id/setup", async (c) => {
     characters: parseOverrides(body.characters),
   });
 
-  await prisma.episode.update({ where: { id: c.req.param("id") }, data: { setup } });
+  await prisma.chapter.update({ where: { id: c.req.param("chapterId") }, data: { setup } });
   return c.json({ ok: "Đã lưu. Áp cho mọi cảnh của chương này, từ lượt viết kế tiếp." });
+});
+
+/** Đổi tên một chương. */
+episodes.put("/:id/chapters/:chapterId", async (c) => {
+  const body = await c.req.parseBody();
+  await prisma.chapter.update({
+    where: { id: c.req.param("chapterId") },
+    data: { title: field(body, "title") || null },
+  });
+  return c.json({ ok: "Đã lưu tên chương." });
 });
 
 episodes.put("/:id/scenes/:sceneId", async (c) => {
@@ -188,8 +201,12 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
   // Chỉ sửa chỉ dẫn thì bản thảo không đổi — khỏi ghép lại.
   if (!("text" in body)) return c.json({ ok: "Đã lưu chỉ dẫn cho cảnh này." });
 
-  // Bản thảo là các cảnh nối lại. Cập nhật luôn để bước sau không phải ghép lại.
-  const scenes = await prisma.scene.findMany({ where: { episodeId }, orderBy: { order: "asc" } });
+  // Bản thảo là các cảnh nối lại, theo thứ tự ĐỌC: chương trước, cảnh trong
+  // chương sau. Cập nhật luôn để bước sau không phải ghép lại.
+  const scenes = await prisma.scene.findMany({
+    where: { chapter: { episodeId } },
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
+  });
   await prisma.episode.update({
     where: { id: episodeId },
     data: {

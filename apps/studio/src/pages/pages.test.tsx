@@ -172,7 +172,6 @@ const FIXTURES: Record<string, unknown> = {
     summary: null,
     humanReviewed: false,
     reviewedAt: null,
-    setup: null,
     series: {
       id: "s1",
       title: "Đường về",
@@ -180,15 +179,23 @@ const FIXTURES: Record<string, unknown> = {
       draftLanguage: "",
       characters: [{ id: "c1", name: "Tài", isNarrator: true }],
     },
-    scenes: [
+    chapters: [
       {
-        id: "sc1",
+        id: "ch1",
         order: 1,
-        beat: "mở đầu",
-        text: "Trời tối.",
-        sourceText: null,
-        characterIds: [],
+        title: "Đêm đầu tiên",
         setup: null,
+        scenes: [
+          {
+            id: "sc1",
+            order: 1,
+            beat: "mở đầu",
+            text: "Trời tối.",
+            sourceText: null,
+            characterIds: [],
+            setup: null,
+          },
+        ],
       },
     ],
     blocks: [],

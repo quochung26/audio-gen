@@ -8,6 +8,6 @@ export * from "./world";
 export * from "./password";
 export * from "./sync-state";
 export * from "./cast";
-export * from "./episode-setup";
+export * from "./chapter-setup";
 export * from "./language";
 export * from "./tags";

@@ -7,8 +7,28 @@ export const WORDS_PER_MINUTE = 160;
 export const SCENE_MIN_WORDS = 600;
 export const SCENE_MAX_WORDS = 900;
 
-/** Độ dài tập mục tiêu: 15–20 phút. */
-export const EPISODE_TARGET_WORDS = 2500;
+/**
+ * Bao nhiêu cảnh trong một chương.
+ *
+ * Chương là đơn vị KỂ — một mạch có mở có đóng, thường một buổi một chỗ. Cảnh
+ * là đơn vị model VIẾT một lượt, và cỡ của nó do model quyết chứ không do
+ * truyện: quá 900 từ liên tục là model 14B mất mạch. Nên chương dài bao nhiêu
+ * là hệ quả của hai con số này, không phải thứ chọn tự do.
+ */
+export const SCENES_PER_CHAPTER = 2;
+
+/** Bao nhiêu chương trong một tập. */
+export const CHAPTERS_PER_EPISODE = 3;
+
+/**
+ * Độ dài tập mục tiêu ≈ 28 phút.
+ *
+ * Suy ra từ ba con số trên: 3 chương × 2 cảnh × ~750 từ. Trước khi có tầng
+ * chương thì tập là 2.500 từ (15–20 phút) — thêm tầng vào mà giữ nguyên độ dài
+ * thì mỗi tập chỉ còn một chương rưỡi, tức là tầng đó không tả được gì.
+ */
+export const EPISODE_TARGET_WORDS =
+  CHAPTERS_PER_EPISODE * SCENES_PER_CHAPTER * ((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2);
 
 /**
  * Chuẩn loudness (LUFS).

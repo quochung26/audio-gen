@@ -16,9 +16,11 @@ export interface DraftSync {
  * có nội dung, chỉ là nội dung của bản trước.
  */
 export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
+  // Thứ tự ĐỌC của một tập là chương trước, cảnh trong chương sau. Sắp chỉ theo
+  // `order` của cảnh thì cảnh 1 của mọi chương đứng cạnh nhau.
   const scenes = await prisma.scene.findMany({
-    where: { episodeId },
-    orderBy: { order: "asc" },
+    where: { chapter: { episodeId } },
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
     select: { text: true },
   });
 
