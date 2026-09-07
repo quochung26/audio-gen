@@ -9,46 +9,46 @@ const base = {
   characters: [{ name: "Hùng", isNarrator: true }],
 };
 
-describe("Story Bible mang theo thể loại phụ", () => {
-  it("nằm NGAY DƯỚI thể loại chính — chỗ model đọc trước", () => {
-    // Đây là thứ lái giọng văn; nhét xuống cuối Bible là nó chìm giữa hàng
-    // nghìn chữ luật thế giới và mô tả nhân vật.
-    const b = renderBible({ ...base, tags: ["tình cảm", "slow burn"], logline: "một câu" });
+describe("the Story Bible carries the sub-genre tags", () => {
+  it("sits RIGHT UNDER the main genre — where the model reads first", () => {
+    // This is what steers the prose; buried at the end of the Bible it drowns in
+    // thousands of words of world rules and character descriptions.
+    const b = renderBible({ ...base, tags: ["tình cảm", "slow burn"], logline: "one line" });
     expect(b).toContain("tình cảm, slow burn");
     expect(b.indexOf("Genre:")).toBeLessThan(b.indexOf("tình cảm"));
     expect(b.indexOf("tình cảm")).toBeLessThan(b.indexOf("Logline"));
   });
 
-  it("không có thì Bible không đổi", () => {
+  it("without them the Bible is unchanged", () => {
     expect(renderBible({ ...base, tags: [] })).toBe(renderBible(base));
   });
 
-  it("thể loại CHÍNH vẫn đứng riêng, không bị trộn vào", () => {
-    // Chính là khoá chọn prompt; trộn lẫn thì không còn phân biệt được.
+  it("the MAIN genre still stands alone, not blended in", () => {
+    // The main one keys prompt selection; blended, it cannot be told apart.
     const b = renderBible({ ...base, tags: ["tình cảm"] });
     expect(b).toContain("Genre: kinh dị");
   });
 });
 
-describe("seriesBible — dựng Bible từ bản ghi Series", () => {
+describe("seriesBible — building the Bible from a Series record", () => {
   const series = {
     title: "Đường về",
     genre: "kinh dị",
     tags: ["tình cảm", "slow burn"],
-    description: "Một câu chuyện.",
+    description: "A story.",
     world: EMPTY_WORLD,
     genreNotes: [],
     characters: [{ name: "Hùng", isNarrator: true, description: "tài xế", state: null }],
   };
 
-  it("MANG THEO thể loại phụ", () => {
-    // Đây là dòng duy nhất đưa thể loại phụ tới model lúc viết cảnh. Trước khi
-    // gom vào một chỗ, xoá nó đi mà không test nào đỏ.
+  it("CARRIES the sub-genre tags", () => {
+    // This is the only line delivering sub-genres to the model at scene-writing
+    // time. Before it was gathered in one place, deleting it turned no test red.
     expect(seriesBible(series)).toContain("tình cảm, slow burn");
   });
 
-  it("ghép trạng thái hiện tại vào mô tả nhân vật", () => {
-    // Thứ giữ cho tập 40 không để nhân vật đã chết ở tập 12 bước vào cảnh.
+  it("folds the current state into the character description", () => {
+    // What keeps episode 40 from walking a character who died in episode 12 into a scene.
     const b = seriesBible({
       ...series,
       characters: [{ name: "Hùng", isNarrator: true, description: "tài xế", state: "đã chết" }],
@@ -57,10 +57,10 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).toContain("tài xế");
   });
 
-  it("cách nói và ngoại hình có NHÃN RIÊNG, không gộp vào dòng tính cách", () => {
-    // Ba việc khác nhau: tính cách lái hành động, cách nói lái lời thoại,
-    // ngoại hình lái phần tả. Gộp chung thì model tả quần áo giữa một đoạn
-    // đang cần giọng nói.
+  it("speech and appearance get THEIR OWN LABELS, not folded into the personality line", () => {
+    // Three different jobs: personality steers action, speech steers dialogue,
+    // appearance steers description. Merged, the model describes clothing in the
+    // middle of a passage that needed a voice.
     const b = seriesBible({
       ...series,
       characters: [
@@ -79,12 +79,12 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).toContain("Appearance: gầy, da sạm");
     expect(b.indexOf("lì")).toBeLessThan(b.indexOf("Speech:"));
     expect(b.indexOf("Speech:")).toBeLessThan(b.indexOf("Appearance:"));
-    // Trang phục là MẶC ĐỊNH, đứng sau ngoại hình — chương và cảnh đè lên được.
+    // The outfit is a DEFAULT, placed after appearance — chapter and scene override it.
     expect(b).toContain("Usually wears: áo sơ mi bạc màu");
     expect(b.indexOf("Appearance:")).toBeLessThan(b.indexOf("Usually wears:"));
   });
 
-  it("nhân vật không có mô tả lẫn trạng thái thì không sinh dòng rỗng", () => {
+  it("a character with neither description nor state produces no empty line", () => {
     const b = seriesBible({
       ...series,
       characters: [{ name: "Hùng", isNarrator: true, description: null, state: null }],
@@ -96,16 +96,16 @@ describe("seriesBible — dựng Bible từ bản ghi Series", () => {
     expect(b).not.toContain("Usually wears:");
   });
 
-  it("mô tả bộ truyện thành logline", () => {
-    expect(seriesBible(series)).toContain("Một câu chuyện.");
+  it("turns the story description into the logline", () => {
+    expect(seriesBible(series)).toContain("A story.");
     expect(seriesBible({ ...series, description: null })).not.toContain("Logline:");
   });
 });
 
-describe("mô tả thể loại trong Bible", () => {
+describe("genre descriptions in the Bible", () => {
   const notes = [
-    { name: "tình cảm", description: "Quan hệ đổi thay giữa hai người." },
-    { name: "kinh dị", description: "Sợ đến từ thứ không giải thích được." },
+    { name: "tình cảm", description: "A relationship shifting between two people." },
+    { name: "kinh dị", description: "Fear that comes from the unexplained." },
   ];
   const base = {
     title: "Đường về",
@@ -116,13 +116,13 @@ describe("mô tả thể loại trong Bible", () => {
     characters: [{ name: "Hùng", isNarrator: true }],
   };
 
-  it("thể loại CHÍNH đứng đầu, bất kể thứ tự truy vấn trả về", () => {
-    // Model đọc tuần tự; để thể loại phụ đứng trước là đảo mất thứ tự ưu tiên.
+  it("the MAIN genre comes first, whatever order the query returned", () => {
+    // The model reads in sequence; a sub-genre first inverts the priority.
     const b = seriesBible({ ...base, genreNotes: notes });
     expect(b.indexOf("**kinh dị**")).toBeLessThan(b.indexOf("**tình cảm**"));
   });
 
-  it("so tên KHÔNG phân biệt hoa thường và khoảng trắng thừa", () => {
+  it("matches names CASE-INSENSITIVELY and ignoring stray whitespace", () => {
     const b = seriesBible({
       ...base,
       genre: " Kinh Dị ",
@@ -131,7 +131,7 @@ describe("mô tả thể loại trong Bible", () => {
     expect(b.indexOf("**kinh dị**")).toBeLessThan(b.indexOf("**tình cảm**"));
   });
 
-  it("bỏ mô tả rỗng thay vì in một gạch đầu dòng trống", () => {
+  it("drops an empty description rather than printing a bare bullet", () => {
     const b = seriesBible({
       ...base,
       genreNotes: [{ name: "kinh dị", description: "   " }, notes[0]!],
@@ -140,10 +140,10 @@ describe("mô tả thể loại trong Bible", () => {
     expect(b).toContain("**tình cảm**");
   });
 
-  it("tên cho model thay nhãn hiển thị ở MỌI chỗ model đọc", () => {
-    // Nhãn `kinh dị` là thứ người nghe tìm; `horror` là thứ model 7–14B có
-    // liên tưởng dày hơn. Thiếu một chỗ là model gặp cả hai tên cho cùng một
-    // thể loại và tưởng là hai định hướng khác nhau.
+  it("the model-facing name replaces the display label EVERYWHERE the model reads", () => {
+    // The label `kinh dị` is what listeners search for; `horror` is what a 7–14B
+    // model has richer associations for. Miss one place and the model meets two
+    // names for one genre and reads two different directions.
     const b = seriesBible({
       ...base,
       genre: "kinh dị",
@@ -160,29 +160,29 @@ describe("mô tả thể loại trong Bible", () => {
     expect(b).not.toContain("tình cảm");
   });
 
-  it("không đặt tên cho model thì giữ nguyên nhãn", () => {
+  it("without a model-facing name, the label stands", () => {
     const b = seriesBible({
       ...base,
       genre: "kiếm hiệp",
-      genreNotes: [{ name: "kiếm hiệp", description: "Võ và đạo nghĩa giang hồ." }],
+      genreNotes: [{ name: "kiếm hiệp", description: "Martial arts and the code of the jianghu." }],
     });
     expect(b).toContain("Genre: kiếm hiệp");
   });
 
-  it("thể loại không có trong danh mục vẫn hiện, không bị bỏ trống", () => {
-    // Thể loại dùng được mà không cần có mặt trong danh mục — gõ tay ở ô thể
-    // loại phụ chẳng hạn.
+  it("a genre absent from the catalogue still shows, rather than leaving a blank", () => {
+    // A genre works without being in the catalogue — typed by hand into the
+    // sub-genre field, for instance.
     const b = seriesBible({ ...base, genre: "ngôn tình", genreNotes: [] });
     expect(b).toContain("Genre: ngôn tình");
   });
 
-  it("không có mô tả nào thì không sinh mục trống", () => {
+  it("with no descriptions at all it produces no empty section", () => {
     expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
     expect(seriesBible({ ...base, genreNotes: [] })).not.toContain("What these genres mean here");
   });
 });
 
-describe("spotlight — chỉ tả đầy đủ người có mặt trong cảnh", () => {
+describe("spotlight — describe only who is present in the scene in full", () => {
   const cast = [
     { name: "Hùng", isNarrator: true, role: "tài xế", description: "lì", state: null },
     { name: "Bảy", isNarrator: false, role: "gác bến", description: "hay cười", state: null },
@@ -197,30 +197,30 @@ describe("spotlight — chỉ tả đầy đủ người có mặt trong cảnh"
     characters: cast,
   };
 
-  it("không đặt thì tả đầy đủ tất cả — hành vi cũ", () => {
+  it("unset describes everyone in full — the old behaviour", () => {
     const b = seriesBible(base);
     expect(b).toContain("lì");
     expect(b).toContain("hay cười");
   });
 
-  it("đặt rồi thì người ngoài danh sách chỉ còn tên và vai", () => {
+  it("set, anyone outside the list keeps only name and role", () => {
     const b = seriesBible({ ...base, spotlight: ["Hùng"] });
     expect(b).toContain("lì");
     expect(b).not.toContain("hay cười");
-    // Vẫn phải thấy tên: model không được đẻ ra một người trùng tên.
+    // The name still has to show: the model must not invent a duplicate.
     expect(b).toContain("Bảy");
     expect(b).toContain("gác bến");
   });
 
-  it("nói rõ vì sao phần còn lại bị rút gọn", () => {
+  it("says why the rest was trimmed", () => {
     expect(seriesBible({ ...base, spotlight: ["Hùng"] })).toMatch(/Full detail is given only/i);
   });
 
-  it("so tên không phân biệt hoa thường và khoảng trắng thừa", () => {
+  it("matches names case-insensitively and ignoring stray whitespace", () => {
     expect(seriesBible({ ...base, spotlight: [" hùng "] })).toContain("lì");
   });
 
-  it("danh sách rỗng coi như không đặt", () => {
+  it("an empty list counts as unset", () => {
     expect(seriesBible({ ...base, spotlight: [] })).toBe(seriesBible(base));
   });
 });

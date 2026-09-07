@@ -12,50 +12,50 @@ const base: SyncInput = {
 };
 
 describe("syncState", () => {
-  it("chưa xuất bản thì không xét lệch", () => {
+  it("unpublished is never checked for drift", () => {
     expect(syncState({ ...base, status: "READY", syncedAt: null })).toBe("not published");
   });
 
-  it("đã xuất bản mà chưa từng đồng bộ", () => {
+  it("published but never synced", () => {
     expect(syncState({ ...base, syncedAt: null })).toBe("never synced");
   });
 
-  it("không sửa gì sau khi đồng bộ thì sạch", () => {
+  it("nothing edited after a sync is clean", () => {
     expect(syncState(base)).toBe("in sync");
   });
 
-  it("sửa TIÊU ĐỀ sau khi đồng bộ → lệch", () => {
+  it("editing the TITLE after a sync → out of date", () => {
     expect(syncState({ ...base, episodeUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
-  it("tạo lại KỊCH BẢN sau khi đồng bộ → lệch", () => {
-    // Chỉ nhìn Episode.updatedAt là bỏ sót kiểu này.
+  it("rebuilding the SCRIPT after a sync → out of date", () => {
+    // Looking only at Episode.updatedAt misses this kind.
     expect(syncState({ ...base, blocksUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
-  it("xuất lại MP3 sau khi đồng bộ → lệch", () => {
+  it("re-exporting the MP3 after a sync → out of date", () => {
     expect(syncState({ ...base, exportsUpdatedAt: T(60_000) })).toBe("out of date");
   });
 
-  it("vừa đồng bộ xong — hai mốc BẰNG NHAU — thì sạch", () => {
-    // Job đặt updatedAt bằng đúng syncedAt lúc đóng dấu, nên đây là tình huống
-    // ngay sau mỗi lần đồng bộ.
+  it("just synced — the two stamps EQUAL — is clean", () => {
+    // The job sets updatedAt to exactly syncedAt when it stamps, so this is the
+    // situation immediately after every sync.
     expect(syncState({ ...base, episodeUpdatedAt: base.syncedAt! })).toBe("in sync");
   });
 
-  it("sửa NGAY SAU khi đồng bộ vẫn phải bắt được", () => {
-    // Từng dùng đệm 5 giây ở đây và nó che mất đúng tình huống này — sửa tiêu
-    // đề một giây sau khi đồng bộ mà vẫn báo "in sync".
+  it("an edit IMMEDIATELY after a sync still has to be caught", () => {
+    // There used to be a 5-second tolerance here and it hid exactly this — editing
+    // the title a second after a sync still reported "in sync".
     expect(syncState({ ...base, episodeUpdatedAt: T(10_001) })).toBe("out of date");
   });
 
-  it("tập chưa có block hay bản xuất vẫn xét được", () => {
+  it("an episode with no blocks or exports still evaluates", () => {
     expect(syncState({ ...base, blocksUpdatedAt: null, exportsUpdatedAt: null })).toBe(
       "in sync",
     );
   });
 
-  it("lấy mốc MỚI NHẤT trong ba nguồn", () => {
+  it("takes the NEWEST of the three sources", () => {
     expect(
       syncState({ ...base, episodeUpdatedAt: T(0), blocksUpdatedAt: T(0), exportsUpdatedAt: T(99_000) }),
     ).toBe("out of date");

@@ -8,14 +8,14 @@ export interface SeriesBibleInput {
   description?: string | null;
   world: WorldSetup;
   /**
-   * Mô tả của những thể loại bộ này dùng (cả chính lẫn phụ).
+   * Descriptions of the genres this story uses (main and sub alike).
    *
-   * Có nó thì "kinh dị" mang nghĩa người viết định, thay vì nghĩa model tự
-   * đoán — mà mỗi model đoán một kiểu.
+   * With them, "kinh dị" means what the writer means, rather than whatever the
+   * model guesses — and every model guesses differently.
    *
-   * BẮT BUỘC, dù mảng rỗng cũng phải truyền: để tuỳ chọn thì quên truyền là
-   * Bible lặng lẽ thiếu mất phần định hướng, văn đổi đi ở lượt viết sau mà
-   * không có gì báo. Đã mất một lần vì `tags` như thế rồi.
+   * REQUIRED, even as an empty array: made optional, forgetting to pass it makes
+   * the Bible quietly lose its direction, and the prose shifts on the next write
+   * with nothing to say so. That has already happened once, with `tags`.
    */
   genreNotes: Array<{ name: string; promptName?: string; description: string }>;
   characters: Array<{
@@ -26,21 +26,21 @@ export interface SeriesBibleInput {
     outfit?: string | null;
     appearance?: string | null;
     isNarrator: boolean;
-    /** Tình trạng ở cuối tập gần nhất. */
+    /** Where they stand at the end of the most recent episode. */
     state?: string | null;
   }>;
   episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
-  /** Tên người có mặt trong cảnh sắp viết. Rỗng = tả đầy đủ tất cả. */
+  /** Names present in the scene about to be written. Empty = describe everyone. */
   spotlight?: string[];
 }
 
 /**
- * Dựng Story Bible từ một bản ghi Series.
+ * Build the Story Bible from a Series record.
  *
- * Gom vào một chỗ vì trước đây có HAI nơi tự viết tay danh sách tham số cho
- * `renderBible` — worker lúc viết cảnh, và API lúc sửa thiết lập thế giới.
- * Thêm một trường vào Bible thì phải nhớ sửa cả hai, mà quên một chỗ thì không
- * có gì báo: Bible vẫn dựng được, chỉ là thiếu mất một phần định hướng.
+ * Gathered in one place because there used to be TWO hand-written parameter lists
+ * for `renderBible` — the worker when writing a scene, and the API when editing
+ * world setup. Adding a field to the Bible meant remembering both, and forgetting
+ * one said nothing: the Bible still built, just missing part of its direction.
  */
 function sortGenreNotes<T extends { name: string }>(main: string, notes: T[]): T[] {
   const key = main.trim().toLowerCase();
@@ -58,11 +58,11 @@ export function seriesBible(input: SeriesBibleInput): string {
     tags: input.tags,
     logline: input.description ?? undefined,
     world: input.world,
-    // Thể loại CHÍNH lên đầu. Truy vấn trả về thứ tự tuỳ ý, mà model đọc tuần
-    // tự — để thể loại phụ đứng trước là đảo mất thứ tự ưu tiên.
+    // The MAIN genre first. The query returns them in any order, and the model
+    // reads in sequence — a sub-genre first inverts the priority.
     genreNotes: sortGenreNotes(input.genre, input.genreNotes),
-    // Ghép trạng thái hiện tại vào mô tả nhân vật. Đây là thứ giữ cho tập 40
-    // không để một nhân vật đã chết ở tập 12 bước vào cảnh.
+    // Fold the current state into the character description. This is what keeps
+    // episode 40 from walking a character who died in episode 12 into a scene.
     characters: input.characters.map((c) => ({
       name: c.name,
       role: c.role,
@@ -80,15 +80,15 @@ export function seriesBible(input: SeriesBibleInput): string {
 }
 
 /**
- * Dựng Story Bible — phần cố định nạp vào system prompt mỗi lần viết.
+ * Build the Story Bible — the fixed part loaded into the system prompt on every write.
  *
- * Giữ nguyên văn giữa các lần gọi là có chủ đích: khi chuyển sang Ollama thật,
- * phần này đặt vào `system` kèm cache_control nên chỉ tính phí/thời gian xử lý
- * một lần cho cả bộ truyện.
+ * Keeping it byte-identical between calls is deliberate: on real Ollama this goes
+ * into `system` with cache_control, so it is billed and processed once for the
+ * whole story rather than once per scene.
  */
 export function buildBible(outline: Outline, world?: WorldSetup, tags: string[] = []): string {
-  // Bối cảnh do người viết đặt thắng bối cảnh AI tự nghĩ: nếu người viết đã
-  // ghi rõ thì giữ nguyên, chưa ghi thì lấy tạm phần AI sinh làm điểm khởi đầu.
+  // The writer's setting beats the AI's: if the writer wrote one, keep it; if not,
+  // borrow the AI's as a starting point.
   const merged: WorldSetup = {
     ...EMPTY_WORLD,
     ...world,
@@ -107,23 +107,23 @@ export function buildBible(outline: Outline, world?: WorldSetup, tags: string[] 
 }
 
 /**
- * Ghép ngữ cảnh cho một lần viết cảnh.
+ * Assemble the context for one scene write.
  *
- * Cố tình KHÔNG nhồi toàn văn các tập cũ: 16K token ngữ cảnh không chứa nổi
- * một bộ 30 tập, và model cũng xử lý kém khi ngữ cảnh quá dài. Tóm tắt ngắn
- * cộng toàn văn cảnh liền trước cho kết quả tốt hơn.
+ * Deliberately does NOT stuff in the full text of old episodes: 16K tokens of
+ * context cannot hold a 30-episode story, and models handle very long context
+ * badly anyway. Short summaries plus the previous scene verbatim work better.
  */
 export function renderContext(ctx: StoryContext): string {
   const parts: string[] = [];
 
-  // Tóm tắt cung truyện đặt trước tóm tắt lẻ: model đọc tuần tự, và mạch
-  // truyện xa phải được nắm trước khi đọc chi tiết gần.
+  // The arc summary comes before the per-episode ones: the model reads in
+  // sequence, and the distant shape has to land before the near detail.
   if (ctx.arcSummary) {
     const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
     parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
   }
 
-  // Mục lục: rẻ (~15 từ/tập) và là thứ duy nhất còn lại của các tập đã nén.
+  // The index: cheap (~15 words an episode) and all that survives of compressed ones.
   if (ctx.episodeIndex && ctx.episodeIndex.length > 0) {
     parts.push(
       `## Index of the episodes already written\n` +
@@ -138,7 +138,7 @@ export function renderContext(ctx: StoryContext): string {
     );
   }
 
-  // Sự kiện truy hồi theo ngữ nghĩa — thay cho việc nhồi mọi tóm tắt cũ.
+  // Facts retrieved by meaning — instead of stuffing in every old summary.
   if (ctx.facts && ctx.facts.length > 0) {
     parts.push(
       `## Earlier facts that bear on this scene\n` +
@@ -148,7 +148,7 @@ export function renderContext(ctx: StoryContext): string {
     );
   }
 
-  // Tình tiết bỏ ngỏ: món nợ câu chuyện phải trả. Nạp bất kể tương đồng.
+  // Open threads: the debts the story owes. Loaded whatever the similarity.
   if (ctx.openThreads && ctx.openThreads.length > 0) {
     parts.push(
       `## Open threads\n` +
@@ -157,16 +157,16 @@ export function renderContext(ctx: StoryContext): string {
     );
   }
 
-  // Chỉ dẫn riêng của chương đặt SAU phần lịch sử, TRƯỚC cảnh: nó là ràng buộc
-  // cho thứ sắp viết, không phải bối cảnh để đọc rồi quên.
+  // Chapter instructions go AFTER the history, BEFORE the scene: they constrain
+  // what is about to be written, they are not background to read and forget.
   if (ctx.chapter) parts.push(ctx.chapter);
 
   if (ctx.previousScene) {
     parts.push(`## The previous scene, in full\n${ctx.previousScene}`);
   }
 
-  // Ghi đè nhân vật nằm sát cảnh nhất: nó mâu thuẫn có chủ đích với Story
-  // Bible, và model theo cái đọc gần chỗ phải hành động.
+  // Character overrides sit closest to the scene: they contradict the Story Bible
+  // deliberately, and the model follows whatever it read nearest the work.
   if (ctx.overrides) parts.push(ctx.overrides);
 
   parts.push(`## The scene to write\n${ctx.beat}`);
@@ -185,14 +185,14 @@ export interface EpisodeContext {
 }
 
 /**
- * Ghép ngữ cảnh để dựng dàn ý cho MỘT tập viết tiếp.
+ * Assemble the context for outlining ONE more episode.
  *
- * Khác `renderContext` ở chỗ nhìn cả bộ chứ không nhìn một cảnh: không có beat,
- * không có cảnh liền trước, và KHÔNG truy hồi sự kiện theo ngữ nghĩa — lúc này
- * chưa biết tập sắp viết nói về cái gì thì lấy gì mà truy hồi.
+ * Different from `renderContext` in looking at the whole story rather than one
+ * scene: no beat, no previous scene, and NO semantic fact retrieval — nothing is
+ * known yet about what this episode is about, so there is nothing to retrieve on.
  *
- * Đổi lại, tình tiết bỏ ngỏ quan trọng hơn hẳn: dựng tập mới chính là lúc quyết
- * định món nợ nào của câu chuyện sẽ được trả.
+ * In exchange, open threads matter far more: outlining a new episode is exactly
+ * when you decide which of the story's debts get paid.
  */
 export function renderEpisodeContext(ctx: EpisodeContext): string {
   const parts: string[] = [];
@@ -224,8 +224,8 @@ export function renderEpisodeContext(ctx: EpisodeContext): string {
     );
   }
 
-  // Bộ mới toanh: nói thẳng ra thay vì gửi một khối rỗng, để model không tưởng
-  // là ngữ cảnh bị cắt mất.
+  // A brand-new story: say so outright rather than sending an empty block, so the
+  // model does not think its context got truncated.
   if (parts.length === 0) {
     return "No episode has been finished yet. This is the first one, following on from the outline.";
   }

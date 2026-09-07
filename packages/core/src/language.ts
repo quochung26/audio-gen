@@ -1,14 +1,14 @@
 /**
- * Ngôn ngữ của nội dung — truyện viết bằng tiếng gì.
+ * The language of the content — what the story is written in.
  *
- * Đây KHÔNG phải ngôn ngữ giao diện Studio. Một bộ truyện viết bằng một thứ
- * tiếng từ đầu tới cuối, nên ngôn ngữ gắn với bộ (`Series.language`) chứ không
- * gắn với từng tập: trộn tiếng giữa các tập thì tóm tắt cung truyện, tên nhân
- * vật và giọng đọc đều loạn.
+ * This is NOT the Studio interface language. A story is written in one language
+ * end to end, so language belongs to the story (`Series.language`) rather than to
+ * each episode: mixing languages between episodes wrecks the arc summary, the
+ * character names and the voices alike.
  */
 export const LANGUAGES = [
-  { code: "vi", label: "Tiếng Việt", endonym: "Vietnamese" },
-  { code: "en", label: "Tiếng Anh", endonym: "English" },
+  { code: "vi", label: "Vietnamese", endonym: "Vietnamese" },
+  { code: "en", label: "English", endonym: "English" },
 ] as const;
 
 export type LanguageCode = (typeof LANGUAGES)[number]["code"];
@@ -16,10 +16,10 @@ export type LanguageCode = (typeof LANGUAGES)[number]["code"];
 export const DEFAULT_LANGUAGE: LanguageCode = "vi";
 
 /**
- * Ngôn ngữ của CHỈ DẪN — mọi prompt trong `prompts/` và mọi khối ngữ cảnh
- * dựng ở @audio/core đều viết bằng tiếng Anh, bất kể truyện viết bằng tiếng gì.
+ * The language of INSTRUCTIONS — every prompt in `prompts/` and every context
+ * block built in @audio/core is English, whatever the story is written in.
  *
- * Một thứ tiếng cho chỉ dẫn, thay vì nhân đôi prompt cho mỗi ngôn ngữ nội dung.
+ * One instruction language, rather than duplicating prompts per content language.
  */
 const INSTRUCTION_LANGUAGE: LanguageCode = "en";
 
@@ -27,32 +27,32 @@ export function isLanguage(v: unknown): v is LanguageCode {
   return typeof v === "string" && LANGUAGES.some((l) => l.code === v);
 }
 
-/** Ép về một mã hợp lệ. Dữ liệu cũ hoặc sửa tay trong DB không được làm chết job. */
+/** Coerce to a valid code. Old data or hand edits in the DB must not kill a job. */
 export function toLanguage(v: unknown, fallback: LanguageCode = DEFAULT_LANGUAGE): LanguageCode {
   return isLanguage(v) ? v : fallback;
 }
 
-/** Tên tiếng Việt để hiện trên giao diện. */
+/** The display name for the UI. */
 export function languageLabel(code: LanguageCode): string {
   return LANGUAGES.find((l) => l.code === code)?.label ?? code;
 }
 
-/** Tên ngôn ngữ trong chính thứ tiếng model hiểu — dùng để viết chỉ thị. */
+/** The language's name in the language the model understands — for writing directives. */
 export function languageEndonym(code: LanguageCode): string {
   return LANGUAGES.find((l) => l.code === code)?.endonym ?? code;
 }
 
 /**
- * Chỉ thị ngôn ngữ nhét vào system prompt.
+ * The language directive injected into the system prompt.
  *
- * Chỉ dẫn viết bằng tiếng Anh, đầu ra viết bằng thứ tiếng của bộ truyện. Câu
- * thứ hai tách bạch hai thứ đó: không nói rõ thì model coi ngôn ngữ của chỉ
- * dẫn là ngôn ngữ cần viết, và trả về văn tiếng Anh trong khi cả bộ là tiếng
- * Việt. Truyện tiếng Anh không cần câu này — chỉ dẫn và đầu ra cùng một tiếng,
- * nói "đây KHÔNG phải ngôn ngữ cần viết" chỉ làm model rối.
+ * Instructions are in English, the output is in the story's language. The second
+ * sentence separates the two: left unsaid, the model takes the instruction language
+ * for the target language and returns English prose for an entirely Vietnamese
+ * story. English stories need no such sentence — instructions and output share a
+ * language, and saying "this is NOT the language to write in" only confuses it.
  *
- * Nhắc cả tên riêng và lời thoại vì đó là chỗ model hay lẫn nhất: viết văn
- * đúng tiếng nhưng để nguyên tên nhân vật và câu thoại theo tiếng của chỉ dẫn.
+ * Names and dialogue are called out because that is where models slip most: prose
+ * in the right language, but character names and lines left in the instructions'.
  */
 export function languageDirective(code: LanguageCode): string {
   const endonym = languageEndonym(code);
@@ -69,25 +69,25 @@ export function languageDirective(code: LanguageCode): string {
 }
 
 export interface DraftPlan {
-  /** Viết bản thảo bằng tiếng này. */
+  /** Write the draft in this language. */
   draft: LanguageCode;
-  /** Ngôn ngữ đầu ra — thứ người nghe nhận được. */
+  /** The output language — what the listener receives. */
   output: LanguageCode;
-  /** Có phải chạy bước chuyển ngữ sau khi viết không. */
+  /** Whether a rewrite step has to run after writing. */
   translate: boolean;
 }
 
 /**
- * Bộ này viết nháp bằng tiếng gì, và có cần chuyển ngữ không.
+ * What language this story drafts in, and whether it needs a rewrite.
  *
- * Sinh ra vì model viết hay nhất không phải lúc nào cũng viết được thứ tiếng
- * đầu ra: một finetune sáng tác dựng trên Mistral Small viết tiếng Anh rất
- * khá và tiếng Việt gần như không dùng được. Viết nháp bằng tiếng nó mạnh rồi
- * viết lại sang tiếng đầu ra cho kết quả tốt hơn là ép nó viết thẳng.
+ * This exists because the model that writes best cannot always write the output
+ * language: a creative-writing finetune on Mistral Small writes very decent
+ * English and near-unusable Vietnamese. Drafting in its strong language and then
+ * rewriting into the output language beats forcing it to write directly.
  *
- * Hàm THUẦN và mặc định là KHÔNG chuyển ngữ: `draftLanguage` rỗng, sai mã, hay
- * trùng luôn với ngôn ngữ đầu ra đều cho `translate: false`. Bước thừa ở giữa
- * chuỗi viết là bước làm hỏng văn mà chẳng được gì.
+ * A PURE function that defaults to NO rewrite: a `draftLanguage` that is blank, an
+ * invalid code, or the same as the output language all give `translate: false`. A
+ * spurious step in the middle of the chain damages prose for nothing.
  */
 export function planDraft(language: unknown, draftLanguage: unknown): DraftPlan {
   const output = toLanguage(language);
@@ -96,10 +96,10 @@ export function planDraft(language: unknown, draftLanguage: unknown): DraftPlan 
 }
 
 /**
- * Ghép chỉ thị ngôn ngữ vào system prompt sẵn có.
+ * Prepend the language directive to an existing system prompt.
  *
- * Đặt chỉ thị LÊN TRƯỚC: Story Bible dài hàng nghìn chữ, nhét chỉ thị xuống
- * dưới là nó chìm nghỉm.
+ * The directive goes FIRST: the Story Bible runs to thousands of words, and a
+ * directive tucked underneath drowns in it.
  */
 export function withLanguage(code: LanguageCode, system?: string | null): string {
   const directive = languageDirective(code);

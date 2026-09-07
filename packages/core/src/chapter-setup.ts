@@ -1,48 +1,48 @@
 import { z } from "zod";
 
 /**
- * Ghi đè một nhân vật cho phạm vi hẹp hơn Story Bible.
+ * An override for one character, scoped tighter than the Story Bible.
  *
- * Bible tả người đó NÓI CHUNG — thứ đúng suốt cả bộ. Nhưng có những thứ chỉ
- * đúng ở một chương: hôm nay mặc gì, đang băng tay, đang giả danh người khác.
- * Nhét chúng vào Bible là ghim cứng cho cả 40 tập; bỏ hẳn thì model tự bịa mỗi
- * cảnh một kiểu.
+ * The Bible describes them IN GENERAL — what holds for the whole story. But some
+ * things are only true for one chapter: what they are wearing today, the bandaged
+ * hand, the false identity. Putting those in the Bible pins them across 40
+ * episodes; leaving them out entirely makes the model invent them per scene.
  */
 export const characterOverrideSchema = z.object({
-  /** Khớp với `Character.name`. So không phân biệt hoa thường. */
+  /** Matches `Character.name`. Compared case-insensitively. */
   name: z.string(),
-  /** Mặc gì. Đây là thứ đổi thường xuyên nhất, nên có ô riêng. */
+  /** What they are wearing. The most frequently changed thing, hence its own field. */
   outfit: z.string().default(""),
-  /** Mọi thứ khác: đang bị thương, đang giả danh, vừa cãi nhau xong. */
+  /** Everything else: injured, in disguise, just had a row. */
   note: z.string().default(""),
 });
 
 export type CharacterOverride = z.infer<typeof characterOverrideSchema>;
 
 /**
- * Thiết lập riêng của MỘT chương — tầng giữa giữa `WorldSetup` và `Scene.beat`.
+ * Setup for ONE chapter — the middle tier between `WorldSetup` and `Scene.beat`.
  *
- * Trước khi có nó, tầng này hổng hẳn: bộ có thiết lập thế giới, cảnh có beat,
- * còn chương thì không mang được gì. Muốn cả chương chậm lại, hay muốn nó dồn
- * về một câu hỏi, chỉ còn cách chép câu đó vào từng beat.
+ * Before it existed this tier was simply missing: a story had world setup, a scene
+ * had a beat, and a chapter could carry nothing. Wanting a whole chapter to slow
+ * down, or to converge on one question, meant copying that sentence into each beat.
  */
 export const chapterSetupSchema = z.object({
-  /** Chương này hướng về điều gì — câu hỏi nó phải trả lời. */
+  /** What this chapter is driving at — the question it has to answer. */
   focus: z.string().default(""),
-  /** Giọng riêng chương này, đè lên giọng của bộ. */
+  /** This chapter's own voice, over the top of the story's. */
   tone: z.string().default(""),
-  /** Việc bắt buộc xảy ra trong chương. */
+  /** What has to happen in the chapter. */
   mustHappen: z.array(z.string()).default([]),
-  /** Điều cấm riêng chương này. */
+  /** What is forbidden in this chapter. */
   constraints: z.array(z.string()).default([]),
   characters: z.array(characterOverrideSchema).default([]),
 });
 
 export type ChapterSetup = z.infer<typeof chapterSetupSchema>;
 
-/** Thiết lập riêng của một CẢNH. Hẹp hơn chương, và đè lên chương. */
+/** Setup for one SCENE. Tighter than a chapter, and it overrides the chapter. */
 export const sceneSetupSchema = z.object({
-  /** Ghi chú cho riêng cảnh này. */
+  /** Notes for this scene alone. */
   note: z.string().default(""),
   characters: z.array(characterOverrideSchema).default([]),
 });
@@ -80,12 +80,12 @@ export function isChapterSetupEmpty(s: ChapterSetup): boolean {
 }
 
 /**
- * Gộp ghi đè của chương với ghi đè của cảnh — cảnh thắng, THEO TỪNG Ô.
+ * Merge chapter overrides with scene overrides — the scene wins, FIELD BY FIELD.
  *
- * Theo từng ô chứ không thay cả người: cảnh chỉ nói "Tài đã thay áo mưa" thì
- * ghi chú "đang băng tay trái" của chương phải còn nguyên. Thay cả người thì
- * mỗi lần muốn đổi áo lại phải chép lại mọi thứ khác, mà quên một dòng là nhân
- * vật lành lặn trở lại giữa chương.
+ * Field by field rather than replacing the whole person: if the scene only says
+ * "Tài has changed into a raincoat", the chapter's "left hand bandaged" note must
+ * survive. Replacing wholesale would mean copying every other line each time you
+ * change a shirt, and one forgotten line heals the character mid-chapter.
  */
 export function mergeOverrides(
   chapter: readonly CharacterOverride[],
@@ -100,8 +100,9 @@ export function mergeOverrides(
     const key = name.toLowerCase();
     const prev = out.get(key);
     out.set(key, {
-      // Giữ dạng gõ của lần ĐẦU: chương gõ "ông Bảy", cảnh gõ "Ông bảy" thì
-      // vẫn là một người, và tên đưa cho model phải khớp danh sách nhân vật.
+      // Keep the FIRST spelling seen: the chapter typing "ông Bảy" and the scene
+      // "Ông bảy" is still one person, and the name handed to the model has to match
+      // the character list.
       name: prev?.name ?? name,
       outfit: c.outfit.trim() || prev?.outfit || "",
       note: c.note.trim() || prev?.note || "",
@@ -111,7 +112,7 @@ export function mergeOverrides(
   return [...out.values()].filter((c) => c.outfit || c.note);
 }
 
-/** Khối chỉ dẫn riêng của chương, nạp vào ngữ cảnh mọi cảnh thuộc chương. */
+/** The chapter's instruction block, loaded into the context of every scene in it. */
 export function renderChapterSetup(setup: ChapterSetup): string {
   const parts: string[] = [];
 
@@ -130,11 +131,11 @@ export function renderChapterSetup(setup: ChapterSetup): string {
 }
 
 /**
- * Khối ghi đè nhân vật, nạp NGAY TRƯỚC cảnh cần viết.
+ * The character override block, loaded IMMEDIATELY BEFORE the scene to write.
  *
- * Nói thẳng là nó đè lên Story Bible: không nói thì model gặp hai mô tả khác
- * nhau về cùng một người và tự chọn, thường là chọn cái đọc trước — tức là
- * Bible, tức là bỏ qua đúng thứ vừa đặt.
+ * It states outright that it overrides the Story Bible: unsaid, the model meets two
+ * different descriptions of one person and picks one, usually the one it read first
+ * — the Bible — which is exactly the thing just overridden.
  */
 export function renderOverrides(overrides: readonly CharacterOverride[]): string {
   if (overrides.length === 0) return "";

@@ -1,6 +1,6 @@
 /**
- * Máy trạng thái của Episode + hai ràng buộc mà Prisma không cưỡng chế được.
- * Xem docs/database.md mục 4.
+ * The Episode state machine, plus two constraints Prisma cannot enforce.
+ * See docs/database.md section 4.
  */
 
 export type EpisodeStatusName =
@@ -28,7 +28,7 @@ const ALLOWED: Record<EpisodeStatusName, EpisodeStatusName[]> = {
 
 export interface TransitionGuardInput {
   humanReviewed: boolean;
-  /** Giấy phép của mọi nhạc nền/SFX dùng trong tập. */
+  /** The licences of every music/SFX track used in the episode. */
   assetLicenses?: string[];
 }
 
@@ -45,35 +45,35 @@ export function assertTransition(
   ctx: TransitionGuardInput,
 ): void {
   if (!ALLOWED[from].includes(to)) {
-    throw new TransitionError(`Không thể chuyển ${from} → ${to}.`);
+    throw new TransitionError(`Cannot move ${from} → ${to}.`);
   }
 
-  // Chốt chặn 1: bản thảo thô không được lọt sang bước tạo audio.
+  // Gate 1: a raw draft must not slip through to the audio step.
   if (from === "DRAFTED" && to === "SCRIPTED" && !ctx.humanReviewed) {
     throw new TransitionError(
-      "Bản thảo chưa được duyệt. Đọc và đánh dấu đã duyệt trước khi tạo audio.",
+      "The draft is not approved. Read it and mark it approved before making audio.",
     );
   }
 
-  // Chốt chặn 2: không xuất bản tập mà bản thảo chưa được duyệt.
+  // Gate 2: do not publish an episode whose draft is unapproved.
   //
-  // Không thừa dù chốt 1 đã chặn ở DRAFTED → SCRIPTED: `unapproveDraft` gỡ được
-  // dấu duyệt của một tập ĐÃ dựng xong, nên vẫn có đường
-  // duyệt → dựng → gỡ duyệt → xuất bản. Gỡ duyệt nghĩa là "bản này cần sửa",
-  // mà cần sửa thì không được ra ngoài.
+  // Not redundant even though gate 1 blocks DRAFTED → SCRIPTED: `unapproveDraft`
+  // can clear the approval on an episode ALREADY built, leaving the path
+  // approve → build → unapprove → publish. Unapproving means "this needs work",
+  // and what needs work must not go out.
   if (to === "PUBLISHED" && !ctx.humanReviewed) {
     throw new TransitionError(
-      "Bản thảo chưa được duyệt. Đọc và đánh dấu đã duyệt trước khi xuất bản.",
+      "The draft is not approved. Read it and mark it approved before publishing.",
     );
   }
 
-  // Chốt chặn 3: không xuất bản khi còn asset chưa rõ giấy phép.
+  // Gate 3: do not publish while assets have unverified licences.
   if (to === "PUBLISHED") {
     const unknown = (ctx.assetLicenses ?? []).filter((l) => l === "UNKNOWN");
     if (unknown.length > 0) {
       throw new TransitionError(
-        `Còn ${unknown.length} nhạc nền/hiệu ứng chưa xác minh giấy phép. ` +
-          "Xác minh hoặc đổi sang asset khác trước khi xuất bản.",
+        `${unknown.length} music/effect tracks have unverified licences. ` +
+          "Verify them or swap in different assets before publishing.",
       );
     }
   }

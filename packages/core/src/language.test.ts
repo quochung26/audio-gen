@@ -11,12 +11,12 @@ import {
 } from "./language";
 
 describe("isLanguage", () => {
-  it("nhận mã có thật", () => {
+  it("accepts real codes", () => {
     expect(isLanguage("vi")).toBe(true);
     expect(isLanguage("en")).toBe(true);
   });
 
-  it("từ chối thứ khác", () => {
+  it("rejects anything else", () => {
     expect(isLanguage("fr")).toBe(false);
     expect(isLanguage("")).toBe(false);
     expect(isLanguage(null)).toBe(false);
@@ -26,59 +26,59 @@ describe("isLanguage", () => {
 });
 
 describe("toLanguage", () => {
-  it("giữ mã hợp lệ", () => {
+  it("keeps a valid code", () => {
     expect(toLanguage("en")).toBe("en");
   });
 
-  it("dữ liệu rác lùi về mặc định thay vì làm chết job", () => {
-    // Cột `language` có thể bị sửa tay trong DB, hoặc là hàng cũ từ bản trước.
+  it("junk data falls back to the default rather than killing a job", () => {
+    // The `language` column can be hand-edited in the DB, or be an old row.
     expect(toLanguage("klingon")).toBe(DEFAULT_LANGUAGE);
     expect(toLanguage(null)).toBe("vi");
     expect(toLanguage(undefined)).toBe("vi");
   });
 
-  it("nhận mặc định riêng", () => {
-    expect(toLanguage("rác", "en")).toBe("en");
+  it("accepts a custom default", () => {
+    expect(toLanguage("junk", "en")).toBe("en");
   });
 });
 
 describe("languageLabel", () => {
-  it("trả tên tiếng Việt", () => {
-    expect(languageLabel("vi")).toBe("Tiếng Việt");
-    expect(languageLabel("en")).toBe("Tiếng Anh");
+  it("returns the display name", () => {
+    expect(languageLabel("vi")).toBe("Vietnamese");
+    expect(languageLabel("en")).toBe("English");
   });
 
-  it("mọi ngôn ngữ trong bảng đều có nhãn", () => {
+  it("every language in the table has a label", () => {
     for (const l of LANGUAGES) expect(languageLabel(l.code)).not.toBe(l.code);
   });
 });
 
 describe("languageDirective", () => {
-  it("tiếng Việt: nói rõ CHỈ DẪN là tiếng Anh nhưng ĐẦU RA phải tiếng Việt", () => {
-    // Prompt trong DB viết bằng tiếng Anh kể cả khi truyện là tiếng Việt.
-    // Không tách bạch hai thứ đó thì model viết văn tiếng Anh.
+  it("Vietnamese: says the INSTRUCTIONS are English but the OUTPUT must be Vietnamese", () => {
+    // Prompts in the DB are written in English even when the story is Vietnamese.
+    // Without separating the two, the model writes English prose.
     const d = languageDirective("vi");
     expect(d).toContain("Vietnamese");
     expect(d).toMatch(/instructions .* English/i);
     expect(d).toMatch(/NOT the language/i);
   });
 
-  it("truyện tiếng Anh KHÔNG nhắc câu tách bạch — chỉ dẫn và đầu ra cùng một tiếng", () => {
-    // Nói "tiếng Anh KHÔNG phải ngôn ngữ cần viết" trong khi phải viết tiếng
-    // Anh là tự mâu thuẫn, và model làm theo vế sai.
+  it("an English story gets NO separating sentence — instructions and output share a language", () => {
+    // Saying "English is NOT the language to write in" while English is exactly what
+    // to write is self-contradictory, and the model follows the wrong half.
     const d = languageDirective("en");
     expect(d).toContain("English");
     expect(d).not.toMatch(/NOT the language/i);
   });
 
-  it("nhắc cả tên riêng và lời thoại — chỗ model hay lẫn nhất", () => {
+  it("calls out names and dialogue — where models slip most", () => {
     expect(languageDirective("en")).toMatch(/names.*dialogue/i);
     expect(languageDirective("vi")).toMatch(/names.*dialogue/i);
   });
 
-  it("mọi ngôn ngữ đều được gọi đúng tên trong chỉ thị", () => {
-    // Chỉ thị dựng từ bảng LANGUAGES, nên thêm một thứ tiếng là thêm một dòng
-    // chứ không phải sửa hàm.
+  it("every language is named correctly in the directive", () => {
+    // The directive is built from the LANGUAGES table, so adding a language is a
+    // line of data rather than a change to the function.
     for (const l of LANGUAGES) {
       expect(languageDirective(l.code)).toContain(l.endonym);
     }
@@ -86,17 +86,17 @@ describe("languageDirective", () => {
 });
 
 describe("withLanguage", () => {
-  it("đặt chỉ thị LÊN TRƯỚC system prompt", () => {
-    // Story Bible dài hàng nghìn chữ; chỉ thị nằm dưới là chìm nghỉm.
-    const out = withLanguage("en", "Story Bible: thế giới hậu tận thế…");
+  it("puts the directive BEFORE the system prompt", () => {
+    // The Story Bible runs to thousands of words; a directive underneath drowns.
+    const out = withLanguage("en", "Story Bible: a post-apocalyptic world…");
     expect(out.indexOf("English")).toBeLessThan(out.indexOf("Story Bible"));
   });
 
-  it("giữ nguyên system prompt phía sau", () => {
+  it("leaves the system prompt after it untouched", () => {
     expect(withLanguage("vi", "BIBLE")).toContain("BIBLE");
   });
 
-  it("không có system prompt thì chỉ còn chỉ thị, không thừa dòng trống", () => {
+  it("with no system prompt it is just the directive, with no stray blank line", () => {
     expect(withLanguage("vi")).toBe(languageDirective("vi"));
     expect(withLanguage("vi", "")).toBe(languageDirective("vi"));
     expect(withLanguage("vi", "   ")).toBe(languageDirective("vi"));
@@ -104,29 +104,29 @@ describe("withLanguage", () => {
 });
 
 describe("planDraft", () => {
-  it("không đặt ngôn ngữ bản thảo thì viết thẳng", () => {
+  it("no draft language set means write directly", () => {
     expect(planDraft("vi", "")).toEqual({ draft: "vi", output: "vi", translate: false });
   });
 
-  it("đặt khác thì viết nháp bằng tiếng đó rồi chuyển ngữ", () => {
+  it("a different one drafts in that language then rewrites", () => {
     expect(planDraft("vi", "en")).toEqual({ draft: "en", output: "vi", translate: true });
   });
 
-  it("đặt TRÙNG ngôn ngữ đầu ra thì KHÔNG dựng bước chuyển ngữ", () => {
-    // Dịch từ tiếng này sang chính nó là một lượt gọi model làm hỏng văn mà
-    // chẳng được gì.
+  it("set to the SAME language as the output builds NO rewrite step", () => {
+    // Translating a language into itself is a model call that damages the prose for
+    // nothing.
     expect(planDraft("en", "en").translate).toBe(false);
   });
 
-  it("mã rác lùi về viết thẳng, không làm chết job", () => {
-    // Cột `draftLanguage` sửa tay được trong DB, và hàng cũ từ bản trước không
-    // có cột này. Mặc định phải là chuỗi bước cũ.
+  it("a junk code falls back to writing directly rather than killing a job", () => {
+    // The `draftLanguage` column is hand-editable in the DB, and old rows do not
+    // have it at all. The default has to be the old chain.
     expect(planDraft("vi", "klingon").translate).toBe(false);
     expect(planDraft("vi", null).translate).toBe(false);
     expect(planDraft("vi", undefined).translate).toBe(false);
   });
 
-  it("ngôn ngữ đầu ra rác vẫn lùi về mặc định", () => {
-    expect(planDraft("rác", "en")).toEqual({ draft: "en", output: "vi", translate: true });
+  it("a junk output language still falls back to the default", () => {
+    expect(planDraft("junk", "en")).toEqual({ draft: "en", output: "vi", translate: true });
   });
 });

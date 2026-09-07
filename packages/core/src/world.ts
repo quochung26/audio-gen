@@ -3,37 +3,37 @@ import { z } from "zod";
 import type { Outline } from "./types";
 
 /**
- * Thiết lập thế giới — phần NGƯỜI VIẾT đặt ra, không phải AI nghĩ ra.
+ * World setup — what the WRITER lays down, not what the AI invents.
  *
- * Vì sao tách khỏi `Outline`: dàn ý là thứ AI sinh và bạn có thể cho sinh lại;
- * thiết lập thế giới là thứ bạn quyết định và phải giữ nguyên suốt bộ truyện.
- * Trộn chung thì mỗi lần sinh lại dàn ý sẽ xoá mất luật thế giới bạn đã viết.
+ * Why it is separate from `Outline`: the outline is AI-generated and you can
+ * regenerate it; the world setup is your decision and has to hold for the whole
+ * story. Merged, every outline regeneration would wipe the rules you wrote.
  *
- * Toàn bộ nội dung này nạp vào `system` prompt mỗi lần viết cảnh, nên nó là
- * thứ giữ cho tập 30 vẫn đúng luật đã đặt ở tập 1.
+ * All of this loads into the `system` prompt on every scene, so it is what keeps
+ * episode 30 obeying the rules laid down in episode 1.
  */
 export const worldSetupSchema = z.object({
-  /** Thời gian, địa điểm, không khí. VD: "Quốc lộ miền Trung, thập niên 1970, những chuyến xe đêm." */
+  /** Time, place, atmosphere. E.g. "Central Vietnam highway, 1970s, night buses." */
   setting: z.string().default(""),
 
   /**
-   * Luật thế giới — những điều LUÔN đúng trong truyện này.
-   * VD: "Ma chỉ xuất hiện sau nửa đêm", "Không ai trong làng dám gọi tên người chết".
+   * World rules — the things that are ALWAYS true in this story.
+   * E.g. "Ghosts only appear after midnight", "Nobody in the village says a dead person's name".
    */
   rules: z.array(z.string()).default([]),
 
-  /** Giọng văn mong muốn. VD: "chậm rãi, nhiều khoảng lặng, không giật gân." */
+  /** The prose voice you want. E.g. "unhurried, plenty of silence, never lurid." */
   tone: z.string().default(""),
 
   /**
-   * Điều cấm — những thứ KHÔNG được xuất hiện.
-   * VD: "không mô tả bạo lực với trẻ em", "không kết thúc bằng giấc mơ".
+   * Forbidden — what must NEVER appear.
+   * E.g. "no violence against children", "never end on a dream".
    */
   constraints: z.array(z.string()).default([]),
 
   /**
-   * Thuật ngữ riêng: tên địa danh, cách xưng hô, vật phẩm.
-   * Giữ cho AI không đổi cách gọi giữa các tập.
+   * The story's own terms: place names, forms of address, objects.
+   * Keeps the AI from renaming things between episodes.
    */
   glossary: z.array(z.object({ term: z.string(), meaning: z.string() })).default([]),
 });
@@ -48,13 +48,13 @@ export const EMPTY_WORLD: WorldSetup = {
   glossary: [],
 };
 
-/** Cấu trúc lưu trong cột `Series.storyBible`. */
+/** The shape stored in the `Series.storyBible` column. */
 export interface StoryBibleRecord {
-  /** Dàn ý do AI sinh — có thể sinh lại. */
+  /** The AI-generated outline — regenerable. */
   raw?: Outline;
-  /** Thiết lập thế giới do người viết đặt — KHÔNG bị ghi đè khi sinh lại dàn ý. */
+  /** The writer's world setup — NOT overwritten when the outline is regenerated. */
   world?: WorldSetup;
-  /** Bản render sẵn để nạp vào system prompt. Dựng lại mỗi khi raw hoặc world đổi. */
+  /** Pre-rendered for the system prompt. Rebuilt whenever raw or world changes. */
   bible?: string;
 }
 
@@ -74,22 +74,22 @@ export function isWorldEmpty(w: WorldSetup): boolean {
 }
 
 /**
- * Render Story Bible đầy đủ để nạp vào system prompt.
+ * Render the full Story Bible for the system prompt.
  *
- * Thứ tự có chủ đích: thiết lập thế giới đặt TRƯỚC dàn ý. Model đọc tuần tự,
- * và luật thế giới là ràng buộc phải áp cho mọi thứ đọc sau nó.
+ * The order is deliberate: world setup comes BEFORE the outline. The model reads
+ * in sequence, and world rules constrain everything read after them.
  */
 export function renderBible(input: {
   title: string;
   genre: string;
-  /** Thể loại phụ — "tình cảm", "hành động"… Xem packages/core/src/tags.ts. */
+  /** Sub-genre tags — "tình cảm", "hành động"… See packages/core/src/tags.ts. */
   tags?: string[];
   /**
-   * Mô tả từng thể loại, để model hiểu chúng theo nghĩa người viết định.
+   * A description per genre, so the model reads them the way the writer means.
    *
-   * `promptName` là tên đưa cho model đọc thay cho `name` — `name` là nhãn
-   * người nghe nhìn thấy, `promptName` là nhãn model có liên tưởng dày hơn.
-   * Rỗng thì dùng luôn `name`.
+   * `promptName` is the name handed to the model instead of `name` — `name` is the
+   * label listeners see, `promptName` is the label the model has richer
+   * associations for. Blank falls back to `name`.
    */
   genreNotes?: Array<{ name: string; promptName?: string; description: string }>;
   logline?: string;
@@ -101,22 +101,22 @@ export function renderBible(input: {
     speech?: string | null;
     outfit?: string | null;
     appearance?: string | null;
-    /** Chưa chọn ai đọc phần dẫn thì bỏ trống — Bible không in gì cả. */
+    /** Nobody cast as narrator yet means blank — the Bible prints nothing. */
     isNarrator?: boolean;
   }>;
   episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
   /**
-   * Tên những người CÓ MẶT trong cảnh sắp viết.
+   * The names of everyone PRESENT in the scene about to be written.
    *
-   * Rỗng = chưa biết, và khi đó mọi người đều được tả đầy đủ. Có danh sách thì
-   * người ngoài danh sách chỉ còn tên và vai: ngữ cảnh không phình theo cỡ dàn,
-   * mà model vẫn biết họ tồn tại nên không đẻ ra một người trùng tên.
+   * Empty = not known, and then everyone is described in full. Given a list,
+   * anyone outside it keeps only name and role: context does not grow with the
+   * cast, while the model still knows they exist and will not invent a duplicate.
    */
   spotlight?: string[];
 }): string {
-  // Tên dành cho model, tra theo nhãn hiển thị. Không có thẻ thể loại nào khớp
-  // thì giữ nguyên thứ người viết gõ — thể loại dùng được mà không cần có trong
-  // danh mục, và bỏ nó đi thì dòng thể loại trống trơn.
+  // The name for the model, looked up by display label. No genre tag matching
+  // means keep whatever the writer typed — a genre works without being in the
+  // catalogue, and dropping it would leave the genre line blank.
   const forModel = new Map(
     (input.genreNotes ?? [])
       .filter((g) => g.promptName?.trim())
@@ -126,14 +126,14 @@ export function renderBible(input: {
 
   const parts: string[] = [`# ${input.title}`, ``, `Genre: ${modelName(input.genre)}`];
 
-  // Ngay dưới thể loại: đây là thứ lái giọng văn, phải nằm chỗ model đọc trước.
+  // Right under the genre: this steers the prose, so it must sit where the model reads first.
   const tagLine = renderTags((input.tags ?? []).map(modelName));
   if (tagLine) parts.push(tagLine);
 
   if (input.logline) parts.push(`Logline: ${input.logline}`);
 
-  // Ngay sau dòng thể loại, trước bối cảnh: model phải biết "kinh dị" ở đây
-  // nghĩa là gì trước khi đọc bất cứ thứ gì khác.
+  // Right after the genre line, before the setting: the model has to know what
+  // "kinh dị" means here before it reads anything else.
   const notes = (input.genreNotes ?? []).filter((g) => g.description.trim());
   if (notes.length > 0) {
     parts.push(
@@ -189,21 +189,21 @@ export function renderBible(input: {
   for (const c of input.characters) {
     parts.push(`- ${c.name}${c.isNarrator ? " (narrator)" : ""}: ${c.role ?? ""}`);
 
-    // Ngoài danh sách thì dừng ở tên và vai — bỏ luôn phần dài nhất.
+    // Outside the list, stop at name and role — dropping the longest part.
     if (spotlight.size > 0 && !spotlight.has(c.name.trim().toLowerCase())) continue;
 
-    // Mô tả tính cách và cách nói đặt thụt vào — đây là thứ giữ cho lời thoại
-    // của một nhân vật nghe giống nhau qua hàng chục tập.
+    // Personality and speech are indented — this is what keeps one character's
+    // dialogue sounding like itself across dozens of episodes.
     if (c.description?.trim()) parts.push(`  ${c.description.trim()}`);
-    // Cách nói tách riêng khỏi tính cách: model bám vào đây khi viết LỜI THOẠI,
-    // còn dòng trên lái hành động và lựa chọn.
+    // Speech is separate from personality: the model leans on this when writing
+    // DIALOGUE, while the line above steers action and choices.
     if (c.speech?.trim()) parts.push(`  Speech: ${c.speech.trim()}`);
-    // Ngoại hình có nhãn riêng, không gộp vào dòng trên: nó lái phần TẢ, còn
-    // dòng trên lái LỜI THOẠI. Gộp chung thì model tả quần áo giữa một đoạn
-    // đang cần giọng nói.
+    // Appearance gets its own label rather than being folded into the line above:
+    // it steers DESCRIPTION, the line above steers DIALOGUE. Merged, the model
+    // describes clothing in the middle of a passage that needed a voice.
     if (c.appearance?.trim()) parts.push(`  Appearance: ${c.appearance.trim()}`);
-    // Trang phục MẶC ĐỊNH. Thiết lập chương và cảnh đè lên được — khối ghi đè
-    // nói thẳng ra điều đó, nên hai chỗ mâu thuẫn không làm model phân vân.
+    // The DEFAULT outfit. Chapter and scene setup can override it — the override
+    // block says so outright, so a conflict does not leave the model guessing.
     if (c.outfit?.trim()) parts.push(`  Usually wears: ${c.outfit.trim()}`);
   }
 
@@ -211,8 +211,8 @@ export function renderBible(input: {
     parts.push(
       ``,
       `## Episode outline`,
-      // Gộp nhịp của mọi chương thành một dòng: đây là mục lục để model nhớ
-      // tập nào có gì, không phải chỗ dựng lại cấu trúc chương.
+      // Every chapter's beats folded into one line: this is an index so the model
+      // remembers what happened where, not a place to rebuild chapter structure.
       ...input.episodes.map(
         (e) => `${e.number}. ${e.title} — ${e.chapters.flatMap((c) => c.beats).join(" / ")}`,
       ),
@@ -223,9 +223,9 @@ export function renderBible(input: {
 }
 
 /**
- * Render phần thiết lập thế giới thành đoạn đưa vào prompt DÀN Ý.
- * Khi người viết đã đặt trước bối cảnh, AI phải dựng dàn ý bám theo nó
- * thay vì tự nghĩ ra thế giới của riêng mình.
+ * Render the world setup as a passage for the OUTLINE prompt.
+ * When the writer has fixed the setting up front, the AI has to build the outline
+ * around it rather than inventing a world of its own.
  */
 export function renderWorldForOutline(w: WorldSetup): string {
   if (isWorldEmpty(w)) return "";

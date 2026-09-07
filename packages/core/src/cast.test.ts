@@ -4,30 +4,30 @@ import { mergeCast, namesMentionedIn, normalizeCast, renderCastForOutline } from
 const tai = { name: "Tài", role: "tài xế xe khách", isNarrator: true };
 
 describe("normalizeCast", () => {
-  it("bỏ mục không có tên", () => {
+  it("drops entries with no name", () => {
     expect(normalizeCast([tai, { name: "  " }, { name: "" }])).toHaveLength(1);
   });
 
-  it("khử trùng tên KHÔNG phân biệt hoa thường", () => {
-    // `(seriesId, name)` là ràng buộc duy nhất — hai hàng cùng tên là job chết
-    // lúc tạo bộ, sau khi đã gọi model xong.
+  it("de-duplicates names CASE-INSENSITIVELY", () => {
+    // `(seriesId, name)` is the unique constraint — two rows with one name is a job
+    // dying at story creation, after the model call has already been paid for.
     const out = normalizeCast([{ name: "Tài" }, { name: "tài" }, { name: "TÀI " }]);
     expect(out).toHaveLength(1);
     expect(out[0]!.name).toBe("Tài");
   });
 
-  it("gộp khoảng trắng thừa trong tên", () => {
+  it("collapses extra whitespace in a name", () => {
     expect(normalizeCast([{ name: "ông   Bảy" }])[0]!.name).toBe("ông Bảy");
   });
 
-  it("giữ ĐÚNG MỘT người dẫn, người đầu tiên thắng", () => {
-    // Hai người dẫn thì bước biên tập audio gán block dẫn truyện cho ai cũng
-    // được, và giọng đổi giữa chừng mà không có gì báo.
+  it("keeps EXACTLY ONE narrator, first one wins", () => {
+    // With two, the audio edit step can assign narration blocks to either, and the
+    // voice changes mid-story with nothing to say so.
     const out = normalizeCast([tai, { name: "Hạnh", isNarrator: true }]);
     expect(out.map((c) => c.isNarrator)).toEqual([true, false]);
   });
 
-  it("trường rỗng thành null chứ không phải chuỗi rỗng", () => {
+  it("empty fields become null, not an empty string", () => {
     expect(normalizeCast([{ name: "Tài", role: "  ", description: "" }])[0]).toMatchObject({
       role: null,
       description: null,
@@ -37,14 +37,14 @@ describe("normalizeCast", () => {
 });
 
 describe("renderCastForOutline", () => {
-  it("không chọn ai thì trả về rỗng — prompt vẫn hợp lệ", () => {
-    // Y như `renderWorldForOutline`: bỏ trống là model tự nghĩ nhân vật, đúng
-    // hành vi cũ.
+  it("nobody chosen returns empty — the prompt stays valid", () => {
+    // Exactly like `renderWorldForOutline`: left blank, the model invents the
+    // characters, which is the old behaviour.
     expect(renderCastForOutline([])).toBe("");
     expect(renderCastForOutline([{ name: " " }])).toBe("");
   });
 
-  it("nêu tên, vai, tính cách, cách nói, ngoại hình và chất giọng", () => {
+  it("names name, role, personality, speech, appearance and voice", () => {
     const out = renderCastForOutline([
       {
         name: "Tài",
@@ -65,18 +65,18 @@ describe("renderCastForOutline", () => {
     expect(out).toContain("nam trung niên");
   });
 
-  it("nói rõ KHÔNG được đổi tên — chỗ model hay tự tiện nhất", () => {
+  it("says outright NOT to rename — where models take the most liberties", () => {
     expect(renderCastForOutline([tai])).toMatch(/Do not rename/i);
   });
 
-  it("KHÔNG nhắc gì tới người dẫn truyện", () => {
-    // Ai đọc phần dẫn là việc của khâu audio, mà khâu đó có thể không bao giờ
-    // chạy. Nói với model rằng một nhân vật là "người dẫn" còn đẩy nó sang kiểu
-    // người đó kể chuyện, trong khi write-scene bảo viết ngôi thứ ba.
+  it("says NOTHING about a narrator", () => {
+    // Who reads the narration is the audio step's business, and that step may never
+    // run. Telling the model a character is "the narrator" also pushes it toward
+    // them telling the story, while write-scene asks for third person.
     expect(renderCastForOutline([tai])).not.toMatch(/narrator/i);
   });
 
-  it("vẫn cho thêm nhân vật mới — dàn chọn trước là sàn, không phải trần", () => {
+  it("still allows new characters — the chosen cast is a floor, not a ceiling", () => {
     expect(renderCastForOutline([tai])).toMatch(/may add more/i);
   });
 });
@@ -87,37 +87,37 @@ describe("mergeCast", () => {
     { name: "Cô gái áo trắng", role: "hành khách bí ẩn", voiceHint: "nữ trẻ" },
   ];
 
-  it("giữ nhân vật model tự thêm — dàn chọn trước là sàn, không phải trần", () => {
+  it("keeps characters the model added — the chosen cast is a floor, not a ceiling", () => {
     expect(mergeCast([{ name: "Tài" }], generated).map((c) => c.name)).toEqual([
       "Tài",
       "Cô gái áo trắng",
     ]);
   });
 
-  it("người viết gõ gì thì thắng cái đó", () => {
+  it("whatever the writer typed wins", () => {
     const out = mergeCast([{ name: "Tài", role: "thợ điện" }], generated);
     expect(out[0]!.role).toBe("thợ điện");
   });
 
-  it("ô người viết BỎ TRỐNG thì lấy phần model gợi ý", () => {
-    // Chọn một thẻ mới có mỗi cái tên vẫn phải ra nhân vật dùng được.
+  it("fields the writer LEFT BLANK take the model's suggestion", () => {
+    // Picking a card that only has a name still has to yield a usable character.
     const out = mergeCast([{ name: "Tài" }], generated);
     expect(out[0]).toMatchObject({ role: "tài xế đường dài", voiceHint: "nam trung niên" });
   });
 
-  it("giữ nguyên cardId của thẻ đã chọn", () => {
+  it("preserves the cardId of the chosen card", () => {
     expect(mergeCast([{ name: "Tài", cardId: "card_1" }], generated)[0]!.cardId).toBe("card_1");
   });
 
-  it("model đánh dấu người dẫn thì KHÔNG được nhận", () => {
-    // Dàn ý không còn quyết ai đọc phần dẫn. Dữ liệu cũ hoặc model bướng vẫn
-    // có thể trả về cờ đó, và nó phải bị bỏ qua.
+  it("a narrator flag from the model is NOT accepted", () => {
+    // Outlining no longer decides who reads the narration. Old data or a stubborn
+    // model can still return that flag, and it has to be ignored.
     expect(mergeCast([{ name: "Tài" }], generated)[0]!.isNarrator).toBe(false);
   });
 
-  it("người viết đã chỉ định người dẫn thì model KHÔNG được đổi", () => {
-    // Model gán cờ cho Tài; người viết chọn Cô gái áo trắng. Không chốt thì
-    // người thắng phụ thuộc thứ tự khử trùng — im lặng và đổi giữa các lần chạy.
+  it("a narrator the writer named is NOT changed by the model", () => {
+    // The model flags Tài; the writer picked Cô gái áo trắng. Unsettled, the winner
+    // depends on de-duplication order — silent, and different between runs.
     const out = mergeCast(
       [{ name: "Tài" }, { name: "Cô gái áo trắng", isNarrator: true }],
       generated,
@@ -126,54 +126,54 @@ describe("mergeCast", () => {
     expect(out.filter((c) => c.isNarrator)).toHaveLength(1);
   });
 
-  it("KHÔNG tự gán người dẫn khi không ai được chọn", () => {
-    // Người dẫn là ô casting của khâu audio. Gán bừa người đầu tiên thì cả bộ
-    // có thể được dẫn bằng giọng nữ trẻ mà chẳng ai quyết điều đó — thứ tự phụ
-    // thuộc model trả về cái gì trước.
+  it("does NOT assign a narrator when nobody was chosen", () => {
+    // The narrator is the audio step's casting slot. Grabbing the first one means a
+    // whole story could be narrated by a young woman's voice with nobody deciding
+    // that — the order depends on what the model happened to return first.
     const out = mergeCast([], [{ name: "Tài" }, { name: "Hạnh" }]);
     expect(out.some((c) => c.isNarrator)).toBe(false);
   });
 
-  it("người viết chọn thì vẫn giữ đúng một người", () => {
+  it("with the writer's choice, exactly one is still kept", () => {
     const out = mergeCast([{ name: "Tài", isNarrator: true }], [{ name: "Hạnh" }]);
     expect(out.filter((c) => c.isNarrator).map((c) => c.name)).toEqual(["Tài"]);
   });
 
-  it("dàn rỗng hoàn toàn thì trả về rỗng, không ném", () => {
+  it("a completely empty cast returns empty rather than throwing", () => {
     expect(mergeCast([], [])).toEqual([]);
   });
 
-  it("không chọn ai thì y như cũ: chỉ có dàn model sinh", () => {
+  it("nobody chosen behaves as before: only the model's cast", () => {
     expect(mergeCast([], generated).map((c) => c.name)).toEqual(["Tài", "Cô gái áo trắng"]);
   });
 });
 
-describe("namesMentionedIn — đoán ai có mặt trong beat", () => {
+describe("namesMentionedIn — guessing who is present in a beat", () => {
   const names = ["Tài", "ông Bảy", "Cô gái áo trắng"];
 
-  it("bắt tên xuất hiện trong beat", () => {
+  it("catches a name appearing in the beat", () => {
     const out = namesMentionedIn("Tài quay lại Bến Cũ và gặp ông Bảy.", names);
     expect(out).toContain("Tài");
     expect(out).toContain("ông Bảy");
   });
 
-  it("không phân biệt hoa thường", () => {
+  it("is case-insensitive", () => {
     expect(namesMentionedIn("TÀI dừng xe.", names)).toContain("Tài");
   });
 
-  it("beat không nhắc ai thì trả về rỗng — cảnh giữ 'chưa biết'", () => {
-    // Rỗng nghĩa là Bible nạp đầy đủ như cũ. Đoán hụt chỉ mất phần lọc, không
-    // làm model viết cảnh mà thiếu mô tả người trong đó.
+  it("a beat naming nobody returns empty — the scene stays 'not known'", () => {
+    // Empty means the Bible loads in full as before. Guessing short only loses the
+    // filtering; it never leaves the model writing a scene missing its people.
     expect(namesMentionedIn("Mưa suốt đêm ngoài quốc lộ.", names)).toEqual([]);
   });
 
-  it("xét tên DÀI trước", () => {
-    // Dàn có cả "ông Bảy" thì beat nhắc "ông Bảy" phải ra đúng người đó trước.
+  it("tests LONGER names first", () => {
+    // With "ông Bảy" in the cast, a beat mentioning "ông Bảy" has to resolve to them.
     const out = namesMentionedIn("ông Bảy gác bến.", ["Bảy", "ông Bảy"]);
     expect(out[0]).toBe("ông Bảy");
   });
 
-  it("danh sách nhân vật rỗng thì không ném", () => {
+  it("an empty character list does not throw", () => {
     expect(namesMentionedIn("Tài dừng xe.", [])).toEqual([]);
   });
 });

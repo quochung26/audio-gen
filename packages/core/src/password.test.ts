@@ -2,29 +2,29 @@ import { describe, expect, it } from "vitest";
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from "./password";
 
 /**
- * Đường xác thực — sai ở đây là ai cũng vào được tài khoản người khác.
+ * The auth path — get this wrong and anyone can get into anyone's account.
  *
- * Test chậm vì scrypt cố tình tốn bộ nhớ và thời gian; đó là điểm mạnh của nó.
- * Mỗi lần băm ~270 ms nên phải nới timeout, mặc định 5 giây của vitest không đủ
- * cho những test băm vài lần.
+ * The tests are slow because scrypt deliberately costs memory and time; that is
+ * its strength. Each hash is ~270 ms, so the timeout has to be raised — vitest's
+ * default 5 seconds is not enough for tests that hash several times.
  */
 
 describe("hashPassword", () => {
-  it("mật khẩu đúng thì kiểm được", async () => {
+  it("the right password verifies", async () => {
     const h = await hashPassword("mat-khau-rat-dai");
     expect(await verifyPassword("mat-khau-rat-dai", h)).toBe(true);
   }, 30_000);
 
-  it("mật khẩu sai thì không lọt", async () => {
+  it("the wrong password does not", async () => {
     const h = await hashPassword("mat-khau-rat-dai");
     expect(await verifyPassword("mat-khau-rat-dax", h)).toBe(false);
     expect(await verifyPassword("", h)).toBe(false);
     expect(await verifyPassword("mat-khau-rat-dai ", h)).toBe(false);
   }, 30_000);
 
-  it("CÙNG mật khẩu ra hai chuỗi băm KHÁC nhau", async () => {
-    // Muối ngẫu nhiên. Không có nó thì nhìn bảng là biết ai dùng chung mật khẩu,
-    // và một bảng tra sẵn phá được cả cơ sở dữ liệu.
+  it("the SAME password produces two DIFFERENT hashes", async () => {
+    // A random salt. Without it the table shows who shares a password, and one
+    // precomputed lookup table breaks the whole database.
     const a = await hashPassword("mat-khau-rat-dai");
     const b = await hashPassword("mat-khau-rat-dai");
     expect(a).not.toBe(b);
@@ -32,20 +32,20 @@ describe("hashPassword", () => {
     expect(await verifyPassword("mat-khau-rat-dai", b)).toBe(true);
   }, 30_000);
 
-  it("từ chối mật khẩu quá ngắn", async () => {
-    await expect(hashPassword("a".repeat(MIN_PASSWORD_LENGTH - 1))).rejects.toThrow(/8 ký tự/);
+  it("rejects a password that is too short", async () => {
+    await expect(hashPassword("a".repeat(MIN_PASSWORD_LENGTH - 1))).rejects.toThrow(/8 characters/);
     await expect(hashPassword("a".repeat(MIN_PASSWORD_LENGTH))).resolves.toBeTypeOf("string");
   }, 30_000);
 
-  it("ghi tham số vào chuỗi để sau này tăng độ khó mà mật khẩu cũ vẫn dùng được", async () => {
+  it("writes the parameters into the string so the cost can be raised later without breaking old passwords", async () => {
     const h = await hashPassword("mat-khau-rat-dai");
     expect(h.startsWith("scrypt$65536$8$1$")).toBe(true);
     expect(h.split("$")).toHaveLength(6);
   }, 30_000);
 
-  it("mật khẩu cũ băm với tham số THẤP hơn vẫn kiểm được", async () => {
-    // Đây là lý do phải nhúng tham số. Không có thì nâng N là mọi người mất
-    // tài khoản cùng lúc.
+  it("an old password hashed with LOWER parameters still verifies", async () => {
+    // This is why the parameters are embedded. Without them, raising N locks
+    // everyone out at once.
     const { randomBytes, scryptSync } = await import("node:crypto");
     const salt = randomBytes(16);
     const n = 2 ** 14;
@@ -56,9 +56,9 @@ describe("hashPassword", () => {
     expect(await verifyPassword("sai-mat-khau-roi", stored)).toBe(false);
   }, 30_000);
 
-  it("chữ Unicode chuẩn hoá về một dạng", async () => {
-    // "ế" gõ được bằng một hay hai điểm mã. Không chuẩn hoá thì đổi bàn phím
-    // là không đăng nhập được nữa.
+  it("normalises Unicode to one form", async () => {
+    // "ế" can be typed as one code point or two. Without normalisation, changing
+    // keyboard means you can no longer log in.
     const composed = "cà phê sữa đá";
     const decomposed = composed.normalize("NFD");
     expect(composed).not.toBe(decomposed);
@@ -67,21 +67,21 @@ describe("hashPassword", () => {
   }, 30_000);
 });
 
-describe("verifyPassword — dữ liệu hỏng thì trả false, không ném lỗi", () => {
+describe("verifyPassword — corrupt data returns false rather than throwing", () => {
   it.each([
-    ["chuỗi rỗng", ""],
-    ["không phải scrypt", "bcrypt$2a$10$abc"],
-    ["thiếu phần", "scrypt$131072$8$1$abc"],
-    ["thừa phần", "scrypt$131072$8$1$a$b$c"],
-    ["tham số không phải số", "scrypt$abc$8$1$YWJj$YWJj"],
-    ["hash rỗng", "scrypt$131072$8$1$YWJj$"],
-    ["muối rỗng", "scrypt$131072$8$1$$YWJj"],
+    ["empty string", ""],
+    ["not scrypt", "bcrypt$2a$10$abc"],
+    ["missing a part", "scrypt$131072$8$1$abc"],
+    ["an extra part", "scrypt$131072$8$1$a$b$c"],
+    ["a non-numeric parameter", "scrypt$abc$8$1$YWJj$YWJj"],
+    ["empty hash", "scrypt$131072$8$1$YWJj$"],
+    ["empty salt", "scrypt$131072$8$1$$YWJj"],
   ])("%s", async (_name, stored) => {
     await expect(verifyPassword("mat-khau-rat-dai", stored)).resolves.toBe(false);
   });
 
-  it("chặn tham số vô lý — N khổng lồ sẽ treo tiến trình", async () => {
-    // Dữ liệu hỏng hoặc bị sửa tay không được biến thành cách làm sập máy chủ.
+  it("rejects absurd parameters — a giant N would hang the process", async () => {
+    // Corrupt or hand-edited data must not become a way to bring the server down.
     const huge = `scrypt$${2 ** 30}$8$1$YWJjZA==$YWJjZA==`;
     await expect(verifyPassword("mat-khau-rat-dai", huge)).resolves.toBe(false);
   });

@@ -4,30 +4,30 @@ import { assertTransition, canTransition, TransitionError } from "./episode-stat
 const reviewed = { humanReviewed: true };
 const unreviewed = { humanReviewed: false };
 
-describe("chốt chặn: bản thảo phải được duyệt", () => {
-  it("chặn DRAFTED → SCRIPTED khi chưa duyệt", () => {
+describe("gate: the draft has to be approved", () => {
+  it("blocks DRAFTED → SCRIPTED while unapproved", () => {
     expect(() => assertTransition("DRAFTED", "SCRIPTED", unreviewed)).toThrow(TransitionError);
   });
 
-  it("cho qua khi đã duyệt", () => {
+  it("allows it once approved", () => {
     expect(() => assertTransition("DRAFTED", "SCRIPTED", reviewed)).not.toThrow();
   });
 
-  it("chỉ chặn đúng bước DRAFTED → SCRIPTED, không chặn bước khác", () => {
-    // Quay lại sửa bản thảo thì không cần duyệt — nếu chặn ở đây thì người viết
-    // bị kẹt: muốn sửa phải duyệt, mà duyệt xong mới thấy cần sửa.
+  it("blocks only DRAFTED → SCRIPTED, not other transitions", () => {
+    // Going back to edit the draft needs no approval — blocking here would trap the
+    // writer: to edit you must approve, and you only see the need after approving.
     expect(() => assertTransition("DRAFTED", "DRAFTING", unreviewed)).not.toThrow();
   });
 });
 
-describe("chốt chặn: giấy phép asset", () => {
-  it("chặn xuất bản khi còn asset UNKNOWN", () => {
+describe("gate: asset licences", () => {
+  it("blocks publishing while an asset is UNKNOWN", () => {
     expect(() =>
       assertTransition("READY", "PUBLISHED", { ...reviewed, assetLicenses: ["CC0", "UNKNOWN"] }),
-    ).toThrow(/chưa xác minh giấy phép/);
+    ).toThrow(/unverified licences/);
   });
 
-  it("báo đúng số asset còn thiếu giấy phép", () => {
+  it("reports the right number of assets missing a licence", () => {
     const r = canTransition("READY", "PUBLISHED", {
       ...reviewed,
       assetLicenses: ["UNKNOWN", "CC0", "UNKNOWN"],
@@ -36,7 +36,7 @@ describe("chốt chặn: giấy phép asset", () => {
     expect(r.ok === false && r.reason).toContain("2");
   });
 
-  it("cho qua khi mọi asset đã rõ giấy phép", () => {
+  it("allows it once every asset's licence is clear", () => {
     expect(() =>
       assertTransition("READY", "PUBLISHED", {
         ...reviewed,
@@ -45,7 +45,7 @@ describe("chốt chặn: giấy phép asset", () => {
     ).not.toThrow();
   });
 
-  it("cho qua khi tập không dùng asset nào", () => {
+  it("allows it when the episode uses no assets", () => {
     expect(() => assertTransition("READY", "PUBLISHED", reviewed)).not.toThrow();
     expect(() =>
       assertTransition("READY", "PUBLISHED", { ...reviewed, assetLicenses: [] }),
@@ -53,56 +53,56 @@ describe("chốt chặn: giấy phép asset", () => {
   });
 });
 
-describe("bước chuyển hợp lệ", () => {
-  it("không cho nhảy cóc từ IDEA thẳng sang PUBLISHED", () => {
-    expect(() => assertTransition("IDEA", "PUBLISHED", reviewed)).toThrow(/Không thể chuyển/);
+describe("valid transitions", () => {
+  it("does not allow jumping from IDEA straight to PUBLISHED", () => {
+    expect(() => assertTransition("IDEA", "PUBLISHED", reviewed)).toThrow(/Cannot move/);
   });
 
-  it("gỡ xuất bản được: PUBLISHED → READY", () => {
+  it("unpublishing works: PUBLISHED → READY", () => {
     expect(() => assertTransition("PUBLISHED", "READY", reviewed)).not.toThrow();
   });
 
-  it("PUBLISHED không đi thẳng sang trạng thái nào khác ngoài READY", () => {
+  it("PUBLISHED goes nowhere but READY", () => {
     for (const to of ["RENDERING", "FAILED", "DRAFTING"] as const) {
       expect(() => assertTransition("PUBLISHED", to, reviewed)).toThrow(TransitionError);
     }
   });
 
-  it("job hỏng rồi chạy lại được: FAILED quay về các bước trước", () => {
+  it("a failed job can be rerun: FAILED goes back to earlier steps", () => {
     for (const to of ["IDEA", "OUTLINED", "DRAFTING", "SCRIPTED", "RENDERING"] as const) {
       expect(() => assertTransition("FAILED", to, reviewed)).not.toThrow();
     }
   });
 
-  it("bước đang chạy tự lặp được (job retry): DRAFTING → DRAFTING", () => {
+  it("a running step can repeat itself (job retry): DRAFTING → DRAFTING", () => {
     expect(() => assertTransition("DRAFTING", "DRAFTING", reviewed)).not.toThrow();
     expect(() => assertTransition("RENDERING", "RENDERING", reviewed)).not.toThrow();
   });
 });
 
 describe("canTransition", () => {
-  it("trả kết quả thay vì ném lỗi", () => {
+  it("returns a result rather than throwing", () => {
     expect(canTransition("DRAFTED", "SCRIPTED", reviewed)).toEqual({ ok: true });
     const bad = canTransition("DRAFTED", "SCRIPTED", unreviewed);
     expect(bad.ok).toBe(false);
-    expect(bad.ok === false && bad.reason).toMatch(/chưa được duyệt/);
+    expect(bad.ok === false && bad.reason).toMatch(/not approved/);
   });
 });
 
-describe("chốt duyệt áp cả ở bước xuất bản", () => {
-  it("chặn READY → PUBLISHED khi bản thảo đã bị gỡ duyệt", () => {
-    // Đường đi thật: duyệt → dựng audio → gỡ duyệt (thấy cần sửa) → xuất bản.
-    // Chốt ở DRAFTED → SCRIPTED không bắt được vì tập đã qua bước đó từ lâu.
-    expect(() => assertTransition("READY", "PUBLISHED", unreviewed)).toThrow(/chưa được duyệt/);
+describe("the approval gate applies at publish time too", () => {
+  it("blocks READY → PUBLISHED when the draft has been unapproved", () => {
+    // The real path: approve → build audio → unapprove (it needs work) → publish.
+    // The DRAFTED → SCRIPTED gate cannot catch it; the episode passed that long ago.
+    expect(() => assertTransition("READY", "PUBLISHED", unreviewed)).toThrow(/not approved/);
   });
 
-  it("cho qua khi đã duyệt", () => {
+  it("allows it once approved", () => {
     expect(() => assertTransition("READY", "PUBLISHED", reviewed)).not.toThrow();
   });
 
-  it("chặn kể cả khi giấy phép asset đều sạch", () => {
+  it("blocks even when every asset licence is clean", () => {
     expect(() =>
       assertTransition("READY", "PUBLISHED", { ...unreviewed, assetLicenses: ["CC0"] }),
-    ).toThrow(/chưa được duyệt/);
+    ).toThrow(/not approved/);
   });
 });

@@ -1,11 +1,11 @@
 import { WORDS_PER_MINUTE } from "@audio/config";
 
-/** Đếm từ tiếng Việt — tách theo khoảng trắng là đủ chính xác cho việc ước lượng. */
+/** Count Vietnamese words — splitting on whitespace is accurate enough to estimate with. */
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** Ước lượng thời lượng audio từ số từ. */
+/** Estimate audio duration from a word count. */
 export function estimateDurationMs(words: number): number {
   return Math.round((words / WORDS_PER_MINUTE) * 60_000);
 }

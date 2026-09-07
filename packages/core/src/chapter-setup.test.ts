@@ -11,101 +11,101 @@ import {
 
 const setup = (over = {}) => ({ ...EMPTY_CHAPTER_SETUP, ...over });
 
-describe("parse — dữ liệu rác không được làm chết job", () => {
-  it("cột rỗng hoặc rác lùi về thiết lập trống", () => {
-    // `Episode.setup` là JSON tự do trong DB, sửa tay được, và hàng cũ từ bản
-    // trước không có cột này.
+describe("parse — junk data must not kill a job", () => {
+  it("an empty or junk column falls back to empty setup", () => {
+    // `Episode.setup` is free-form JSON in the DB, hand-editable, and old rows from
+    // before this feature do not have the column at all.
     expect(parseChapterSetup(null)).toEqual(EMPTY_CHAPTER_SETUP);
-    expect(parseChapterSetup("rác")).toEqual(EMPTY_CHAPTER_SETUP);
+    expect(parseChapterSetup("junk")).toEqual(EMPTY_CHAPTER_SETUP);
     expect(parseSceneSetup(undefined)).toEqual({ note: "", characters: [] });
   });
 
-  it("thiếu trường thì điền mặc định chứ không ném", () => {
-    expect(parseChapterSetup({ focus: "một câu" })).toMatchObject({
-      focus: "một câu",
+  it("a missing field gets a default rather than throwing", () => {
+    expect(parseChapterSetup({ focus: "one line" })).toMatchObject({
+      focus: "one line",
       mustHappen: [],
       characters: [],
     });
   });
 });
 
-describe("mergeOverrides — cảnh đè lên chương THEO TỪNG Ô", () => {
+describe("mergeOverrides — the scene overrides the chapter FIELD BY FIELD", () => {
   const chapter = [{ name: "Tài", outfit: "áo mưa rách", note: "tay trái băng kín" }];
 
-  it("cảnh chỉ đổi trang phục thì ghi chú của chương còn nguyên", () => {
-    // Thay cả người thì mỗi lần đổi áo lại phải chép lại mọi thứ khác, mà quên
-    // một dòng là nhân vật lành lặn trở lại giữa chương.
+  it("a scene that only changes the outfit leaves the chapter's note intact", () => {
+    // Replacing wholesale would mean copying every other line each time you change a
+    // shirt, and one forgotten line heals the character mid-chapter.
     const out = mergeOverrides(chapter, [{ name: "Tài", outfit: "áo sơ mi khô", note: "" }]);
     expect(out).toEqual([{ name: "Tài", outfit: "áo sơ mi khô", note: "tay trái băng kín" }]);
   });
 
-  it("cảnh thêm người mới thì giữ cả hai", () => {
+  it("a scene adding a new person keeps both", () => {
     const out = mergeOverrides(chapter, [{ name: "Bà Tư", outfit: "áo bà ba", note: "" }]);
     expect(out.map((c) => c.name)).toEqual(["Tài", "Bà Tư"]);
   });
 
-  it("so tên KHÔNG phân biệt hoa thường, và giữ dạng gõ của chương", () => {
-    // Tên đưa cho model phải khớp danh sách nhân vật, nếu không nó coi là người
-    // thứ hai.
+  it("matches names CASE-INSENSITIVELY, and keeps the chapter's spelling", () => {
+    // The name handed to the model has to match the character list, otherwise it
+    // reads them as a second person.
     const out = mergeOverrides(chapter, [{ name: "tài", outfit: "áo khô", note: "" }]);
     expect(out).toHaveLength(1);
     expect(out[0]!.name).toBe("Tài");
   });
 
-  it("bỏ dòng rỗng hoàn toàn — không gửi tên trần cho model", () => {
+  it("drops fully empty lines — never send the model a bare name", () => {
     expect(mergeOverrides([], [{ name: "Tài", outfit: "", note: "" }])).toEqual([]);
     expect(mergeOverrides([], [{ name: "  ", outfit: "áo mưa", note: "" }])).toEqual([]);
   });
 
-  it("chương và cảnh đều trống thì không có gì", () => {
+  it("chapter and scene both empty gives nothing", () => {
     expect(mergeOverrides([], [])).toEqual([]);
   });
 });
 
 describe("renderChapterSetup", () => {
-  it("không đặt gì thì trả về rỗng — ngữ cảnh không thêm khối trống", () => {
+  it("nothing set returns empty — the context gains no blank block", () => {
     expect(renderChapterSetup(EMPTY_CHAPTER_SETUP)).toBe("");
     expect(isChapterSetupEmpty(EMPTY_CHAPTER_SETUP)).toBe(true);
   });
 
-  it("nêu đủ bốn phần khi có", () => {
+  it("names all four parts when present", () => {
     const out = renderChapterSetup(
       setup({
-        focus: "Tài phải chọn",
+        focus: "Tài has to choose",
         tone: "chậm, mưa suốt",
         mustHappen: ["quay lại Bến Cũ"],
         constraints: ["không cho ông Bảy xuất hiện"],
       }),
     );
     expect(out).toContain("## This chapter");
-    expect(out).toContain("Tài phải chọn");
+    expect(out).toContain("Tài has to choose");
     expect(out).toContain("chậm, mưa suốt");
     expect(out).toContain("quay lại Bến Cũ");
     expect(out).toContain("không cho ông Bảy xuất hiện");
   });
 
-  it("phần nào trống thì bỏ hẳn, không in tiêu đề rỗng", () => {
-    const out = renderChapterSetup(setup({ focus: "một câu" }));
+  it("an absent part is dropped entirely, no empty heading", () => {
+    const out = renderChapterSetup(setup({ focus: "one line" }));
     expect(out).not.toMatch(/must happen/i);
     expect(out).not.toMatch(/Not in this chapter/i);
   });
 });
 
 describe("renderOverrides", () => {
-  it("nói THẲNG là nó đè lên Story Bible", () => {
-    // Không nói thì model gặp hai mô tả khác nhau về cùng một người và chọn cái
-    // đọc trước — tức là Bible, tức là bỏ qua đúng thứ vừa đặt.
+  it("says OUTRIGHT that it overrides the Story Bible", () => {
+    // Unsaid, the model meets two different descriptions of one person and takes the
+    // one it read first — the Bible — which ignores exactly what was just set.
     const out = renderOverrides([{ name: "Tài", outfit: "áo mưa", note: "" }]);
     expect(out).toMatch(/overrides/i);
     expect(out).toMatch(/Story Bible/i);
   });
 
-  it("gộp trang phục và ghi chú trên một dòng", () => {
+  it("folds outfit and note onto one line", () => {
     const out = renderOverrides([{ name: "Tài", outfit: "áo mưa", note: "tay băng kín" }]);
     expect(out).toContain("- Tài: wearing áo mưa; tay băng kín");
   });
 
-  it("rỗng thì trả về rỗng", () => {
+  it("empty returns empty", () => {
     expect(renderOverrides([])).toBe("");
   });
 });

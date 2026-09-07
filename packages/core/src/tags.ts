@@ -1,29 +1,30 @@
 /**
- * Thể loại phụ của một bộ truyện — "tình cảm", "hành động", "slow burn", "đô thị"…
+ * A story's sub-genres — "tình cảm", "hành động", "slow burn", "đô thị"…
  *
- * Một truyện có nhiều thể loại, chỉ khác nhau cái nào chính cái nào phụ. Chính
- * nằm ở `Series.genre` và là MỘT giá trị vì nó là khoá chọn biến thể prompt.
- * Phụ nằm ở đây: nhiều giá trị, không đổi prompt, mà đi thẳng vào Story Bible
- * để lái giọng văn — và đi vào từ khoá RSS để người nghe tìm ra kênh.
+ * A story has several genres; they only differ in which is primary. The primary
+ * one lives in `Series.genre` and is a SINGLE value because it keys prompt variant
+ * selection. The rest live here: many values, no effect on prompts, going straight
+ * into the Story Bible to steer the prose — and into the RSS keywords so listeners
+ * can find the channel.
  */
 
-/** Nhiều hơn thế thì không còn là định hướng nữa, chỉ là nhồi từ khoá. */
+/** More than this stops being direction and becomes keyword stuffing. */
 export const MAX_TAGS = 12;
 export const MAX_TAG_LENGTH = 40;
 
 /**
- * Đọc tag từ một chuỗi người dùng gõ, ngăn bằng dấu phẩy.
+ * Parse tags from a comma-separated string the user typed.
  *
- * Khử trùng KHÔNG phân biệt hoa thường nhưng giữ lại dạng gõ đầu tiên: người ta
- * gõ "Romance" và "romance" là cùng một ý, mà để cả hai vào Bible thì model
- * tưởng đó là hai định hướng khác nhau.
+ * De-duplicates CASE-INSENSITIVELY but keeps the first spelling: someone typing
+ * "Romance" and "romance" means one thing, and putting both in the Bible makes the
+ * model read two different directions.
  */
 export function parseTags(input: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
   for (const raw of input.split(",")) {
-    // Gộp khoảng trắng thừa: "slow   burn" và "slow burn" là một.
+    // Collapse extra whitespace: "slow   burn" and "slow burn" are the same.
     const tag = raw.trim().replace(/\s+/g, " ");
     if (!tag) continue;
     if (tag.length > MAX_TAG_LENGTH) continue;
@@ -37,31 +38,32 @@ export function parseTags(input: string): string[] {
   return out;
 }
 
-/** Kiểm tra trước khi lưu, trả lời chứ không ném — để form hiện lỗi tại chỗ. */
+/** Validate before saving — returns problems rather than throwing, so the form can show them inline. */
 export function checkTags(input: string): string[] {
   const errors: string[] = [];
   const pieces = input.split(",").map((p) => p.trim().replace(/\s+/g, " ")).filter(Boolean);
 
   const tooLong = pieces.filter((p) => p.length > MAX_TAG_LENGTH);
   if (tooLong.length > 0) {
-    errors.push(`Tag quá dài (tối đa ${MAX_TAG_LENGTH} ký tự): "${tooLong[0]!.slice(0, 50)}…"`);
+    errors.push(`Tag too long (max ${MAX_TAG_LENGTH} characters): "${tooLong[0]!.slice(0, 50)}…"`);
   }
 
-  // Đếm trên những tag CÒN HỢP LỆ. Đếm cả tag quá dài thì một tag dài duy nhất
-  // kéo theo lời than "nhiều nhất 12 tag" — hai lỗi cho một sai sót, mà cái
-  // thứ hai còn sai.
+  // Counted over the tags that are STILL VALID. Counting the over-long ones too
+  // would let one long tag also trigger "at most 12 tags" — two complaints for one
+  // mistake, and the second one wrong.
   const unique = new Set(
     pieces.filter((p) => p.length <= MAX_TAG_LENGTH).map((p) => p.toLowerCase()),
   );
-  if (unique.size > MAX_TAGS) errors.push(`Nhiều nhất ${MAX_TAGS} tag.`);
+  if (unique.size > MAX_TAGS) errors.push(`At most ${MAX_TAGS} tags.`);
   return errors;
 }
 
 /**
- * Dòng thể loại phụ để nhét vào Story Bible.
+ * The sub-genre line for the Story Bible.
  *
- * Nói rõ đây là thứ phải BÁM THEO chứ không phải nhãn phân loại — chỉ liệt kê
- * trần thì model coi là metadata rồi bỏ qua, và văn ra y hệt như không đặt gì.
+ * Says outright that these are to be FOLLOWED, not classification labels — listed
+ * bare, the model treats them as metadata and ignores them, and the prose comes out
+ * exactly as if nothing had been set.
  */
 export function renderTags(tags: string[]): string | null {
   if (tags.length === 0) return null;

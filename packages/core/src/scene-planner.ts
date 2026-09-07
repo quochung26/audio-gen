@@ -18,22 +18,22 @@ export interface ChapterPlan {
   scenes: ScenePlan[];
 }
 
-/** Một chương như dàn ý mô tả: có tên, và các nhịp sẽ thành cảnh. */
+/** A chapter as the outline describes it: a title, and the beats that become scenes. */
 export interface ChapterOutline {
   title?: string | null;
   beats: string[];
 }
 
 /**
- * Chia một tập thành chương, mỗi chương thành cảnh.
+ * Split an episode into chapters, and each chapter into scenes.
  *
- * Vì sao không sinh cả tập một lần: chất lượng model 14B tụt rõ sau khoảng
- * 1.500 token liên tục, và sinh theo cảnh cho phép render lại từng phần thay
- * vì bỏ cả tập. Xem PLAN.md bước 0b.
+ * Why not generate a whole episode at once: a 14B model's quality drops noticeably
+ * past about 1,500 continuous tokens, and generating per scene means re-rendering
+ * one part rather than discarding the episode. See PLAN.md step 0b.
  *
- * Số từ mỗi cảnh chia đều theo TỔNG số nhịp của cả tập, không chia theo từng
- * chương: chương ba nhịp và chương một nhịp thì mỗi nhịp vẫn nên dài như nhau,
- * chứ không phải nhịp lẻ loi kia phải gánh cả chương.
+ * Words per scene are divided over the episode's TOTAL beat count, not per chapter:
+ * a three-beat chapter and a one-beat chapter should still have beats of the same
+ * length, rather than the lone beat carrying a whole chapter.
  */
 export function planChapters(
   chapters: readonly ChapterOutline[],
@@ -49,8 +49,8 @@ export function planChapters(
   return usable.map((chapter, ci) => ({
     order: ci + 1,
     title: chapter.title?.trim() || null,
-    // Cảnh đánh số trong PHẠM VI chương: `(chapterId, order)` là ràng buộc duy
-    // nhất, và "cảnh 2 của chương 3" là cách người viết nói.
+    // Scenes are numbered WITHIN a chapter: `(chapterId, order)` is the unique
+    // constraint, and "scene 2 of chapter 3" is how writers talk.
     scenes: chapter.beats.map((beat, si) => ({
       order: si + 1,
       beat,
@@ -59,18 +59,18 @@ export function planChapters(
   }));
 }
 
-/** Số chương nên có cho một độ dài tập. Dùng khi dàn ý chưa chia sẵn. */
+/** How many chapters an episode of a given length should have. Used when the outline has not split it. */
 export function suggestChapterCount(targetWords = EPISODE_TARGET_WORDS): number {
   const perChapter = SCENES_PER_CHAPTER * ((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2);
   return Math.max(1, Math.round(targetWords / perChapter));
 }
 
-/** Số cảnh mỗi chương nên có. Hằng số, nhưng để hàm cho khớp cặp với hàm trên. */
+/** How many scenes per chapter. A constant, but a function to pair with the one above. */
 export function suggestScenesPerChapter(): number {
   return SCENES_PER_CHAPTER;
 }
 
-/** Tổng số cảnh của một tập — dùng để nói với model nó phải chia bao nhiêu nhịp. */
+/** Total scenes in an episode — used to tell the model how many beats to split into. */
 export function suggestSceneCount(targetWords = EPISODE_TARGET_WORDS): number {
   return suggestChapterCount(targetWords) * SCENES_PER_CHAPTER;
 }

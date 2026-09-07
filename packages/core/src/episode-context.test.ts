@@ -13,7 +13,7 @@ const full = {
 };
 
 describe("renderEpisodeContext", () => {
-  it("gộp đủ bốn phần khi có đủ dữ liệu", () => {
+  it("assembles all four parts when the data is there", () => {
     const t = renderEpisodeContext(full);
     expect(t).toContain("The story so far (episodes 1–3)");
     expect(t).toContain("Index of the episodes already written");
@@ -21,28 +21,28 @@ describe("renderEpisodeContext", () => {
     expect(t).toContain("Open threads");
   });
 
-  it("mạch truyện đặt TRƯỚC tóm tắt lẻ", () => {
-    // Model đọc tuần tự; mạch xa phải nắm trước khi đọc chi tiết gần.
+  it("the arc comes BEFORE the per-episode summaries", () => {
+    // The model reads in sequence; the distant shape has to land before near detail.
     const t = renderEpisodeContext(full);
     expect(t.indexOf("The story so far")).toBeLessThan(
       t.indexOf("Summaries of the most recent episodes"),
     );
   });
 
-  it("nói rõ tình tiết bỏ ngỏ là thứ tập mới nên xử lý", () => {
-    // Dựng tập mới chính là lúc quyết định món nợ nào của truyện được trả.
+  it("says outright that open threads are what the new episode should handle", () => {
+    // Outlining a new episode is exactly when you decide which debts get paid.
     expect(renderEpisodeContext(full)).toMatch(/push forward or resolve/);
   });
 
-  it("bỏ phần rỗng thay vì để tiêu đề trống", () => {
+  it("drops an empty part rather than leaving a bare heading", () => {
     const t = renderEpisodeContext({ ...full, openThreads: [], arcSummary: undefined });
     expect(t).not.toContain("Open threads");
     expect(t).not.toContain("The story so far");
     expect(t).toContain("Index of the episodes already written");
   });
 
-  it("bộ chưa có tập nào thì NÓI THẲNG, không gửi khối rỗng", () => {
-    // Gửi chuỗi rỗng thì model tưởng ngữ cảnh bị cắt mất và tự bịa ra tập cũ.
+  it("a story with no episodes SAYS SO, rather than sending an empty block", () => {
+    // Sent an empty string, the model assumes its context was truncated and invents past episodes.
     const t = renderEpisodeContext({
       episodeIndex: [],
       previousSummaries: [],
@@ -52,7 +52,7 @@ describe("renderEpisodeContext", () => {
     expect(t.trim()).not.toBe("");
   });
 
-  it("không có arcThroughEpisode thì không hiện khoảng tập trống", () => {
+  it("without arcThroughEpisode it shows no empty episode range", () => {
     const t = renderEpisodeContext({ ...full, arcThroughEpisode: undefined });
     expect(t).toContain("The story so far\n");
     expect(t).not.toContain("(episodes 1–)");

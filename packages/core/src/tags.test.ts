@@ -2,85 +2,85 @@ import { describe, expect, it } from "vitest";
 import { MAX_TAGS, checkTags, parseTags, renderTags } from "./tags";
 
 describe("parseTags", () => {
-  it("tách theo dấu phẩy và bỏ khoảng trắng thừa", () => {
+  it("splits on commas and trims whitespace", () => {
     expect(parseTags(" romance , action ,slow burn ")).toEqual(["romance", "action", "slow burn"]);
   });
 
-  it("gộp khoảng trắng bên trong tag", () => {
-    // "slow   burn" và "slow burn" là một; để cả hai vào Bible thì model tưởng
-    // đó là hai định hướng khác nhau.
+  it("collapses whitespace inside a tag", () => {
+    // "slow   burn" and "slow burn" are the same; both in the Bible makes the model
+    // read two different directions.
     expect(parseTags("slow   burn, slow burn")).toEqual(["slow burn"]);
   });
 
-  it("khử trùng KHÔNG phân biệt hoa thường, giữ dạng gõ đầu tiên", () => {
+  it("de-duplicates CASE-INSENSITIVELY, keeping the first spelling", () => {
     expect(parseTags("Romance, romance, ROMANCE")).toEqual(["Romance"]);
   });
 
-  it("bỏ mục rỗng", () => {
+  it("drops empty entries", () => {
     expect(parseTags("a,,  ,b")).toEqual(["a", "b"]);
     expect(parseTags("")).toEqual([]);
     expect(parseTags(" , , ")).toEqual([]);
   });
 
-  it("cắt ở giới hạn số tag", () => {
+  it("cuts off at the tag limit", () => {
     const many = Array.from({ length: 30 }, (_, i) => `tag${i}`).join(",");
     expect(parseTags(many)).toHaveLength(MAX_TAGS);
   });
 
-  it("bỏ tag dài bất thường", () => {
+  it("drops absurdly long tags", () => {
     expect(parseTags(`ok, ${"x".repeat(200)}`)).toEqual(["ok"]);
   });
 
-  it("giữ được tag tiếng Việt có dấu", () => {
+  it("keeps Vietnamese tags with diacritics", () => {
     expect(parseTags("kinh dị tâm lý, đô thị")).toEqual(["kinh dị tâm lý", "đô thị"]);
   });
 });
 
 describe("checkTags", () => {
-  it("chuỗi bình thường thì không có lỗi", () => {
+  it("a normal string produces no errors", () => {
     expect(checkTags("romance, action")).toEqual([]);
   });
 
-  it("báo tag quá dài", () => {
-    expect(checkTags("x".repeat(200))[0]).toMatch(/quá dài/);
+  it("reports a tag that is too long", () => {
+    expect(checkTags("x".repeat(200))[0]).toMatch(/too long/);
   });
 
-  it("báo quá nhiều tag", () => {
-    const many = Array.from({ length: 30 }, (_, i) => `tag${i}`).join(",");
-    expect(checkTags(many)[0]).toMatch(/Nhiều nhất/);
+  it("reports too many tags", () => {
+    const many = Array.from({ length: 20 }, (_, i) => `tag${i}`).join(", ");
+    expect(checkTags(many)[0]).toMatch(/At most/);
   });
 
-  it("tag quá dài KHÔNG kéo theo lời than 'quá nhiều tag'", () => {
-    // Một sai sót thì báo một lỗi. Đếm cả tag đã bị loại vì quá dài thì người
-    // dùng nhận hai lỗi, mà lỗi thứ hai còn sai.
+  it("a too-long tag does NOT also trigger 'too many tags'", () => {
+    // One mistake, one error. Counting tags already dropped for length would hand
+    // the user two errors, the second of them wrong.
     const e = checkTags("x".repeat(200));
     expect(e).toHaveLength(1);
-    expect(e[0]).toMatch(/quá dài/);
+    expect(e[0]).toMatch(/too long/);
   });
 
-  it("vừa dài vừa nhiều thì báo cả hai", () => {
+  it("long and numerous reports both", () => {
     const many = Array.from({ length: 30 }, (_, i) => `tag${i}`).join(",");
     const e = checkTags(`${"x".repeat(200)},${many}`);
     expect(e).toHaveLength(2);
   });
 
-  it("trùng nhau KHÔNG tính là quá nhiều", () => {
-    // 30 lần cùng một chữ chỉ còn 1 tag sau khi khử trùng.
+  it("duplicates do NOT count as too many", () => {
+    // The same word 30 times is one tag after de-duplication.
     const dup = Array.from({ length: 30 }, () => "romance").join(",");
     expect(checkTags(dup)).toEqual([]);
   });
 });
 
 describe("renderTags", () => {
-  it("nói rõ là thứ phải BÁM THEO, không phải nhãn phân loại", () => {
-    // Liệt kê trần thì model coi là metadata rồi bỏ qua, văn ra y hệt như
-    // không đặt gì.
+  it("says outright these are to be FOLLOWED, not classification labels", () => {
+    // Listed bare, the model treats them as metadata and ignores them, and the prose
+    // comes out exactly as if nothing had been set.
     const line = renderTags(["tình cảm", "hành động"])!;
     expect(line).toContain("tình cảm, hành động");
     expect(line).toMatch(/must follow these too/);
   });
 
-  it("không có tag thì trả null, để Bible khỏi thừa một dòng trống", () => {
+  it("no tags returns null, so the Bible gains no blank line", () => {
     expect(renderTags([])).toBeNull();
   });
 });

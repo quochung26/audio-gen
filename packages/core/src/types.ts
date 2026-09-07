@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 /**
- * Kiểu dữ liệu domain — cũng chính là schema mà LLM phải trả về.
+ * The domain types — which double as the schema the LLM has to return.
  *
- * Dùng chung một định nghĩa cho cả hai việc: kiểm tra dữ liệu LLM trả về, và
- * sinh JSON Schema đưa vào Ollama để ép định dạng. Tách đôi thì sớm muộn cũng
- * lệch nhau, và lỗi kiểu đó rất khó thấy.
+ * One definition for both jobs: validating what the LLM returns, and generating
+ * the JSON Schema handed to Ollama to force the format. Split in two they would
+ * drift apart eventually, and that kind of bug is very hard to see.
  */
 
-// ── Dàn ý (bước 0a) ────────────────────────────────────────────
+// ── Outline (step 0a) ──────────────────────────────────────────
 
 export const characterSchema = z.object({
   name: z.string().min(1).describe("Character name"),
@@ -31,16 +31,17 @@ export const characterSchema = z.object({
   voiceHint: z
     .string()
     .describe("Casting hint for the voice: gender, age, vocal quality. E.g. middle-aged man, hoarse voice"),
-  // KHÔNG hỏi model ai là người dẫn truyện: đó là ô casting cho khâu audio —
-  // chọn giọng nào đọc phần dẫn — và khâu đó có thể không bao giờ chạy. Người
-  // viết đặt ở trang Nhân vật khi nào cần dựng audio.
+  // Do NOT ask the model who narrates: that is a casting slot for the audio step —
+  // which voice reads the narration — and that step may never run. The writer sets
+  // it on the Characters page when audio is actually needed.
 });
 
 /**
- * Một CHƯƠNG trong dàn ý.
+ * One CHAPTER in the outline.
  *
- * Tầng giữa giữa tập và cảnh: một mạch có mở có đóng, thường một buổi một chỗ.
- * Mỗi nhịp trong `beats` thành một cảnh, và cảnh là đơn vị model viết một lượt.
+ * The middle tier between episode and scene: one movement with an opening and a
+ * close. Each entry in `beats` becomes a scene, and a scene is what the model
+ * writes in one go.
  */
 export const chapterPlanSchema = z.object({
   title: z.string().min(1).describe("Title of this chapter — what happens in it, in a few words"),
@@ -58,10 +59,10 @@ export const episodePlanSchema = z.object({
 });
 
 /**
- * Dàn ý cho MỘT tập viết tiếp.
+ * The outline for ONE more episode.
  *
- * Không có `number`: số tập do server quyết theo những tập đã có, chứ không để
- * model tự đánh — model hay đánh lại từ 1 hoặc nhảy số.
+ * No `number`: the server decides the episode number from what already exists,
+ * rather than letting the model number it — models restart at 1 or skip.
  */
 export const nextEpisodePlanSchema = z.object({
   title: z.string().min(1),
@@ -85,7 +86,7 @@ export type ChapterPlanned = z.infer<typeof chapterPlanSchema>;
 export type EpisodePlan = z.infer<typeof episodePlanSchema>;
 export type Outline = z.infer<typeof outlineSchema>;
 
-// ── Kịch bản audio (bước 0c) ───────────────────────────────────
+// ── Audio script (step 0c) ─────────────────────────────────────
 
 export const scriptBlockSchema = z.object({
   speaker: z
@@ -103,7 +104,7 @@ export const audioScriptSchema = z.object({
 export type ScriptBlock = z.infer<typeof scriptBlockSchema>;
 export type AudioScript = z.infer<typeof audioScriptSchema>;
 
-// ── Tóm tắt tập + trạng thái nhân vật (bước 0d) ──
+// ── Episode summary + character state (step 0d) ──
 
 export const characterStateSchema = z.object({
   name: z.string().describe("Character name, exactly as given in the list"),
@@ -151,7 +152,7 @@ export const episodeDigestSchema = z.object({
 export type CharacterState = z.infer<typeof characterStateSchema>;
 export type EpisodeDigest = z.infer<typeof episodeDigestSchema>;
 
-// ── Metadata đăng bài ──────────────────────────────────────────
+// ── Publishing metadata ────────────────────────────────────────
 
 export const metadataSchema = z.object({
   title: z.string(),
@@ -162,33 +163,33 @@ export const metadataSchema = z.object({
 
 export type EpisodeMetadata = z.infer<typeof metadataSchema>;
 
-// ── Ngữ cảnh nạp vào prompt viết cảnh ──────────────────────────
+// ── The context loaded into the write-scene prompt ─────────────
 
 export interface StoryContext {
-  /** Dàn ý + nhân vật + luật thế giới — cố định suốt bộ truyện */
+  /** Outline + characters + world rules — fixed for the whole story */
   bible: string;
-  /** Tóm tắt cung truyện — các tập cũ đã nén lại thành một khối */
+  /** The arc summary — old episodes compressed into one block */
   arcSummary?: string;
-  /** Tóm tắt cung truyện bao phủ tới hết tập số mấy */
+  /** Which episode number the arc summary covers up to */
   arcThroughEpisode?: number;
-  /** Mục lục truyện: mỗi tập một dòng. Luôn có, kể cả tập đã bị nén. */
+  /** The story index: one line per episode. Always present, compressed ones too. */
   episodeIndex?: Array<{ number: number; title: string; gist: string }>;
-  /** Tóm tắt ĐẦY ĐỦ — chỉ của tập liền trước, để nối mạch */
+  /** The FULL summary — of the previous episode only, to pick up the thread */
   previousSummaries: Array<{ number: number; summary: string }>;
-  /** Sự kiện cũ được truy hồi theo ngữ nghĩa cho đúng cảnh này */
+  /** Old facts retrieved by meaning for this particular scene */
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
-  /** Tình tiết bỏ ngỏ chưa có lời giải — luôn nạp, bất kể độ tương đồng */
+  /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: Array<{ episodeNumber: number; text: string }>;
-  /** Toàn văn cảnh liền trước, để nối mạch tự nhiên */
+  /** The previous scene verbatim, so the prose carries on naturally */
   previousScene?: string;
-  /** Khối chỉ dẫn riêng của chương — xem renderEpisodeSetup */
+  /** The chapter's own instruction block — see renderEpisodeSetup */
   chapter?: string;
-  /** Ghi đè nhân vật cho cảnh này (chương + cảnh đã gộp) — xem renderOverrides */
+  /** Character overrides for this scene (chapter + scene merged) — see renderOverrides */
   overrides?: string;
-  /** Ghi chú riêng cảnh này */
+  /** Notes for this scene alone */
   sceneNote?: string;
-  /** Yêu cầu nội dung cho cảnh đang viết */
+  /** What the scene being written has to contain */
   beat: string;
-  /** Số từ mục tiêu */
+  /** Target word count */
   targetWords: number;
 }

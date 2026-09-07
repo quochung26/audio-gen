@@ -1,29 +1,29 @@
 /**
- * Dàn nhân vật người viết chọn TRƯỚC khi dựng dàn ý.
+ * The cast the writer picks BEFORE the outline is built.
  *
- * Cùng vai trò với `WorldSetup`: thứ người viết quyết định, AI phải bám theo
- * chứ không được nghĩ ra thay. Khác chỗ nó không lưu vào `Series.storyBible` —
- * dựng xong dàn ý là mỗi người thành một hàng `Character` thật, vì từ đó trở đi
- * họ có trạng thái riêng theo mạch truyện của bộ.
+ * The same role as `WorldSetup`: the writer's decision, which the AI has to
+ * follow rather than invent around. It differs in not being stored in
+ * `Series.storyBible` — once the outline is built each member becomes a real
+ * `Character` row, because from then on they carry state along the story's arc.
  */
 export interface CastMember {
   name: string;
-  /** Thẻ nhân vật đã dùng, nếu có. Chỉ mang theo để ghi lại xuất xứ. */
+  /** The character card used, if any. Carried only to record where they came from. */
   cardId?: string | null;
   role?: string | null;
   description?: string | null;
-  /** Cách nói: nhịp, thói quen dùng từ, cách xưng hô. Lái lời thoại. */
+  /** Speech: rhythm, verbal habits, forms of address. Steers dialogue. */
   speech?: string | null;
-  /** Trang phục thường thấy. Mặc định — chương và cảnh đè lên được. */
+  /** Their usual outfit. A default — chapter and scene can override it. */
   outfit?: string | null;
-  /** Ngoại hình: dáng, tuổi nhìn ra, cách ăn mặc. */
+  /** Appearance: build, apparent age, how they dress. */
   appearance?: string | null;
-  /** Gợi ý chất giọng để casting. */
+  /** A voice hint for casting. */
   voiceHint?: string | null;
   isNarrator?: boolean;
 }
 
-/** Bỏ mục rỗng và khử trùng tên — tên là khoá `(seriesId, name)`. */
+/** Drop empty entries and de-duplicate names — the name is the `(seriesId, name)` key. */
 export function normalizeCast(cast: readonly CastMember[]): CastMember[] {
   const seen = new Set<string>();
   const out: CastMember[] = [];
@@ -45,9 +45,9 @@ export function normalizeCast(cast: readonly CastMember[]): CastMember[] {
       outfit: c.outfit?.trim() || null,
       appearance: c.appearance?.trim() || null,
       voiceHint: c.voiceHint?.trim() || null,
-      // Đúng MỘT người dẫn: người đầu tiên được đánh dấu thắng, còn lại bỏ. Hai
-      // người dẫn thì bước biên tập audio gán block dẫn truyện cho ai cũng
-      // được, và giọng đổi giữa chừng mà không có gì báo.
+      // Exactly ONE narrator: the first one flagged wins, the rest are cleared. With
+      // two, the audio edit step can assign narration blocks to either, and the
+      // voice changes mid-story with nothing to say so.
       isNarrator: Boolean(c.isNarrator) && !out.some((p) => p.isNarrator),
     });
   }
@@ -56,10 +56,10 @@ export function normalizeCast(cast: readonly CastMember[]): CastMember[] {
 }
 
 /**
- * Render dàn nhân vật thành đoạn đưa vào prompt DÀN Ý.
+ * Render the cast as a passage for the OUTLINE prompt.
  *
- * Rỗng thì trả về chuỗi rỗng, y như `renderWorldForOutline`: prompt vẫn hợp lệ
- * và model tự nghĩ ra nhân vật như trước.
+ * Empty returns an empty string, exactly like `renderWorldForOutline`: the prompt
+ * stays valid and the model invents characters as it used to.
  */
 export function renderCastForOutline(cast: readonly CastMember[]): string {
   const people = normalizeCast(cast);
@@ -90,24 +90,24 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
 }
 
 /**
- * Gộp dàn người viết chọn với dàn model trả về.
+ * Merge the writer's cast with the one the model returns.
  *
- * Người viết THẮNG: model được dặn giữ nguyên tên và vai, nhưng nó vẫn sửa, và
- * thứ người viết gõ mới là thứ đúng. Chỉ những ô người viết BỎ TRỐNG mới lấy
- * phần model gợi ý — chọn một thẻ mới có mỗi cái tên thì vẫn có vai và gợi ý
- * giọng, thay vì để trống rồi phải tự điền.
+ * The writer WINS: the model is told to keep names and roles as given, and it
+ * changes them anyway, and what the writer typed is what is right. Only the fields
+ * the writer LEFT BLANK take the model's suggestion — pick a card with just a name
+ * and you still get a role and a voice hint, instead of blanks to fill in by hand.
  *
- * Nhân vật model tự thêm được giữ lại: dàn chọn trước là sàn, không phải trần.
+ * Characters the model adds are kept: the chosen cast is a floor, not a ceiling.
  *
- * KHÔNG tự gán người dẫn truyện. Người dẫn là một ô casting cho khâu audio —
- * chọn giọng nào đọc phần dẫn — chứ không phải một quyết định của khâu dàn ý,
- * mà khâu audio thì có thể không bao giờ chạy. Không ai được đánh dấu thì
- * không ai là người dẫn, và phần dẫn truyện đọc bằng giọng mặc định của bộ.
+ * Does NOT assign a narrator. The narrator is a casting slot for the audio step —
+ * which voice reads the narration — not an outlining decision, and the audio step
+ * may never run at all. With nobody flagged, there is no narrator, and narration
+ * is read in the story's default voice.
  *
- * Bản trước gán bừa người đầu tiên. Người đầu tiên là ai thì tuỳ thứ tự model
- * trả về, nên cả bộ có thể được dẫn bằng giọng nữ trẻ mà chẳng ai quyết điều
- * đó. Văn lại là ngôi thứ ba, nên gọi một nhân vật là "người dẫn" còn đẩy model
- * sang kiểu người đó kể chuyện.
+ * An earlier version just picked the first one. Who comes first depends on the
+ * order the model returned, so a whole story could end up narrated by a young
+ * woman's voice without anyone deciding that. The prose is third person too, so
+ * calling a character "the narrator" also pushes the model toward them telling it.
  */
 export function mergeCast(
   chosen: readonly CastMember[],
@@ -133,15 +133,15 @@ export function mergeCast(
 }
 
 /**
- * Dò xem beat nhắc tới những nhân vật nào.
+ * Work out which characters a beat mentions.
  *
- * Dùng để đoán trước ai có mặt trong cảnh, thay vì bắt người viết tick tay cho
- * từng cảnh. Đoán HỤT không sao — `Scene.characterIds` rỗng nghĩa là "chưa
- * biết" và Bible nạp đầy đủ như cũ. Đoán THỪA mới đáng ngại, nên chỉ khớp khi
- * tên xuất hiện nguyên vẹn, không cắt gọt.
+ * Used to guess who is present in a scene, rather than making the writer tick
+ * boxes per scene. Guessing SHORT is fine — an empty `Scene.characterIds` means
+ * "not known" and the Bible loads in full as before. Guessing LONG is the risk, so
+ * it only matches a name appearing whole, never trimmed.
  *
- * Tên dài xét trước: có "ông Bảy" trong dàn thì beat nhắc "ông Bảy" phải ra
- * người đó, chứ không phải ra thêm một "Bảy" nào khác.
+ * Longer names are tested first: with "ông Bảy" in the cast, a beat mentioning
+ * "ông Bảy" has to resolve to them and not to some other "Bảy".
  */
 export function namesMentionedIn(text: string, names: readonly string[]): string[] {
   const haystack = text.toLowerCase();

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * Kiểm tra biến môi trường một lần lúc khởi động, thay vì để `undefined`
- * lan vào sâu rồi lỗi ở chỗ khó truy.
+ * Validate the environment once at startup, rather than letting `undefined`
+ * travel deep and fail somewhere hard to trace.
  */
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -10,44 +10,44 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   PLAYER_DATABASE_URL: z.string().url().or(z.literal("")).default(""),
   /**
-   * Gốc URL công khai của Player. Cần cho RSS podcast: app podcast tải file từ
-   * bên ngoài nên URL trong feed phải TUYỆT ĐỐI. Để trống thì suy từ request —
-   * đủ dùng khi chạy tại chỗ, nhưng sai khi đứng sau proxy.
+   * The Player's public URL root. Needed for the podcast RSS: podcast apps fetch
+   * files from outside, so URLs in the feed must be ABSOLUTE. Blank means infer
+   * it from the request — fine locally, wrong behind a proxy.
    */
   PLAYER_PUBLIC_URL: z.string().url().or(z.literal("")).default(""),
   REDIS_URL: z.string().url(),
 
-  // "mock" cho phép chạy toàn bộ pipeline mà chưa cần GPU hay model
+  // "mock" lets the whole pipeline run without a GPU or any model
   LLM_PROVIDER: z.enum(["mock", "ollama", "openrouter"]).default("mock"),
-  /** Tầng 1 — chạy CPU, đọc phần dẫn truyện (70–80% thời lượng). */
+  /** Tier 1 — CPU, reads the narration (70–80% of the runtime). */
   TTS_PROVIDER: z.enum(["mock", "kokoro", "piper"]).default("mock"),
-  /** Tầng 2 — chạy GPU, clone giọng cho nhân vật. Phase 5. */
+  /** Tier 2 — GPU, clones voices for characters. Phase 5. */
   TTS_EXPRESSIVE_PROVIDER: z.enum(["mock", "vixtts", "f5tts"]).default("mock"),
 
   PIPER_BINARY: z.string().default("piper"),
   PIPER_VOICES_DIR: z.string().optional(),
 
   /**
-   * Ngôn ngữ mặc định cho truyện mới. Chỉ là giá trị khởi đầu — đổi trên Studio
-   * thì lựa chọn ghi vào `Setting`, và mỗi bộ truyện giữ ngôn ngữ riêng.
+   * The default language for new stories. A starting value only — changing it in
+   * Studio writes the choice into `Setting`, and each story keeps its own.
    */
   CONTENT_LANGUAGE: z.enum(["vi", "en"]).default("vi"),
 
-  // Embedding chạy CPU là đủ — nhúng một câu tốn vài ms, không đáng chiếm VRAM.
+  // Embeddings on CPU are enough — one sentence takes a few ms, not worth VRAM.
   //
-  // Model dùng cho từng việc KHÔNG nằm trong `.env`: nó bám vào model thật sự
-  // đã tải, hoặc do bạn chọn trên trang Model. Ghi sẵn một tên model ở đây thì
-  // nó thành lời nói dối ngay khi máy không có model đó.
+  // Which model does which job is NOT in `.env`: it depends on what is actually
+  // downloaded, or on what you pick on the Models page. Hard-coding a name here
+  // makes it a lie the moment the machine does not have that model.
   EMBED_PROVIDER: z.enum(["mock", "ollama"]).default("mock"),
 
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
 
   /**
-   * OpenRouter — cổng vào model đám mây, dùng khi cần chất lượng văn mà model
-   * chạy local không với tới.
+   * OpenRouter — the gateway to cloud models, for when the prose needs quality a
+   * local model cannot reach.
    *
-   * BÍ MẬT: khoá này không bao giờ được lọt vào log, vào `Job.error`, hay vào
-   * bất cứ route API nào trả về cho trình duyệt.
+   * SECRET: this key must never reach a log, `Job.error`, or any API route that
+   * returns to the browser.
    */
   OPENROUTER_API_KEY: z.string().default(""),
   OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),
@@ -61,11 +61,11 @@ const schema = z.object({
   VRAM_TTS_CLONE_MB: z.coerce.number().int().positive().default(4096),
 
   /**
-   * Khoá ký phiên đăng nhập của Player. BẮT BUỘC khi chạy thật — đổi khoá là
-   * mọi người bị đăng xuất. Sinh bằng `openssl rand -base64 32`.
+   * The signing key for Player login sessions. REQUIRED in production — changing
+   * it logs everyone out. Generate with `openssl rand -base64 32`.
    */
   AUTH_SECRET: z.string().default(""),
-  /** Google OAuth. Để trống thì nút "Đăng nhập bằng Google" tự ẩn. */
+  /** Google OAuth. Blank hides the "Sign in with Google" button. */
   AUTH_GOOGLE_ID: z.string().default(""),
   AUTH_GOOGLE_SECRET: z.string().default(""),
 
@@ -90,20 +90,20 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const details = parsed.error.issues
       .map((i) => `  • ${i.path.join(".")}: ${i.message}`)
       .join("\n");
-    throw new Error(`Biến môi trường không hợp lệ:\n${details}\n\nĐối chiếu với .env.example.`);
+    throw new Error(`Invalid environment variables:\n${details}\n\nCompare against .env.example.`);
   }
 
   const env = parsed.data;
 
   if (env.STORAGE_DRIVER === "r2" && !env.R2_ACCOUNT_ID) {
-    throw new Error("STORAGE_DRIVER=r2 nhưng thiếu R2_ACCOUNT_ID.");
+    throw new Error("STORAGE_DRIVER=r2 but R2_ACCOUNT_ID is missing.");
   }
 
   cached = env;
   return env;
 }
 
-/** Chỉ dùng trong test. */
+/** Test use only. */
 export function resetEnvCache(): void {
   cached = undefined;
 }

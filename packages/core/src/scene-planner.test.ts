@@ -3,63 +3,63 @@ import { planChapters, suggestChapterCount, suggestSceneCount } from "./scene-pl
 
 const ch = (title: string, n: number) => ({
   title,
-  beats: Array.from({ length: n }, (_, i) => `${title} nhịp ${i + 1}`),
+  beats: Array.from({ length: n }, (_, i) => `${title} beat ${i + 1}`),
 });
 
 describe("planChapters", () => {
-  it("giữ nguyên thứ tự chương và cảnh", () => {
+  it("keeps chapter and scene order", () => {
     const out = planChapters([ch("Đêm đầu", 2), ch("Bến cũ", 2)]);
     expect(out.map((c) => c.order)).toEqual([1, 2]);
     expect(out[0]!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 
-  it("cảnh đánh số TRONG PHẠM VI chương, không chạy suốt tập", () => {
-    // `(chapterId, order)` là ràng buộc duy nhất, và "cảnh 2 của chương 3" là
-    // cách người viết nói. Đánh số suốt tập thì cảnh đầu chương 2 mang số 3.
+  it("numbers scenes WITHIN a chapter, not across the episode", () => {
+    // `(chapterId, order)` is the unique constraint, and "scene 2 of chapter 3" is
+    // how writers talk. Numbering across the episode makes chapter 2's first scene 3.
     const out = planChapters([ch("A", 2), ch("B", 2)]);
     expect(out[1]!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 
-  it("chia số từ theo TỔNG số nhịp cả tập, không theo từng chương", () => {
-    // Chương ba nhịp và chương một nhịp thì mỗi nhịp vẫn nên dài như nhau, chứ
-    // không phải nhịp lẻ loi kia phải gánh cả chương.
+  it("divides words by the episode's TOTAL beat count, not per chapter", () => {
+    // A three-beat chapter and a one-beat chapter should still have beats of the
+    // same length, rather than the lone beat carrying a whole chapter.
     const out = planChapters([ch("A", 3), ch("B", 1)], 3000);
     const all = out.flatMap((c) => c.scenes.map((s) => s.targetWords));
     expect(new Set(all).size).toBe(1);
   });
 
-  it("kẹp số từ mỗi cảnh trong khoảng model chịu được", () => {
-    // Model 14B mất mạch sau ~1.500 token liên tục — trần này không phải tuỳ ý.
+  it("clamps words per scene to what the model can hold", () => {
+    // A 14B model loses the thread past ~1,500 continuous tokens — this ceiling is not arbitrary.
     const tiny = planChapters([ch("A", 1)], 100);
     const huge = planChapters([ch("A", 1)], 100000);
     expect(tiny[0]!.scenes[0]!.targetWords).toBe(600);
     expect(huge[0]!.scenes[0]!.targetWords).toBe(900);
   });
 
-  it("bỏ chương không có nhịp nào", () => {
-    // Model thỉnh thoảng trả về một chương rỗng. Tạo hàng cho nó thì trang tập
-    // hiện một chương không bao giờ viết được.
-    const out = planChapters([ch("A", 2), { title: "Rỗng", beats: [] }]);
+  it("drops a chapter with no beats", () => {
+    // The model occasionally returns an empty chapter. Creating a row for it shows a
+    // chapter on the episode page that can never be written.
+    const out = planChapters([ch("A", 2), { title: "Empty", beats: [] }]);
     expect(out).toHaveLength(1);
     expect(out[0]!.order).toBe(1);
   });
 
-  it("không có chương nào thì trả về rỗng, không ném", () => {
+  it("no chapters returns empty rather than throwing", () => {
     expect(planChapters([])).toEqual([]);
     expect(planChapters([{ title: "x", beats: [] }])).toEqual([]);
   });
 
-  it("tên chương bỏ trống thành null chứ không phải chuỗi rỗng", () => {
+  it("a blank chapter title becomes null, not an empty string", () => {
     expect(planChapters([{ title: "  ", beats: ["a"] }])[0]!.title).toBeNull();
   });
 });
 
-describe("gợi ý số lượng", () => {
-  it("số cảnh cả tập = số chương × số cảnh mỗi chương", () => {
+describe("count suggestions", () => {
+  it("scenes per episode = chapters × scenes per chapter", () => {
     expect(suggestSceneCount()).toBe(suggestChapterCount() * 2);
   });
 
-  it("tập ngắn tới đâu cũng còn ít nhất một chương", () => {
+  it("however short the episode, there is at least one chapter", () => {
     expect(suggestChapterCount(10)).toBe(1);
   });
 });
