@@ -245,7 +245,7 @@ export function EpisodeAudio() {
                     </ActionButton>
                   )}
                   <a
-                    href={`http://localhost:3001/nghe/${ep.id}`}
+                    href={`http://localhost:3001/listen/${ep.id}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs text-neutral-400 underline"

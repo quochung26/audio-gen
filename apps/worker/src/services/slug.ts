@@ -5,7 +5,7 @@ import { prisma } from "@audio/database";
  * A slug nobody is using yet.
  *
  * Checked against BOTH Series and Episode: the two tables share one slug namespace
- * because the Player serves `/truyen/<slug>` and `/nghe/<slug>` from the same root, and
+ * because the Player serves `/story/<slug>` and `/listen/<slug>` from the same root, and
  * the unique constraints are per-table so a cross-table clash is not caught by the DB.
  */
 export async function freeSlug(source: string): Promise<string> {
