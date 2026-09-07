@@ -233,7 +233,7 @@ function CharacterFields({ c }: { c?: Character }) {
           name="role"
           label="Role in the story"
           defaultValue={c?.role ?? ""}
-          placeholder="tài xế xe khách, 45 tuổi"
+          placeholder="coach driver, 45"
         />
       </div>
 
@@ -242,7 +242,7 @@ function CharacterFields({ c }: { c?: Character }) {
         label="Personality"
         hint="Who this person is — what drives their ACTIONS and choices."
         defaultValue={c?.description ?? ""}
-        placeholder="Lì, không kêu ca. Tin vào điềm nhưng không nói ra. Sợ nhất là mắc nợ ai."
+        placeholder="Stubborn, never complains. Believes in omens but will not say so. Most afraid of owing anyone."
         rows={3}
       />
 
@@ -251,7 +251,7 @@ function CharacterFields({ c }: { c?: Character }) {
         label="How they speak"
         hint="Rhythm, verbal habits, what they call people, what happens under stress. This keeps their DIALOGUE the same across dozens of episodes."
         defaultValue={c?.speech ?? ""}
-        placeholder="Ít nói, hay bỏ lửng câu. Gọi khách là 'cô', 'chú'. Khi sợ thì nói nhanh và lặp từ."
+        placeholder="Says little, trails off mid-sentence. Calls passengers 'cô', 'chú'. When frightened, speaks fast and repeats himself."
         rows={2}
       />
 
@@ -260,7 +260,7 @@ function CharacterFields({ c }: { c?: Character }) {
         label="Usually wears"
         hint="A DEFAULT — chapter and scene setup can both override it, so put down the outfit you see most often."
         defaultValue={c?.outfit ?? ""}
-        placeholder="Áo sơ mi bạc màu xắn tay, quần vải sẫm, dép nhựa."
+        placeholder="Faded shirt with the sleeves rolled, dark trousers, plastic sandals."
         rows={2}
       />
 
@@ -269,7 +269,7 @@ function CharacterFields({ c }: { c?: Character }) {
         label="Appearance"
         hint="What never changes across the story: build, apparent age, face, scars. Clothing does not go here — it belongs in the chapter setup, because it differs per chapter."
         defaultValue={c?.appearance ?? ""}
-        placeholder="Gầy, da sạm, tóc muối tiêu cắt cao. Vết sẹo dài ở cổ tay trái."
+        placeholder="Thin, weathered, salt-and-pepper hair cut short. A long scar on the left wrist."
         rows={2}
       />
 
@@ -281,7 +281,7 @@ function CharacterFields({ c }: { c?: Character }) {
         }
         hint="Where they are, what they know, how relationships changed. The summary job updates this after each episode; edit by hand when the AI got it wrong."
         defaultValue={c?.state ?? ""}
-        placeholder="Đang ở nhà bà Tư ngoài Cồn Vắng. Đã biết chiếc xe không phải của mình."
+        placeholder="Staying at bà Tư's place out on Cồn Vắng. Now knows the bus was never his."
         rows={3}
       />
 
@@ -289,7 +289,7 @@ function CharacterFields({ c }: { c?: Character }) {
         name="voiceHint"
         label="Voice hint"
         defaultValue={c?.voiceHint ?? ""}
-        placeholder="nam trung niên, giọng khàn"
+        placeholder="middle-aged man, hoarse"
       />
 
       <label className="flex items-center gap-2 text-sm text-neutral-300">

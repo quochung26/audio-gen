@@ -128,7 +128,7 @@ export function Tracks() {
           resetOnSuccess
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextInput name="title" label="Title" placeholder="Đêm mưa — piano trầm" />
+            <TextInput name="title" label="Title" placeholder="Rainy night — low piano" />
             <label className="block">
               <span className="mb-1 block text-xs text-neutral-500">Kind</span>
               <select
@@ -187,26 +187,26 @@ export function Tracks() {
                 ))}
               </select>
             </label>
-            <TextInput name="mood" label="Mood (optional)" placeholder="u ám, căng thẳng" />
+            <TextInput name="mood" label="Mood (optional)" placeholder="bleak, tense" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <TextInput
               name="attribution"
               label="Attribution (required for CC BY)"
-              placeholder="Nhạc: Tên tác giả"
+              placeholder="Music: artist name"
             />
             <TextInput
               name="tags"
               label="Tags, comma separated"
-              placeholder="piano, chậm, kinh dị"
+              placeholder="piano, slow, horror"
             />
           </div>
 
           <TextInput
             name="licenseNote"
             label="Licence note"
-            placeholder="Mua ở ... ngày ... / link điều khoản"
+            placeholder="Bought at ... on ... / link to terms"
           />
         </Form>
       </Section>

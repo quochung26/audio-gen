@@ -41,7 +41,7 @@ export function Bible() {
             name="setting"
             label="Setting"
             hint="Time, place, atmosphere."
-            placeholder="Quốc lộ miền Trung, thập niên 1970. Những chuyến xe khách chạy đêm, đường vắng, sương mù."
+            placeholder="A central-Vietnam highway, 1970s. Night coaches, empty road, fog."
             defaultValue={world.setting}
             rows={3}
           />
@@ -49,7 +49,7 @@ export function Bible() {
             name="rules"
             label="World rules"
             hint="One rule per line. Things that are ALWAYS true — the AI may not contradict them."
-            placeholder={"Ma chỉ xuất hiện sau nửa đêm\nNgười chết không tự nói tên mình"}
+            placeholder={"Ghosts only appear after midnight\nThe dead never say their own name"}
             defaultValue={world.rules.join("\n")}
             rows={5}
           />
@@ -57,7 +57,7 @@ export function Bible() {
             name="tone"
             label="Tone"
             hint="How you want it told."
-            placeholder="Chậm rãi, nhiều khoảng lặng. Sợ bằng không khí chứ không bằng máu me."
+            placeholder="Slow, full of silences. Fear from atmosphere, not gore."
             defaultValue={world.tone}
             rows={2}
           />
@@ -65,7 +65,7 @@ export function Bible() {
             name="constraints"
             label="Forbidden"
             hint="One per line. Things that must NOT appear."
-            placeholder={"Không mô tả bạo lực với trẻ em\nKhông kết thúc bằng giấc mơ"}
+            placeholder={"No violence against children\nNever end on it being a dream"}
             defaultValue={world.constraints.join("\n")}
             rows={3}
           />
@@ -73,7 +73,7 @@ export function Bible() {
             name="glossary"
             label="Glossary"
             hint="One per line, as «term: meaning». Keeps the AI from renaming things between episodes."
-            placeholder={"Bến Cũ: bến xe bỏ hoang ngoài rìa thị trấn"}
+            placeholder={"Bến Cũ: an abandoned bus depot on the edge of town"}
             defaultValue={world.glossary.map((g) => `${g.term}: ${g.meaning}`).join("\n")}
             rows={3}
           />

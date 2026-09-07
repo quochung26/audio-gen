@@ -148,7 +148,7 @@ export function CastPicker() {
                 <input
                   value={r.name}
                   onChange={(e) => edit(r.key, { name: e.target.value })}
-                  placeholder="Tên"
+                  placeholder="Name"
                   className={input}
                 />
                 {r.cardId ? (
@@ -169,13 +169,13 @@ export function CastPicker() {
                 <input
                   value={r.role}
                   onChange={(e) => edit(r.key, { role: e.target.value })}
-                  placeholder="Vai trong truyện — vd: tài xế xe khách, 45 tuổi"
+                  placeholder="Role in the story — e.g. coach driver, 45"
                   className={`${input} flex-1`}
                 />
                 <input
                   value={r.voiceHint}
                   onChange={(e) => edit(r.key, { voiceHint: e.target.value })}
-                  placeholder="Chất giọng — vd: nam trung niên, khàn"
+                  placeholder="Voice — e.g. middle-aged man, hoarse"
                   className={`${input} flex-1`}
                 />
               </div>
@@ -184,7 +184,7 @@ export function CastPicker() {
                 value={r.description}
                 onChange={(e) => edit(r.key, { description: e.target.value })}
                 rows={2}
-                placeholder="Tính cách — thứ lái hành động và lựa chọn của người này."
+                placeholder="Personality — what drives their actions and choices."
                 className={input}
               />
 
@@ -192,7 +192,7 @@ export function CastPicker() {
                 value={r.speech}
                 onChange={(e) => edit(r.key, { speech: e.target.value })}
                 rows={2}
-                placeholder="Cách nói: nhịp, thói quen dùng từ, cách xưng hô. Thứ giữ cho lời thoại nghe giống nhau qua hàng chục tập."
+                placeholder="How they speak: rhythm, verbal habits, what they call people. This keeps their dialogue recognisable across dozens of episodes."
                 className={input}
               />
 
@@ -200,7 +200,7 @@ export function CastPicker() {
                 value={r.outfit}
                 onChange={(e) => edit(r.key, { outfit: e.target.value })}
                 rows={2}
-                placeholder="Trang phục thường thấy — mặc định, thiết lập chương đè lên được."
+                placeholder="What they usually wear — a default; chapter setup can override it."
                 className={input}
               />
 
@@ -208,7 +208,7 @@ export function CastPicker() {
                 value={r.appearance}
                 onChange={(e) => edit(r.key, { appearance: e.target.value })}
                 rows={2}
-                placeholder="Ngoại hình không đổi suốt bộ: dáng, tuổi nhìn ra, khuôn mặt, sẹo. Trang phục đặt ở thiết lập chương."
+                placeholder="Looks that never change: build, apparent age, face, scars. Clothing goes in the chapter setup."
                 className={input}
               />
 

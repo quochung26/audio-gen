@@ -127,7 +127,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
           <TextInput
             name="role"
             label="Role in the story"
-            placeholder="tài xế xe khách, 45 tuổi"
+            placeholder="coach driver, 45"
             defaultValue={card?.role ?? ""}
           />
         </div>
@@ -137,7 +137,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         name="description"
         label="Personality"
         hint="Who this person is — what drives their actions and choices."
-        placeholder="Lì, không kêu ca. Tin vào điềm nhưng không nói ra."
+        placeholder="Stubborn, never complains. Believes in omens but will not say so."
         rows={2}
         defaultValue={card?.description ?? ""}
       />
@@ -146,7 +146,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         name="speech"
         label="How they speak"
         hint="Rhythm, verbal habits, what they call people. This keeps their dialogue recognisable across dozens of episodes."
-        placeholder="Trả lời cộc lốc. Chỉ dài lời khi nhắc tới con gái."
+        placeholder="Answers in clipped sentences. Only talks at length about his daughter."
         rows={2}
         defaultValue={card?.speech ?? ""}
       />
@@ -155,7 +155,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         name="outfit"
         label="Usually wears"
         hint="A DEFAULT — chapter and scene setup can both override it, so put down the outfit you see most often."
-        placeholder="Áo sơ mi bạc màu xắn tay, quần vải sẫm, dép nhựa."
+        placeholder="Faded shirt with the sleeves rolled, dark trousers, plastic sandals."
         rows={2}
         defaultValue={card?.outfit ?? ""}
       />
@@ -164,7 +164,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
         name="appearance"
         label="Appearance"
         hint="What never changes across the story: build, apparent age, face, scars. Clothing goes in the chapter setup, not here."
-        placeholder="Gầy, da sạm, tóc muối tiêu cắt cao. Vết sẹo dài ở cổ tay trái."
+        placeholder="Thin, weathered, salt-and-pepper hair cut short. A long scar on the left wrist."
         rows={2}
         defaultValue={card?.appearance ?? ""}
       />
@@ -174,7 +174,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
           <TextInput
             name="voiceHint"
             label="Voice — for casting"
-            placeholder="nam trung niên, giọng khàn"
+            placeholder="middle-aged man, hoarse"
             defaultValue={card?.voiceHint ?? ""}
           />
         </div>
