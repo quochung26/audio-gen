@@ -17,8 +17,10 @@ const schema = z.object({
   PLAYER_PUBLIC_URL: z.string().url().or(z.literal("")).default(""),
   REDIS_URL: z.string().url(),
 
-  // "mock" lets the whole pipeline run without a GPU or any model
-  LLM_PROVIDER: z.enum(["mock", "ollama", "openrouter"]).default("mock"),
+  // "mock" returns a FIXED fake outline built from the Zod schema — same title, same
+  // genre, same two characters every run. It is for tests, not for writing stories,
+  // so it is no longer the default: an unset LLM_PROVIDER means real Ollama.
+  LLM_PROVIDER: z.enum(["mock", "ollama", "openrouter"]).default("ollama"),
   /** Tier 1 — CPU, reads the narration (70–80% of the runtime). */
   TTS_PROVIDER: z.enum(["mock", "kokoro", "piper"]).default("mock"),
   /** Tier 2 — GPU, clones voices for characters. Phase 5. */
