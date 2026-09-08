@@ -1,4 +1,4 @@
-import { countWords, planDraft, renderContext, sceneGistSchema, withLanguage } from "@audio/core";
+import { countWords, planDraft, renderContext, storySoFarSchema, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_MAX_WORDS } from "@audio/config";
@@ -117,10 +117,15 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
     written.push(text);
 
-    // One line on what the scene turned out to contain, for the scenes after it. Done
-    // HERE rather than when the next scene is written, because the text is already in
-    // hand and the alternative is loading it again a scene later.
-    await writeGist({ sceneId: scene.id, episodeId: scene.chapter.episodeId, text, context });
+    // Fold the scene into the episode's running summary, for the scenes after it. Done
+    // HERE rather than when the next scene is written, because both the text and the
+    // previous paragraph are already in hand.
+    await foldIntoSummary({
+      sceneId: scene.id,
+      episodeId: scene.chapter.episodeId,
+      text,
+      context,
+    });
 
     // Compared against the target rather than just printed: a scene under half the target
     // usually means the model read the beat too narrowly, and that only shows up listening back.
@@ -151,23 +156,32 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   };
 };
 
+/** One paragraph, roughly an episode summary's length one tier down. */
+const SO_FAR_MAX_WORDS = 200;
+
 /**
- * Summarise the scene just written, in one sentence, for the scenes that follow it.
+ * Fold the scene just written into the episode's running summary.
  *
- * Fills the hole between the tiers of scene context: an episode is written scene by
- * scene, and each one used to see the previous episode and the ONE scene before it.
- * Scene 9 therefore knew nothing of scenes 1–7 and would re-introduce people, re-open
- * settled arguments, and walk characters back into rooms they had left.
+ * Compression on compression, the same shape as the arc summary one tier up: what the
+ * previous scene left behind goes in WITH the new scene, and the answer replaces it.
+ * So it stays one paragraph however long the episode runs, rather than a list growing
+ * a line per scene.
  *
- * The UTILITY model, not the writing one: this is reading, not writing, and it runs
- * once per scene — on the writing model it would be a second full-sized call for every
- * scene of the story.
+ * It fills the hole between the tiers of scene context. An episode is written scene by
+ * scene, and each one used to see the previous EPISODE and the ONE scene before it —
+ * scene 9 knew nothing of scenes 1–7 and would re-introduce people, re-open settled
+ * arguments, and walk characters back into rooms they had left.
+ *
+ * The UTILITY model, not the writing one: this is compression, not writing, and it
+ * runs once per scene — on the writing model it would be a second full-sized call for
+ * every scene of the story.
  *
  * A failure here is LOGGED, NOT THROWN. The scene itself is already written and saved;
- * losing an episode's worth of prose because a one-line summary came back malformed
- * would be absurd. A missing gist drops that scene from the list and nothing else.
+ * losing an episode's worth of prose because a summary came back malformed would be
+ * absurd. The paragraph then stays as the previous scene left it, so the next scene is
+ * missing one scene rather than all of them.
  */
-async function writeGist({
+async function foldIntoSummary({
   sceneId,
   episodeId,
   text,
@@ -179,9 +193,9 @@ async function writeGist({
   context: Awaited<ReturnType<typeof buildSceneContext>>;
 }): Promise<void> {
   try {
-    const prompt = await loadPrompt("SCENE_GIST", context.genre);
+    const prompt = await loadPrompt("STORY_SO_FAR", context.genre);
     const ctx = {
-      step: "SCENE_GIST" as const,
+      step: "STORY_SO_FAR" as const,
       episodeId,
       sceneId,
       promptId: prompt.id,
@@ -192,22 +206,30 @@ async function writeGist({
 
     const result = await getLlm().generateJson({
       model,
-      // The DRAFT language, matching the scene it is reading: this line is fed back
-      // into later scene writes, which happen in that same language.
+      // The DRAFT language, matching the scene it is reading: this paragraph is fed
+      // back into later scene writes, which happen in that same language.
       system: withLanguage(planDraft(context.language, context.draftLanguage).draft),
-      schema: sceneGistSchema,
-      prompt: renderTemplate(prompt.content, { text }),
+      schema: storySoFarSchema,
+      prompt: renderTemplate(prompt.content, {
+        maxWords: SO_FAR_MAX_WORDS,
+        text,
+        // Empty for the first scene of an episode: there is nothing to fold into, and
+        // the model then just summarises the one scene it was given.
+        previous: context.storySoFar
+          ? `## The running summary so far\n${context.storySoFar}\n\nFold what follows into it.`
+          : "",
+      }),
       ...(prompt.params as object),
     });
 
     await recordRun(ctx, result);
 
-    const gist = result.data.gist.trim();
-    if (gist) await prisma.scene.update({ where: { id: sceneId }, data: { gist } });
+    const summary = result.data.summary.trim();
+    if (summary) await prisma.scene.update({ where: { id: sceneId }, data: { storySoFar: summary } });
   } catch (err) {
     logger.warn(
-      `[write-scene] could not summarise the scene just written (${sceneId}): ${(err as Error).message}. ` +
-        `The scene is saved; later scenes of this episode will not see a line for it.`,
+      `[write-scene] could not fold the scene just written into the episode summary (${sceneId}): ` +
+        `${(err as Error).message}. The scene is saved; later scenes will not see it summarised.`,
     );
   }
 }

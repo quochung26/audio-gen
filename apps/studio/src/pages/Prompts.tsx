@@ -15,9 +15,9 @@ const STEP_LABEL: Record<string, { title: string; desc: string }> = {
     desc: "Invents one character to fit the story — the “let the AI write one” button.",
   },
   WRITE_SCENE: { title: "Write scene", desc: "Writes one scene, held to the Story Bible and the previous scene." },
-  SCENE_GIST: {
-    title: "Scene gist",
-    desc: "One line on what a scene turned out to contain, read by every later scene of the episode.",
+  STORY_SO_FAR: {
+    title: "This episode so far",
+    desc: "Folds each scene into one rolling paragraph, read by every later scene of the episode.",
   },
   TRANSLATE: {
     title: "Rewrite into the output language",

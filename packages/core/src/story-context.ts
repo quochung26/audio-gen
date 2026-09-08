@@ -188,12 +188,14 @@ export function renderContext(ctx: StoryContext): string {
   if (ctx.chapter) parts.push(ctx.chapter);
 
   // Immediately before the previous scene: together they read as "this is what has
-  // happened in this episode, and here is where you are picking up".
-  if (ctx.scenesSoFar && ctx.scenesSoFar.length > 0) {
+  // happened in this episode, and here is where you are picking up". The previous
+  // scene is inside this paragraph AND below in full, deliberately — the summary is
+  // what carries it forward once it is two scenes back.
+  if (ctx.storySoFar) {
     parts.push(
-      `## Earlier scenes of this episode\n` +
-        `What has already happened, in order. Do not repeat these scenes and do not contradict them:\n` +
-        ctx.scenesSoFar.map((s) => `- ${s.chapter}.${s.scene} — ${s.gist}`).join("\n"),
+      `## This episode so far\n` +
+        `What has already happened, up to the scene below. Do not write any of it again, and do not contradict it:\n` +
+        ctx.storySoFar,
     );
   }
 

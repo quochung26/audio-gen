@@ -135,8 +135,9 @@ model Genre {
 
 enum PromptStep {
   OUTLINE
-  /// One sentence on what a scene turned out to contain — see Scene.gist.
-  SCENE_GIST
+  /// Fold the scene just written into the episode's running summary — see
+  /// Scene.storySoFar.
+  STORY_SO_FAR
   /// Invent ONE character on demand, for a story that already exists or one being
   /// typed. Separate from OUTLINE because the outline no longer invents anybody:
   /// a chosen cast is closed, and this is the button that adds to it.
@@ -475,18 +476,25 @@ model Scene {
   /// The version actually used — always in the story's output language.
   text  String?
 
-  /// ONE sentence saying what actually happened in this scene, written right after
-  /// the scene is. Not the same thing as `beat`: the beat is the plan, this is what
-  /// the model did with it, and the two differ often enough to matter.
+  /// The story of this episode UP TO AND INCLUDING this scene, in one paragraph.
   ///
-  /// Read by every LATER scene of the same episode. Without it a scene sees only the
-  /// one immediately before it, so scene 9 has no idea what happened in scenes 1–7
-  /// and quietly re-introduces people, re-opens settled arguments, and walks
-  /// characters back into rooms they left.
+  /// A rolling summary, not a note about this scene: writing a scene folds it into
+  /// the paragraph the previous scene left behind, and the result is what the NEXT
+  /// scene reads. So it stays one paragraph however long the episode gets, instead of
+  /// a list growing a line per scene — the same trick `Series.arcSummary` plays across
+  /// episodes, one tier down.
   ///
-  /// Null means not written yet, or written before this existed — the block is then
-  /// simply left out, which is the old behaviour.
-  gist String?
+  /// Without it a scene saw the previous EPISODE and the ONE scene before it, and
+  /// nothing in between: scene 9 knew nothing of scenes 1–7 and would re-introduce
+  /// people, re-open settled arguments, and walk characters back into rooms they left.
+  ///
+  /// Rewriting one scene in the middle leaves the scenes AFTER it holding a paragraph
+  /// that no longer matches. Rewriting the episode regenerates them in order; a single
+  /// scene rewritten alone does not, which is the same staleness `Character.state` and
+  /// the arc summary already live with.
+  ///
+  /// Null = not written yet. The block is then left out, which is the old behaviour.
+  storySoFar String?
 
   /// The draft before the rewrite, kept so the prompt can be edited and TRANSLATE
   /// rerun without rewriting the scene. Null = the scene has not been through the

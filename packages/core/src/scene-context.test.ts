@@ -9,48 +9,44 @@ const base: StoryContext = {
   targetWords: 750,
 };
 
-describe("renderContext — the earlier scenes of this episode", () => {
-  const scenesSoFar = [
-    { chapter: 1, scene: 1, gist: "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn." },
-    { chapter: 1, scene: 2, gist: "Ông Bảy dặn Tài đừng dừng ở Bến Cũ." },
-  ];
+describe("renderContext — this episode so far", () => {
+  const storySoFar =
+    "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn. Ông Bảy dặn anh đừng dừng ở Bến Cũ, " +
+    "nhưng không nói vì sao.";
 
-  it("lists them in order, labelled chapter.scene", () => {
-    const out = renderContext({ ...base, scenesSoFar });
-    expect(out).toContain("- 1.1 — Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn.");
-    expect(out).toContain("- 1.2 — Ông Bảy dặn Tài đừng dừng ở Bến Cũ.");
-    expect(out.indexOf("1.1")).toBeLessThan(out.indexOf("1.2"));
+  it("goes in as one paragraph, verbatim", () => {
+    expect(renderContext({ ...base, storySoFar })).toContain(storySoFar);
   });
 
   it("comes BEFORE the previous scene in full", () => {
     // The model reads in sequence: what has happened, then where it is picking up.
-    const out = renderContext({ ...base, scenesSoFar, previousScene: "Mưa đổ xuống mái tôn." });
-    expect(out.indexOf("Earlier scenes of this episode")).toBeLessThan(
+    const out = renderContext({ ...base, storySoFar, previousScene: "Mưa đổ xuống mái tôn." });
+    expect(out.indexOf("This episode so far")).toBeLessThan(
       out.indexOf("The previous scene, in full"),
     );
   });
 
   it("comes AFTER the previous episode's summary", () => {
-    // Distant shape first, near detail last — the same ordering rule the rest of the
-    // context follows.
+    // Distant shape first, near detail last — the ordering the rest of the context
+    // already follows.
     const out = renderContext({
       ...base,
-      scenesSoFar,
+      storySoFar,
       previousSummaries: [{ number: 4, summary: "Tài chôn chiếc vé cũ." }],
     });
     expect(out.indexOf("Summary of the previous episode")).toBeLessThan(
-      out.indexOf("Earlier scenes of this episode"),
+      out.indexOf("This episode so far"),
     );
   });
 
-  it("nothing yet leaves the block out entirely", () => {
-    // The first scene of an episode, and every scene written before gists existed.
-    expect(renderContext(base)).not.toContain("Earlier scenes");
-    expect(renderContext({ ...base, scenesSoFar: [] })).not.toContain("Earlier scenes");
+  it("the first scene of an episode leaves the block out entirely", () => {
+    // Also every scene written before this existed, whose paragraph is still null.
+    expect(renderContext(base)).not.toContain("This episode so far");
+    expect(renderContext({ ...base, storySoFar: "" })).not.toContain("This episode so far");
   });
 
-  it("tells the model not to write them again", () => {
-    // Without this a model reads the list as material and re-stages the scenes.
-    expect(renderContext({ ...base, scenesSoFar })).toMatch(/Do not repeat these scenes/i);
+  it("tells the model not to write any of it again", () => {
+    // Without this a model reads the paragraph as material and re-stages the scenes.
+    expect(renderContext({ ...base, storySoFar })).toMatch(/Do not write any of it again/i);
   });
 });

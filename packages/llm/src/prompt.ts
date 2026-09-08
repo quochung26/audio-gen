@@ -33,10 +33,12 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // AI invents them, present means the AI follows them. See renderWorldForOutline /
   // renderCastForOutline.
   OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
-  // Just the scene that was written. Deliberately nothing else: asked to summarise
-  // with the story in front of it, a model writes what the scene MEANT for the plot
+  // Compression on compression, exactly like ARC_SUMMARY one tier up: `previous` is
+  // the paragraph the last scene left behind, `text` is the scene just written, and
+  // the answer replaces `previous`. Nothing else goes in — asked to summarise with the
+  // whole story in front of it, a model writes what the scene MEANT for the plot
   // instead of what happened in it.
-  SCENE_GIST: ["text"],
+  STORY_SO_FAR: ["maxWords", "previous", "text"],
   // Two blocks, both built by the job: `context` is the story (its Bible when it
   // exists, the half-filled form when it does not), `brief` is what the writer had
   // already typed about this one person. See renderKnownCast / renderCharacterBrief.

@@ -54,7 +54,7 @@ describe("checkPromptVariables", () => {
 describe("the default prompts in the repo", () => {
   const FILES: Array<[Parameters<typeof checkPromptVariables>[0], string]> = [
     ["OUTLINE", "outline.md"],
-    ["SCENE_GIST", "scene-gist.md"],
+    ["STORY_SO_FAR", "story-so-far.md"],
     ["CHARACTER", "character.md"],
     ["NEXT_EPISODE", "next-episode.md"],
     ["WRITE_SCENE", "write-scene.md"],
