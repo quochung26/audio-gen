@@ -4,6 +4,7 @@ import type { StoryContext } from "./types";
 
 const base: StoryContext = {
   bible: "## Story Bible",
+  storySoFar: "",
   previousSummaries: [],
   beat: "Tài quay lại Bến Cũ.",
   targetWords: 750,
@@ -54,9 +55,10 @@ describe("renderContext — the story so far", () => {
   });
 
   it("nothing yet leaves the block out entirely", () => {
-    // The very first scene of a story.
+    // The very first scene of a story. Empty rather than absent: the field is REQUIRED
+    // so that a caller cannot drop it by accident, which is exactly how it came to be
+    // computed at one end, rendered at the other and never passed between them.
     expect(renderContext(base)).not.toContain("The story so far");
-    expect(renderContext({ ...base, storySoFar: "" })).not.toContain("The story so far");
   });
 
   it("tells the model not to write any of it again", () => {

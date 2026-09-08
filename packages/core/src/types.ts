@@ -234,13 +234,19 @@ export interface StoryContext {
   /**
    * The whole story up to and including the previous scene, in one paragraph.
    *
-   * Rewritten after every scene, and carried across episode boundaries. The other
-   * story-wide tiers are both COARSER in time: the arc summary is rebuilt every few
-   * episodes, and the previous episode's summary only exists once that episode is
-   * finished. Between them a scene could see nothing at all of the twenty scenes
-   * before it.
+   * Rewritten after every scene and carried across episode boundaries. It is the only
+   * account of the story a scene write gets: the previous episode's summary covers one
+   * episode and stops at its end, and the previous scene is one scene.
+   *
+   * REQUIRED, even as an empty string — the same rule as `genreNotes` in
+   * SeriesBibleInput, and for the same reason it was written down there. Optional, this
+   * was built at both ends and never connected in the middle: `buildSceneContext`
+   * computed it, `renderContext` rendered it, and the one call site between them did
+   * not pass it. Nothing failed. Scenes were simply written by a model that had been
+   * told nothing about the story, which reads as a scene that does not follow on and
+   * re-establishes everything at length.
    */
-  storySoFar?: string;
+  storySoFar: string;
   /** The previous scene verbatim, so the prose carries on naturally */
   previousScene?: string;
   /** The chapter's own instruction block — see renderEpisodeSetup */
