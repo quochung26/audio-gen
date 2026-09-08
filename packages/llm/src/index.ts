@@ -23,9 +23,9 @@ let cached: LlmProvider | undefined;
  * The provider shared by every job.
  *
  * ONE provider runs at a time: either local Ollama or OpenRouter in the cloud. The
- * choice lives in the `Setting` table (falling back to `LLM_PROVIDER` in `.env`) and
- * is re-read on every call, so changing it in the UI takes effect immediately, with
- * no worker restart.
+ * choice lives in the `Setting` table, written by the Models page, and is re-read on
+ * every call, so changing it in the UI takes effect immediately, with no worker
+ * restart. It is NOT in `.env` — see getActiveProvider.
  */
 export function getLlm(): LlmProvider {
   if (cached) return cached;

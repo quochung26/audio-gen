@@ -33,7 +33,6 @@ interface Data {
   /** The provider in use — one of the two. */
   provider: string;
   /** The value in .env, so it is clear what the UI choice is overriding. */
-  envProvider: string;
   embedProvider: string;
   installed: Model[];
   /** Recently used models, already filtered to the provider in use. */
@@ -126,7 +125,6 @@ export function Models() {
       <Section title="Where models run">
         <ProviderSwitch
           provider={data.provider}
-          envProvider={data.envProvider}
           openRouterReady={or.data?.reachable === true}
         />
       </Section>

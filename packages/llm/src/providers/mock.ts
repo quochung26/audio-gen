@@ -97,7 +97,7 @@ const SENTENCES = [
 /** Generate placeholder text of roughly the requested length. */
 function vietnameseFiller(targetWords: number, seed: string): string {
   const rng = seededRandom(seed);
-  const out: string[] = ["[MOCK TEXT — set LLM_PROVIDER=ollama to use a real model]", ""];
+  const out: string[] = ["[MOCK TEXT — pick Ollama on the Models page to use a real model]", ""];
   let words = 0;
   let paragraph: string[] = [];
 

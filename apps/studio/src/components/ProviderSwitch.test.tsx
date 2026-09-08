@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProviderSwitch } from "./ProviderSwitch";
 
-function mount(props: { provider: string; envProvider?: string; openRouterReady?: boolean }) {
+function mount(props: { provider: string; openRouterReady?: boolean }) {
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve(new Response(JSON.stringify({ ok: "xong" }), { status: 200 }))),
@@ -15,7 +15,6 @@ function mount(props: { provider: string; envProvider?: string; openRouterReady?
     <QueryClientProvider client={qc}>
       <ProviderSwitch
         provider={props.provider}
-        envProvider={props.envProvider ?? "ollama"}
         openRouterReady={props.openRouterReady ?? true}
       />
     </QueryClientProvider>,
@@ -81,9 +80,11 @@ describe("ProviderSwitch", () => {
     expect(screen.getByRole("button", { name: /switch to OpenRouter/ })).toBeTruthy();
   });
 
-  it("says the choice here overrides .env", () => {
-    const { container } = mount({ provider: "openrouter", envProvider: "ollama" });
+  it("says this is the ONLY place the provider is set", () => {
+    // It used to say ".env says X; the choice here overrides it", which invited the
+    // reader to go and edit `.env`. There is nothing there any more.
+    const { container } = mount({ provider: "openrouter" });
+    expect(container.textContent).toContain("not in");
     expect(container.textContent).toContain(".env");
-    expect(container.textContent).toContain("ollama");
   });
 });

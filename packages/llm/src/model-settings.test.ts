@@ -27,12 +27,8 @@ vi.mock("@audio/database", () => ({
   },
 }));
 
-/** The default provider — changeable per test. */
-const env = { provider: "ollama" as "mock" | "ollama" | "openrouter" };
-
 vi.mock("@audio/config", () => ({
   loadEnv: () => ({
-    LLM_PROVIDER: env.provider,
     // A port nobody is listening on: `listInstalledModels` has to swallow the error
     // and return an empty array rather than killing default-model resolution.
     OLLAMA_URL: "http://127.0.0.1:9",
@@ -50,8 +46,8 @@ const {
 } = await import("./model-settings");
 
 beforeEach(() => {
+  // Nothing stored means the built-in default, Ollama — there is no env value to reset.
   settings.clear();
-  env.provider = "ollama";
 });
 
 describe("defaults", () => {
@@ -150,19 +146,18 @@ describe("resolveModel — the three priority tiers", () => {
 });
 
 describe("the active provider — one of the three", () => {
-  it("unset, it comes from .env", async () => {
-    env.provider = "openrouter";
-    expect(await getActiveProvider()).toBe("openrouter");
+  it("nothing chosen yet means Ollama, NOT the mock", async () => {
+    // A machine that has never opened the Models page has to fail loudly on an
+    // unreachable Ollama, not quietly write fake stories that read like real ones.
+    expect(await getActiveProvider()).toBe("ollama");
   });
 
-  it("a UI choice overrides .env", async () => {
-    env.provider = "ollama";
+  it("the choice made in the UI is the one that runs", async () => {
     await setActiveProvider("openrouter");
     expect(await getActiveProvider()).toBe("openrouter");
   });
 
-  it("clearing it reverts to .env", async () => {
-    env.provider = "ollama";
+  it("clearing it reverts to the default", async () => {
     await setActiveProvider("openrouter");
     await setActiveProvider("");
     expect(await getActiveProvider()).toBe("ollama");
@@ -172,10 +167,9 @@ describe("the active provider — one of the three", () => {
     await expect(setActiveProvider("openai")).rejects.toThrow(/openai/);
   });
 
-  it("junk in the DB does not kill it — it falls back to .env", async () => {
+  it("junk in the DB does not kill it — it falls back to the default", async () => {
     // Hand-edited in the DB, or old data from an earlier version.
     settings.set("llm.provider", "khong-ton-tai");
-    env.provider = "ollama";
     expect(await getActiveProvider()).toBe("ollama");
   });
 });

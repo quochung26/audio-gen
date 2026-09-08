@@ -47,19 +47,30 @@ function storageProvider(provider: ProviderName): "ollama" | "openrouter" {
 }
 
 /**
+ * What a machine runs before anyone has chosen.
+ *
+ * NOT the mock: the mock returns a fixed fake outline and says nothing about it, so
+ * a machine that never visited the Models page would write fake stories that look
+ * real. Ollama unreachable fails loudly instead, which is the right way round.
+ */
+const DEFAULT_PROVIDER: ProviderName = "ollama";
+
+/**
  * The active provider. One at a time.
  *
- * `.env` is the starting value; changing it in the UI writes to `Setting` and takes
- * effect immediately, with no worker restart.
+ * Lives ONLY in the `Setting` table, written by the Models page, and is re-read on
+ * every call so a change takes effect with no worker restart. There is no `.env`
+ * value behind it: two places to set one thing meant `.env` reading like the answer
+ * while the DB row quietly won.
  */
 export async function getActiveProvider(): Promise<ProviderName> {
   const row = await prisma.setting.findUnique({ where: { key: PROVIDER_KEY } });
   const stored = row?.value?.trim();
   if (stored && isProviderName(stored)) return stored;
-  return loadEnv().LLM_PROVIDER;
+  return DEFAULT_PROVIDER;
 }
 
-/** Change provider. An empty string clears it, back to the `.env` value. */
+/** Change provider. An empty string clears it, back to the built-in default. */
 export async function setActiveProvider(value: string): Promise<void> {
   const v = value.trim();
   if (!v) {

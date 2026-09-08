@@ -98,7 +98,9 @@ app.notFound((c) => c.json({ error: "No such endpoint" }, 404));
 const port = Number(process.env.API_PORT ?? 3002);
 const env = loadEnv();
 
-console.log(`[api] LLM=${env.LLM_PROVIDER} TTS=${env.TTS_PROVIDER} storage=${env.STORAGE_DRIVER}`);
+// The LLM provider is not printed: it is a DB row now, and reading it here would
+// make startup wait on Postgres just to log a line. The Models page shows it.
+console.log(`[api] TTS=${env.TTS_PROVIDER} storage=${env.STORAGE_DRIVER}`);
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[api] http://localhost:${info.port}`);
 });

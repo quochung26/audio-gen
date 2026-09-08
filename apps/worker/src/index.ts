@@ -1,6 +1,7 @@
 import { loadEnv, getVramBudget } from "@audio/config";
 import { prisma } from "@audio/database";
 import { checkFfmpeg } from "@audio/audio";
+import { getActiveProvider } from "@audio/llm";
 import { startLanes } from "./lanes/index";
 import { logger } from "./lib/logger";
 import { vramGuard } from "./services/vram-guard";
@@ -11,12 +12,16 @@ async function main() {
   const vram = getVramBudget();
 
   logger.info("── worker starting ──");
-  logger.info(`LLM provider : ${env.LLM_PROVIDER}`);
   logger.info(`TTS provider : ${env.TTS_PROVIDER}`);
   logger.info(`VRAM         : ${vram.usableMb}MB usable / ${vram.totalMb}MB total`);
 
   await prisma.$queryRaw`SELECT 1`;
   logger.info("Postgres     : reachable");
+
+  // After the Postgres check, because that is where the answer lives now. Worth a
+  // line at startup all the same: a worker quietly running the mock writes fake
+  // stories that read like real ones.
+  logger.info(`LLM provider : ${await getActiveProvider()}`);
 
   // An early check: without ffmpeg the MIX job dies mid-run, which is far harder to trace.
   const ff = await checkFfmpeg();

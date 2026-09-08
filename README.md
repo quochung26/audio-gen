@@ -23,7 +23,9 @@ Tài liệu: [`PLAN.md`](PLAN.md) · [`docs/database.md`](docs/database.md) · [
 
 **Yêu cầu ngoài Node: `ffmpeg`** (`brew install ffmpeg` / `apt install ffmpeg`). Worker kiểm tra lúc khởi động và báo nếu thiếu filter.
 
-**LLM và TTS đang chạy provider giả lập** (`LLM_PROVIDER=mock`, `TTS_PROVIDER=mock`) nên toàn bộ pipeline chạy được mà chưa cần GPU. Khi có model thật, đổi hai biến này trong `.env`.
+**TTS đang chạy provider giả lập** (`TTS_PROVIDER=mock`) nên pipeline âm thanh chạy được mà chưa cần GPU; đổi biến này trong `.env` khi có model thật.
+
+**LLM thì không nằm trong `.env`.** Chạy Ollama hay OpenRouter chọn ở trang `/model`, lưu vào bảng `Setting`. Chưa chọn gì thì mặc định là Ollama thật — không phải mock: mock trả về một outline giả cố định mà không nói gì, nên một máy chưa ai đụng tới sẽ viết ra truyện giả trông y như thật. Ollama không kết nối được thì báo lỗi thẳng, đó mới là chiều đúng.
 
 ---
 
@@ -317,10 +319,11 @@ Chất lượng model 14B tụt rõ sau khoảng 1.500 token liên tục. Viết
 
 ```bash
 # .env
-LLM_PROVIDER=ollama
 OLLAMA_MODEL_WRITE=qwen3:14b
 EMBED_PROVIDER=ollama          # cần: ollama pull bge-m3
 ```
+
+Chọn Ollama hay OpenRouter thì ở trang `/model`, không phải trong `.env`.
 
 Embedding chạy **CPU** — nhúng một câu tốn vài ms, không đáng chiếm VRAM của model viết truyện. Cùng lý do đã đặt Kokoro lên CPU.
 
@@ -468,7 +471,7 @@ Ollama chạy tại chỗ, rẻ và kín. OpenRouter là cổng vào hàng trăm
 
 Đặt `OPENROUTER_API_KEY` trong `.env` (lấy khoá ở `openrouter.ai/keys`) rồi khởi động lại API, sau đó chuyển ở trang `/model`. Khoá **không bao giờ** được trả về trình duyệt, kể cả dạng che bớt, và không lọt vào thông điệp lỗi — lỗi job được lưu vào DB rồi hiện lên Studio.
 
-**Một trong hai, không chạy lẫn.** Khối “Chạy model ở đâu” trên trang `/model` chọn bên nào đang chạy. Lựa chọn nằm trong bảng `Setting` và được hỏi lại ở **mỗi lượt gọi model**, nên đổi là ăn ngay — kể cả worker đang chạy dở, không phải khởi động lại. `LLM_PROVIDER` trong `.env` chỉ là giá trị khởi đầu.
+**Một trong hai, không chạy lẫn.** Khối “Chạy model ở đâu” trên trang `/model` chọn bên nào đang chạy. Lựa chọn nằm trong bảng `Setting` và được hỏi lại ở **mỗi lượt gọi model**, nên đổi là ăn ngay — kể cả worker đang chạy dở, không phải khởi động lại. **Đây là nơi duy nhất đặt nó**: `.env` không còn `LLM_PROVIDER` nữa. Để ở hai nơi thì `.env` trông như câu trả lời trong khi row trong DB mới là thứ thắng, và câu hỏi "sao nó vẫn chạy mock" không tra được ở riêng file nào.
 
 Chuyển sang OpenRouter có hỏi lại; chuyển về Ollama thì không — chiều đó không mất gì cả. Chưa kết nối được OpenRouter thì nút chuyển không hiện, vì chuyển sang lúc chưa có khoá là mọi job chết ngay ở lượt gọi model đầu tiên.
 

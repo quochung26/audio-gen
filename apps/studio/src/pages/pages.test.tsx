@@ -260,7 +260,6 @@ const FIXTURES: Record<string, unknown> = {
     version: "0.5.0",
     url: "http://localhost:11434",
     provider: "ollama",
-    envProvider: "mock",
     embedProvider: "mock",
     installed: [
       {

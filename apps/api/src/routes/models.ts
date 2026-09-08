@@ -169,7 +169,6 @@ models.get("/", async (c) => {
     version,
     url: env.OLLAMA_URL,
     provider,
-    envProvider: env.LLM_PROVIDER,
     embedProvider: env.EMBED_PROVIDER,
     installed,
     recent,

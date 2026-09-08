@@ -13,11 +13,9 @@ import { ActionButton } from "@/components/Form";
  */
 export function ProviderSwitch({
   provider,
-  envProvider,
   openRouterReady,
 }: {
   provider: string;
-  envProvider: string;
   /** Has an API key and answers — switching before that kills the job. */
   openRouterReady: boolean;
 }) {
@@ -87,12 +85,9 @@ export function ProviderSwitch({
       )}
 
       <p className="text-xs text-neutral-600">
-        Default models are remembered per provider, so switching back and forth loses nothing.{" "}
-        {provider !== envProvider && (
-          <>
-            <code>.env</code> says <code>{envProvider}</code>; the choice here overrides it.
-          </>
-        )}
+        Default models are remembered per provider, so switching back and forth loses nothing.
+        This choice is the only one there is — it is not in <code>.env</code> — and it takes
+        effect on the next job, with no restart.
       </p>
     </div>
   );
