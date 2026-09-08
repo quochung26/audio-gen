@@ -31,6 +31,8 @@ export interface SceneContext {
   facts: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Open threads — always loaded, whatever the similarity. */
   openThreads: Array<{ episodeNumber: number; text: string }>;
+  /** The earlier scenes of THIS episode, one line each — see Scene.gist. */
+  scenesSoFar: Array<{ chapter: number; scene: number; gist: string }>;
   previousScene?: string;
   /** The chapter's own instruction block, rendered. Empty when the chapter set nothing. */
   chapter: string;
@@ -48,7 +50,13 @@ export interface SceneContext {
  *   1. Story Bible       — world, rules, characters + their CURRENT state (fixed)
  *   2. Arc summary       — old episodes compressed (~400 word ceiling)
  *   3. Recent summaries  — the last RECENT_SUMMARY_COUNT episodes, verbatim
- *   4. Previous scene    — in full, so the prose carries on naturally
+ *   4. Scenes so far     — this episode's earlier scenes, ONE LINE each
+ *   5. Previous scene    — in full, so the prose carries on naturally
+ *
+ * Tier 4 is bounded by the scene count of ONE episode, not by the story: about a
+ * dozen lines at the end of the longest episode. It exists because tiers 3 and 5 leave
+ * a hole exactly the size of an episode — scene 9 knew the previous episode and scene
+ * 8, and nothing in between.
  *
  * No tier grows with the episode count, so an 80-episode story still fits num_ctx.
  * The previous version loaded ALL summaries and overflowed around episode 35 — measured, not guessed.
@@ -117,10 +125,21 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const ordered = await prisma.scene.findMany({
     where: { chapter: { episodeId: episode.id } },
     orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
-    select: { id: true, text: true },
+    select: { id: true, text: true, order: true, gist: true, chapter: { select: { order: true } } },
   });
   const at = ordered.findIndex((s) => s.id === scene.id);
   const previousScene = at > 0 ? ordered[at - 1]! : null;
+
+  // Everything BEFORE the previous scene, one line each. The previous scene itself is
+  // left out: it goes in whole just below, and having it twice only teaches the model
+  // that repeating itself is what this story does.
+  //
+  // A missing gist drops the scene from the list rather than the list from the prompt:
+  // scenes written before this existed, or a rewrite still in flight, must not blind
+  // the model to everything around them.
+  const scenesSoFar = (at > 0 ? ordered.slice(0, at - 1) : [])
+    .filter((s) => s.gist?.trim())
+    .map((s) => ({ chapter: s.chapter.order, scene: s.order, gist: s.gist!.trim() }));
 
   const sceneCount = ordered.length;
 
@@ -140,6 +159,7 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
     facts,
     openThreads: threads,
+    scenesSoFar,
     previousScene: previousScene?.text ?? undefined,
     chapter: renderChapterSetup(chapterSetup),
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),

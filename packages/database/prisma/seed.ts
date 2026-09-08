@@ -15,6 +15,7 @@ const PROMPTS_DIR = join(import.meta.dirname, "../../../prompts");
  */
 const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = [
   { step: "OUTLINE", file: "outline.md" },
+  { step: "SCENE_GIST", file: "scene-gist.md" },
   { step: "CHARACTER", file: "character.md" },
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
@@ -28,6 +29,9 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
 /** Generation parameters per step — creative prose needs a higher temperature than utility work. */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
+  // Reading, not writing: a low temperature, and a ceiling low enough that a model
+  // inclined to retell the scene runs out of room instead. `numCtx` fits one scene.
+  SCENE_GIST: { temperature: 0.3, repeatPenalty: 1.05, numCtx: 4096, maxTokens: 160 },
   // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
   // goes in, and a character invented without reading it duplicates someone.
   CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },

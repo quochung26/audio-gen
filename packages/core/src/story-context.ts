@@ -187,6 +187,16 @@ export function renderContext(ctx: StoryContext): string {
   // what is about to be written, they are not background to read and forget.
   if (ctx.chapter) parts.push(ctx.chapter);
 
+  // Immediately before the previous scene: together they read as "this is what has
+  // happened in this episode, and here is where you are picking up".
+  if (ctx.scenesSoFar && ctx.scenesSoFar.length > 0) {
+    parts.push(
+      `## Earlier scenes of this episode\n` +
+        `What has already happened, in order. Do not repeat these scenes and do not contradict them:\n` +
+        ctx.scenesSoFar.map((s) => `- ${s.chapter}.${s.scene} — ${s.gist}`).join("\n"),
+    );
+  }
+
   if (ctx.previousScene) {
     parts.push(`## The previous scene, in full\n${ctx.previousScene}`);
   }

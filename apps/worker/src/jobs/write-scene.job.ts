@@ -1,4 +1,4 @@
-import { countWords, planDraft, renderContext, withLanguage } from "@audio/core";
+import { countWords, planDraft, renderContext, sceneGistSchema, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_MAX_WORDS } from "@audio/config";
@@ -117,6 +117,11 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
     written.push(text);
 
+    // One line on what the scene turned out to contain, for the scenes after it. Done
+    // HERE rather than when the next scene is written, because the text is already in
+    // hand and the alternative is loading it again a scene later.
+    await writeGist({ sceneId: scene.id, episodeId: scene.chapter.episodeId, text, context });
+
     // Compared against the target rather than just printed: a scene under half the target
     // usually means the model read the beat too narrowly, and that only shows up listening back.
     const words = countWords(text);
@@ -145,3 +150,64 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     complete,
   };
 };
+
+/**
+ * Summarise the scene just written, in one sentence, for the scenes that follow it.
+ *
+ * Fills the hole between the tiers of scene context: an episode is written scene by
+ * scene, and each one used to see the previous episode and the ONE scene before it.
+ * Scene 9 therefore knew nothing of scenes 1–7 and would re-introduce people, re-open
+ * settled arguments, and walk characters back into rooms they had left.
+ *
+ * The UTILITY model, not the writing one: this is reading, not writing, and it runs
+ * once per scene — on the writing model it would be a second full-sized call for every
+ * scene of the story.
+ *
+ * A failure here is LOGGED, NOT THROWN. The scene itself is already written and saved;
+ * losing an episode's worth of prose because a one-line summary came back malformed
+ * would be absurd. A missing gist drops that scene from the list and nothing else.
+ */
+async function writeGist({
+  sceneId,
+  episodeId,
+  text,
+  context,
+}: {
+  sceneId: string;
+  episodeId: string;
+  text: string;
+  context: Awaited<ReturnType<typeof buildSceneContext>>;
+}): Promise<void> {
+  try {
+    const prompt = await loadPrompt("SCENE_GIST", context.genre);
+    const ctx = {
+      step: "SCENE_GIST" as const,
+      episodeId,
+      sceneId,
+      promptId: prompt.id,
+      params: prompt.params,
+    };
+
+    const model = await resolveModel({ prompt: prompt.model, kind: "utility" });
+
+    const result = await getLlm().generateJson({
+      model,
+      // The DRAFT language, matching the scene it is reading: this line is fed back
+      // into later scene writes, which happen in that same language.
+      system: withLanguage(planDraft(context.language, context.draftLanguage).draft),
+      schema: sceneGistSchema,
+      prompt: renderTemplate(prompt.content, { text }),
+      ...(prompt.params as object),
+    });
+
+    await recordRun(ctx, result);
+
+    const gist = result.data.gist.trim();
+    if (gist) await prisma.scene.update({ where: { id: sceneId }, data: { gist } });
+  } catch (err) {
+    logger.warn(
+      `[write-scene] could not summarise the scene just written (${sceneId}): ${(err as Error).message}. ` +
+        `The scene is saved; later scenes of this episode will not see a line for it.`,
+    );
+  }
+}

@@ -124,6 +124,25 @@ export type AudioScript = z.infer<typeof audioScriptSchema>;
 
 // ── Episode summary + character state (step 0d) ──
 
+/**
+ * What a scene turned out to contain — see `Scene.gist`.
+ *
+ * Forced through a schema rather than read as plain text, though it is one sentence:
+ * a small model asked for a line in words answers "Sure — here is the summary:" often
+ * enough, and this line is read by every later scene of the episode, so the junk
+ * would compound rather than sit in one place.
+ */
+export const sceneGistSchema = z.object({
+  gist: z
+    .string()
+    .min(1)
+    .describe(
+      "ONE sentence saying what happened in the scene: who, where, what changed. Not what it means",
+    ),
+});
+
+export type SceneGist = z.infer<typeof sceneGistSchema>;
+
 export const characterStateSchema = z.object({
   name: z.string().describe("Character name, exactly as given in the list"),
   state: z
@@ -198,6 +217,15 @@ export interface StoryContext {
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: Array<{ episodeNumber: number; text: string }>;
+  /**
+   * What happened in the EARLIER scenes of this same episode, one line each.
+   *
+   * Not the scene right before — that goes in whole, as `previousScene`. These are
+   * the ones before that, which the model would otherwise never see: an episode is
+   * written scene by scene, so without them scene 9 knows the previous episode and
+   * scene 8, and nothing in between.
+   */
+  scenesSoFar?: Array<{ chapter: number; scene: number; gist: string }>;
   /** The previous scene verbatim, so the prose carries on naturally */
   previousScene?: string;
   /** The chapter's own instruction block — see renderEpisodeSetup */
