@@ -8,14 +8,14 @@ import { ModelPicker } from "@/components/ModelPicker";
 import { languageLabel } from "@/components/LanguagePicker";
 
 /**
- * How many chapters a full-length episode comes to — 3 × 3 scenes × 500 words ≈ 28 min.
+ * How many chapters a full-length episode comes to — 2 × 3 scenes × 750 words ≈ 28 min.
  *
  * Copied rather than imported: Studio is a standalone SPA and takes no `@audio/*`
  * dependency, so it cannot reach `chaptersInAFullEpisode` in @audio/core. It is a HINT in
  * one sentence, not a rule anything enforces — drifting from the real number costs a
  * slightly wrong hint, not a wrong episode.
  */
-const CHAPTERS_IN_A_FULL_EPISODE = 3;
+const CHAPTERS_IN_A_FULL_EPISODE = 2;
 
 interface Streaming {
   sceneId: string;

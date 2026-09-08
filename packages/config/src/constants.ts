@@ -3,21 +3,9 @@
 /** Vietnamese reading speed, used to estimate audio duration from a word count. */
 export const WORDS_PER_MINUTE = 160;
 
-/**
- * Scene size.
- *
- * The CEILING is the model's: a 14B model loses the thread past ~1,500 continuous
- * tokens, which is where 900 came from. These are well under it, and deliberately —
- * the ceiling says what the model can survive, not what it writes best. A shorter
- * scene turns on one thing and ends on it; stretched toward the ceiling it starts
- * padding, and padding is what "a scene that merely reports events" sounds like.
- *
- * The cost is real and worth knowing: an episode of the same length is now nine model
- * calls instead of six, and every one of them carries the whole Story Bible and the
- * running summary again.
- */
-export const SCENE_MIN_WORDS = 400;
-export const SCENE_MAX_WORDS = 600;
+/** Scene size. A 14B model loses the thread after ~1,500 continuous tokens. */
+export const SCENE_MIN_WORDS = 600;
+export const SCENE_MAX_WORDS = 900;
 
 /**
  * What one scene is asked for.
@@ -42,26 +30,25 @@ export const SCENE_TARGET_WORDS = (SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2;
  * continuous words a 14B model loses the thread. So chapter length falls out of
  * these two numbers rather than being freely chosen.
  *
- * Three, not two: at two, a chapter was a movement with barely room to open and
- * close. Three beats give it a shape — set up, turn, land — at ~1,500 words, which is
- * a fast-paced print chapter.
+ * Three, not two: at two a chapter is ~1,500 words, the short end of even a
+ * fast-paced print chapter, and it left a movement with barely room to open and
+ * close. Three gives it ~2,250 while each scene stays the size the model writes well.
  */
 export const SCENES_PER_CHAPTER = 3;
 
 /**
  * How many chapters make a full-length episode.
  *
- * This number exists to hold episode length steady while the shape underneath it
- * moves. It has been 3 → 2 → 3 across two retunings, and landed back where it started
- * once scenes came down to ~500 words: 3 × 3 × 500 is the same ~4,500 words and ~28
- * minutes as the original 3 × 2 × 750.
+ * Two, so that raising the scenes per chapter did not also make every episode half
+ * as long again: 2 × 3 × 750 lands on the same ~4,500 words as the old 3 × 2 × 750.
+ * A number to hold length steady while the shape underneath it changed.
  */
-export const CHAPTERS_PER_EPISODE = 3;
+export const CHAPTERS_PER_EPISODE = 2;
 
 /**
  * What a full-length episode comes to ≈ 28 minutes.
  *
- * A GUIDE now, not a target: 3 chapters × 3 scenes × ~500 words. An episode is
+ * A GUIDE now, not a target: 2 chapters × 3 scenes × ~750 words. An episode is
  * outlined one chapter at a time, so nothing divides this up any more — it is what
  * Studio shows to say how far along an episode is against a normal one.
  */

@@ -39,7 +39,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
  */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
-  // `numCtx` has to hold the running summary AND a full-length scene. `maxTokens`
+  // `numCtx` has to hold the running summary AND a full 900-word scene. `maxTokens`
   // sits well above the word ceiling the prompt asks for, so a model writing right up
   // to it is not cut off mid-sentence — a truncated paragraph here is fed into the next
   // compression and the damage carries forward for the rest of the story.
@@ -52,18 +52,16 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // One chapter, so `maxTokens` is a fraction of NEXT_EPISODE's. `numCtx` is not: it
   // reads the same running summary and the chapters already written.
   NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 600 },
-  // `maxTokens` has to sit well above the target: a model that writes thoroughly must
-  // not be cut off mid-sentence, and a scene ending mid-sentence is worse than a short
-  // one. 1,800 tokens ≈ 1,000 words, comfortably clear of the 600-word ceiling the
-  // prompt asks for — it was 2,600 when a scene ran to 900.
+  // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
+  // words, only a third above the 750 target — a model writing thoroughly hits the
+  // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
   //
   // `repeatPenalty` lowered from 1.12 to 1.05: a heavy repetition penalty also
   // crushes DELIBERATE repetition, which is a real device — "A knock. Then another knock."
-  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 1800 },
+  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   // Lower than scene writing because the plot is already fixed, higher than audio
-  // editing because it is still prose: 0.4 gives a flat translation that reads like a
-  // news bulletin. `maxTokens` follows WRITE_SCENE — it rewrites one scene.
-  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 1800 },
+  // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
+  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
