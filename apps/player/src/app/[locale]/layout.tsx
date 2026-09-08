@@ -65,12 +65,17 @@ export default async function RootLayout({
 
   return (
     <html lang={l}>
-      <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
+      <body className="min-h-screen bg-page text-neutral-100 antialiased">
         <LocaleProvider locale={l}>
           <PlayerProvider>
-            <header className="border-b border-neutral-900">
-              <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-                <Link href={localeHref(l, "/")} className="font-semibold">
+            {/* Sticky: the catalogue is a long scroll, and getting home used to mean
+                scrolling all the way back up to reach the only link that does it. */}
+            <header className="sticky top-0 z-40 border-b border-line bg-page/90 backdrop-blur-md">
+              <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5">
+                <Link
+                  href={localeHref(l, "/")}
+                  className="font-semibold tracking-tight transition hover:text-accent"
+                >
                   Audio Truyện
                 </Link>
                 <div className="flex items-center gap-3">

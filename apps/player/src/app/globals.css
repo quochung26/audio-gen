@@ -1,1 +1,80 @@
 @import "tailwindcss";
+
+/**
+ * The player's surfaces and its one colour.
+ *
+ * THREE surfaces, not one. Every card used to be the page colour with a 1px outline, so a
+ * screen of stories read as a wireframe: nothing sat on top of anything, and the eye had
+ * no way to tell a story card from a section divider. Now the page recedes, cards lift off
+ * it, and the bar pinned over everything is lighter again.
+ *
+ * ONE accent, and it is warm. It is the only colour in an otherwise grey app, so it has to
+ * mean something rather than decorate: it marks what is playing and what is counting down.
+ * The sleep timer already used amber for exactly that, alone and unexplained.
+ *
+ * `--color-page` matches the `themeColor` in the layout's viewport export — they are the
+ * browser chrome and the page behind it, and a mismatch shows as a seam on a phone.
+ */
+@theme {
+  --color-page: #0a0a0a;
+  --color-surface: #141414;
+  --color-raised: #1e1e1e;
+  --color-line: #272727;
+  --color-accent: #f0b429;
+  --color-accent-dim: #7a5a12;
+}
+
+/**
+ * Room for the home indicator on a phone.
+ *
+ * The mini player is pinned to the bottom edge, which on an iPhone is where the system
+ * gesture bar sits: without this the play button is under it and the first tap does
+ * nothing but wake the bar.
+ */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/**
+ * Keep the seek bar draggable at a thumb-sized target while it LOOKS 3px tall.
+ *
+ * The bar is at the very top edge of the mini player. A 3px input is 3px of hit area, so
+ * seeking meant hitting a line the width of a hair; the padding gives it a real target
+ * without the bar growing to match.
+ */
+@layer components {
+  .seek {
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .seek::-webkit-slider-runnable-track {
+    height: 3px;
+  }
+  .seek::-moz-range-track {
+    height: 3px;
+  }
+  .seek::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4.5px;
+    border-radius: 9999px;
+    background: var(--color-accent);
+    /* Invisible until touched: a permanent dot on the bar reads as a notch in the audio. */
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .seek:hover::-webkit-slider-thumb,
+  .seek:active::-webkit-slider-thumb,
+  .seek:focus-visible::-webkit-slider-thumb {
+    opacity: 1;
+  }
+  .seek::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--color-accent);
+  }
+}

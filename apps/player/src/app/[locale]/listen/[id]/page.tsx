@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { prisma, PUBLISHED } from "@/lib/db";
 import { formatDuration } from "@audio/core";
 import { playableUrl } from "@/lib/audio-url";
+import { Cover } from "@/components/Cover";
 import { PlayButton } from "@/components/player/PlayButton";
 import { OfflineButton } from "@/components/player/OfflineButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
@@ -100,22 +101,33 @@ export default async function ListenPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href={localeHref(l, `/story/${episode.series.slug}`)} className="text-xs text-neutral-500 underline">
+        <Link
+          href={localeHref(l, `/story/${episode.series.slug}`)}
+          className="text-xs text-neutral-500 transition hover:text-neutral-300"
+        >
           ← {episode.series.title}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">
-          {t.episodeTitle(episode.number, episode.title)}
-        </h1>
-        <p className="mt-1 text-xs text-neutral-500">
-          {episode.durationMs ? formatDuration(episode.durationMs) : ""}
-        </p>
+
+        {/* The cover was on every other screen but not on the one you actually sit with.
+            Side by side on a phone, so the play button stays above the fold. */}
+        <div className="mt-3 flex items-center gap-4">
+          <Cover src={episode.series.coverUrl} size={116} rounded="lg" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-semibold tracking-tight text-balance sm:text-xl">
+              {t.episodeTitle(episode.number, episode.title)}
+            </h1>
+            <p className="mt-1.5 text-xs tabular-nums text-neutral-500">
+              {episode.durationMs ? formatDuration(episode.durationMs) : ""}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <PlayButton track={track} autoplay={autoplay === "1"} />
+              <OfflineButton src={track.src} sizeBytes={episode.exports[0].sizeBytes} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <PlayButton track={track} autoplay={autoplay === "1"} />
-
-      <OfflineButton src={track.src} sizeBytes={episode.exports[0].sizeBytes} />
-
-      <div className="flex flex-wrap items-center gap-4 border-y border-neutral-900 py-3">
+      <div className="flex flex-wrap items-center gap-4 border-y border-line py-3">
         <FavoriteButton
           action={toggleFavorite.bind(null, episode.id)}
           initial={Boolean(favorite)}
@@ -151,13 +163,14 @@ export default async function ListenPage({
       />
 
       {episode.blocks.length > 0 && (
-        <details className="rounded border border-neutral-900">
-          <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-400">
+        <details className="overflow-hidden rounded-xl bg-surface">
+          <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-400 transition hover:text-neutral-200">
             {t.readTranscript}
           </summary>
-          <div className="space-y-3 border-t border-neutral-900 px-4 py-4">
+          <div className="space-y-3 border-t border-line px-4 py-4">
             {episode.blocks.map((b, i) => (
-              <p key={i} className="text-sm leading-relaxed text-neutral-300">
+              // `leading-7` and a reading measure: a transcript is read, not scanned.
+              <p key={i} className="max-w-prose text-sm leading-7 text-neutral-300">
                 {b.speakerLabel !== "narrator" && (
                   <span className="mr-1 text-neutral-500">{b.speakerLabel}:</span>
                 )}

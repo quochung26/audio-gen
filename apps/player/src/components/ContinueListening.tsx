@@ -41,7 +41,7 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-medium text-neutral-300">{t.continueListening}</h2>
+      <h2 className="mb-3 text-base font-semibold tracking-tight">{t.continueListening}</h2>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
         {items.map((e) => {
           const pct = e.durationMs ? Math.min(100, (e.positionMs / e.durationMs) * 100) : 0;
@@ -49,13 +49,15 @@ export function ContinueListening({ episodes }: { episodes: ResumableEpisode[] }
             <Link
               key={e.id}
               href={href(`/listen/${e.id}`)}
-              className="w-44 shrink-0 rounded border border-neutral-900 p-2 active:bg-neutral-900"
+              className="w-44 shrink-0 rounded-xl bg-surface p-2 transition hover:bg-raised active:bg-raised"
             >
               <Cover src={e.coverUrl} size={160} />
-              <div className="mt-2 truncate text-sm">{e.title}</div>
+              <div className="mt-2 truncate text-sm font-medium">{e.title}</div>
               <div className="truncate text-xs text-neutral-500">{e.seriesTitle}</div>
-              <div className="mt-2 h-1 overflow-hidden rounded bg-neutral-800">
-                <div className="h-full bg-neutral-400" style={{ width: `${pct}%` }} />
+              {/* Accent, because this bar means "you are partway through THIS one" — the
+                  only thing on the page that is about the listener rather than the story. */}
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-raised">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
               </div>
               <div className="mt-1 text-xs text-neutral-600">{left(e.durationMs, e.positionMs)}</div>
             </Link>

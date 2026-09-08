@@ -71,8 +71,10 @@ function Chip({ href, label, active }: { href: string; label: string; active: bo
   return (
     <Link
       href={href}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs whitespace-nowrap ${
-        active ? "bg-neutral-100 text-neutral-900" : "bg-neutral-900 text-neutral-400"
+      className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs whitespace-nowrap transition ${
+        active
+          ? "bg-neutral-100 font-medium text-neutral-950"
+          : "bg-surface text-neutral-400 hover:bg-raised hover:text-neutral-200"
       }`}
     >
       {label}

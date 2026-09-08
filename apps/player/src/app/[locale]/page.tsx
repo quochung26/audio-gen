@@ -74,7 +74,7 @@ export default async function HomePage({
 
   if (allSeries.length === 0) {
     return (
-      <div className="rounded border border-dashed border-neutral-800 p-8 text-center">
+      <div className="rounded-xl border border-dashed border-line p-8 text-center">
         <p className="text-sm text-neutral-400">{t.nothingPublished}</p>
         <p className="mt-2 text-xs text-neutral-600">
           {t.nothingPublishedHint}
@@ -122,22 +122,22 @@ export default async function HomePage({
 
       {latest.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-neutral-300">{t.latestEpisodes}</h2>
-          <div className="divide-y divide-neutral-900 rounded border border-neutral-900">
+          <h2 className="mb-3 text-base font-semibold tracking-tight">{t.latestEpisodes}</h2>
+          <div className="divide-y divide-line overflow-hidden rounded-xl bg-surface">
             {latest.map((ep) => (
               <Link
                 key={ep.id}
                 href={localeHref(locale, `/listen/${ep.id}`)}
-                className="flex items-center gap-3 px-4 py-3 active:bg-neutral-900"
+                className="flex items-center gap-3 px-3 py-2.5 transition hover:bg-raised active:bg-raised"
               >
-                <Cover src={ep.series.coverUrl} size={44} />
+                <Cover src={ep.series.coverUrl} size={48} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm">{ep.title}</div>
+                  <div className="truncate text-sm font-medium">{ep.title}</div>
                   <div className="truncate text-xs text-neutral-500">
                     {ep.series.title} · {ep.series.genre}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-neutral-600">
+                <span className="shrink-0 text-xs tabular-nums text-neutral-600">
                   {ep.durationMs ? formatDuration(ep.durationMs) : ""}
                 </span>
               </Link>
@@ -167,7 +167,7 @@ export default async function HomePage({
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-neutral-300">
+        <h2 className="mb-3 text-base font-semibold tracking-tight">
           {genre ? t.allGenreStories(genre) : t.allStories}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -185,14 +185,22 @@ function Banner({ s, locale, t }: { s: SeriesCardData; locale: Locale; t: Return
   return (
     <Link
       href={localeHref(locale, `/story/${s.slug}`)}
-      className="flex gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 active:bg-neutral-900"
+      className="flex gap-4 rounded-2xl bg-gradient-to-br from-raised to-surface p-4 ring-1 ring-line ring-inset transition hover:to-raised active:to-raised sm:gap-5 sm:p-5"
     >
-      <Cover src={s.coverUrl} size={112} />
-      <div className="min-w-0 flex-1">
-        <div className="text-xs text-neutral-500">{t.recentlyUpdated}</div>
-        <h1 className="mt-0.5 truncate text-lg font-semibold">{s.title}</h1>
-        <p className="mt-1 line-clamp-3 text-sm text-neutral-400">{s.description}</p>
-        <div className="mt-2 text-xs text-neutral-600">
+      {/* Bigger than anything else on the page. Cover art is what a listener browses by,
+          and at 112px it was the same weight as a list row. */}
+      <Cover src={s.coverUrl} size={128} rounded="lg" />
+      <div className="min-w-0 flex-1 self-center">
+        <div className="text-xs font-medium tracking-wide text-accent uppercase">
+          {t.recentlyUpdated}
+        </div>
+        <h1 className="mt-1 truncate text-xl font-semibold tracking-tight sm:text-2xl">
+          {s.title}
+        </h1>
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-neutral-400 sm:line-clamp-3">
+          {s.description}
+        </p>
+        <div className="mt-2.5 text-xs text-neutral-500">
           {t.episodeCount(s.episodeCount)} · {s.genre}
           {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
         </div>

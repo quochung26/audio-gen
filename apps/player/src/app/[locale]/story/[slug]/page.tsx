@@ -51,10 +51,12 @@ export default async function SeriesPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start gap-4">
-        <Cover src={series.coverUrl} size={128} />
+        <Cover src={series.coverUrl} size={140} rounded="lg" />
         <div className="min-w-60 flex-1">
-        <h1 className="text-xl font-semibold">{series.title}</h1>
-        <p className="mt-1 text-xs text-neutral-500">
+        <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
+          {series.title}
+        </h1>
+        <p className="mt-1.5 text-xs text-neutral-500">
           {series.genre} · {t.episodeCount(series.episodes.length)} · {formatDuration(total)}
         </p>
         {series.description && (
@@ -65,26 +67,26 @@ export default async function SeriesPage({
         )}
         <a
           href={`/story/${series.slug}/rss.xml`}
-          className="mt-3 inline-block text-xs text-neutral-500 underline"
+          className="mt-3 inline-block text-xs text-neutral-500 underline transition hover:text-accent"
         >
           {t.listenInPodcastApp}
         </a>
         </div>
       </div>
 
-      <div className="divide-y divide-neutral-900 rounded border border-neutral-900">
+      <div className="divide-y divide-line overflow-hidden rounded-xl bg-surface">
         {series.episodes.map((ep) => (
           <Link
             key={ep.id}
             href={localeHref(locale as Locale, `/listen/${ep.id}`)}
-            className="flex items-center justify-between gap-3 px-4 py-3 active:bg-neutral-900"
+            className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-raised active:bg-raised"
           >
             <div className="min-w-0">
               <div className="truncate text-sm">
                 <span className="text-neutral-600">{ep.number}.</span> {ep.title}
               </div>
             </div>
-            <span className="shrink-0 text-xs text-neutral-600">
+            <span className="shrink-0 text-xs tabular-nums text-neutral-600">
               {ep.durationMs ? formatDuration(ep.durationMs) : ""}
             </span>
           </Link>

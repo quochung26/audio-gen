@@ -19,12 +19,14 @@ export function SeriesCard({ s, locale }: { s: SeriesCardData; locale: Locale })
   return (
     <Link
       href={localeHref(locale, `/story/${s.slug}`)}
-      className="flex gap-3 rounded border border-neutral-900 p-3 active:bg-neutral-900"
+      className="flex gap-3 rounded-xl bg-surface p-3 transition hover:bg-raised active:bg-raised"
     >
-      <Cover src={s.coverUrl} size={64} />
+      <Cover src={s.coverUrl} size={72} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm">{s.title}</div>
-        <div className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.description}</div>
+        <div className="truncate text-sm font-medium">{s.title}</div>
+        <div className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-400">
+          {s.description}
+        </div>
         <div className="mt-1.5 text-xs text-neutral-600">
           {t.episodeCount(s.episodeCount)} · {s.genre}
           {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
@@ -52,7 +54,7 @@ export function Row({
   return (
     <section>
       <div className="mb-3 flex items-baseline gap-2">
-        <h2 className="text-sm font-medium text-neutral-300">{title}</h2>
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         {hint && <span className="text-xs text-neutral-600">{hint}</span>}
       </div>
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
