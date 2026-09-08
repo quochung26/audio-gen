@@ -54,6 +54,7 @@ describe("checkPromptVariables", () => {
 describe("the default prompts in the repo", () => {
   const FILES: Array<[Parameters<typeof checkPromptVariables>[0], string]> = [
     ["OUTLINE", "outline.md"],
+    ["CHARACTER", "character.md"],
     ["NEXT_EPISODE", "next-episode.md"],
     ["WRITE_SCENE", "write-scene.md"],
     ["TRANSLATE", "translate.md"],
@@ -70,7 +71,7 @@ describe("the default prompts in the repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("declares all 8 steps", () => {
+  it("declares all 9 steps", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

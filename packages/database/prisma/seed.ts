@@ -15,6 +15,7 @@ const PROMPTS_DIR = join(import.meta.dirname, "../../../prompts");
  */
 const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = [
   { step: "OUTLINE", file: "outline.md" },
+  { step: "CHARACTER", file: "character.md" },
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
   { step: "TRANSLATE", file: "translate.md" },
@@ -27,6 +28,9 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
 /** Generation parameters per step — creative prose needs a higher temperature than utility work. */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
+  // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
+  // goes in, and a character invented without reading it duplicates someone.
+  CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },
   // A wider context than OUTLINE because it has to load the earlier episodes' summaries.
   NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000

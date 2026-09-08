@@ -33,6 +33,10 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // AI invents them, present means the AI follows them. See renderWorldForOutline /
   // renderCastForOutline.
   OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
+  // Two blocks, both built by the job: `context` is the story (its Bible when it
+  // exists, the half-filled form when it does not), `brief` is what the writer had
+  // already typed about this one person. See renderKnownCast / renderCharacterBrief.
+  CHARACTER: ["context", "brief"],
   // Continuing needs no original idea — it needs to know what has happened.
   NEXT_EPISODE: ["bible", "context", "episodeNumber", "chapterCount", "scenesPerChapter", "sceneWords"],
   // The whole context folded into ONE variable: Story Bible, arc summary, retrieved

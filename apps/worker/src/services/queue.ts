@@ -19,6 +19,7 @@ export function getQueue(lane: Lane): Queue {
 const LANE_OF: Record<JobType, Lane> = {
   BATCH: "LLM",
   OUTLINE: "LLM",
+  CHARACTER: "LLM",
   NEXT_EPISODE: "LLM",
   WRITE_SCENE: "LLM",
   TRANSLATE: "LLM",

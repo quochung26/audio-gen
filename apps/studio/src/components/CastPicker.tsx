@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useApi } from "@/lib/api";
+import { ErrorNote } from "@/components/Form";
 import { Badge } from "@/components/ui";
+import { useAutoCharacter, type AutoCharacter } from "@/lib/auto-character";
 
 interface Card {
   id: string;
@@ -52,6 +54,31 @@ const input =
   "w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm placeholder:text-neutral-700";
 
 /**
+ * The `cast` field, as the API reads it.
+ *
+ * Unnamed rows are dropped rather than sent: a row exists the moment you press add,
+ * and a half-typed form should not create a character with no name.
+ */
+function castJson(rows: readonly Row[]): string {
+  return JSON.stringify(
+    rows.filter((r) => r.name.trim()).map(({ key: _key, ...r }) => r),
+  );
+}
+
+/** A generated character as a row. Blanks stay blank rather than becoming "null". */
+function fromAuto(c: AutoCharacter): Partial<Row> {
+  return {
+    name: c.name,
+    role: c.role ?? "",
+    description: c.description ?? "",
+    speech: c.speech ?? "",
+    outfit: c.outfit ?? "",
+    appearance: c.appearance ?? "",
+    voiceHint: c.voiceHint ?? "",
+  };
+}
+
+/**
  * Pick the cast before building the outline.
  *
  * Three jobs in one place, because they are the same decision: take an existing
@@ -68,8 +95,45 @@ export function CastPicker() {
   const { data } = useApi<{ cards: Card[] }>("/api/character-cards");
   const cards = data?.cards ?? [];
   const [rows, setRows] = useState<Row[]>([]);
+  const auto = useAutoCharacter();
+  const root = useRef<HTMLDivElement>(null);
 
   const usedCardIds = new Set(rows.map((r) => r.cardId).filter(Boolean));
+
+  /**
+   * The New story form as it stands, so the model reads the idea, genre and world
+   * setup being typed rather than inventing someone for a story it cannot see.
+   *
+   * `except` drops one row from the cast that goes down: auto-filling a row must not
+   * also tell the model that row's name is taken, or it renames the person the writer
+   * just named.
+   */
+  function formData(except?: string): FormData | null {
+    const form = root.current?.closest("form");
+    if (!form) return null;
+    const fd = new FormData(form);
+    if (except !== undefined) fd.set("cast", castJson(rows.filter((r) => r.key !== except)));
+    return fd;
+  }
+
+  /** Invent a whole new person and add them to the list. */
+  async function addAuto() {
+    const fd = formData();
+    if (!fd) return;
+    const c = await auto.run(fd);
+    if (c) setRows((rs) => [...rs, blank(fromAuto(c))]);
+  }
+
+  /** Finish a row the writer started. What they typed goes down and comes back untouched. */
+  async function fillRow(r: Row) {
+    const fd = formData(r.key);
+    if (!fd) return;
+    for (const k of ["name", "role", "description", "speech", "outfit", "appearance", "voiceHint"] as const) {
+      fd.set(k, r[k]);
+    }
+    const c = await auto.run(fd);
+    if (c) edit(r.key, fromAuto(c));
+  }
 
   function edit(key: string, patch: Partial<Row>) {
     setRows((rs) =>
@@ -100,16 +164,8 @@ export function CastPicker() {
   }
 
   return (
-    <div className="space-y-4">
-      <input
-        type="hidden"
-        name="cast"
-        value={JSON.stringify(
-          rows
-            .filter((r) => r.name.trim())
-            .map(({ key: _key, ...r }) => r),
-        )}
-      />
+    <div ref={root} className="space-y-4">
+      <input type="hidden" name="cast" value={castJson(rows)} />
 
       {cards.length > 0 && (
         <div>
@@ -156,6 +212,15 @@ export function CastPicker() {
                 ) : (
                   <Badge tone="blue">this story only</Badge>
                 )}
+                {/* Fills only what is still blank — see fillBlanks in @audio/core. */}
+                <button
+                  type="button"
+                  disabled={auto.pending}
+                  onClick={() => void fillRow(r)}
+                  className="shrink-0 text-xs text-neutral-500 underline hover:text-neutral-300 disabled:opacity-40"
+                >
+                  {auto.pending ? "…" : "auto-fill"}
+                </button>
                 <button
                   type="button"
                   onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
@@ -239,6 +304,16 @@ export function CastPicker() {
         >
           + Character for this story only
         </button>
+        {/* The outline no longer invents anybody once a cast is picked, so asking for
+            one has to be a button. It reads the idea and world setup above. */}
+        <button
+          type="button"
+          disabled={auto.pending}
+          onClick={() => void addAuto()}
+          className="rounded border border-dashed border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 disabled:opacity-40"
+        >
+          {auto.pending ? "Writing…" : "✦ Let the AI write one"}
+        </button>
         {rows.length === 0 && (
           <span className="text-xs text-neutral-600">
             Leave empty and the AI invents the cast.
@@ -246,11 +321,14 @@ export function CastPicker() {
         )}
       </div>
 
+      <ErrorNote error={auto.error} />
+
       {rows.length > 0 && (
         <p className="text-xs text-neutral-600">
           Editing here does <strong className="text-neutral-400">not</strong> touch the cards in
-          the library. The AI must use these exact people, and may add more if the story needs
-          them.
+          the library. The AI uses these exact people and{" "}
+          <strong className="text-neutral-400">adds nobody</strong> — press “Let the AI write one”
+          for anyone else you want.
         </p>
       )}
     </div>

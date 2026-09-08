@@ -164,3 +164,88 @@ export function namesMentionedIn(text: string, names: readonly string[]): string
       return needle.length > 0 && haystack.includes(needle);
     });
 }
+
+/**
+ * Render the cast for a prompt that is inventing ONE MORE character.
+ *
+ * The opposite errand to `renderCastForOutline`: not "use these people" but "these
+ * people already exist, do not write another one of them". Names are listed even
+ * when nothing else is known about someone — `(seriesId, name)` is unique, so a
+ * duplicate name is a save that fails, not a quality problem to notice later.
+ */
+export function renderKnownCast(cast: readonly CastMember[]): string {
+  const people = normalizeCast(cast);
+  if (people.length === 0) return "";
+
+  const parts: string[] = [
+    "## Already in the story",
+    "These people exist. Do not return one of them again, do not reuse their names, and do not write a near-copy of one.",
+    "",
+  ];
+
+  for (const c of people) {
+    parts.push(`- ${c.name}${c.role ? ` — ${c.role}` : ""}`);
+    if (c.description) parts.push(`  ${c.description}`);
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * Render what the writer had already typed about the character being invented.
+ *
+ * Empty returns an empty string — the model then invents the whole person, which
+ * is what pressing the button on an untouched form means.
+ */
+export function renderCharacterBrief(typed: Partial<CastMember>): string {
+  const lines: Array<[string, string | null | undefined]> = [
+    ["Name", typed.name],
+    ["Role in the story", typed.role],
+    ["Personality", typed.description],
+    ["How they speak", typed.speech],
+    ["Usually wears", typed.outfit],
+    ["Appearance", typed.appearance],
+    ["Voice", typed.voiceHint],
+  ];
+  const given = lines.filter(([, v]) => (v ?? "").trim());
+  if (given.length === 0) return "";
+
+  return [
+    "## The writer has already decided part of this character",
+    "Keep every line below EXACTLY as it is and write only what is missing. Do not improve on them.",
+    "",
+    ...given.map(([label, v]) => `- ${label}: ${(v ?? "").trim()}`),
+  ].join("\n");
+}
+
+/**
+ * Fold a generated character into what the writer already typed.
+ *
+ * The writer wins field by field, the same rule as `mergeCast`: auto-fill is for
+ * finishing a half-typed character, not for overwriting the half that is done. The
+ * model is TOLD to keep what was given and returns something else often enough that
+ * telling it is not sufficient.
+ *
+ * The name is worth stating separately: given one, the model's is dropped even when
+ * it returned a better one, because a writer typing a name has that person in mind
+ * already.
+ */
+export function fillBlanks(typed: Partial<CastMember>, draft: CastMember): CastMember {
+  const keep = (a: string | null | undefined, b: string | null | undefined) =>
+    (a ?? "").trim() || (b ?? "").trim() || null;
+
+  return {
+    name: (typed.name ?? "").trim() || draft.name.trim(),
+    // Provenance only — auto-fill never invents a link to a card.
+    cardId: typed.cardId ?? null,
+    role: keep(typed.role, draft.role),
+    description: keep(typed.description, draft.description),
+    speech: keep(typed.speech, draft.speech),
+    outfit: keep(typed.outfit, draft.outfit),
+    appearance: keep(typed.appearance, draft.appearance),
+    voiceHint: keep(typed.voiceHint, draft.voiceHint),
+    // Who reads the narration is a casting decision for the audio step, never the
+    // model's. Same rule as mergeCast.
+    isNarrator: Boolean(typed.isNarrator),
+  };
+}

@@ -56,6 +56,10 @@ enum JobLane {
 }
 
 enum JobType {
+  /// Invent one character. Runs in the LLM lane like any other model call — going
+  /// straight to the model from the API would bypass the VRAM guard and collide
+  /// with a scene write already loaded on the card.
+  CHARACTER
   /// Advances a batch run to its next step. Attached to no episode and using no
   /// VRAM — it only reads state and queues the real job. Thanks to it, Studio only
   /// has to enqueue rather than carry the orchestration logic.
@@ -131,6 +135,10 @@ model Genre {
 
 enum PromptStep {
   OUTLINE
+  /// Invent ONE character on demand, for a story that already exists or one being
+  /// typed. Separate from OUTLINE because the outline no longer invents anybody:
+  /// a chosen cast is closed, and this is the button that adds to it.
+  CHARACTER
   /// Outline ONE more episode, based on the ones that exist.
   NEXT_EPISODE
   WRITE_SCENE

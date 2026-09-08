@@ -3,6 +3,7 @@ import { createLane } from "./create-lane";
 import { mockJob } from "../jobs/mock.job";
 import { nextEpisodeJob } from "../jobs/next-episode.job";
 import { outlineJob } from "../jobs/outline.job";
+import { characterJob } from "../jobs/character.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
 import { translateJob } from "../jobs/translate.job";
 import { audioEditJob } from "../jobs/audio-edit.job";
@@ -24,6 +25,7 @@ export function startLanes() {
   return [
     createLane("LLM", {
       [JobType.OUTLINE]: outlineJob,
+      [JobType.CHARACTER]: characterJob,
       [JobType.NEXT_EPISODE]: nextEpisodeJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
       [JobType.TRANSLATE]: translateJob,

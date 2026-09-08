@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { mergeCast, namesMentionedIn, normalizeCast, renderCastForOutline } from "./cast";
+import {
+  fillBlanks,
+  mergeCast,
+  namesMentionedIn,
+  normalizeCast,
+  renderCastForOutline,
+  renderCharacterBrief,
+  renderKnownCast,
+} from "./cast";
 
 const tai = { name: "Tài", role: "tài xế xe khách", isNarrator: true };
 
@@ -186,5 +194,83 @@ describe("namesMentionedIn — guessing who is present in a beat", () => {
 
   it("an empty character list does not throw", () => {
     expect(namesMentionedIn("Tài dừng xe.", [])).toEqual([]);
+  });
+});
+
+describe("renderKnownCast — inventing ONE MORE character", () => {
+  it("nobody yet returns empty", () => {
+    expect(renderKnownCast([])).toBe("");
+    expect(renderKnownCast([{ name: " " }])).toBe("");
+  });
+
+  it("says the opposite of renderCastForOutline: do not return these people", () => {
+    // renderCastForOutline says "use exactly these". Here they are the ones to
+    // avoid — same list, opposite instruction, and mixing them up would have the
+    // button hand back someone already on screen.
+    const out = renderKnownCast([tai]);
+    expect(out).toContain("Tài");
+    expect(out).toMatch(/Do not return one of them again/i);
+    expect(out).not.toMatch(/MUST use these/i);
+  });
+
+  it("lists a name even when nothing else is known about them", () => {
+    // `(seriesId, name)` is unique, so a reused name is a save that fails.
+    expect(renderKnownCast([{ name: "Hạnh" }])).toContain("Hạnh");
+  });
+});
+
+describe("renderCharacterBrief", () => {
+  it("an untouched form returns empty — the model invents the whole person", () => {
+    expect(renderCharacterBrief({})).toBe("");
+    expect(renderCharacterBrief({ name: "  ", role: "" })).toBe("");
+  });
+
+  it("lists only what was actually typed", () => {
+    const out = renderCharacterBrief({ name: "Tài", role: "tài xế", speech: "" });
+    expect(out).toContain("Name: Tài");
+    expect(out).toContain("Role in the story: tài xế");
+    expect(out).not.toContain("How they speak");
+  });
+
+  it("tells the model not to improve on what is given", () => {
+    expect(renderCharacterBrief({ name: "Tài" })).toMatch(/only what is missing/i);
+  });
+});
+
+describe("fillBlanks", () => {
+  const draft = {
+    name: "Hạnh",
+    role: "cô lái đò",
+    description: "ít nói",
+    speech: "nói nhỏ",
+    outfit: "áo bà ba",
+    appearance: "gầy",
+    voiceHint: "nữ trẻ",
+  };
+
+  it("fills every blank from the draft", () => {
+    expect(fillBlanks({}, draft)).toMatchObject({ name: "Hạnh", role: "cô lái đò" });
+  });
+
+  it("what the writer typed WINS, field by field", () => {
+    const out = fillBlanks({ name: "Tài", role: "tài xế" }, draft);
+    expect(out.name).toBe("Tài");
+    expect(out.role).toBe("tài xế");
+    // Only the blanks came from the model.
+    expect(out.speech).toBe("nói nhỏ");
+  });
+
+  it("whitespace is not a value", () => {
+    expect(fillBlanks({ name: "  ", role: "   " }, draft).role).toBe("cô lái đò");
+  });
+
+  it("never lets the model cast the narrator", () => {
+    // Who reads the narration is the audio step's slot, same rule as mergeCast.
+    expect(fillBlanks({ name: "Tài" }, draft).isNarrator).toBe(false);
+    expect(fillBlanks({ name: "Tài", isNarrator: true }, draft).isNarrator).toBe(true);
+  });
+
+  it("blank on both sides is null, not an empty string", () => {
+    expect(fillBlanks({}, { ...draft, outfit: "" }).outfit).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
+import { useRef } from "react";
 import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
-import { ActionButton, Form, Loading } from "@/components/Form";
+import { ActionButton, ErrorNote, Form, Loading } from "@/components/Form";
+import { useAutoCharacter } from "@/lib/auto-character";
 
 interface Voice {
   id: string;
@@ -209,7 +211,7 @@ export function Characters() {
         <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
           + Add a character
         </summary>
-        <div className="border-t border-neutral-800 p-4">
+        <div className="space-y-3 border-t border-neutral-800 p-4">
           <Form
             path={`/api/series/${id}/characters`}
             submit="Add"
@@ -217,9 +219,52 @@ export function Characters() {
             resetOnSuccess
           >
             <CharacterFields />
+            <AutoCharacter seriesId={id!} />
           </Form>
         </div>
       </details>
+    </div>
+  );
+}
+
+/**
+ * Ask the model for a character instead of typing one.
+ *
+ * Sits INSIDE the add form on purpose: whatever is already typed goes down with the
+ * request and comes back untouched, so half a character can be finished rather than
+ * only invented from nothing. See fillBlanks in @audio/core.
+ *
+ * The story exists, so the job writes the row itself and the list refreshes — there
+ * is nothing to submit afterwards, and the form is cleared to say so.
+ */
+function AutoCharacter({ seriesId }: { seriesId: string }) {
+  const auto = useAutoCharacter();
+  const anchor = useRef<HTMLDivElement>(null);
+
+  async function run() {
+    const form = anchor.current?.closest("form");
+    if (!form) return;
+    const fd = new FormData(form);
+    fd.set("seriesId", seriesId);
+    const made = await auto.run(fd);
+    if (made) form.reset();
+  }
+
+  return (
+    <div ref={anchor} className="border-t border-neutral-900 pt-3">
+      <button
+        type="button"
+        disabled={auto.pending}
+        onClick={() => void run()}
+        className="rounded border border-dashed border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 disabled:opacity-40"
+      >
+        {auto.pending ? "Writing…" : "✦ Let the AI write one"}
+      </button>
+      <p className="mt-2 text-xs text-neutral-600">
+        Reads the Story Bible and adds someone the story has room for, saved straight into the
+        list. Anything typed above is kept — the AI only fills in what is blank.
+      </p>
+      <ErrorNote error={auto.error} />
     </div>
   );
 }
