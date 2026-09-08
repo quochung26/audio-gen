@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
 import { ActionButton, ErrorNote, Form, Loading } from "@/components/Form";
+import { CharacterFields, Textarea } from "@/components/CharacterFields";
 import { useAutoCharacter } from "@/lib/auto-character";
 
 interface Voice {
@@ -127,7 +128,7 @@ export function Characters() {
                 submit="Save"
                 className="space-y-3"
               >
-                <CharacterFields c={c} />
+                <CharacterForm c={c} />
               </Form>
 
               <Form
@@ -218,7 +219,7 @@ export function Characters() {
             className="space-y-3"
             resetOnSuccess
           >
-            <CharacterFields />
+            <CharacterForm />
             <AutoCharacter seriesId={id!} />
           </Form>
         </div>
@@ -269,53 +270,24 @@ function AutoCharacter({ seriesId }: { seriesId: string }) {
   );
 }
 
-function CharacterFields({ c }: { c?: Character }) {
+/**
+ * A character as this page edits one: the shared fields, plus the two things that
+ * only exist once the story does — where they stand right now, and whether they
+ * read the narration.
+ */
+function CharacterForm({ c }: { c?: Character }) {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input name="name" label="Name" defaultValue={c?.name ?? ""} placeholder="Sam" />
-        <Input
-          name="role"
-          label="Role in the story"
-          defaultValue={c?.role ?? ""}
-          placeholder="coach driver, 45"
-        />
-      </div>
-
-      <Textarea
-        name="description"
-        label="Personality"
-        hint="Who this person is — what drives their ACTIONS and choices."
-        defaultValue={c?.description ?? ""}
-        placeholder="Stubborn, never complains. Believes in omens but will not say so. Most afraid of owing anyone."
-        rows={3}
-      />
-
-      <Textarea
-        name="speech"
-        label="How they speak"
-        hint="Rhythm, verbal habits, what they call people, what happens under stress. This keeps their DIALOGUE the same across dozens of episodes."
-        defaultValue={c?.speech ?? ""}
-        placeholder="Says little, trails off mid-sentence. Calls passengers 'sir' and 'ma'am'. When frightened, speaks fast and repeats himself."
-        rows={2}
-      />
-
-      <Textarea
-        name="outfit"
-        label="Usually wears"
-        hint="A DEFAULT — chapter and scene setup can both override it, so put down the outfit you see most often."
-        defaultValue={c?.outfit ?? ""}
-        placeholder="Faded shirt with the sleeves rolled, dark trousers, plastic sandals."
-        rows={2}
-      />
-
-      <Textarea
-        name="appearance"
-        label="Appearance"
-        hint="What never changes across the story: build, apparent age, face, scars. Clothing does not go here — it belongs in the chapter setup, because it differs per chapter."
-        defaultValue={c?.appearance ?? ""}
-        placeholder="Thin, weathered, salt-and-pepper hair cut short. A long scar on the left wrist."
-        rows={2}
+      <CharacterFields
+        defaults={{
+          name: c?.name ?? "",
+          role: c?.role ?? "",
+          description: c?.description ?? "",
+          speech: c?.speech ?? "",
+          outfit: c?.outfit ?? "",
+          appearance: c?.appearance ?? "",
+          voiceHint: c?.voiceHint ?? "",
+        }}
       />
 
       <Textarea
@@ -330,13 +302,6 @@ function CharacterFields({ c }: { c?: Character }) {
         rows={3}
       />
 
-      <Input
-        name="voiceHint"
-        label="Voice hint"
-        defaultValue={c?.voiceHint ?? ""}
-        placeholder="middle-aged man, hoarse"
-      />
-
       <label className="flex items-center gap-2 text-sm text-neutral-300">
         <input
           type="checkbox"
@@ -348,41 +313,5 @@ function CharacterFields({ c }: { c?: Character }) {
         <span className="text-xs text-neutral-600">(one per story)</span>
       </label>
     </>
-  );
-}
-
-function Input({
-  name,
-  label,
-  ...rest
-}: { name: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs text-neutral-400">{label}</label>
-      <input
-        name={name}
-        {...rest}
-        className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm outline-none placeholder:text-neutral-700 focus:border-neutral-500"
-      />
-    </div>
-  );
-}
-
-function Textarea({
-  name,
-  label,
-  hint,
-  ...rest
-}: { name: string; label: string; hint?: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <div>
-      <label className="block text-xs text-neutral-400">{label}</label>
-      {hint && <p className="mt-0.5 mb-1 text-xs text-neutral-600">{hint}</p>}
-      <textarea
-        name={name}
-        {...rest}
-        className="w-full rounded border border-neutral-700 bg-neutral-900 p-2.5 text-sm leading-relaxed outline-none placeholder:text-neutral-700 focus:border-neutral-500"
-      />
-    </div>
   );
 }

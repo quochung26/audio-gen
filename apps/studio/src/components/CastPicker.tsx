@@ -1,6 +1,11 @@
 import { useRef, useState } from "react";
 import { useApi } from "@/lib/api";
 import { ErrorNote } from "@/components/Form";
+import {
+  CharacterFields,
+  EMPTY_CHARACTER,
+  type CharacterValues,
+} from "@/components/CharacterFields";
 import { Badge } from "@/components/ui";
 import { useAutoCharacter, type AutoCharacter } from "@/lib/auto-character";
 
@@ -23,35 +28,19 @@ interface Card {
  * `key` is a throwaway React key, never sent — two unnamed characters still have
  * to be told apart while you type.
  */
-interface Row {
+interface Row extends CharacterValues {
   key: string;
   cardId: string | null;
-  name: string;
-  role: string;
-  description: string;
-  speech: string;
-  outfit: string;
-  appearance: string;
-  voiceHint: string;
   isNarrator: boolean;
 }
 
 const blank = (over: Partial<Row> = {}): Row => ({
+  ...EMPTY_CHARACTER,
   key: crypto.randomUUID(),
   cardId: null,
-  name: "",
-  role: "",
-  description: "",
-  speech: "",
-  outfit: "",
-  appearance: "",
-  voiceHint: "",
   isNarrator: false,
   ...over,
 });
-
-const input =
-  "w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm placeholder:text-neutral-700";
 
 /**
  * The `cast` field, as the API reads it.
@@ -199,19 +188,10 @@ export function CastPicker() {
       {rows.length > 0 && (
         <div className="space-y-3">
           {rows.map((r) => (
-            <div key={r.key} className="space-y-2 rounded border border-neutral-800 p-3">
+            <div key={r.key} className="space-y-3 rounded border border-neutral-800 p-3">
               <div className="flex items-center gap-2">
-                <input
-                  value={r.name}
-                  onChange={(e) => edit(r.key, { name: e.target.value })}
-                  placeholder="Name"
-                  className={input}
-                />
-                {r.cardId ? (
-                  <Badge>from a card</Badge>
-                ) : (
-                  <Badge tone="blue">this story only</Badge>
-                )}
+                {r.cardId ? <Badge>from a card</Badge> : <Badge tone="blue">this story only</Badge>}
+                <span className="flex-1" />
                 {/* Fills only what is still blank — see fillBlanks in @audio/core. */}
                 <button
                   type="button"
@@ -230,52 +210,7 @@ export function CastPicker() {
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={r.role}
-                  onChange={(e) => edit(r.key, { role: e.target.value })}
-                  placeholder="Role in the story — e.g. coach driver, 45"
-                  className={`${input} flex-1`}
-                />
-                <input
-                  value={r.voiceHint}
-                  onChange={(e) => edit(r.key, { voiceHint: e.target.value })}
-                  placeholder="Voice — e.g. middle-aged man, hoarse"
-                  className={`${input} flex-1`}
-                />
-              </div>
-
-              <textarea
-                value={r.description}
-                onChange={(e) => edit(r.key, { description: e.target.value })}
-                rows={2}
-                placeholder="Personality — what drives their actions and choices."
-                className={input}
-              />
-
-              <textarea
-                value={r.speech}
-                onChange={(e) => edit(r.key, { speech: e.target.value })}
-                rows={2}
-                placeholder="How they speak: rhythm, verbal habits, what they call people. This keeps their dialogue recognisable across dozens of episodes."
-                className={input}
-              />
-
-              <textarea
-                value={r.outfit}
-                onChange={(e) => edit(r.key, { outfit: e.target.value })}
-                rows={2}
-                placeholder="What they usually wear — a default; chapter setup can override it."
-                className={input}
-              />
-
-              <textarea
-                value={r.appearance}
-                onChange={(e) => edit(r.key, { appearance: e.target.value })}
-                rows={2}
-                placeholder="Looks that never change: build, apparent age, face, scars. Clothing goes in the chapter setup."
-                className={input}
-              />
+              <CharacterFields value={r} onChange={(patch) => edit(r.key, patch)} />
 
               {/* Click again to clear: having nobody read the narration is normal,
                   and it then uses the story's default voice. A radio cannot

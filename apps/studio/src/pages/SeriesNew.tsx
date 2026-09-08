@@ -92,8 +92,8 @@ export function SeriesNew() {
 
         <details className="rounded border border-neutral-800">
           <summary className="cursor-pointer px-4 py-3 text-sm text-neutral-300">
-            Cast up front{" "}
-            <span className="text-neutral-600">— optional, from cards or typed here</span>
+            Characters{" "}
+            <span className="text-neutral-600">— optional, from cards or written here</span>
           </summary>
           <div className="space-y-4 border-t border-neutral-800 px-4 py-4">
             <p className="text-xs text-neutral-500">
