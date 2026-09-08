@@ -26,13 +26,24 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "METADATA", file: "metadata.md" },
 ];
 
-/** Generation parameters per step — creative prose needs a higher temperature than utility work. */
+/**
+ * Generation parameters per step — creative prose needs a higher temperature than
+ * utility work.
+ *
+ * The three summarising steps run at 0.2. They are not writing anything: they read a
+ * text and say what is in it, under instructions with hard edges — "ONE paragraph",
+ * "at most N words", "no bullet points", "return the summary text only". Temperature
+ * is what buys a model room to ignore those, and they had none to spend: a summary
+ * that reads a little more interestingly is worth nothing, while one that quietly
+ * grows past its word ceiling costs context in every later prompt that loads it.
+ */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
-  // Compression, not writing: a low temperature. `numCtx` has to hold the running
-  // summary AND a full 900-word scene, and `maxTokens` sits above the word ceiling
-  // the prompt asks for, so a model writing right up to it is not cut off mid-sentence.
-  STORY_SO_FAR: { temperature: 0.3, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 600 },
+  // `numCtx` has to hold the running summary AND a full 900-word scene. `maxTokens`
+  // sits above the word ceiling the prompt asks for, so a model writing right up to it
+  // is not cut off mid-sentence — a truncated paragraph here is fed into the next
+  // compression and the damage carries forward.
+  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 600 },
   // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
   // goes in, and a character invented without reading it duplicates someone.
   CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },
@@ -49,8 +60,8 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
-  SUMMARIZE: { temperature: 0.5, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
-  ARC_SUMMARY: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 800 },
+  SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
+  ARC_SUMMARY: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 800 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
 };
 
