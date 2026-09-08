@@ -19,6 +19,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "CHARACTER", file: "character.md" },
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "NEXT_CHAPTER", file: "next-chapter.md" },
+  { step: "SCENE_BEAT", file: "scene-beat.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
   { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
@@ -52,6 +53,9 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // One chapter, so `maxTokens` is a fraction of NEXT_EPISODE's. `numCtx` is not: it
   // reads the same running summary and the chapters already written.
   NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 600 },
+  // One or two sentences out, but the temperature is HIGH: this button is pressed
+  // because the first answer was not wanted, so a second one close to it is no use.
+  SCENE_BEAT: { temperature: 1.0, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 250 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
   // words, only a third above the 750 target — a model writing thoroughly hits the
   // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.

@@ -144,6 +144,25 @@ export const storySoFarSchema = z.object({
 
 export type StorySoFar = z.infer<typeof storySoFarSchema>;
 
+/**
+ * A replacement beat for one scene — see the SCENE_BEAT step.
+ *
+ * Forced through a schema for the same reason as the running summary: asked for a
+ * sentence in words, a small model answers "Sure — here is a new beat:", and this text
+ * is written straight into `Scene.beat`, where it becomes the instruction the scene is
+ * written from.
+ */
+export const sceneBeatSchema = z.object({
+  beat: z
+    .string()
+    .min(1)
+    .describe(
+      "What happens in the scene, in one or two sentences. Events, not atmosphere and not prose",
+    ),
+});
+
+export type SceneBeat = z.infer<typeof sceneBeatSchema>;
+
 export const characterStateSchema = z.object({
   name: z.string().describe("Character name, exactly as given in the list"),
   state: z

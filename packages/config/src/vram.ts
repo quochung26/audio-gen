@@ -37,6 +37,7 @@ export function getJobVramCost(): Record<string, number> {
     CHARACTER: env.VRAM_LLM_MB,
     NEXT_EPISODE: env.VRAM_LLM_MB,
     NEXT_CHAPTER: env.VRAM_LLM_MB,
+    SCENE_BEAT: env.VRAM_LLM_MB,
     WRITE_SCENE: env.VRAM_LLM_MB,
     TRANSLATE: env.VRAM_LLM_MB,
     AUDIO_EDIT: env.VRAM_LLM_MB,

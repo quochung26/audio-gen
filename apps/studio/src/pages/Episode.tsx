@@ -265,9 +265,17 @@ export function Episode() {
                           `text` and queues WRITE_SCENE for that scene, so an
                           unwritten scene works too. */}
                       {!active && (
-                        <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
-                          {scene.text ? "rewrite" : "write this scene"}
-                        </ActionButton>
+                        <>
+                          {/* A beat could only be retyped until now — the one step of
+                              outlining with no button. Leaves any prose alone; the
+                              rewrite next to it is the one that replaces that. */}
+                          <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/beat`}>
+                            another beat
+                          </ActionButton>
+                          <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
+                            {scene.text ? "rewrite" : "write this scene"}
+                          </ActionButton>
+                        </>
                       )}
                     </div>
                     <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">

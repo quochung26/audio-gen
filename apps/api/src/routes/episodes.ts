@@ -153,6 +153,28 @@ function parseOverrides(value: unknown): CharacterOverride[] {
  *
  * Overrides here beat the Story Bible, and `Scene.setup` beats these.
  */
+/**
+ * Ask for a different beat for one scene.
+ *
+ * The one part of outlining that had no button: a story, an episode and a chapter can
+ * all be asked for again, a scene's beat could only be retyped.
+ *
+ * Leaves `text` alone. A scene already written keeps its prose — throwing away 900
+ * words to change the sentence they came from is not something a button should do
+ * quietly, and "rewrite" is right next to it for when that IS what you want.
+ */
+episodes.post("/:id/scenes/:sceneId/beat", async (c) => {
+  const episodeId = c.req.param("id");
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+
+  await enqueue({
+    type: "SCENE_BEAT",
+    episodeId,
+    payload: { sceneId: c.req.param("sceneId"), model: field(body, "model") || undefined },
+  });
+  return c.json({ ok: "Asking for another beat…" });
+});
+
 episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   const body = await c.req.parseBody();
   const setup = chapterSetupSchema.parse({

@@ -3,6 +3,7 @@ import { createLane } from "./create-lane";
 import { mockJob } from "../jobs/mock.job";
 import { nextEpisodeJob } from "../jobs/next-episode.job";
 import { nextChapterJob } from "../jobs/next-chapter.job";
+import { sceneBeatJob } from "../jobs/scene-beat.job";
 import { outlineJob } from "../jobs/outline.job";
 import { characterJob } from "../jobs/character.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
@@ -28,6 +29,7 @@ export function startLanes() {
       [JobType.CHARACTER]: characterJob,
       [JobType.NEXT_EPISODE]: nextEpisodeJob,
       [JobType.NEXT_CHAPTER]: nextChapterJob,
+      [JobType.SCENE_BEAT]: sceneBeatJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
       [JobType.TRANSLATE]: translateJob,
       [JobType.AUDIO_EDIT]: audioEditJob,

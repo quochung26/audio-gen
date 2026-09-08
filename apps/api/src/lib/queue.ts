@@ -34,6 +34,7 @@ const LANE_OF: Record<string, JobLane> = {
   CHARACTER: JobLane.LLM,
   NEXT_EPISODE: JobLane.LLM,
   NEXT_CHAPTER: JobLane.LLM,
+  SCENE_BEAT: JobLane.LLM,
   WRITE_SCENE: JobLane.LLM,
   TRANSLATE: JobLane.LLM,
   AUDIO_EDIT: JobLane.LLM,

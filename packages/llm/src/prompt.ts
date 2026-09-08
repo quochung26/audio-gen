@@ -46,6 +46,10 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // `chapterCount`: an episode opens with ONE chapter and grows a chapter at a time,
   // the same way the story grows an episode at a time.
   NEXT_EPISODE: ["bible", "context", "episodeNumber", "scenesPerChapter", "sceneWords"],
+  // Replacing ONE beat. `soFar` is the whole chapter's beats with this one marked, so
+  // the replacement still leads into the beat that follows it; `current` is what the
+  // writer turned down, sent so the model does not offer it back in other words.
+  SCENE_BEAT: ["bible", "context", "chapter", "soFar", "current"],
   // One chapter for an episode already under way. `soFar` is the chapters it already
   // has — the model has to carry on from them rather than restart the episode.
   NEXT_CHAPTER: ["bible", "context", "soFar", "chapterNumber", "scenesPerChapter", "sceneWords"],
