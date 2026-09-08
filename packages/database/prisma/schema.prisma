@@ -476,22 +476,27 @@ model Scene {
   /// The version actually used — always in the story's output language.
   text  String?
 
-  /// The story of this episode UP TO AND INCLUDING this scene, in one paragraph.
+  /// The WHOLE STORY up to and including this scene, in one paragraph.
   ///
-  /// A rolling summary, not a note about this scene: writing a scene folds it into
-  /// the paragraph the previous scene left behind, and the result is what the NEXT
-  /// scene reads. So it stays one paragraph however long the episode gets, instead of
-  /// a list growing a line per scene — the same trick `Series.arcSummary` plays across
-  /// episodes, one tier down.
+  /// The story, not the episode: it carries across episode boundaries, so the first
+  /// scene of episode 12 picks up the paragraph the last scene of episode 11 left
+  /// behind. Rolling, not a note about this scene — writing a scene folds it into what
+  /// came before and the result is what the NEXT scene reads, so it stays one paragraph
+  /// whether the story is three scenes or three hundred.
   ///
-  /// Without it a scene saw the previous EPISODE and the ONE scene before it, and
-  /// nothing in between: scene 9 knew nothing of scenes 1–7 and would re-introduce
-  /// people, re-open settled arguments, and walk characters back into rooms they left.
+  /// Why it is kept per SCENE rather than as one field on Series: this is the state the
+  /// story was in at that exact point. Held as a single mutable field, rewriting a
+  /// scene from episode 2 would fold it into a summary that already contains episode
+  /// 11, and the model would append it as though it had just happened.
   ///
-  /// Rewriting one scene in the middle leaves the scenes AFTER it holding a paragraph
-  /// that no longer matches. Rewriting the episode regenerates them in order; a single
-  /// scene rewritten alone does not, which is the same staleness `Character.state` and
-  /// the arc summary already live with.
+  /// It overlaps `Series.arcSummary`, which answers the same question but is only
+  /// rebuilt every few episodes. Both are loaded; this one is read LAST and is the more
+  /// recent of the two.
+  ///
+  /// Rewriting one scene in the middle leaves every scene AFTER it holding a paragraph
+  /// that no longer matches. Rewriting the episode regenerates its own in order; the
+  /// later episodes' do not, which is the same staleness `Character.state` and the arc
+  /// summary already live with.
   ///
   /// Null = not written yet. The block is then left out, which is the old behaviour.
   storySoFar String?

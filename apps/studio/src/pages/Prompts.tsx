@@ -16,8 +16,8 @@ const STEP_LABEL: Record<string, { title: string; desc: string }> = {
   },
   WRITE_SCENE: { title: "Write scene", desc: "Writes one scene, held to the Story Bible and the previous scene." },
   STORY_SO_FAR: {
-    title: "This episode so far",
-    desc: "Folds each scene into one rolling paragraph, read by every later scene of the episode.",
+    title: "The story so far",
+    desc: "Folds each scene into one rolling paragraph — the running account every later scene reads.",
   },
   TRANSLATE: {
     title: "Rewrite into the output language",

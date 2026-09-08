@@ -31,7 +31,7 @@ export interface SceneContext {
   facts: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Open threads — always loaded, whatever the similarity. */
   openThreads: Array<{ episodeNumber: number; text: string }>;
-  /** This episode up to the previous scene, in one paragraph — see Scene.storySoFar. */
+  /** The whole story up to the previous scene, in one paragraph — see Scene.storySoFar. */
   storySoFar: string;
   previousScene?: string;
   /** The chapter's own instruction block, rendered. Empty when the chapter set nothing. */
@@ -50,13 +50,15 @@ export interface SceneContext {
  *   1. Story Bible       — world, rules, characters + their CURRENT state (fixed)
  *   2. Arc summary       — old episodes compressed (~400 word ceiling)
  *   3. Recent summaries  — the last RECENT_SUMMARY_COUNT episodes, verbatim
- *   4. This episode so far — one rolling paragraph, rewritten after every scene
- *   5. Previous scene      — in full, so the prose carries on naturally
+ *   4. The story so far  — one rolling paragraph, rewritten after EVERY scene
+ *   5. Previous scene    — in full, so the prose carries on naturally
  *
- * Tier 4 is one paragraph however long the episode runs, because each scene is folded
- * into it rather than appended — the same trick tier 2 plays across episodes. It
- * exists because tiers 3 and 5 leave a hole exactly the size of an episode: scene 9
- * knew the previous episode and scene 8, and nothing in between.
+ * Tier 4 answers the same question as tier 2 but is never stale: each scene is folded
+ * into it rather than appended, so it is one paragraph whether the story is three
+ * scenes or three hundred, and it is brought up to date after every one of them. Tiers
+ * 2 and 3 are both coarser in time — the arc summary is rebuilt every few episodes, a
+ * summary only exists once its episode is finished — so between them a scene could see
+ * nothing at all of the twenty scenes before it.
  *
  * No tier grows with the episode count, so an 80-episode story still fits num_ctx.
  * The previous version loaded ALL summaries and overflowed around episode 35 — measured, not guessed.
@@ -130,14 +132,22 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   const at = ordered.findIndex((s) => s.id === scene.id);
   const previousScene = at > 0 ? ordered[at - 1]! : null;
 
-  // The episode so far, in one paragraph — the running summary the previous scene left
-  // behind, which already has that scene folded into it. It therefore overlaps the
+  // The whole story so far, in one paragraph — the running summary the previous scene
+  // left behind, which already has that scene folded into it. It therefore overlaps the
   // verbatim copy below, on purpose: the paragraph is what carries that scene forward
   // once it is two scenes back and no longer included in full.
   //
-  // Blank for the first scene of an episode, and for scenes written before this
+  // Opening an episode, the thread is picked up from the END of the previous one rather
+  // than started again — this summary is the story's, not the episode's, and that is the
+  // one place the distinction is visible.
+  //
+  // Blank for the very first scene of a story, and for scenes written before this
   // existed. The block is then left out and the context is what it always was.
-  const storySoFar = previousScene?.storySoFar?.trim() ?? "";
+  const storySoFar =
+    (at > 0
+      ? previousScene?.storySoFar
+      : await lastSummaryBefore(series.id, episode.number)
+    )?.trim() ?? "";
 
   const sceneCount = ordered.length;
 
@@ -164,6 +174,33 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     sceneNote: sceneSetup.note,
     targetWords: Math.round(EPISODE_TARGET_WORDS / Math.max(1, sceneCount)),
   };
+}
+
+/**
+ * The running summary as the PREVIOUS episode left it.
+ *
+ * Only needed for the first scene of an episode: everywhere else the previous scene is
+ * in the same episode and has already been loaded. Written as its own query rather than
+ * by widening that one, because ordering scenes across a whole story means reading every
+ * scene of every episode to find the one immediately before this.
+ *
+ * Skips episodes whose scenes have no summary yet — a story part-written before this
+ * existed reaches back to the last scene that does have one, instead of starting blank.
+ */
+async function lastSummaryBefore(seriesId: string, episodeNumber: number) {
+  const scene = await prisma.scene.findFirst({
+    where: {
+      chapter: { episode: { seriesId, number: { lt: episodeNumber } } },
+      storySoFar: { not: null },
+    },
+    orderBy: [
+      { chapter: { episode: { number: "desc" } } },
+      { chapter: { order: "desc" } },
+      { order: "desc" },
+    ],
+    select: { storySoFar: true },
+  });
+  return scene?.storySoFar ?? null;
 }
 
 type SeriesForBible = Prisma.SeriesGetPayload<{ include: { characters: true } }>;

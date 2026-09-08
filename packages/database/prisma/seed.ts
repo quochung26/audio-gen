@@ -40,10 +40,10 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
   // `numCtx` has to hold the running summary AND a full 900-word scene. `maxTokens`
-  // sits above the word ceiling the prompt asks for, so a model writing right up to it
-  // is not cut off mid-sentence — a truncated paragraph here is fed into the next
-  // compression and the damage carries forward.
-  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 600 },
+  // sits well above the word ceiling the prompt asks for, so a model writing right up
+  // to it is not cut off mid-sentence — a truncated paragraph here is fed into the next
+  // compression and the damage carries forward for the rest of the story.
+  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 1000 },
   // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
   // goes in, and a character invented without reading it duplicates someone.
   CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },

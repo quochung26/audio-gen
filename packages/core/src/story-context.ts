@@ -188,13 +188,19 @@ export function renderContext(ctx: StoryContext): string {
   if (ctx.chapter) parts.push(ctx.chapter);
 
   // Immediately before the previous scene: together they read as "this is what has
-  // happened in this episode, and here is where you are picking up". The previous
-  // scene is inside this paragraph AND below in full, deliberately — the summary is
-  // what carries it forward once it is two scenes back.
+  // happened, and here is where you are picking up". The previous scene is inside this
+  // paragraph AND below in full, deliberately — the paragraph is what carries it
+  // forward once it is two scenes back.
+  //
+  // It answers the same question as the arc summary far above, and is placed here
+  // rather than beside it on purpose: this one is rewritten after every scene while
+  // that one is rebuilt every few episodes, and the model follows whatever it read
+  // nearest the work.
   if (ctx.storySoFar) {
     parts.push(
-      `## This episode so far\n` +
-        `What has already happened, up to the scene below. Do not write any of it again, and do not contradict it:\n` +
+      `## The story up to this scene\n` +
+        `Everything that has happened, brought up to date after the last scene written. Where this and anything above disagree, THIS is right. ` +
+        `Do not write any of it again, and do not contradict it:\n` +
         ctx.storySoFar,
     );
   }

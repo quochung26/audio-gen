@@ -156,21 +156,30 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   };
 };
 
-/** One paragraph, roughly an episode summary's length one tier down. */
-const SO_FAR_MAX_WORDS = 200;
+/**
+ * One paragraph, the same ceiling the arc summary uses.
+ *
+ * It has to hold a whole story, so it cannot be short; it is loaded into every scene
+ * write, so it cannot be long. 400 words ≈ 720 tokens, paid once per scene against a
+ * 16K context — the same trade the arc summary already settled at this number.
+ */
+const SO_FAR_MAX_WORDS = 400;
 
 /**
- * Fold the scene just written into the episode's running summary.
+ * Fold the scene just written into the story's running summary.
  *
- * Compression on compression, the same shape as the arc summary one tier up: what the
- * previous scene left behind goes in WITH the new scene, and the answer replaces it.
- * So it stays one paragraph however long the episode runs, rather than a list growing
- * a line per scene.
+ * Compression on compression, the same shape as the arc summary: what the previous
+ * scene left behind goes in WITH the new scene, and the answer replaces it. So it stays
+ * one paragraph whether the story is three scenes or three hundred.
  *
- * It fills the hole between the tiers of scene context. An episode is written scene by
- * scene, and each one used to see the previous EPISODE and the ONE scene before it —
- * scene 9 knew nothing of scenes 1–7 and would re-introduce people, re-open settled
- * arguments, and walk characters back into rooms they had left.
+ * The STORY's, not the episode's — it carries across episode boundaries, so opening
+ * episode 12 picks up where the last scene of episode 11 left off.
+ *
+ * It exists because every other story-wide tier is coarser in time: the arc summary is
+ * rebuilt every few episodes, and an episode summary only exists once that episode is
+ * finished. Between them a scene could see nothing at all of the twenty scenes before
+ * it, and would re-introduce people, re-open settled arguments, and walk characters
+ * back into rooms they had left.
  *
  * The UTILITY model, not the writing one: this is compression, not writing, and it
  * runs once per scene — on the writing model it would be a second full-sized call for
@@ -213,7 +222,7 @@ async function foldIntoSummary({
       prompt: renderTemplate(prompt.content, {
         maxWords: SO_FAR_MAX_WORDS,
         text,
-        // Empty for the first scene of an episode: there is nothing to fold into, and
+        // Empty for the very first scene of a story: there is nothing to fold into, and
         // the model then just summarises the one scene it was given.
         previous: context.storySoFar
           ? `## The running summary so far\n${context.storySoFar}\n\nFold what follows into it.`
@@ -228,7 +237,7 @@ async function foldIntoSummary({
     if (summary) await prisma.scene.update({ where: { id: sceneId }, data: { storySoFar: summary } });
   } catch (err) {
     logger.warn(
-      `[write-scene] could not fold the scene just written into the episode summary (${sceneId}): ` +
+      `[write-scene] could not fold the scene just written into the story summary (${sceneId}): ` +
         `${(err as Error).message}. The scene is saved; later scenes will not see it summarised.`,
     );
   }

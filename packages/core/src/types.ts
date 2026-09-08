@@ -219,13 +219,13 @@ export interface StoryContext {
   /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: Array<{ episodeNumber: number; text: string }>;
   /**
-   * This episode so far, in one paragraph — everything up to and including the
-   * previous scene.
+   * The whole story up to and including the previous scene, in one paragraph.
    *
-   * An episode is written scene by scene, and without this a scene sees the previous
-   * EPISODE and the ONE scene before it, with nothing in between. One paragraph
-   * rather than a line per scene so it does not grow as the episode does — the same
-   * trick the arc summary plays across episodes.
+   * Rewritten after every scene, and carried across episode boundaries. The other
+   * story-wide tiers are both COARSER in time: the arc summary is rebuilt every few
+   * episodes, and the previous episode's summary only exists once that episode is
+   * finished. Between them a scene could see nothing at all of the twenty scenes
+   * before it.
    */
   storySoFar?: string;
   /** The previous scene verbatim, so the prose carries on naturally */
