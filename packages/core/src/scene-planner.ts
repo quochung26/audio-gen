@@ -4,13 +4,11 @@ import {
   SCENES_PER_CHAPTER,
   SCENE_MAX_WORDS,
   SCENE_MIN_WORDS,
-  SCENE_TARGET_WORDS,
 } from "@audio/config";
 
 export interface ScenePlan {
   order: number;
   beat: string;
-  targetWords: number;
 }
 
 export interface ChapterPlan {
@@ -32,10 +30,10 @@ export interface ChapterOutline {
  * past about 1,500 continuous tokens, and generating per scene means re-rendering
  * one part rather than discarding the episode. See PLAN.md step 0b.
  *
- * Every scene is asked for the same length. It used to be the episode's target
- * divided by its beat count, which held while an episode was outlined whole — the
- * length was decided and the scenes shared it out. Chapters arrive one at a time
- * now, so that division changed under the writer's feet with every chapter added.
+ * Says nothing about scene LENGTH. It used to hand each scene a word count, but the
+ * number was never stored — the jobs keep only order, beat and who is in it — so it
+ * was computed and dropped. `buildSceneContext` is where a scene's length is decided,
+ * and it now reads SCENE_TARGET_WORDS.
  */
 export function planChapters(
   chapters: readonly ChapterOutline[],
@@ -54,7 +52,6 @@ export function planChapters(
     scenes: chapter.beats.map((beat, si) => ({
       order: si + 1,
       beat,
-      targetWords: SCENE_TARGET_WORDS,
     })),
   }));
 }

@@ -20,15 +20,6 @@ describe("planChapters", () => {
     expect(out[1]!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 
-  it("asks every scene for the same length, whatever the shape", () => {
-    // It used to divide the episode's target by its beat count. Chapters arrive one
-    // at a time now, so that division changed with every chapter added — the first
-    // scenes of an episode came out at 900 words and the later ones at 750.
-    const out = planChapters([ch("A", 3), ch("B", 1)]);
-    const all = out.flatMap((c) => c.scenes.map((s) => s.targetWords));
-    expect(new Set(all)).toEqual(new Set([750]));
-  });
-
   it("numbers a chapter added later after the ones already there", () => {
     // `(episodeId, order)` is unique — a second chapter 1 kills the job.
     const out = planChapters([ch("C", 2)], 3);

@@ -1,7 +1,6 @@
 import { countWords, planDraft, renderContext, storySoFarSchema, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
-import { SCENE_MAX_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
@@ -89,7 +88,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
             overrides: context.overrides,
             sceneNote: context.sceneNote,
             beat: scene.beat,
-            targetWords: Math.min(SCENE_MAX_WORDS, context.targetWords),
+            targetWords: context.targetWords,
           }),
         }),
         ...(prompt.params as object),
@@ -127,7 +126,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     // Compared against the target rather than just printed: a scene under half the target
     // usually means the model read the beat too narrowly, and that only shows up listening back.
     const words = countWords(text);
-    const target = Math.min(SCENE_MAX_WORDS, context.targetWords);
+    const target = context.targetWords;
     logger.info(
       `[write-scene] chapter ${scene.chapter.order} scene ${scene.order} — ` +
         `${words}/${target} words, ${result.tokensPerSec.toFixed(1)} tok/s`,

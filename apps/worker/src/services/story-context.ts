@@ -1,4 +1,4 @@
-import { EPISODE_TARGET_WORDS } from "@audio/config";
+import { SCENE_TARGET_WORDS } from "@audio/config";
 import {
   mergeOverrides,
   parseChapterSetup,
@@ -163,7 +163,11 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     chapter: renderChapterSetup(chapterSetup),
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
     sceneNote: sceneSetup.note,
-    targetWords: Math.round(EPISODE_TARGET_WORDS / Math.max(1, sceneCount)),
+    // Fixed, not the episode's target shared out among its scenes. That division held
+    // while an episode was outlined whole; chapters arrive one at a time now, so it
+    // moved with every chapter added — the first scenes of an episode were asked for
+    // 900 words and the later ones for 750, for no reason a listener could hear.
+    targetWords: SCENE_TARGET_WORDS,
   };
 }
 
