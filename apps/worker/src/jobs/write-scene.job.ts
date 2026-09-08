@@ -81,7 +81,6 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
         prompt: renderTemplate(prompt.content, {
           context: renderContext({
             bible: context.bible,
-            episodeIndex: context.episodeIndex,
             previousSummaries: context.previousSummaries,
             facts: context.facts,
             openThreads: context.openThreads,

@@ -19,8 +19,6 @@ export interface SceneContext {
   /** Write the draft in this language, then rewrite. Blank = write directly. */
   draftLanguage: string;
   bible: string;
-  /** The story index: one line per episode. Always present, compressed ones too. */
-  episodeIndex: Array<{ number: number; title: string; gist: string }>;
   /** The verbatim summary — of the previous episode only, to pick up the thread. */
   previousSummaries: Array<{ number: number; summary: string }>;
   /** Old facts retrieved by meaning for this particular beat. */
@@ -55,7 +53,17 @@ export interface SceneContext {
  * twenty scenes before it.
  *
  * No tier grows with the episode count, so an 80-episode story still fits num_ctx.
- * The previous version loaded ALL summaries and overflowed around episode 35 — measured, not guessed.
+ * The previous version loaded ALL summaries and overflowed around episode 35 — measured,
+ * not guessed.
+ *
+ * That claim was not actually true until recently: an index of every episode written so
+ * far sat in here too, one line of number + title + gist each, which is about 2,000 words
+ * by episode 80 — and re-sent for all six scenes of every episode. It was built for
+ * NEXT_EPISODE, where a list of what has already been written is exactly what stops the
+ * model outlining episode 12 over again, and it rode along into here. Prose never names
+ * an episode, and everything a scene must not contradict arrives through tier 2, the
+ * retrieved facts and the open threads. It is still loaded for NEXT_EPISODE, which runs
+ * once an episode rather than once a scene.
  */
 export async function buildSceneContext(sceneId: string): Promise<SceneContext> {
   const scene = await prisma.scene.findUniqueOrThrow({
@@ -86,14 +94,6 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     .map((c) => c.name);
 
   const bible = await renderBibleFor(series, inScene);
-
-  // The index: one ~15-word line per episode. Cheap, and all that survives of the
-  // compressed ones — without it the system "forgets" those episodes ever existed.
-  const indexRows = await prisma.episode.findMany({
-    where: { seriesId: series.id, number: { lt: episode.number }, gist: { not: null } },
-    orderBy: { number: "asc" },
-    select: { number: true, title: true, gist: true },
-  });
 
   // Only the previous episode's FULL summary. Older ones are no longer loaded whole —
   // fact retrieval for what this beat needs takes their place.
@@ -155,7 +155,6 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     language: series.language,
     draftLanguage: series.draftLanguage,
     bible,
-    episodeIndex: indexRows.map((e) => ({ number: e.number, title: e.title, gist: e.gist! })),
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
     facts,
     openThreads: threads,

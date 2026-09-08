@@ -160,14 +160,6 @@ export function renderContext(ctx: StoryContext): string {
     );
   }
 
-  // The index: cheap (~15 words an episode) and all that survives of compressed ones.
-  if (ctx.episodeIndex && ctx.episodeIndex.length > 0) {
-    parts.push(
-      `## Index of the episodes already written\n` +
-        ctx.episodeIndex.map((e) => `${e.number}. ${e.title} — ${e.gist}`).join("\n"),
-    );
-  }
-
   if (ctx.previousSummaries.length > 0) {
     parts.push(
       `## Summary of the previous episode\n` +
