@@ -8,7 +8,6 @@ interface Row {
   title: string;
   description: string | null;
   genre: string;
-  kind: string;
   _count: { episodes: number };
 }
 
@@ -43,7 +42,6 @@ export function SeriesList() {
               <div className="flex items-center gap-2 text-xs text-neutral-500">
                 <span>{s._count.episodes} episodes</span>
                 <Badge>{s.genre}</Badge>
-                <Badge>{s.kind === "SHORT" ? "short" : "long"}</Badge>
               </div>
             </Link>
           ))}

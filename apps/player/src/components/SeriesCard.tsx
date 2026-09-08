@@ -8,7 +8,6 @@ export interface SeriesCardData {
   title: string;
   description: string | null;
   genre: string;
-  kind: string;
   status: string;
   coverUrl: string | null;
   episodeCount: number;
@@ -29,37 +28,9 @@ export function SeriesCard({ s, locale }: { s: SeriesCardData; locale: Locale })
         </div>
         <div className="mt-1.5 text-xs text-neutral-600">
           {t.episodeCount(s.episodeCount)} · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
+          {s.status === "ONGOING" ? t.ongoingSuffix : ""}
         </div>
       </div>
     </Link>
-  );
-}
-
-/**
- * A horizontally scrollable row.
- *
- * Horizontal scrolling rather than a grid: on a phone a row fits only two cards, while a
- * grid gives each item the whole screen and requires a very long vertical scroll.
- */
-export function Row({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <div className="mb-3 flex items-baseline gap-2">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {hint && <span className="text-xs text-neutral-600">{hint}</span>}
-      </div>
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
-        {children}
-      </div>
-    </section>
   );
 }

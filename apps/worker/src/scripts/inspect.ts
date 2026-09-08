@@ -43,7 +43,7 @@ const series = id
     });
 
 console.log(`\n═══ ${series.title} ═══`);
-console.log(`${series.kind} · ${series.genre} · ${series.status} · slug: ${series.slug}`);
+console.log(`${series.genre} · ${series.status} · slug: ${series.slug}`);
 console.log(`\nCharacters (${series.characters.length}):`);
 for (const c of series.characters) {
   console.log(

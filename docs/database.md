@@ -48,7 +48,9 @@
 
 Phác thảo cũ để `seriesId` nullable (truyện ngắn = tập độc lập). Bản này bỏ nullable.
 
-**Lý do:** nhân vật, casting giọng, từ điển phát âm đều thuộc về Series. Nếu truyện ngắn không có Series thì mỗi thứ trên phải có thêm nhánh "hoặc thuộc Episode" — nhân đôi số nhánh trong code và dễ sinh lỗi. Quan trọng hơn: **truyện ngắn ăn khách rất hay được viết tiếp thành truyện dài**, và khi đó bạn chỉ cần đổi `Series.kind` từ `SHORT` sang `LONG` rồi thêm tập, không phải di chuyển dữ liệu.
+**Lý do:** nhân vật, casting giọng, từ điển phát âm đều thuộc về Series. Nếu truyện ngắn không có Series thì mỗi thứ trên phải có thêm nhánh "hoặc thuộc Episode" — nhân đôi số nhánh trong code và dễ sinh lỗi. Quan trọng hơn: **truyện ngắn ăn khách rất hay được viết tiếp thành truyện dài**, và khi đó bạn chỉ thêm tập, không phải di chuyển dữ liệu.
+
+Từng có cột `Series.kind` (`SHORT`/`LONG`) để phân biệt hai loại. Đã bỏ: nó được suy ra từ số tập mà outline dựng, mà từ khi chuyển sang viết-từng-tập thì con số đó luôn là 1 — mọi truyện đều thành `SHORT`, kể cả bộ dài. Ranh giới thật nằm ở số tập đang có, và cái đó đếm được.
 
 Studio tự tạo Series khi bạn làm truyện ngắn — người dùng không thấy bước này.
 
@@ -173,11 +175,6 @@ datasource db {
 
 // ══════════════════════════ ENUM ══════════════════════════
 
-enum SeriesKind {
-  SHORT
-  LONG
-}
-
 enum SeriesStatus {
   DRAFT
   ONGOING
@@ -296,7 +293,6 @@ enum ModerationStatus {
 
 model Series {
   id          String       @id @default(cuid())
-  kind        SeriesKind   @default(LONG)
   title       String
   slug        String       @unique
   description String?

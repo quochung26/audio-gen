@@ -4,7 +4,7 @@ import { prisma, PUBLISHED } from "@/lib/db";
 import { ContinueListening, type ResumableEpisode } from "@/components/ContinueListening";
 import { Cover } from "@/components/Cover";
 import { GenreFilter } from "@/components/GenreFilter";
-import { Row, SeriesCard, type SeriesCardData } from "@/components/SeriesCard";
+import { SeriesCard, type SeriesCardData } from "@/components/SeriesCard";
 import { catalogueLanguage, dict, localeAlternates, localeHref, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -93,15 +93,12 @@ export default async function HomePage({
     title: s.title,
     description: s.description,
     genre: s.genre,
-    kind: s.kind,
     status: s.status,
     coverUrl: s.coverUrl,
     episodeCount: s._count.episodes,
   });
 
   const featured = shown[0];
-  const ongoing = shown.filter((s) => s.kind === "LONG" && s.status === "ONGOING");
-  const shorts = shown.filter((s) => s.kind === "SHORT");
 
   const resumableData: ResumableEpisode[] = resumable.map((e) => ({
     id: e.id,
@@ -146,26 +143,11 @@ export default async function HomePage({
         </section>
       )}
 
-      {ongoing.length > 0 && (
-        <Row title={t.ongoingSerials} hint={t.storyCount(ongoing.length)}>
-          {ongoing.map((s) => (
-            <div key={s.id} className="w-72 shrink-0 snap-start">
-              <SeriesCard s={card(s)} locale={locale} />
-            </div>
-          ))}
-        </Row>
-      )}
-
-      {shorts.length > 0 && (
-        <Row title={t.shortStories} hint={t.storyCount(shorts.length)}>
-          {shorts.map((s) => (
-            <div key={s.id} className="w-72 shrink-0 snap-start">
-              <SeriesCard s={card(s)} locale={locale} />
-            </div>
-          ))}
-        </Row>
-      )}
-
+      {/* One list, not three. "Ongoing serials" filtered on `kind === LONG && status ===
+          ONGOING`, and neither could ever be true — every story was filed SHORT because the
+          outline builds exactly one episode, and nothing ever moved a story off DRAFT. So
+          the row never rendered once, and "short stories" held the whole catalogue, which
+          the grid below then listed again. */}
       <section>
         <h2 className="mb-3 text-base font-semibold tracking-tight">
           {genre ? t.allGenreStories(genre) : t.allStories}
@@ -202,7 +184,7 @@ function Banner({ s, locale, t }: { s: SeriesCardData; locale: Locale; t: Return
         </p>
         <div className="mt-2.5 text-xs text-neutral-500">
           {t.episodeCount(s.episodeCount)} · {s.genre}
-          {s.kind === "LONG" && s.status === "ONGOING" ? t.ongoingSuffix : ""}
+          {s.status === "ONGOING" ? t.ongoingSuffix : ""}
         </div>
       </div>
     </Link>

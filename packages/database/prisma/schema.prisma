@@ -11,11 +11,6 @@ datasource db {
 
 // ══════════════════════════ ENUM ══════════════════════════
 
-enum SeriesKind {
-  SHORT
-  LONG
-}
-
 enum SeriesStatus {
   DRAFT
   ONGOING
@@ -189,7 +184,6 @@ enum ModerationStatus {
 
 model Series {
   id          String       @id @default(cuid())
-  kind        SeriesKind   @default(LONG)
   title       String
   slug        String       @unique
   description String?

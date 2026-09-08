@@ -59,7 +59,7 @@ const series = await prisma.series.findUniqueOrThrow({
   include: { characters: true, episodes: { orderBy: { number: "asc" } } },
 });
 
-console.log(`\n  "${series.title}" (${series.kind})`);
+console.log(`\n  "${series.title}"`);
 console.log(`  characters: ${series.characters.map((c) => c.name).join(", ")}`);
 console.log(`  episodes: ${series.episodes.length}\n`);
 

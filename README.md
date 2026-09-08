@@ -804,7 +804,7 @@ Hiệu ứng **không** kéo dài tập: tràn quá đuôi thì bị cắt.
 | Banner | Bộ có cập nhật gần nhất |
 | **Tiếp tục nghe** | Đọc vị trí từ `localStorage`, **không cần tài khoản**. Bỏ tập mới bấm vào rồi thoát (<30 giây) và tập nghe gần hết (còn <1 phút). |
 | Tập mới nhất | 12 tập, kèm bìa |
-| Truyện dài đang ra · Truyện ngắn | Hàng ngang cuộn được — trên điện thoại xếp lưới thì mỗi mục chiếm cả màn hình |
+| Tất cả truyện | Một danh sách. Trước đây tách "truyện dài đang ra" và "truyện ngắn", nhưng `Series.kind` luôn ra `SHORT` — outline chỉ dựng đúng một tập — nên mục đầu chưa hiện lần nào còn mục sau ôm cả kho, rồi lưới bên dưới liệt kê lại y nguyên |
 | Lọc thể loại | Qua query string `?the-loai=` nên gửi link được và nút Back hoạt động đúng |
 
 **Chưa có "đang hot"** — cần số liệu lượt nghe, mà chưa có người nghe nào. Xếp theo lượt nghe của chính mình thì vô nghĩa.

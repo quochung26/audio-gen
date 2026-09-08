@@ -43,7 +43,6 @@ interface Data {
   genre: string;
   tags: string[];
   language: string;
-  kind: string;
   coverUrl: string | null;
   world: World;
   characters: Char[];
@@ -83,7 +82,6 @@ export function Series() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold">{s.title}</h1>
-          <Badge>{s.kind === "SHORT" ? "short story" : "long story"}</Badge>
           <Badge>{s.genre}</Badge>
           {s.tags.map((t) => (
             <Badge key={t} tone="blue">
@@ -149,9 +147,12 @@ export function Series() {
             {s.world.rules.length} world rules · {s.world.constraints.length} forbidden ·{" "}
             {s.world.glossary.length} glossary terms
           </p>
-          {worldThin && s.kind === "LONG" && (
+          {/* No longer gated on the story being "long": every story is written episode by
+              episode, so any of them can drift. It was gated on a flag that was always
+              SHORT, so the warning never appeared at all. */}
+          {worldThin && (
             <p className="text-xs text-amber-600">
-              A long story with no world rules or tone — later episodes drift away from the first.
+              No world rules or tone — later episodes drift away from the first.
             </p>
           )}
         </div>

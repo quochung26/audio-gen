@@ -66,7 +66,6 @@ const FIXTURES: Record<string, unknown> = {
       title: "Đường về",
       description: "mô tả",
       genre: "kinh dị",
-      kind: "LONG",
       _count: { episodes: 3, characters: 2 },
     },
   ],

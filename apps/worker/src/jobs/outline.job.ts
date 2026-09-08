@@ -17,7 +17,7 @@ import {
   suggestChapterCount,
   suggestScenesPerChapter,
 } from "@audio/core";
-import { EpisodeStatus, SeriesKind, SeriesStatus, prisma } from "@audio/database";
+import { EpisodeStatus, SeriesStatus, prisma } from "@audio/database";
 import {
   getDefaultLanguage,
   getLlm,
@@ -132,9 +132,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const outline = result.data;
   logger.info(`[outline] "${outline.title}" — ${outline.episodes.length} episodes`);
 
-  // A short story also belongs to a Series (see docs/database.md section 2.1)
-  const kind = outline.episodes.length > 1 ? SeriesKind.LONG : SeriesKind.SHORT;
-
   // The cast, settled ONCE: the rows below and the Story Bible have to describe the
   // same people. Built separately, a character dropped from the rows survives in the
   // Bible and every scene write still knows them.
@@ -142,7 +139,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   const series = await prisma.series.create({
     data: {
-      kind,
       title: outline.title,
       slug: await freeSlug(outline.title),
       description: outline.logline,
