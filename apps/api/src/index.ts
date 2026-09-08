@@ -71,13 +71,32 @@ if (existsSync(SPA_DIR)) {
 
 app.onError((err, c) => {
   if (err instanceof UserError) return c.json({ error: err.message }, 400);
+
+  // Read only the error CODE, never Prisma's own message — the source excerpt it
+  // embeds can contain a connection string with a password (see lib/player-db.ts).
+  const code = (err as { code?: unknown }).code;
+
+  // P2025 — `findUniqueOrThrow`, `update` or `delete` found no row. NOT a bug: a
+  // bookmark to a story since deleted, a tab left open, a link someone shared. It
+  // belongs with UserError, and it was landing in the catch-all instead: a 500
+  // saying "something unexpected went wrong", plus a full stack trace in the log
+  // for every stale link. Real failures were buried among them.
+  //
+  // `meta.modelName` is a bare model name Prisma sets itself, not the message, so
+  // naming it here breaks no rule above and turns "something went wrong" into
+  // something a person can act on.
+  if (code === "P2025") {
+    const model = (err as { meta?: { modelName?: unknown } }).meta?.modelName;
+    return c.json(
+      { error: typeof model === "string" ? `No such ${model.toLowerCase()}.` : "No such record." },
+      404,
+    );
+  }
+
   console.error("[api]", err);
 
   // DB older than the schema: a table (P2021) or column (P2022) the code needs
-  // is not actually in Postgres. Read only the error CODE, never Prisma's own
-  // message — the source excerpt it embeds can contain a connection string with
-  // a password (see lib/player-db.ts).
-  const code = (err as { code?: unknown }).code;
+  // is not actually in Postgres.
   if (code === "P2021" || code === "P2022") {
     return c.json(
       {
