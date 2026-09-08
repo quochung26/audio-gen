@@ -962,4 +962,8 @@ docker compose exec -T postgres pg_dump -U postgres audio_truyen | gzip > backup
 > thiếu bước nào cũng có lời nhắc kèm đúng lệnh: `@audio/database` kiểm client
 > ngay lúc dựng nó, nên mọi tiến trình chạy từ mã nguồn — API, worker,
 > `pnpm story`, `db:seed` — đều dừng kèm chỉ dẫn thay vì chết bằng TypeError;
-> còn bảng/cột thiếu thì API trả về mã P2021/P2022 kèm chỉ dẫn.
+> còn DB đi sau code thì API trả về chỉ dẫn: bảng thiếu là P2021, cột thiếu là
+> P2022, còn **giá trị enum thiếu thì không có mã Prisma nào** — Postgres từ chối
+> bằng SQLSTATE 22P02 và Prisma gói lại thành "unknown request error", nên chỗ đó
+> phân loại theo câu chữ Postgres viết. Trường hợp này xảy ra khi đã sinh lại client
+> mà chưa `db:push`: code biết giá trị mới, database thì chưa.

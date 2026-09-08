@@ -95,14 +95,28 @@ app.onError((err, c) => {
 
   console.error("[api]", err);
 
-  // DB older than the schema: a table (P2021) or column (P2022) the code needs
-  // is not actually in Postgres.
-  if (code === "P2021" || code === "P2022") {
+  // DB older than the schema, in three shapes. A missing table is P2021 and a missing
+  // column P2022, both codes Prisma sets.
+  //
+  // A missing ENUM VALUE has no Prisma code at all: Postgres rejects it with SQLSTATE
+  // 22P02 and Prisma wraps that as an "unknown request error", so the only way to tell
+  // it apart is the sentence Postgres wrote. Matching on it is safe in a way that
+  // RETURNING Prisma's message would not be — nothing from the message reaches the
+  // browser, only the classification does. It reaches here when the client has been
+  // regenerated but `db:push` has not run, so the code knows the value and the
+  // database does not.
+  const behind =
+    code === "P2021" ||
+    code === "P2022" ||
+    (err instanceof Error && err.message.includes("invalid input value for enum"));
+
+  if (behind) {
     return c.json(
       {
         error:
-          "The database is missing a table or column the code needs. Run `pnpm db:push` " +
-          "(or `pnpm db:push:player` for the hosted one) to bring it up to date.",
+          "The database is behind the code — a table, column or enum value it needs is " +
+          "not in Postgres. Run `pnpm db:push` (or `pnpm db:push:player` for the hosted " +
+          "one) to bring it up to date.",
       },
       500,
     );
