@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section } from "@/components/ui";
-import { ErrorNote, Loading } from "@/components/Form";
+import { Loading } from "@/components/Form";
 
 interface Row {
   id: string;
@@ -35,8 +35,7 @@ interface Data {
 
 export function Stats() {
   const { data, isLoading, error } = useApi<Data>("/api/stats", { refetchMs: 30_000 });
-  if (error) return <ErrorNote error={error} />;
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   // Sort by listeners: the first question is always "which episode got the most".
   const rows = [...data.episodes].sort((a, b) => b.listeners - a.listeners);

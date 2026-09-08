@@ -47,9 +47,9 @@ interface P {
 }
 
 export function Prompts() {
-  const { data, isLoading } = useApi<{ prompts: P[]; steps: string[] }>("/api/prompts");
+  const { data, isLoading, error } = useApi<{ prompts: P[]; steps: string[] }>("/api/prompts");
   const { data: genres } = useApi<string[]>("/api/series/genres");
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   return (
     <div className="space-y-8">

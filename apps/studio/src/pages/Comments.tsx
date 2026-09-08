@@ -27,13 +27,13 @@ function fmt(ms: number): string {
 
 export function Comments() {
   const [tab, setTab] = useState<string>("PENDING");
-  const { data, isLoading } = useApi<{
+  const { data, isLoading, error } = useApi<{
     comments: Comment[];
     counts: Array<{ status: string; _count: number }>;
     separateDb: boolean;
   }>(`/api/comments?status=${tab}`, { refetchMs: 15000 });
 
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
   const count = (s: string) => data.counts.find((c) => c.status === s)?._count ?? 0;
 
   return (

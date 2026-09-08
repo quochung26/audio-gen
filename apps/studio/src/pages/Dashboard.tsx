@@ -31,8 +31,8 @@ interface Data {
 export function Dashboard() {
   // The worker runs in another process, so progress only changes server-side —
   // we have to ask again.
-  const { data, isLoading } = useApi<Data>("/api/jobs", { refetchMs: 2000 });
-  if (isLoading || !data) return <Loading />;
+  const { data, isLoading, error } = useApi<Data>("/api/jobs", { refetchMs: 2000 });
+  if (isLoading || !data) return <Loading error={error} />;
 
   const count = (s: string) => data.byStatus.find((c) => c.status === s)?._count ?? 0;
 

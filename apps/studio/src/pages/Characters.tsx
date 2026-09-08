@@ -39,14 +39,14 @@ interface Card {
 
 export function Characters() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{
+  const { data, isLoading, error } = useApi<{
     characters: Character[];
     voices: Voice[];
     defaultVoiceId: string | null;
     title: string;
   }>(`/api/series/${id}/characters`);
   const { data: library } = useApi<{ cards: Card[] }>("/api/character-cards");
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   const { characters, voices } = data;
   const narrators = characters.filter((c) => c.isNarrator);

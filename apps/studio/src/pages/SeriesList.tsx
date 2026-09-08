@@ -12,8 +12,8 @@ interface Row {
 }
 
 export function SeriesList() {
-  const { data, isLoading } = useApi<Row[]>("/api/series");
-  if (isLoading || !data) return <Loading />;
+  const { data, isLoading, error } = useApi<Row[]>("/api/series");
+  if (isLoading || !data) return <Loading error={error} />;
 
   return (
     <div className="space-y-6">

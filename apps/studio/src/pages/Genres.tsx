@@ -19,8 +19,8 @@ interface Data {
 }
 
 export function Genres() {
-  const { data, isLoading } = useApi<Data>("/api/genres");
-  if (isLoading || !data) return <Loading />;
+  const { data, isLoading, error } = useApi<Data>("/api/genres");
+  if (isLoading || !data) return <Loading error={error} />;
 
   return (
     <div className="space-y-8">

@@ -30,10 +30,10 @@ interface Fact {
 
 export function Facts() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{ facts: Fact[]; missingVector: number; title: string }>(
+  const { data, isLoading, error } = useApi<{ facts: Fact[]; missingVector: number; title: string }>(
     `/api/series/${id}/facts`,
   );
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   const { facts } = data;
   const open = facts.filter((f) => f.kind === "OPEN_THREAD" && !f.resolved);

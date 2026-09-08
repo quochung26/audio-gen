@@ -1,4 +1,5 @@
 import { useRef, type FormEvent, type ReactNode } from "react";
+import { Link } from "react-router";
 import { ApiError, useAction } from "@/lib/api";
 import { Button } from "./ui";
 
@@ -125,6 +126,23 @@ export function ErrorNote({ error }: { error: ApiError | Error | null }) {
   );
 }
 
-export function Loading() {
-  return <p className="p-6 text-sm text-neutral-600">Loading…</p>;
+/**
+ * What a page shows before its data arrives — or instead of it.
+ *
+ * Every page guards with `if (isLoading || !data) return <Loading />`, and none of them
+ * read `error`. A request that FAILS leaves `data` undefined for good, so the page said
+ * "Loading…" for ever: a link to a deleted episode looked exactly like a slow one, and
+ * the only way to tell them apart was the API log.
+ */
+export function Loading({ error }: { error?: ApiError | Error | null }) {
+  if (!error) return <p className="p-6 text-sm text-neutral-600">Loading…</p>;
+
+  return (
+    <div className="max-w-xl space-y-3 p-6">
+      <ErrorNote error={error} />
+      <Link to="/" className="inline-block text-sm text-neutral-400 underline">
+        Back to the dashboard
+      </Link>
+    </div>
+  );
 }

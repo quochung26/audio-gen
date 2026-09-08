@@ -54,7 +54,7 @@ function formatDuration(ms: number): string {
 
 export function EpisodeAudio() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{
+  const { data, isLoading, error } = useApi<{
     episode: Ep;
     bgmTracks: Track[];
     sfxTracks: Track[];
@@ -63,7 +63,7 @@ export function EpisodeAudio() {
     `/api/episodes/${id}/audio`,
     { refetchMs: 3000 },
   );
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   const ep = data.episode;
   const done = ep.blocks.filter((b) => b.audioAsset).length;

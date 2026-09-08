@@ -29,8 +29,8 @@ interface Data {
 export function Prompt() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { data, isLoading } = useApi<Data>(`/api/prompts/${id}`);
-  if (isLoading || !data) return <Loading />;
+  const { data, isLoading, error } = useApi<Data>(`/api/prompts/${id}`);
+  if (isLoading || !data) return <Loading error={error} />;
 
   const { prompt: p, check, available } = data;
 

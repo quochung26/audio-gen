@@ -21,7 +21,7 @@ export function Job() {
   const { id } = useParams();
   const nav = useNavigate();
   const running = (s?: string) => s === "QUEUED" || s === "RUNNING";
-  const { data, isLoading } = useApi<JobData>(`/api/jobs/${id}`, { refetchMs: 1000 });
+  const { data, isLoading, error } = useApi<JobData>(`/api/jobs/${id}`, { refetchMs: 1000 });
 
   // Where a finished job sends you. `result.episodeId` is NOT the same as the row's
   // `episodeId`: a job that CREATES an episode cannot be filed against one, so
@@ -41,7 +41,7 @@ export function Job() {
     if (to) nav(to, { replace: true });
   }, [data, nav]);
 
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   return (
     <div className="max-w-xl space-y-4">

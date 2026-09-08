@@ -47,8 +47,8 @@ function formatDuration(ms: number): string {
 }
 
 export function Tracks() {
-  const { data, isLoading } = useApi<{ tracks: Track[]; storageDriver: string }>("/api/tracks");
-  if (isLoading || !data) return <Loading />;
+  const { data, isLoading, error } = useApi<{ tracks: Track[]; storageDriver: string }>("/api/tracks");
+  if (isLoading || !data) return <Loading error={error} />;
 
   const isLocal = data.storageDriver === "local";
   const unknown = data.tracks.filter((t) => t.licenseType === "UNKNOWN");

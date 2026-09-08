@@ -66,10 +66,10 @@ function gb(bytes: number): string {
 
 export function Models() {
   // Poll faster during a pull so the progress bar moves smoothly.
-  const { data, isLoading } = useApi<Data>("/api/models", { refetchMs: 1500 });
+  const { data, isLoading, error } = useApi<Data>("/api/models", { refetchMs: 1500 });
   // Same key as OpenRouterPanel, so TanStack Query shares one request.
   const or = useApi<OrStatus>("/api/models/openrouter");
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   // Embeddings ALWAYS run locally, even when OpenRouter is in use.
   const localChoices = modelChoices({ ...data, provider: "ollama" });

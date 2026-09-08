@@ -41,6 +41,10 @@ export function useApi<T>(path: string | null, opts?: { refetchMs?: number }) {
     queryFn: () => request<T>(path!),
     enabled: path !== null,
     refetchInterval: opts?.refetchMs,
+    // A 4xx will not become a 200 by asking again: that is the server saying the
+    // request was wrong, not that it failed. The default retries three times, so one
+    // stale link printed four "record not found" lines in the API log instead of one.
+    retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
   });
 }
 

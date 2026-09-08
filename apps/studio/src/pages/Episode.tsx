@@ -104,7 +104,7 @@ function formatDuration(ms: number): string {
 export function Episode() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { data: ep, isLoading } = useApi<Ep>(`/api/episodes/${id}`, { refetchMs: 3000 });
+  const { data: ep, isLoading, error } = useApi<Ep>(`/api/episodes/${id}`, { refetchMs: 3000 });
 
   const active = ep?.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
 
@@ -121,7 +121,7 @@ export function Episode() {
     { refetchMs: 700 },
   );
 
-  if (isLoading || !ep) return <Loading />;
+  if (isLoading || !ep) return <Loading error={error} />;
 
   // Count across the WHOLE EPISODE: chapters are only a grouping, and "is it
   // written" is an episode-level question — the approval gate and the audio edit

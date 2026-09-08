@@ -14,10 +14,10 @@ interface World {
 
 export function Bible() {
   const { id } = useParams();
-  const { data, isLoading } = useApi<{ world: World; bible: string; title: string }>(
+  const { data, isLoading, error } = useApi<{ world: World; bible: string; title: string }>(
     `/api/series/${id}/world`,
   );
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
   const { world } = data;
 
   return (

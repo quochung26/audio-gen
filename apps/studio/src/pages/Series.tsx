@@ -58,11 +58,11 @@ function formatDuration(ms: number): string {
 export function Series() {
   const nav = useNavigate();
   const { id } = useParams();
-  const { data: s, isLoading } = useApi<Data>(`/api/series/${id}`, { refetchMs: 5000 });
+  const { data: s, isLoading, error } = useApi<Data>(`/api/series/${id}`, { refetchMs: 5000 });
   const { data: catalog } = useApi<{ genres: Array<{ name: string; enabled: boolean }> }>(
     "/api/genres",
   );
-  if (isLoading || !s) return <Loading />;
+  if (isLoading || !s) return <Loading error={error} />;
 
   const run = s.batchRuns[0];
   const active = run && (run.status === "RUNNING" || run.status === "WAITING_REVIEW") ? run : null;

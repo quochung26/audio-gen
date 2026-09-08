@@ -33,10 +33,10 @@ interface Card {
  * because this is exactly where people assume the opposite.
  */
 export function CharacterCards() {
-  const { data, isLoading } = useApi<{ cards: Card[]; voices: Voice[] }>("/api/character-cards");
+  const { data, isLoading, error } = useApi<{ cards: Card[]; voices: Voice[] }>("/api/character-cards");
   const [editing, setEditing] = useState<string | null>(null);
 
-  if (isLoading || !data) return <Loading />;
+  if (isLoading || !data) return <Loading error={error} />;
 
   return (
     <div className="space-y-8">
