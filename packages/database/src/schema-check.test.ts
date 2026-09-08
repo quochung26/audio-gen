@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { accessorName, checkPrismaClient, staleClientMessage } from "./schema-check";
+import { accessorName, checkPrismaClient, declaredEnums, staleClientMessage, staleEnumMessage } from "./schema-check";
 
 const SCHEMA = `
 generator client {
@@ -86,3 +86,64 @@ describe("checkPrismaClient", () => {
 function readSchema(): string {
   return readFileSync(resolve(import.meta.dirname, "../prisma/schema.prisma"), "utf8");
 }
+
+describe("declaredEnums", () => {
+  const schema = `
+enum JobType {
+  /// Advances a batch run.
+  BATCH
+  OUTLINE
+  SCENE_BEAT
+}
+
+model Series {
+  id String @id
+}
+
+enum SeriesStatus {
+  DRAFT
+  ONGOING
+}
+`;
+
+  it("reads every enum and its values", () => {
+    expect(declaredEnums(schema)).toEqual({
+      JobType: ["BATCH", "OUTLINE", "SCENE_BEAT"],
+      SeriesStatus: ["DRAFT", "ONGOING"],
+    });
+  });
+
+  it("skips the /// documentation Prisma allows between values", () => {
+    expect(declaredEnums(schema).JobType).not.toContain("Advances");
+  });
+});
+
+describe("staleEnumMessage", () => {
+  const schema = "enum JobType {\n  OUTLINE\n  SCENE_BEAT\n}";
+
+  it("says nothing when the client knows every value", () => {
+    expect(staleEnumMessage(schema, { JobType: { OUTLINE: "OUTLINE", SCENE_BEAT: "SCENE_BEAT" } }))
+      .toBeNull();
+  });
+
+  it("names the missing value and the command that fixes it", () => {
+    // Adding a value changes no MODEL, so the model check passes and the process
+    // starts fine — then dies at the first request that uses it, as a 500 naming
+    // neither the cause nor the cure.
+    const msg = staleEnumMessage(schema, { JobType: { OUTLINE: "OUTLINE" } });
+    expect(msg).toContain("JobType.SCENE_BEAT");
+    expect(msg).toContain("pnpm db:push");
+  });
+
+  it("says `db:push`, not `db:generate` — the value has to reach Postgres too", () => {
+    // A regenerated client alone only changes the error: it then fails at insert time
+    // because the enum type in Postgres still lacks the label.
+    expect(staleEnumMessage(schema, { JobType: {} })).not.toContain("db:generate");
+  });
+
+  it("ignores an enum the client does not have AT ALL", () => {
+    // That means the client predates the whole type, and the model check has almost
+    // certainly already said so in plainer words. Two messages bury the useful one.
+    expect(staleEnumMessage(schema, {})).toBeNull();
+  });
+});

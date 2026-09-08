@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { $Enums, PrismaClient } from "@prisma/client";
 import { checkPrismaClient } from "./schema-check";
 
 /**
@@ -14,8 +14,9 @@ export const prisma =
   });
 
 // A client older than the schema makes every use of a new model die with a
-// TypeError that says nothing. Blocked right here — the one place every
+// TypeError that says nothing, and every use of a new ENUM VALUE die with a 500
+// naming neither cause nor cure. Blocked right here — the one place every
 // DB-touching process goes through, including scripts run straight with tsx.
-checkPrismaClient(prisma);
+checkPrismaClient(prisma, $Enums);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
