@@ -137,7 +137,12 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       title: outline.title,
       slug: await freeSlug(outline.title),
       description: outline.logline,
-      genre: outline.genre,
+      // The genre the WRITER chose, NOT the one the model returned. This column is
+      // the lookup key into `Genre.name` — it feeds the genre descriptions loaded
+      // into every later Bible, the home page label and the RSS keywords. A model
+      // answering "horror" for a story created under "kinh dị" matched nothing, and
+      // the story then wrote on with no genre description at all.
+      genre,
       tags,
       language,
       draftLanguage: draft.translate ? draft.draft : "",
@@ -147,7 +152,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         // With no setting from the writer, the AI's becomes the starting point, so the
         // Story Bible page has something to edit.
         world: { ...world, setting: world.setting.trim() || outline.setting },
-        bible: buildBible(outline, world, tags, people),
+        bible: buildBible(outline, { genre, world, tags, cast: people }),
       },
       characters: {
         // The writer's cast beats the model's, and with a cast chosen the model's

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_WORLD, renderBible } from "./world";
-import { seriesBible } from "./story-context";
+import { buildBible, seriesBible } from "./story-context";
 
 const base = {
   title: "Đường về",
@@ -222,5 +222,57 @@ describe("spotlight — describe only who is present in the scene in full", () =
 
   it("an empty list counts as unset", () => {
     expect(seriesBible({ ...base, spotlight: [] })).toBe(seriesBible(base));
+  });
+});
+
+describe("buildBible — the Bible built the moment the outline lands", () => {
+  const outline = {
+    title: "Chuyến xe cuối cùng",
+    logline: "Một tài xế nhận ra hành khách cuối đã chết.",
+    // What the MODEL called the genre. Never what gets stored.
+    genre: "horror",
+    setting: "Quốc lộ miền Trung, thập niên 1970.",
+    characters: [
+      {
+        name: "Tài",
+        role: "tài xế",
+        outfit: "áo sơ mi bạc",
+        appearance: "gầy",
+        speech: "cộc lốc",
+        voiceHint: "nam trung niên",
+      },
+    ],
+    episodes: [
+      { number: 1, title: "Bến Cũ", chapters: [{ title: "Đêm mưa", beats: ["Tài dừng xe."] }], hook: "Ghế 12 trống." },
+    ],
+  };
+
+  it("carries the genre the WRITER chose, not the model's answer", () => {
+    // `Series.genre` is the key into `Genre.name`. The model answers in its own
+    // words, and "horror" matches no seeded genre, so the description that makes
+    // "kinh dị" mean what the writer means never loads again.
+    const b = buildBible(outline, { genre: "kinh dị" });
+    expect(b).toContain("Genre: kinh dị");
+    expect(b).not.toContain("horror");
+  });
+
+  it("describes the cast that became rows, not the model's list", () => {
+    // Given a chosen cast the model's extras are dropped before the rows are
+    // written; a Bible still describing them puts them back into every scene.
+    const b = buildBible(outline, { genre: "kinh dị", cast: [{ name: "Hạnh", role: "cô lái đò" }] });
+    expect(b).toContain("- Hạnh: cô lái đò");
+    // Named in the beats, so his name is still in the Bible — but not as a character
+    // the model may write dialogue for.
+    expect(b).not.toContain("- Tài:");
+  });
+
+  it("without a cast it falls back to the model's, as before", () => {
+    expect(buildBible(outline, { genre: "kinh dị" })).toContain("- Tài:");
+  });
+
+  it("the writer's setting beats the model's; blank borrows the model's", () => {
+    const mine = { ...EMPTY_WORLD, setting: "Hà Nội, 2005." };
+    expect(buildBible(outline, { genre: "kinh dị", world: mine })).toContain("Hà Nội, 2005.");
+    expect(buildBible(outline, { genre: "kinh dị" })).toContain("Quốc lộ miền Trung");
   });
 });

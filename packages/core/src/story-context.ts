@@ -89,15 +89,30 @@ export function seriesBible(input: SeriesBibleInput): string {
  */
 export function buildBible(
   outline: Outline,
-  world?: WorldSetup,
-  tags: string[] = [],
-  /**
-   * The cast that actually became `Character` rows, when it differs from the
-   * model's. With a chosen cast the model's extras are dropped, and a Bible still
-   * describing them walks them back into every scene written from it.
-   */
-  cast?: CastMember[],
+  opts: {
+    /**
+     * The genre the WRITER chose.
+     *
+     * REQUIRED, and deliberately not defaulted to `outline.genre`: the model
+     * answers the genre question in its own words — "horror", "kinh dị tâm linh" —
+     * and `Series.genre` is a LOOKUP KEY into `Genre.name`, not a label. Miss it
+     * and the story's genre description is silently dropped from every Bible built
+     * afterwards, which shows up as prose drifting rather than as an error.
+     */
+    genre: string;
+    world?: WorldSetup;
+    /** Sub-genre tags the writer chose. */
+    tags?: string[];
+    /**
+     * The cast that actually became `Character` rows, when it differs from the
+     * model's. With a chosen cast the model's extras are dropped, and a Bible still
+     * describing them walks them back into every scene written from it.
+     */
+    cast?: CastMember[];
+  },
 ): string {
+  const { genre, world, tags = [], cast } = opts;
+
   // The writer's setting beats the AI's: if the writer wrote one, keep it; if not,
   // borrow the AI's as a starting point.
   const merged: WorldSetup = {
@@ -108,7 +123,7 @@ export function buildBible(
 
   return renderBible({
     title: outline.title,
-    genre: outline.genre,
+    genre,
     tags,
     logline: outline.logline,
     world: merged,
