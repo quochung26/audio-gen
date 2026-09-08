@@ -29,16 +29,26 @@ export const SCENE_TARGET_WORDS = (SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2;
  * one go, and its size is the model's constraint, not the story's: past 900
  * continuous words a 14B model loses the thread. So chapter length falls out of
  * these two numbers rather than being freely chosen.
+ *
+ * Three, not two: at two a chapter is ~1,500 words, the short end of even a
+ * fast-paced print chapter, and it left a movement with barely room to open and
+ * close. Three gives it ~2,250 while each scene stays the size the model writes well.
  */
-export const SCENES_PER_CHAPTER = 2;
+export const SCENES_PER_CHAPTER = 3;
 
-/** How many chapters make an episode. */
-export const CHAPTERS_PER_EPISODE = 3;
+/**
+ * How many chapters make a full-length episode.
+ *
+ * Two, so that raising the scenes per chapter did not also make every episode half
+ * as long again: 2 × 3 × 750 lands on the same ~4,500 words as the old 3 × 2 × 750.
+ * A number to hold length steady while the shape underneath it changed.
+ */
+export const CHAPTERS_PER_EPISODE = 2;
 
 /**
  * What a full-length episode comes to ≈ 28 minutes.
  *
- * A GUIDE now, not a target: 3 chapters × 2 scenes × ~750 words. An episode is
+ * A GUIDE now, not a target: 2 chapters × 3 scenes × ~750 words. An episode is
  * outlined one chapter at a time, so nothing divides this up any more — it is what
  * Studio shows to say how far along an episode is against a normal one.
  */

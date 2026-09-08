@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { chaptersInAFullEpisode, planChapters, scenesInAFullEpisode } from "./scene-planner";
+import {
+  SCENES_PER_CHAPTER,
+  chaptersInAFullEpisode,
+  planChapters,
+  scenesInAFullEpisode,
+} from "./scene-planner";
 
 const ch = (title: string, n: number) => ({
   title,
@@ -47,7 +52,10 @@ describe("planChapters", () => {
 
 describe("what a full-length episode comes to", () => {
   it("scenes = chapters × scenes per chapter", () => {
-    expect(scenesInAFullEpisode()).toBe(chaptersInAFullEpisode() * 2);
+    // Against the constant, not a literal: the shape has already been retuned once
+    // (2 chapters × 3 scenes, from 3 × 2) and a hard-coded 2 broke on a change that
+    // was correct.
+    expect(scenesInAFullEpisode()).toBe(chaptersInAFullEpisode() * SCENES_PER_CHAPTER);
   });
 
   it("however short the episode, there is at least one chapter", () => {
