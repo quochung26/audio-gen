@@ -81,7 +81,26 @@ async function seedPrompts() {
       },
     });
   }
-  console.log(`✔ ${PROMPT_FILES.length} prompt`);
+
+  // Prompts for a step that is no longer seeded from a file.
+  //
+  // Upserting alone leaves them: delete a file from prompts/ and its row keeps sitting in
+  // the table, and `loadPrompt` keeps returning it — the step runs a prompt that no longer
+  // exists in the repo, which is invisible until the prose comes out wrong.
+  //
+  // By STEP, never by content: a writer's genre variants are rows too, and theirs are for
+  // steps that ARE seeded. Only a step that has left the catalogue entirely takes its rows
+  // with it.
+  //
+  // This does NOT cover a step removed from the PromptStep enum — Postgres refuses to drop
+  // an enum label while a row still holds it, so `prisma db push` fails before the seed is
+  // ever reached. That case is handled before the push, in sql/002-prune-removed-enums.sql.
+  const seeded = PROMPT_FILES.map((p) => p.step);
+  const stale = await prisma.prompt.deleteMany({ where: { step: { notIn: seeded } } });
+
+  console.log(
+    `✔ ${PROMPT_FILES.length} prompt` + (stale.count > 0 ? ` (${stale.count} cũ đã xoá)` : ""),
+  );
 }
 
 /**
