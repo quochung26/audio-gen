@@ -959,7 +959,10 @@ docker compose exec -T postgres pg_dump -U postgres audio_truyen | gzip > backup
 > giúp — `pnpm dev`, `pnpm build`, `pnpm test`, và cả `pnpm api` / `worker` /
 > `studio` / `player` đều chạy `@audio/database#build` trước, nên bốn lệnh chạy
 > lẻ từng app cũng phải đi qua `turbo` chứ không gọi thẳng `pnpm --filter`.
-> Còn `pnpm db:push` thì vẫn phải gõ tay vì nó ghi vào DB thật. Chạy
+> Còn `pnpm db:push` thì vẫn phải gõ tay vì nó ghi vào DB thật — nó tự chạy
+> `db:ext` (bật pgvector) rồi `db:prune` (xoá các dòng còn giữ giá trị enum sắp bị
+> bỏ) trước khi đẩy, vì Postgres từ chối bỏ một nhãn enum khi còn dòng nào dùng nó
+> và Prisma báo việc đó ra thành "push lỗi" chứ không nói phải xoá dòng trước. Chạy
 > thiếu bước nào cũng có lời nhắc kèm đúng lệnh: `@audio/database` kiểm client
 > ngay lúc dựng nó, nên mọi tiến trình chạy từ mã nguồn — API, worker,
 > `pnpm story`, `db:seed` — đều dừng kèm chỉ dẫn thay vì chết bằng TypeError;

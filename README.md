@@ -984,7 +984,7 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 | Lệnh | Việc |
 |---|---|
 | `pnpm infra:up` / `infra:down` | Bật/tắt Postgres + Redis |
-| `pnpm db:push` | Đồng bộ schema (lúc đang nghịch) |
+| `pnpm db:push` | Đồng bộ schema (lúc đang nghịch). Tự chạy `db:ext` + `db:prune` trước |
 | `pnpm db:migrate` | Tạo migration (khi schema đã ổn định) |
 | `pnpm db:studio` | Xem dữ liệu bằng giao diện |
 | `pnpm typecheck` | Kiểm tra kiểu toàn bộ workspace |
