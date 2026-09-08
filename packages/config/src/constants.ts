@@ -8,6 +8,20 @@ export const SCENE_MIN_WORDS = 600;
 export const SCENE_MAX_WORDS = 900;
 
 /**
+ * What one scene is asked for.
+ *
+ * Fixed, not derived from the episode. It used to be `EPISODE_TARGET_WORDS ÷ the
+ * episode's scene count`, which made sense while an episode was outlined whole: the
+ * length was decided and the scenes divided it up. Chapters are added one at a time
+ * now, so that division moved with every chapter added — the first scenes of an
+ * episode were written at 900 words and the later ones at 750, for no reason a
+ * listener could hear.
+ *
+ * An episode's length is now an OUTCOME: chapters added × scenes per chapter × this.
+ */
+export const SCENE_TARGET_WORDS = (SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2;
+
+/**
  * How many scenes make a chapter.
  *
  * A chapter is the unit of STORYTELLING — one movement with an opening and a
@@ -22,12 +36,11 @@ export const SCENES_PER_CHAPTER = 2;
 export const CHAPTERS_PER_EPISODE = 3;
 
 /**
- * Target episode length ≈ 28 minutes.
+ * What a full-length episode comes to ≈ 28 minutes.
  *
- * Derived from the three numbers above: 3 chapters × 2 scenes × ~750 words.
- * Before the chapter tier existed an episode was 2,500 words (15–20 minutes) —
- * adding a tier while keeping that length leaves one and a half chapters an
- * episode, which describes nothing.
+ * A GUIDE now, not a target: 3 chapters × 2 scenes × ~750 words. An episode is
+ * outlined one chapter at a time, so nothing divides this up any more — it is what
+ * Studio shows to say how far along an episode is against a normal one.
  */
 export const EPISODE_TARGET_WORDS =
   CHAPTERS_PER_EPISODE * SCENES_PER_CHAPTER * ((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2);

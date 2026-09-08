@@ -14,7 +14,6 @@ import {
   type CastMember,
   renderWorldForOutline,
   slugify,
-  suggestChapterCount,
   suggestScenesPerChapter,
 } from "@audio/core";
 import { EpisodeStatus, SeriesStatus, prisma } from "@audio/database";
@@ -27,7 +26,7 @@ import {
   renderTemplate,
   resolveModel,
 } from "@audio/llm";
-import { EPISODE_TARGET_WORDS, SCENE_MAX_WORDS, SCENE_MIN_WORDS } from "@audio/config";
+import { SCENE_TARGET_WORDS } from "@audio/config";
 import { freeSlug } from "../services/slug";
 import { streamProgress } from "../lib/progress";
 import type { JobHandler } from "../lanes/create-lane";
@@ -76,7 +75,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   );
   const modelName = (label: string) => forModel.get(label.trim().toLowerCase()) ?? label;
 
-  const chapterCount = suggestChapterCount(EPISODE_TARGET_WORDS);
   const scenesPerChapter = suggestScenesPerChapter();
   const prompt = await loadPrompt("OUTLINE", genre);
   const params = prompt.params;
@@ -112,9 +110,8 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         idea,
         genre: modelName(genre),
         episodeCount,
-        chapterCount,
         scenesPerChapter,
-        sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
+        sceneWords: SCENE_TARGET_WORDS,
         tags: tags.length > 0 ? tags.map(modelName).join(", ") : "(none)",
         world: renderWorldForOutline(world),
         cast: renderCastForOutline(cast),

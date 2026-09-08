@@ -57,6 +57,7 @@ describe("the default prompts in the repo", () => {
     ["STORY_SO_FAR", "story-so-far.md"],
     ["CHARACTER", "character.md"],
     ["NEXT_EPISODE", "next-episode.md"],
+    ["NEXT_CHAPTER", "next-chapter.md"],
     ["WRITE_SCENE", "write-scene.md"],
     ["TRANSLATE", "translate.md"],
     ["AUDIO_EDIT", "audio-edit.md"],
@@ -71,7 +72,7 @@ describe("the default prompts in the repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("declares all 9 steps", () => {
+  it("declares all 10 steps", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

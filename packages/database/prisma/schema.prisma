@@ -61,6 +61,7 @@ enum JobType {
   BATCH
   OUTLINE
   NEXT_EPISODE
+  NEXT_CHAPTER
   WRITE_SCENE
   /// Rewrite the draft into the output language. Only runs when Series.draftLanguage
   /// differs from Series.language — see packages/core/src/language.ts.
@@ -138,6 +139,10 @@ enum PromptStep {
   CHARACTER
   /// Outline ONE more episode, based on the ones that exist.
   NEXT_EPISODE
+  /// Outline ONE more chapter of an episode already under way. Same reasoning as
+  /// NEXT_EPISODE one tier down: three chapters planned from one idea makes the
+  /// third the model's guess at a story not yet written.
+  NEXT_CHAPTER
   WRITE_SCENE
   /// Rewrite the draft into the output language.
   TRANSLATE

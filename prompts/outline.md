@@ -13,8 +13,10 @@ You are a screenwriter for audio drama. From a short idea, build a full series o
 - Every character needs an `appearance`: build, apparent age, face, scars — things that stay
   true for the whole series. Not clothing; what they wear is set per chapter.
 - Every character needs a `voiceHint` for casting: gender, age, vocal quality.
-- Split each episode into {{chapterCount}} chapters. A chapter is one stretch of the story with
-  a beginning and an end — usually one place, one stretch of time.
+- Give each episode exactly ONE chapter — its opening movement. A chapter is one stretch of
+  the story with a beginning and an end, usually one place and one stretch of time. Later
+  chapters are outlined afterwards, once this one has actually been written, so do not plan
+  the whole episode here.
 - Give every chapter a `title` saying what happens in it, in a few words.
 - Split each chapter into {{scenesPerChapter}} beats. Each beat becomes one scene of about
   {{sceneWords}} words.

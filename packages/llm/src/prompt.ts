@@ -32,7 +32,7 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // `world` and `cast` are the two blocks the writer sets up front: empty means the
   // AI invents them, present means the AI follows them. See renderWorldForOutline /
   // renderCastForOutline.
-  OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
+  OUTLINE: ["idea", "genre", "tags", "episodeCount", "scenesPerChapter", "sceneWords", "world", "cast"],
   // Compression on compression: `previous` is the paragraph the last scene left
   // behind, `text` is the scene just written, and the answer replaces `previous`.
   // Nothing else goes in — asked to summarise with the whole story in front of it, a
@@ -42,8 +42,13 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // exists, the half-filled form when it does not), `brief` is what the writer had
   // already typed about this one person. See renderKnownCast / renderCharacterBrief.
   CHARACTER: ["context", "brief"],
-  // Continuing needs no original idea — it needs to know what has happened.
-  NEXT_EPISODE: ["bible", "context", "episodeNumber", "chapterCount", "scenesPerChapter", "sceneWords"],
+  // Continuing needs no original idea — it needs to know what has happened. No
+  // `chapterCount`: an episode opens with ONE chapter and grows a chapter at a time,
+  // the same way the story grows an episode at a time.
+  NEXT_EPISODE: ["bible", "context", "episodeNumber", "scenesPerChapter", "sceneWords"],
+  // One chapter for an episode already under way. `soFar` is the chapters it already
+  // has — the model has to carry on from them rather than restart the episode.
+  NEXT_CHAPTER: ["bible", "context", "soFar", "chapterNumber", "scenesPerChapter", "sceneWords"],
   // The whole context folded into ONE variable: Story Bible, arc summary, retrieved
   // facts, previous scene, beat, target words — see `renderContext` in @audio/core.
   WRITE_SCENE: ["context"],

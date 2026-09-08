@@ -167,6 +167,43 @@ episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   return c.json({ ok: "Saved. Applies to every scene in this chapter, from the next run." });
 });
 
+/**
+ * Outline ONE more chapter for this episode.
+ *
+ * The chapter tier's version of "New episode" on the story page: an episode opens with
+ * a single chapter and grows one at a time, each planned knowing how the last actually
+ * turned out rather than guessed from the idea.
+ *
+ * Blocked while the last chapter has unwritten scenes — outlining the next one on top
+ * of beats nobody has written yet is exactly the guesswork this replaces. `force=1` for
+ * a writer who wants the shape laid out first anyway.
+ */
+episodes.post("/:id/chapters", async (c) => {
+  const episodeId = c.req.param("id");
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+
+  const last = await prisma.chapter.findFirst({
+    where: { episodeId },
+    orderBy: { order: "desc" },
+    select: { order: true, title: true, scenes: { where: { text: null }, select: { id: true } } },
+  });
+
+  if (last && last.scenes.length > 0 && field(body, "force") !== "1") {
+    throw new UserError(
+      `Chapter ${last.order}${last.title ? ` "${last.title}"` : ""} still has ` +
+        `${last.scenes.length} unwritten scene${last.scenes.length === 1 ? "" : "s"}. ` +
+        `Write them first, so the next chapter is planned from what the episode actually says.`,
+    );
+  }
+
+  await enqueue({
+    type: "NEXT_CHAPTER",
+    episodeId,
+    payload: { episodeId, model: field(body, "model") || undefined },
+  });
+  return c.json({ ok: "Outlining the next chapter…" });
+});
+
 /** Rename a chapter. */
 episodes.put("/:id/chapters/:chapterId", async (c) => {
   const body = await c.req.parseBody();

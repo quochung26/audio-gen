@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planChapters, suggestChapterCount, suggestSceneCount } from "./scene-planner";
+import { chaptersInAFullEpisode, planChapters, scenesInAFullEpisode } from "./scene-planner";
 
 const ch = (title: string, n: number) => ({
   title,
@@ -20,20 +20,20 @@ describe("planChapters", () => {
     expect(out[1]!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 
-  it("divides words by the episode's TOTAL beat count, not per chapter", () => {
-    // A three-beat chapter and a one-beat chapter should still have beats of the
-    // same length, rather than the lone beat carrying a whole chapter.
-    const out = planChapters([ch("A", 3), ch("B", 1)], 3000);
+  it("asks every scene for the same length, whatever the shape", () => {
+    // It used to divide the episode's target by its beat count. Chapters arrive one
+    // at a time now, so that division changed with every chapter added — the first
+    // scenes of an episode came out at 900 words and the later ones at 750.
+    const out = planChapters([ch("A", 3), ch("B", 1)]);
     const all = out.flatMap((c) => c.scenes.map((s) => s.targetWords));
-    expect(new Set(all).size).toBe(1);
+    expect(new Set(all)).toEqual(new Set([750]));
   });
 
-  it("clamps words per scene to what the model can hold", () => {
-    // A 14B model loses the thread past ~1,500 continuous tokens — this ceiling is not arbitrary.
-    const tiny = planChapters([ch("A", 1)], 100);
-    const huge = planChapters([ch("A", 1)], 100000);
-    expect(tiny[0]!.scenes[0]!.targetWords).toBe(600);
-    expect(huge[0]!.scenes[0]!.targetWords).toBe(900);
+  it("numbers a chapter added later after the ones already there", () => {
+    // `(episodeId, order)` is unique — a second chapter 1 kills the job.
+    const out = planChapters([ch("C", 2)], 3);
+    expect(out[0]!.order).toBe(3);
+    expect(out[0]!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 
   it("drops a chapter with no beats", () => {
@@ -54,12 +54,12 @@ describe("planChapters", () => {
   });
 });
 
-describe("count suggestions", () => {
-  it("scenes per episode = chapters × scenes per chapter", () => {
-    expect(suggestSceneCount()).toBe(suggestChapterCount() * 2);
+describe("what a full-length episode comes to", () => {
+  it("scenes = chapters × scenes per chapter", () => {
+    expect(scenesInAFullEpisode()).toBe(chaptersInAFullEpisode() * 2);
   });
 
   it("however short the episode, there is at least one chapter", () => {
-    expect(suggestChapterCount(10)).toBe(1);
+    expect(chaptersInAFullEpisode(10)).toBe(1);
   });
 });

@@ -7,6 +7,16 @@ import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
 import { languageLabel } from "@/components/LanguagePicker";
 
+/**
+ * How many chapters a full-length episode comes to — 3 × 2 scenes × 750 words ≈ 28 min.
+ *
+ * Copied rather than imported: Studio is a standalone SPA and takes no `@audio/*`
+ * dependency, so it cannot reach `chaptersInAFullEpisode` in @audio/core. It is a HINT in
+ * one sentence, not a rule anything enforces — drifting from the real number costs a
+ * slightly wrong hint, not a wrong episode.
+ */
+const CHAPTERS_IN_A_FULL_EPISODE = 3;
+
 interface Streaming {
   sceneId: string;
   order: number;
@@ -318,6 +328,33 @@ export function Episode() {
             </div>
           ))}
         </div>
+
+        {/* An episode opens with ONE chapter and grows one at a time — the same reason
+            the story grows an episode at a time. Three chapters planned from one idea
+            makes the third a guess at a draft nobody has written. */}
+        {!active && (
+          <div className="rounded border border-dashed border-neutral-800 p-4">
+            <Form
+              path={`/api/episodes/${ep.id}/chapters`}
+              submit={`Outline chapter ${ep.chapters.length + 1}`}
+              className="max-w-md"
+            >
+              <ModelPicker />
+              <p className="mt-2 text-xs text-neutral-600">
+                Planned from what the episode ACTUALLY says so far, not from the idea it started
+                from. A full-length episode is about {CHAPTERS_IN_A_FULL_EPISODE} chapters — but
+                that is a guide, not a limit.
+                {!allWritten && (
+                  <>
+                    {" "}
+                    Write the scenes above first: outlining on top of beats nobody has written yet
+                    is the guesswork this replaces.
+                  </>
+                )}
+              </p>
+            </Form>
+          </div>
+        )}
       </Section>
 
       {/* Drafting in another language means rewriting BEFORE approval: approving a

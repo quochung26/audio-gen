@@ -3,14 +3,13 @@ import {
   nextEpisodePlanSchema,
   planChapters,
   renderEpisodeContext,
-  suggestChapterCount,
   suggestScenesPerChapter,
   toLanguage,
   withLanguage,
 } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
-import { EPISODE_TARGET_WORDS, SCENE_MAX_WORDS, SCENE_MIN_WORDS } from "@audio/config";
+import { SCENE_TARGET_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { openThreads } from "../services/fact-store";
 import { freeSlug } from "../services/slug";
@@ -89,9 +88,8 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
         bible,
         context,
         episodeNumber,
-        chapterCount: suggestChapterCount(EPISODE_TARGET_WORDS),
         scenesPerChapter: suggestScenesPerChapter(),
-        sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
+        sceneWords: SCENE_TARGET_WORDS,
       }),
       // The model call is the whole wait for outlining an episode: without this the bar
       // sits at 25 until it lands, which reads exactly like a dead worker.

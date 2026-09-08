@@ -10,6 +10,10 @@ const STEP_LABEL: Record<string, { title: string; desc: string }> = {
     title: "Next episode",
     desc: "Outlines one more episode, knowing how the last one ended.",
   },
+  NEXT_CHAPTER: {
+    title: "Next chapter",
+    desc: "Outlines one more chapter, knowing what the episode actually says so far.",
+  },
   CHARACTER: {
     title: "Character",
     desc: "Invents one character to fit the story — the “let the AI write one” button.",
