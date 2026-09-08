@@ -23,10 +23,22 @@ export function Job() {
   const running = (s?: string) => s === "QUEUED" || s === "RUNNING";
   const { data, isLoading } = useApi<JobData>(`/api/jobs/${id}`, { refetchMs: 1000 });
 
+  // Where a finished job sends you. `result.episodeId` is NOT the same as the row's
+  // `episodeId`: a job that CREATES an episode cannot be filed against one, so
+  // NEXT_EPISODE is queued with a null column and names the episode in its result. It
+  // was never read here, so that job finished at 100% and the page just sat there —
+  // the one path with nowhere to go.
+  const goTo = (j: JobData) =>
+    j.result?.seriesId
+      ? `/series/${j.result.seriesId}`
+      : (j.result?.episodeId ?? j.episodeId)
+        ? `/episode/${j.result?.episodeId ?? j.episodeId}`
+        : null;
+
   useEffect(() => {
     if (data?.status !== "DONE") return;
-    if (data.result?.seriesId) nav(`/series/${data.result.seriesId}`, { replace: true });
-    else if (data.episodeId) nav(`/episode/${data.episodeId}`, { replace: true });
+    const to = goTo(data);
+    if (to) nav(to, { replace: true });
   }, [data, nav]);
 
   if (isLoading || !data) return <Loading />;
@@ -52,6 +64,14 @@ export function Job() {
       )}
       {running(data.status) && (
         <p className="text-xs text-neutral-600">Refreshes every second.</p>
+      )}
+
+      {/* Finished, with nothing named to open — a batch step, or a job whose target was
+          deleted while it ran. Better a way out than a page that stops moving. */}
+      {data.status === "DONE" && !goTo(data) && (
+        <Link to="/" className="inline-block text-sm text-neutral-400 underline">
+          Done. Back to the dashboard
+        </Link>
       )}
 
       {data.status === "FAILED" && (
