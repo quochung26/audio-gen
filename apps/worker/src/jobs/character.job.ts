@@ -24,6 +24,7 @@ import {
 import { buildSeriesBible } from "../services/story-context";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
+import { streamProgress } from "../lib/progress";
 
 /**
  * Invent ONE character.
@@ -82,6 +83,14 @@ export const characterJob: JobHandler = async ({ job, setProgress }) => {
       prompt: renderTemplate(prompt.content, {
         context,
         brief: renderCharacterBrief(typed),
+      }),
+      // The model call is the whole wait for inventing a character: without this the bar
+      // sits at 20 until it lands, which reads exactly like a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 20,
+        to: 65,
+        maxTokens: Number(prompt.params.maxTokens) || undefined,
       }),
       ...(prompt.params as object),
     });

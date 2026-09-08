@@ -13,6 +13,7 @@ import type { JobHandler } from "../lanes/create-lane";
 import { enqueue } from "../services/queue";
 import { saveFacts } from "../services/fact-store";
 import { logger } from "../lib/logger";
+import { streamProgress } from "../lib/progress";
 
 /**
  * Step 0d — summarise the episode AND update character state, in one call.
@@ -60,6 +61,14 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
         text,
       }),
       model,
+      // The model call is the whole wait for summarising an episode: without this the bar
+      // sits at 20 until it lands, which reads exactly like a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 20,
+        to: 65,
+        maxTokens: Number(prompt.params.maxTokens) || undefined,
+      }),
       ...(prompt.params as object),
     });
   } catch (err) {

@@ -11,6 +11,7 @@ import {
 import { RECENT_SUMMARY_COUNT } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
+import { streamProgress } from "../lib/progress";
 
 /** The arc summary's maximum length, in words. */
 const ARC_MAX_WORDS = 400;
@@ -75,6 +76,14 @@ export const arcSummaryJob: JobHandler = async ({ job, setProgress }) => {
           .join("\n\n"),
       }),
       model,
+      // The model call is the whole wait for compressing the arc: without this the bar
+      // sits at 20 until it lands, which reads exactly like a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 20,
+        to: 75,
+        maxTokens: Number(prompt.params.maxTokens) || undefined,
+      }),
       ...(prompt.params as object),
     });
   } catch (err) {

@@ -4,6 +4,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import { DEFAULT_PAUSE_AFTER_MS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
+import { streamProgress } from "../lib/progress";
 import { resolveVoice } from "../services/voice-resolver";
 
 /**
@@ -62,6 +63,14 @@ export const audioEditJob: JobHandler = async ({ job, setProgress }) => {
           .map((c) => `- ${c.name}${c.isNarrator ? " (narrator)" : ""}: ${c.role ?? ""}`)
           .join("\n"),
         draft: episode.draftText,
+      }),
+      // The model call is the whole wait for cutting the audio script: without this the bar
+      // sits at 15 until it lands, which reads exactly like a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 15,
+        to: 65,
+        maxTokens: Number(prompt.params.maxTokens) || undefined,
       }),
       ...(prompt.params as object),
     });

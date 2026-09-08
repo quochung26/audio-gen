@@ -15,6 +15,7 @@ import type { JobHandler } from "../lanes/create-lane";
 import { openThreads } from "../services/fact-store";
 import { freeSlug } from "../services/slug";
 import { logger } from "../lib/logger";
+import { streamProgress } from "../lib/progress";
 
 /**
  * Outline ONE more episode.
@@ -89,6 +90,14 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
         chapterCount: suggestChapterCount(EPISODE_TARGET_WORDS),
         scenesPerChapter: suggestScenesPerChapter(),
         sceneWords: Math.round((SCENE_MIN_WORDS + SCENE_MAX_WORDS) / 2),
+      }),
+      // The model call is the whole wait for outlining an episode: without this the bar
+      // sits at 25 until it lands, which reads exactly like a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 25,
+        to: 75,
+        maxTokens: Number(prompt.params.maxTokens) || undefined,
       }),
       ...(prompt.params as object),
     });
