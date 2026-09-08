@@ -9,47 +9,56 @@ const base: StoryContext = {
   targetWords: 750,
 };
 
-describe("renderContext — the story so far", () => {
-  const storySoFar =
-    "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn. Ông Bảy dặn anh đừng dừng ở Bến Cũ, " +
-    "nhưng không nói vì sao.";
+const rolling =
+  "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn. Ông Bảy dặn anh đừng dừng ở Bến Cũ, " +
+  "nhưng không nói vì sao.";
+const arc = "Bốn tập đầu: Tài nhận tuyến xe đêm Bến Cũ.";
 
+describe("renderContext — the story so far", () => {
   it("goes in as one paragraph, verbatim", () => {
-    expect(renderContext({ ...base, storySoFar })).toContain(storySoFar);
+    expect(renderContext({ ...base, storySoFar: rolling })).toContain(rolling);
   });
 
-  it("comes BEFORE the previous scene in full", () => {
-    // The model reads in sequence: what has happened, then where it is picking up.
-    const out = renderContext({ ...base, storySoFar, previousScene: "Mưa đổ xuống mái tôn." });
-    expect(out.indexOf("The story up to this scene")).toBeLessThan(
+  it("the rolling summary REPLACES the arc summary — never both", () => {
+    // They answer the same question. Loading both put the same history in twice, down
+    // two lossy chains that could contradict each other.
+    const out = renderContext({ ...base, storySoFar: rolling, arcSummary: arc, arcThroughEpisode: 4 });
+    expect(out).toContain(rolling);
+    expect(out).not.toContain(arc);
+    expect(out.match(/## The story so far/g)).toHaveLength(1);
+  });
+
+  it("falls back to the arc summary when there is no rolling one", () => {
+    // A story written before the rolling summary existed, and the version a person can
+    // correct by hand on the story page.
+    const out = renderContext({ ...base, arcSummary: arc, arcThroughEpisode: 4 });
+    expect(out).toContain(arc);
+    expect(out).toContain("episodes 1–4");
+  });
+
+  it("comes FIRST — the widest scope before the near detail", () => {
+    const out = renderContext({
+      ...base,
+      storySoFar: rolling,
+      previousSummaries: [{ number: 4, summary: "Tài chôn chiếc vé cũ." }],
+      previousScene: "Mưa đổ xuống mái tôn.",
+    });
+    expect(out.indexOf("The story so far")).toBeLessThan(
+      out.indexOf("Summary of the previous episode"),
+    );
+    expect(out.indexOf("Summary of the previous episode")).toBeLessThan(
       out.indexOf("The previous scene, in full"),
     );
   });
 
-  it("comes AFTER the arc summary and the previous episode's summary", () => {
-    // Both answer the same question and are older: the arc summary is rebuilt every
-    // few episodes, this one after every scene. The model follows what it read last.
-    const out = renderContext({
-      ...base,
-      storySoFar,
-      arcSummary: "Bốn tập đầu: Tài lái xe đêm tuyến Bến Cũ.",
-      previousSummaries: [{ number: 4, summary: "Tài chôn chiếc vé cũ." }],
-    });
-    expect(out.indexOf("The story so far")).toBeLessThan(out.indexOf("The story up to this scene"));
-    expect(out.indexOf("Summary of the previous episode")).toBeLessThan(
-      out.indexOf("The story up to this scene"),
-    );
-  });
-
-  it("the first scene of a STORY leaves the block out entirely", () => {
-    // Not the first scene of an episode — the paragraph carries across that boundary.
-    // Also every scene written before this existed, whose paragraph is still null.
-    expect(renderContext(base)).not.toContain("The story up to this scene");
-    expect(renderContext({ ...base, storySoFar: "" })).not.toContain("The story up to this scene");
+  it("neither source leaves the block out entirely", () => {
+    // The very first scene of a story.
+    expect(renderContext(base)).not.toContain("The story so far");
+    expect(renderContext({ ...base, storySoFar: "" })).not.toContain("The story so far");
   });
 
   it("tells the model not to write any of it again", () => {
     // Without this a model reads the paragraph as material and re-stages the scenes.
-    expect(renderContext({ ...base, storySoFar })).toMatch(/Do not write any of it again/i);
+    expect(renderContext({ ...base, storySoFar: rolling })).toMatch(/Do not write any of it again/i);
   });
 });

@@ -142,9 +142,28 @@ export function buildBible(
 export function renderContext(ctx: StoryContext): string {
   const parts: string[] = [];
 
-  // The arc summary comes before the per-episode ones: the model reads in
-  // sequence, and the distant shape has to land before the near detail.
-  if (ctx.arcSummary) {
+  // The story so far — ONE block, from the freshest source there is. It comes before
+  // the per-episode blocks because the model reads in sequence and the widest scope has
+  // to land before the near detail.
+  //
+  // Two sources answer this, and loading both put the same history in twice, in about
+  // 800 words, down two different lossy chains that could contradict each other:
+  //
+  //   storySoFar  — folded scene by scene, rewritten after EVERY scene
+  //   arcSummary  — rebuilt every few episodes, and only covers the ones before that
+  //
+  // So the rolling one wins outright when it exists: it is newer, it covers more, and
+  // it is one compression step from the prose rather than two. The arc summary stays as
+  // the fallback — a story written before the rolling summary existed has none, and it
+  // is also the version a person can correct by hand on the story page.
+  if (ctx.storySoFar) {
+    parts.push(
+      `## The story so far\n` +
+        `Everything that has happened, brought up to date after the last scene written. ` +
+        `Do not write any of it again, and do not contradict it:\n` +
+        ctx.storySoFar,
+    );
+  } else if (ctx.arcSummary) {
     const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
     parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
   }
@@ -186,24 +205,6 @@ export function renderContext(ctx: StoryContext): string {
   // Chapter instructions go AFTER the history, BEFORE the scene: they constrain
   // what is about to be written, they are not background to read and forget.
   if (ctx.chapter) parts.push(ctx.chapter);
-
-  // Immediately before the previous scene: together they read as "this is what has
-  // happened, and here is where you are picking up". The previous scene is inside this
-  // paragraph AND below in full, deliberately — the paragraph is what carries it
-  // forward once it is two scenes back.
-  //
-  // It answers the same question as the arc summary far above, and is placed here
-  // rather than beside it on purpose: this one is rewritten after every scene while
-  // that one is rebuilt every few episodes, and the model follows whatever it read
-  // nearest the work.
-  if (ctx.storySoFar) {
-    parts.push(
-      `## The story up to this scene\n` +
-        `Everything that has happened, brought up to date after the last scene written. Where this and anything above disagree, THIS is right. ` +
-        `Do not write any of it again, and do not contradict it:\n` +
-        ctx.storySoFar,
-    );
-  }
 
   if (ctx.previousScene) {
     parts.push(`## The previous scene, in full\n${ctx.previousScene}`);
