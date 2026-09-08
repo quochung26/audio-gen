@@ -29,6 +29,7 @@ import {
 } from "@audio/llm";
 import { EPISODE_TARGET_WORDS, SCENE_MAX_WORDS, SCENE_MIN_WORDS } from "@audio/config";
 import { freeSlug } from "../services/slug";
+import { streamProgress } from "../lib/progress";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 
@@ -99,6 +100,14 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       model,
       system: withLanguage(language),
       schema: outlineSchema,
+      // The model call is the whole wait. Without this the bar sits at 10 until the
+      // outline lands, which is indistinguishable from a dead worker.
+      onToken: streamProgress({
+        setProgress,
+        from: 10,
+        to: 55,
+        maxTokens: Number(params.maxTokens) || undefined,
+      }),
       prompt: renderTemplate(prompt.content, {
         idea,
         genre: modelName(genre),
