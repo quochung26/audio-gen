@@ -93,13 +93,10 @@ export const DEFAULT_BGM_VOLUME = 0.18;
  *
  * Per-episode summaries accumulate linearly: 30 episodes × ~200 words × ~1.8
  * tokens/word ≈ 10,800 tokens, eating almost all of num_ctx 16384 and leaving no
- * room to generate. So keep only the last few verbatim and compress the rest into
- * an arc summary.
+ * room to generate. So only the last few go in verbatim; the rest of the story is
+ * carried by `Scene.storySoFar`, which is one paragraph at any length.
  */
 export const RECENT_SUMMARY_COUNT = 3;
-
-/** Past this threshold, compress the older part. */
-export const ARC_COMPRESS_THRESHOLD = 6;
 
 /**
  * Vector retrieval of story facts.

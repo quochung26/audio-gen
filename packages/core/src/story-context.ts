@@ -146,16 +146,11 @@ export function renderContext(ctx: StoryContext): string {
   // the per-episode blocks because the model reads in sequence and the widest scope has
   // to land before the near detail.
   //
-  // Two sources answer this, and loading both put the same history in twice, in about
-  // 800 words, down two different lossy chains that could contradict each other:
-  //
-  //   storySoFar  — folded scene by scene, rewritten after EVERY scene
-  //   arcSummary  — rebuilt every few episodes, and only covers the ones before that
-  //
-  // So the rolling one wins outright when it exists: it is newer, it covers more, and
-  // it is one compression step from the prose rather than two. The arc summary stays as
-  // the fallback — a story written before the rolling summary existed has none, and it
-  // is also the version a person can correct by hand on the story page.
+  // Folded scene by scene and rewritten after every one of them, so it is never more
+  // than one scene out of date. There used to be a second block here — an arc summary
+  // rebuilt every few episodes from the episode summaries — saying the same thing a
+  // compression step further from the prose and several episodes later. Two histories
+  // that could disagree, for about 800 words.
   if (ctx.storySoFar) {
     parts.push(
       `## The story so far\n` +
@@ -163,9 +158,6 @@ export function renderContext(ctx: StoryContext): string {
         `Do not write any of it again, and do not contradict it:\n` +
         ctx.storySoFar,
     );
-  } else if (ctx.arcSummary) {
-    const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
-    parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
   }
 
   // The index: cheap (~15 words an episode) and all that survives of compressed ones.
@@ -222,8 +214,16 @@ export function renderContext(ctx: StoryContext): string {
 }
 
 export interface EpisodeContext {
-  arcSummary?: string;
-  arcThroughEpisode?: number;
+  /**
+   * The whole story so far, in one paragraph — see `Scene.storySoFar`.
+   *
+   * The same running summary the scene writer reads, taken from the LAST scene
+   * written. Outlining reads it for the same reason writing does, and it is the
+   * freshest account there is: a new episode is outlined the moment the previous one
+   * finishes, which is exactly when a summary rebuilt every few episodes is at its
+   * most stale.
+   */
+  storySoFar?: string;
   episodeIndex: Array<{ number: number; title: string; gist: string }>;
   previousSummaries: Array<{ number: number; summary: string }>;
   openThreads: Array<{ episodeNumber: number; text: string }>;
@@ -242,9 +242,8 @@ export interface EpisodeContext {
 export function renderEpisodeContext(ctx: EpisodeContext): string {
   const parts: string[] = [];
 
-  if (ctx.arcSummary) {
-    const through = ctx.arcThroughEpisode ? ` (episodes 1–${ctx.arcThroughEpisode})` : "";
-    parts.push(`## The story so far${through}\n${ctx.arcSummary}`);
+  if (ctx.storySoFar) {
+    parts.push(`## The story so far\n${ctx.storySoFar}`);
   }
 
   if (ctx.episodeIndex.length > 0) {

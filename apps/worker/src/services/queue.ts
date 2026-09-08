@@ -25,7 +25,6 @@ const LANE_OF: Record<JobType, Lane> = {
   TRANSLATE: "LLM",
   AUDIO_EDIT: "LLM",
   SUMMARIZE: "LLM",
-  ARC_SUMMARY: "LLM",
   METADATA: "LLM",
   TTS: "TTS_CPU",
   MIX: "FFMPEG",

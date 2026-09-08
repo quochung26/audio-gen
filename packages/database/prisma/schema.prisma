@@ -72,7 +72,6 @@ enum JobType {
   TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
-  ARC_SUMMARY
   METADATA
   TTS
   MIX
@@ -149,7 +148,6 @@ enum PromptStep {
   TRANSLATE
   AUDIO_EDIT
   SUMMARIZE
-  ARC_SUMMARY
   METADATA
 }
 
@@ -226,13 +224,6 @@ model Series {
   /// per-character casting (Character.voiceId) is only for multi-voice work.
   defaultVoiceId String?
   defaultVoice   Voice?  @relation("SeriesDefaultVoice", fields: [defaultVoiceId], references: [id])
-
-  /// The arc summary — old episodes compressed into one block.
-  /// Without it, per-episode summaries accumulate linearly and overflow the context
-  /// around episode 35. See docs/database.md section 2.9.
-  arcSummary        String?
-  /// Which episode number the compression covers up to.
-  arcThroughEpisode Int?
 
   episodes       Episode[]
   characters     Character[]
@@ -489,14 +480,14 @@ model Scene {
   /// scene from episode 2 would fold it into a summary that already contains episode
   /// 11, and the model would append it as though it had just happened.
   ///
-  /// It overlaps `Series.arcSummary`, which answers the same question but is only
-  /// rebuilt every few episodes. Both are loaded; this one is read LAST and is the more
-  /// recent of the two.
+  /// It is the ONLY running account of the story. There used to be a second, an arc
+  /// summary on Series rebuilt every few episodes from the episode summaries; it said
+  /// the same thing a compression step further from the prose and several episodes
+  /// later, and was removed rather than left to disagree with this one.
   ///
   /// Rewriting one scene in the middle leaves every scene AFTER it holding a paragraph
   /// that no longer matches. Rewriting the episode regenerates its own in order; the
-  /// later episodes' do not, which is the same staleness `Character.state` and the arc
-  /// summary already live with.
+  /// later episodes' do not, which is the same staleness `Character.state` lives with.
   ///
   /// Null = not written yet. The block is then left out, which is the old behaviour.
   storySoFar String?
@@ -557,8 +548,9 @@ model Setting {
 /// vector is sharp, and you can pull 5 facts from 5 different episodes rather than
 /// 3 monolithic summaries.
 ///
-/// More importantly, facts live INDEPENDENTLY of summary compression. The
-/// ARC_SUMMARY job compresses old summaries and loses detail, but facts stay intact here.
+/// More importantly, facts live INDEPENDENTLY of summary compression. The running
+/// summary is rewritten after every scene and loses detail each time; a fact stored
+/// here in episode 3 is still exactly itself at episode 60.
 ///
 /// The `embedding` column is declared `Unsupported` — Prisma cannot generate a type
 /// for it, so it still has to be read and written with `$queryRaw`/`$executeRaw` (see

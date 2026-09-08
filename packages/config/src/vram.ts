@@ -40,7 +40,6 @@ export function getJobVramCost(): Record<string, number> {
     TRANSLATE: env.VRAM_LLM_MB,
     AUDIO_EDIT: env.VRAM_LLM_MB,
     SUMMARIZE: env.VRAM_LLM_MB,
-    ARC_SUMMARY: env.VRAM_LLM_MB,
     METADATA: env.VRAM_LLM_MB,
     TTS_CLONE: env.VRAM_TTS_CLONE_MB,
     SUBTITLE: 1024,

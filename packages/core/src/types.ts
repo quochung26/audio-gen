@@ -206,10 +206,6 @@ export type EpisodeMetadata = z.infer<typeof metadataSchema>;
 export interface StoryContext {
   /** Outline + characters + world rules — fixed for the whole story */
   bible: string;
-  /** The arc summary — old episodes compressed into one block */
-  arcSummary?: string;
-  /** Which episode number the arc summary covers up to */
-  arcThroughEpisode?: number;
   /** The story index: one line per episode. Always present, compressed ones too. */
   episodeIndex?: Array<{ number: number; title: string; gist: string }>;
   /** The FULL summary — of the previous episode only, to pick up the thread */

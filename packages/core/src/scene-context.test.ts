@@ -12,28 +12,17 @@ const base: StoryContext = {
 const rolling =
   "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn. Ông Bảy dặn anh đừng dừng ở Bến Cũ, " +
   "nhưng không nói vì sao.";
-const arc = "Bốn tập đầu: Tài nhận tuyến xe đêm Bến Cũ.";
 
 describe("renderContext — the story so far", () => {
   it("goes in as one paragraph, verbatim", () => {
     expect(renderContext({ ...base, storySoFar: rolling })).toContain(rolling);
   });
 
-  it("the rolling summary REPLACES the arc summary — never both", () => {
-    // They answer the same question. Loading both put the same history in twice, down
-    // two lossy chains that could contradict each other.
-    const out = renderContext({ ...base, storySoFar: rolling, arcSummary: arc, arcThroughEpisode: 4 });
-    expect(out).toContain(rolling);
-    expect(out).not.toContain(arc);
+  it("is the ONLY history block — there is no second one to disagree with", () => {
+    // An arc summary rebuilt every few episodes used to sit here too, saying the same
+    // thing a compression step further from the prose and several episodes later.
+    const out = renderContext({ ...base, storySoFar: rolling });
     expect(out.match(/## The story so far/g)).toHaveLength(1);
-  });
-
-  it("falls back to the arc summary when there is no rolling one", () => {
-    // A story written before the rolling summary existed, and the version a person can
-    // correct by hand on the story page.
-    const out = renderContext({ ...base, arcSummary: arc, arcThroughEpisode: 4 });
-    expect(out).toContain(arc);
-    expect(out).toContain("episodes 1–4");
   });
 
   it("comes FIRST — the widest scope before the near detail", () => {
@@ -51,7 +40,7 @@ describe("renderContext — the story so far", () => {
     );
   });
 
-  it("neither source leaves the block out entirely", () => {
+  it("nothing yet leaves the block out entirely", () => {
     // The very first scene of a story.
     expect(renderContext(base)).not.toContain("The story so far");
     expect(renderContext({ ...base, storySoFar: "" })).not.toContain("The story so far");

@@ -267,7 +267,7 @@ Vector DB **không lưu tóm tắt — nó lưu sự kiện**. Mỗi sự kiện
 |---|---|---|---|
 | `Episode.gist` | 1 dòng | không | luôn (mục lục, rẻ) |
 | `Episode.summary` | 150–250 từ | không | chỉ tập liền trước |
-| `Series.arcSummary` | ~400 từ | không | luôn |
+| `Scene.storySoFar` | ~400 từ | không | luôn |
 | **`StoryFact`** | 1 câu / sự kiện | **có** | **khi liên quan tới beat** |
 | `Character.state` | 1–2 câu | không | luôn |
 
@@ -296,11 +296,13 @@ Tóm tắt từng tập tích luỹ tuyến tính — khoảng **tập 35 là tr
 | Tầng | Nội dung | Trần |
 |---|---|---|
 | 1 | Story Bible: thế giới, luật, nhân vật **+ trạng thái hiện tại** | cố định |
-| 2 | Mạch truyện từ đầu — các tập cũ đã nén | ~400 từ |
+| 2 | Mạch truyện từ đầu — đoạn cuộn dồn, viết lại sau **mỗi scene** | ~400 từ |
 | 3 | Tóm tắt 3 tập gần nhất, nguyên văn | 3 tập |
 | 4 | Cảnh liền trước, toàn văn | 1 cảnh |
 
-Đo trên bộ 12 tập: ngữ cảnh phẳng ở **~1.775 token** thay vì tăng dần. Job `ARC_SUMMARY` tự chạy khi tóm tắt chưa nén vượt ngưỡng.
+Đo trên bộ 12 tập: ngữ cảnh phẳng ở **~1.775 token** thay vì tăng dần. Tầng 2 không phình vì mỗi scene được **gấp vào** đoạn cũ chứ không nối thêm — bước `STORY_SO_FAR` chạy ngay sau khi viết xong một scene.
+
+Trước đây tầng 2 là `Series.arcSummary`, nén từ tóm tắt tập và vài tập mới chạy một lần. Đã bỏ: nó trả lời đúng câu hỏi ấy nhưng cách văn gốc hai bước nén thay vì một, và trễ vài tập.
 
 **Trạng thái nhân vật tách riêng khỏi tóm tắt** (`Character.state`). Nén là mất mát — thông tin kiểu "nhân vật này chết ở tập 12" rất dễ bị bỏ khi nén 8 tóm tắt thành 400 từ, và mất nó thì tập 40 sẽ cho người chết bước vào cảnh. Job tóm tắt tự cập nhật sau mỗi tập; sửa tay được ở trang Nhân vật.
 
@@ -550,10 +552,10 @@ Mỗi bước có bản **mặc định** (`genre = "*"`) dùng cho mọi thể 
 | Bước | Biến truyền vào |
 |---|---|
 | `OUTLINE` | `idea` `genre` `episodeCount` `sceneCount` `sceneWords` `world` |
-| `WRITE_SCENE` | `context` — gộp Story Bible, tóm tắt cung truyện, sự kiện truy hồi, cảnh trước, beat, số từ đích |
+| `WRITE_SCENE` | `context` — gộp Story Bible, mạch truyện từ đầu, sự kiện truy hồi, cảnh trước, beat, số từ đích |
 | `AUDIO_EDIT` | `characters` `draft` |
 | `SUMMARIZE` | `characters` `text` |
-| `ARC_SUMMARY` | `maxWords` `previousArc` `summaries` |
+| `STORY_SO_FAR` | `maxWords` `previous` `text` |
 | `METADATA` | `text` |
 
 Tham số sinh và **model riêng cho bước đó** sửa cùng chỗ — để trống thì dùng model theo cấu hình. Tham số vặn được cả ở trang Prompt lẫn mục **Tham số sinh** trên `/model`, nơi bày cả sáu bước trong một màn (chỉ bản đang thắng — sửa biến thể thì vào trang Prompt).

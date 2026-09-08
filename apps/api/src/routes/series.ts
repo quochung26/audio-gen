@@ -403,15 +403,6 @@ series.delete("/:id/cover", async (c) => {
   return c.json({ ok: "Cover art removed." });
 });
 
-series.put("/:id/arc-summary", async (c) => {
-  const body = await c.req.parseBody();
-  await prisma.series.update({
-    where: { id: c.req.param("id") },
-    data: { arcSummary: field(body, "arcSummary") || null },
-  });
-  return c.json({ ok: true });
-});
-
 series.put("/:id/default-voice", async (c) => {
   const body = await c.req.parseBody();
   await prisma.series.update({

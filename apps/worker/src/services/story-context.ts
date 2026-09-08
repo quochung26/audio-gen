@@ -19,10 +19,6 @@ export interface SceneContext {
   /** Write the draft in this language, then rewrite. Blank = write directly. */
   draftLanguage: string;
   bible: string;
-  /** The arc summary — old episodes compressed. */
-  arcSummary?: string;
-  /** Which episode number `arcSummary` covers up to. */
-  arcThroughEpisode?: number;
   /** The story index: one line per episode. Always present, compressed ones too. */
   episodeIndex: Array<{ number: number; title: string; gist: string }>;
   /** The verbatim summary — of the previous episode only, to pick up the thread. */
@@ -48,17 +44,15 @@ export interface SceneContext {
  * Four tiers, from the most stable to the most volatile:
  *
  *   1. Story Bible       — world, rules, characters + their CURRENT state (fixed)
- *   2. Arc summary       — old episodes compressed (~400 word ceiling)
+ *   2. The story so far  — one rolling paragraph, rewritten after EVERY scene
  *   3. Recent summaries  — the last RECENT_SUMMARY_COUNT episodes, verbatim
- *   4. The story so far  — one rolling paragraph, rewritten after EVERY scene
- *   5. Previous scene    — in full, so the prose carries on naturally
+ *   4. Previous scene    — in full, so the prose carries on naturally
  *
- * Tier 4 answers the same question as tier 2 but is never stale: each scene is folded
- * into it rather than appended, so it is one paragraph whether the story is three
- * scenes or three hundred, and it is brought up to date after every one of them. Tiers
- * 2 and 3 are both coarser in time — the arc summary is rebuilt every few episodes, a
- * summary only exists once its episode is finished — so between them a scene could see
- * nothing at all of the twenty scenes before it.
+ * Tier 2 replaced an arc summary rebuilt every few episodes from the episode summaries.
+ * It answers the same question one compression step closer to the prose and is never
+ * more than one scene out of date — which matters because tier 3 only exists once an
+ * episode is FINISHED, so between the two a scene could see nothing at all of the
+ * twenty scenes before it.
  *
  * No tier grows with the episode count, so an 80-episode story still fits num_ctx.
  * The previous version loaded ALL summaries and overflowed around episode 35 — measured, not guessed.
@@ -161,8 +155,6 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
     language: series.language,
     draftLanguage: series.draftLanguage,
     bible,
-    arcSummary: series.arcSummary ?? undefined,
-    arcThroughEpisode: series.arcThroughEpisode ?? undefined,
     episodeIndex: indexRows.map((e) => ({ number: e.number, title: e.title, gist: e.gist! })),
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
     facts,

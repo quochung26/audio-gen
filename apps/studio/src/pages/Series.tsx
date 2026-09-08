@@ -44,8 +44,6 @@ interface Data {
   tags: string[];
   language: string;
   kind: string;
-  arcSummary: string | null;
-  arcThroughEpisode: number | null;
   coverUrl: string | null;
   world: World;
   characters: Char[];
@@ -206,25 +204,6 @@ export function Series() {
           Facts carry their own vectors and are retrieved per scene beat.
         </p>
       </Section>
-
-      {(s.arcSummary || s.episodes.length > 6) && (
-        <Section title="The story so far">
-          <Form path={`/api/series/${s.id}/arc-summary`} method="PUT" submit="Save" className="space-y-2">
-            <textarea
-              name="arcSummary"
-              rows={5}
-              defaultValue={s.arcSummary ?? ""}
-              placeholder="Generated once the story is long enough — compresses older episodes so context stops growing with the episode count."
-              className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed outline-none placeholder:text-neutral-700 focus:border-neutral-600"
-            />
-            <span className="text-xs text-neutral-600">
-              {s.arcThroughEpisode
-                ? `Compressed through episode ${s.arcThroughEpisode}. Later episodes keep their summaries verbatim.`
-                : "Not compressed yet — per-episode summaries are still loaded in full."}
-            </span>
-          </Form>
-        </Section>
-      )}
 
       <Section title="Batch run">
         {active ? (

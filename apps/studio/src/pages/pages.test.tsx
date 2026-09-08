@@ -94,8 +94,6 @@ const FIXTURES: Record<string, unknown> = {
     tags: ["tình cảm", "slow burn"],
     language: "en",
     kind: "LONG",
-    arcSummary: null,
-    arcThroughEpisode: null,
     world: { setting: "", tone: "", rules: [], constraints: [], glossary: [] },
     characters: [
       {
@@ -371,7 +369,7 @@ const FIXTURES: Record<string, unknown> = {
         unknownParams: [],
       },
     ],
-    steps: ["OUTLINE", "WRITE_SCENE", "AUDIO_EDIT", "SUMMARIZE", "ARC_SUMMARY", "METADATA"],
+    steps: ["OUTLINE", "WRITE_SCENE", "STORY_SO_FAR", "AUDIO_EDIT", "SUMMARIZE", "METADATA"],
     // The spec table comes from the API — Studio never copies the ranges.
     genParams: [
       { key: "temperature", label: "temperature", hint: "Higher is more varied but wanders off topic.", min: 0, max: 1.5, step: 0.05, fallback: 0.9 },

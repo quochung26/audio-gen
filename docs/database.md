@@ -80,7 +80,11 @@ Tóm tắt từng tập tích luỹ **tuyến tính**. Đo trên dữ liệu th�
 
 Nên có hai cột mới, mỗi cột giải một vấn đề khác nhau:
 
-**`Series.arcSummary` + `arcThroughEpisode`** — nén các tập cũ thành một khối (trần ~400 từ). Job `ARC_SUMMARY` tự chạy khi số tóm tắt chưa nén vượt `ARC_COMPRESS_THRESHOLD`. Ngữ cảnh sau đó có trần cố định: tóm tắt cung + `RECENT_SUMMARY_COUNT` tóm tắt gần nhất. Đo thực tế trên bộ 12 tập: ngữ cảnh phẳng ở ~1.775 token thay vì tăng dần.
+**`Scene.storySoFar`** — cả câu chuyện gói trong một đoạn (trần 400 từ). Viết xong một scene thì gấp scene đó vào đoạn mà scene trước để lại, kết quả thay thế đoạn cũ — nên nó đứng yên một đoạn dù truyện dài ba scene hay ba trăm. Ngữ cảnh sau đó có trần cố định: đoạn cuộn dồn + `RECENT_SUMMARY_COUNT` tóm tắt gần nhất.
+
+Lưu trên từng **scene** chứ không phải một cột trên `Series`: đó là trạng thái truyện tại đúng điểm ấy. Để một cột duy nhất thì viết lại một scene ở tập 2 sẽ gấp nó vào bản tóm tắt đã chứa tập 11, và model nối vào như thể chuyện vừa xảy ra.
+
+Trước đây việc này do `Series.arcSummary` + job `ARC_SUMMARY` làm: nén các tập cũ từ **tóm tắt tập**, vài tập mới chạy một lần. Đã bỏ — nó trả lời đúng câu hỏi mà đoạn cuộn dồn trả lời, nhưng cách văn gốc hai bước nén thay vì một, và trễ vài tập. Nạp cả hai là đưa cùng một lịch sử vào hai lần, ~800 từ, qua hai chuỗi nén có quyền mâu thuẫn nhau.
 
 **`Character.state` + `stateThroughEpisode`** — trạng thái hiện tại của nhân vật, tách khỏi `description`:
 
@@ -103,7 +107,7 @@ Phân công rõ ràng giữa các lớp:
 |---|---|---|---|
 | `Episode.gist` | 1 dòng ~15 từ | Mục lục — luôn nạp, rẻ | không |
 | `Episode.summary` | 150–250 từ | Cho người đọc + tập liền sau | không |
-| `Series.arcSummary` | ~400 từ | Mạch chính, luôn nạp | không |
+| `Scene.storySoFar` | ~400 từ | Mạch chính, luôn nạp, viết lại sau **mỗi scene** | không |
 | **`StoryFact`** | 1 câu / sự kiện | **Truy hồi theo ngữ nghĩa** | **có** |
 | `Character.state` | 1–2 câu | Trạng thái hiện tại, luôn nạp | không |
 
@@ -218,7 +222,6 @@ enum JobType {
   WRITE_SCENE
   AUDIO_EDIT
   SUMMARIZE
-  ARC_SUMMARY
   METADATA
   TTS
   MIX
@@ -249,9 +252,9 @@ enum ExportType {
 enum PromptStep {
   OUTLINE
   WRITE_SCENE
+  STORY_SO_FAR
   AUDIO_EDIT
   SUMMARIZE
-  ARC_SUMMARY
   METADATA
 }
 
@@ -306,13 +309,6 @@ model Series {
   storyBible Json?
 
   aiDisclosure Boolean @default(true)
-
-  /// Tóm tắt cung truyện — nén các tập cũ lại thành một khối.
-  /// Không có nó, tóm tắt từng tập tích luỹ tuyến tính và tràn ngữ cảnh
-  /// khoảng tập 35. Xem docs/database.md mục 2.9.
-  arcSummary         String?
-  /// Đã nén tới hết tập số mấy.
-  arcThroughEpisode  Int?
 
   episodes       Episode[]
   characters     Character[]
@@ -443,8 +439,9 @@ model Scene {
 /// mỗi vector sắc nét, và lấy được 5 sự kiện từ 5 tập khác nhau thay vì 3 tóm
 /// tắt nguyên khối.
 ///
-/// Quan trọng hơn: sự kiện sống ĐỘC LẬP với việc nén tóm tắt. Job ARC_SUMMARY
-/// nén tóm tắt cũ và mất chi tiết, nhưng sự kiện vẫn nguyên ở đây.
+/// Quan trọng hơn: sự kiện sống ĐỘC LẬP với việc nén tóm tắt. Đoạn cuộn dồn
+/// viết lại sau mỗi scene và mất chi tiết mỗi lần; một sự kiện ghi ở tập 3 thì
+/// tới tập 60 vẫn đúng y như thế.
 ///
 /// Cột `embedding vector(1024)` không khai báo được trong Prisma — tạo bằng SQL
 /// thô ở migration, truy vấn bằng `$queryRaw`. Xem packages/database/sql/.

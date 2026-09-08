@@ -28,7 +28,6 @@ const STEP_LABEL: Record<string, { title: string; desc: string }> = {
     desc: "Edits the draft into speakable lines, splits it into blocks and assigns speakers.",
   },
   SUMMARIZE: { title: "Episode summary", desc: "Compresses one episode to 150-250 words and extracts facts." },
-  ARC_SUMMARY: { title: "Arc summary", desc: "Compresses older episodes so context stops growing." },
   METADATA: { title: "Metadata", desc: "Title, description, hashtags." },
 };
 

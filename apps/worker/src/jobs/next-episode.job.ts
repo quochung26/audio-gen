@@ -57,8 +57,10 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   ]);
 
   const context = renderEpisodeContext({
-    arcSummary: series.arcSummary ?? undefined,
-    arcThroughEpisode: series.arcThroughEpisode ?? undefined,
+    // The same running summary the scene writer reads, taken from the LAST scene
+    // written. A new episode is outlined the moment the previous one finishes, which
+    // is exactly when a summary rebuilt every few episodes was at its most stale.
+    storySoFar: (await latestStorySoFar(seriesId)) ?? undefined,
     episodeIndex: indexRows.map((e) => ({ number: e.number, title: e.title, gist: e.gist! })),
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
     openThreads: threads.map((t) => ({ episodeNumber: t.episodeNumber, text: t.text })),
@@ -163,3 +165,25 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
     tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
   };
 };
+
+/**
+ * The story's running summary as the most recently written scene left it.
+ *
+ * Ordered across the whole series rather than within an episode: outlining episode 12
+ * has to pick up from the last scene of episode 11.
+ *
+ * Scenes with none are skipped, so a story part-written before the running summary
+ * existed reaches back to the last scene that does have one instead of starting blank.
+ */
+async function latestStorySoFar(seriesId: string): Promise<string | null> {
+  const scene = await prisma.scene.findFirst({
+    where: { chapter: { episode: { seriesId } }, storySoFar: { not: null } },
+    orderBy: [
+      { chapter: { episode: { number: "desc" } } },
+      { chapter: { order: "desc" } },
+      { order: "desc" },
+    ],
+    select: { storySoFar: true },
+  });
+  return scene?.storySoFar ?? null;
+}

@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderEpisodeContext } from "./story-context";
 
 const full = {
-  arcSummary: "Ba tập đầu: tài xế phát hiện hành khách đã chết.",
-  arcThroughEpisode: 3,
+  storySoFar: "Ba tập đầu: tài xế phát hiện hành khách đã chết.",
   episodeIndex: [
     { number: 1, title: "Chuyến xe đêm", gist: "gặp hành khách lạ" },
     { number: 2, title: "Bến vắng", gist: "tìm ra tấm vé cũ" },
@@ -15,13 +14,13 @@ const full = {
 describe("renderEpisodeContext", () => {
   it("assembles all four parts when the data is there", () => {
     const t = renderEpisodeContext(full);
-    expect(t).toContain("The story so far (episodes 1–3)");
+    expect(t).toContain("The story so far");
     expect(t).toContain("Index of the episodes already written");
     expect(t).toContain("Summaries of the most recent episodes");
     expect(t).toContain("Open threads");
   });
 
-  it("the arc comes BEFORE the per-episode summaries", () => {
+  it("the running summary comes BEFORE the per-episode ones", () => {
     // The model reads in sequence; the distant shape has to land before near detail.
     const t = renderEpisodeContext(full);
     expect(t.indexOf("The story so far")).toBeLessThan(
@@ -35,7 +34,7 @@ describe("renderEpisodeContext", () => {
   });
 
   it("drops an empty part rather than leaving a bare heading", () => {
-    const t = renderEpisodeContext({ ...full, openThreads: [], arcSummary: undefined });
+    const t = renderEpisodeContext({ ...full, openThreads: [], storySoFar: undefined });
     expect(t).not.toContain("Open threads");
     expect(t).not.toContain("The story so far");
     expect(t).toContain("Index of the episodes already written");
@@ -52,9 +51,10 @@ describe("renderEpisodeContext", () => {
     expect(t.trim()).not.toBe("");
   });
 
-  it("without arcThroughEpisode it shows no empty episode range", () => {
-    const t = renderEpisodeContext({ ...full, arcThroughEpisode: undefined });
-    expect(t).toContain("The story so far\n");
-    expect(t).not.toContain("(episodes 1–)");
+  it("no episode range on the heading — it covers everything up to now", () => {
+    // It used to be an arc summary compressed through some episode N, and said so.
+    // The rolling summary has no such boundary: it is the whole story, one scene old.
+    expect(renderEpisodeContext(full)).toContain("The story so far\n");
+    expect(renderEpisodeContext(full)).not.toMatch(/episodes 1–/);
   });
 });

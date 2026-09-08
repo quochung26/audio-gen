@@ -33,11 +33,10 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // AI invents them, present means the AI follows them. See renderWorldForOutline /
   // renderCastForOutline.
   OUTLINE: ["idea", "genre", "tags", "episodeCount", "chapterCount", "scenesPerChapter", "sceneWords", "world", "cast"],
-  // Compression on compression, exactly like ARC_SUMMARY one tier up: `previous` is
-  // the paragraph the last scene left behind, `text` is the scene just written, and
-  // the answer replaces `previous`. Nothing else goes in — asked to summarise with the
-  // whole story in front of it, a model writes what the scene MEANT for the plot
-  // instead of what happened in it.
+  // Compression on compression: `previous` is the paragraph the last scene left
+  // behind, `text` is the scene just written, and the answer replaces `previous`.
+  // Nothing else goes in — asked to summarise with the whole story in front of it, a
+  // model writes what the scene MEANT for the plot instead of what happened in it.
   STORY_SO_FAR: ["maxWords", "previous", "text"],
   // Two blocks, both built by the job: `context` is the story (its Bible when it
   // exists, the half-filled form when it does not), `brief` is what the writer had
@@ -55,7 +54,6 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   TRANSLATE: ["bible", "text"],
   AUDIO_EDIT: ["characters", "draft"],
   SUMMARIZE: ["characters", "text"],
-  ARC_SUMMARY: ["maxWords", "previousArc", "summaries"],
   METADATA: ["text"],
 };
 

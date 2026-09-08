@@ -22,7 +22,6 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
-  { step: "ARC_SUMMARY", file: "arc-summary.md" },
   { step: "METADATA", file: "metadata.md" },
 ];
 
@@ -61,7 +60,6 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
   SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
-  ARC_SUMMARY: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 800 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
 };
 

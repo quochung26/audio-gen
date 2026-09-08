@@ -61,7 +61,6 @@ describe("the default prompts in the repo", () => {
     ["TRANSLATE", "translate.md"],
     ["AUDIO_EDIT", "audio-edit.md"],
     ["SUMMARIZE", "summarize.md"],
-    ["ARC_SUMMARY", "arc-summary.md"],
     ["METADATA", "metadata.md"],
   ];
 
@@ -72,7 +71,7 @@ describe("the default prompts in the repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("declares all 10 steps", () => {
+  it("declares all 9 steps", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

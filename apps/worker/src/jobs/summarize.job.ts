@@ -8,7 +8,7 @@ import {
   recordRun,
   renderTemplate,
 } from "@audio/llm";
-import { ARC_COMPRESS_THRESHOLD, RECENT_SUMMARY_COUNT } from "@audio/config";
+import { RECENT_SUMMARY_COUNT } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { enqueue } from "../services/queue";
 import { saveFacts } from "../services/fact-store";
@@ -123,36 +123,17 @@ export const summarizeJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(90);
 
-  // Enough summaries means compressing the old ones — otherwise context overflows around episode 35.
-  const pending = await countPendingSummaries(episode.seriesId, episode.series.arcThroughEpisode);
-  if (pending > ARC_COMPRESS_THRESHOLD) {
-    await enqueue({
-      type: "ARC_SUMMARY",
-      episodeId,
-      payload: { seriesId: episode.seriesId },
-    });
-    logger.info(`[summarize] ${pending} summaries uncompressed → queued an ARC_SUMMARY job`);
-  }
-
+  // Nothing is queued after this any more. Old summaries used to be compressed into an
+  // arc summary once enough of them piled up; the story is now carried by the running
+  // summary `Scene.storySoFar`, which is one paragraph at any length and is rewritten
+  // after every scene rather than every few episodes.
   await setProgress(100);
   return {
     episodeId,
     summaryLength: result.data.summary.length,
     charactersUpdated: updates.length,
     factsStored: factCount,
-    pendingSummaries: pending,
   };
 };
-
-/** How many summaries are still verbatim, not yet folded into the arc summary. */
-async function countPendingSummaries(seriesId: string, arcThrough: number | null): Promise<number> {
-  return prisma.episode.count({
-    where: {
-      seriesId,
-      summary: { not: null },
-      number: { gt: arcThrough ?? 0 },
-    },
-  });
-}
 
 export { RECENT_SUMMARY_COUNT };
