@@ -53,9 +53,13 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // One chapter, so `maxTokens` is a fraction of NEXT_EPISODE's. `numCtx` is not: it
   // reads the same running summary and the chapters already written.
   NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 600 },
-  // One or two sentences out, but the temperature is HIGH: this button is pressed
-  // because the first answer was not wanted, so a second one close to it is no use.
-  SCENE_BEAT: { temperature: 1.0, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 250 },
+  // 0.9 — the default, the same as every other outlining step. It was 1.0 on the
+  // argument that this button is pressed BECAUSE the first answer was not wanted, so
+  // a near-identical second one is no use. That variety is better bought in the prompt,
+  // which already sends the rejected beat and says to change what happens rather than
+  // the wording: a temperature nobody else uses only makes this step's failures
+  // different in kind from the rest.
+  SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 250 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
   // words, only a third above the 750 target — a model writing thoroughly hits the
   // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
