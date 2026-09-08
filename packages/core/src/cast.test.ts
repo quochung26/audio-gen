@@ -76,8 +76,11 @@ describe("renderCastForOutline", () => {
     expect(renderCastForOutline([tai])).not.toMatch(/narrator/i);
   });
 
-  it("still allows new characters — the chosen cast is a floor, not a ceiling", () => {
-    expect(renderCastForOutline([tai])).toMatch(/may add more/i);
+  it("forbids inventing anyone else — a chosen cast is the whole cast", () => {
+    // Having configured the cast, the writer has said who is in the story. Every
+    // extra is one more Character row to delete, and it lands in the Story Bible.
+    expect(renderCastForOutline([tai])).toMatch(/NOBODY ELSE/);
+    expect(renderCastForOutline([tai])).not.toMatch(/may add more/i);
   });
 });
 
@@ -87,8 +90,16 @@ describe("mergeCast", () => {
     { name: "Cô gái áo trắng", role: "hành khách bí ẩn", voiceHint: "nữ trẻ" },
   ];
 
-  it("keeps characters the model added — the chosen cast is a floor, not a ceiling", () => {
-    expect(mergeCast([{ name: "Tài" }], generated).map((c) => c.name)).toEqual([
+  it("DROPS characters the model added on top of a chosen cast", () => {
+    // The model is told not to add anyone and adds someone anyway. What the writer
+    // configured is the cast; dropping here is what makes the instruction stick.
+    expect(mergeCast([{ name: "Tài" }], generated).map((c) => c.name)).toEqual(["Tài"]);
+  });
+
+  it("a cast of nothing but blank names counts as nobody chosen", () => {
+    // Otherwise the writer gets a story with no characters at all: the model's cast
+    // dropped against a "chosen" list that normalizes away to nothing.
+    expect(mergeCast([{ name: "  " }], generated).map((c) => c.name)).toEqual([
       "Tài",
       "Cô gái áo trắng",
     ]);

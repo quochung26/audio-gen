@@ -1,3 +1,4 @@
+import type { CastMember } from "./cast";
 import type { Outline, StoryContext } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
 
@@ -86,7 +87,17 @@ export function seriesBible(input: SeriesBibleInput): string {
  * into `system` with cache_control, so it is billed and processed once for the
  * whole story rather than once per scene.
  */
-export function buildBible(outline: Outline, world?: WorldSetup, tags: string[] = []): string {
+export function buildBible(
+  outline: Outline,
+  world?: WorldSetup,
+  tags: string[] = [],
+  /**
+   * The cast that actually became `Character` rows, when it differs from the
+   * model's. With a chosen cast the model's extras are dropped, and a Bible still
+   * describing them walks them back into every scene written from it.
+   */
+  cast?: CastMember[],
+): string {
   // The writer's setting beats the AI's: if the writer wrote one, keep it; if not,
   // borrow the AI's as a starting point.
   const merged: WorldSetup = {
@@ -101,7 +112,7 @@ export function buildBible(outline: Outline, world?: WorldSetup, tags: string[] 
     tags,
     logline: outline.logline,
     world: merged,
-    characters: outline.characters,
+    characters: cast ?? outline.characters,
     episodes: outline.episodes,
   });
 }

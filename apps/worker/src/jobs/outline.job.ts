@@ -126,6 +126,11 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   // A short story also belongs to a Series (see docs/database.md section 2.1)
   const kind = outline.episodes.length > 1 ? SeriesKind.LONG : SeriesKind.SHORT;
 
+  // The cast, settled ONCE: the rows below and the Story Bible have to describe the
+  // same people. Built separately, a character dropped from the rows survives in the
+  // Bible and every scene write still knows them.
+  const people = mergeCast(cast, outline.characters);
+
   const series = await prisma.series.create({
     data: {
       kind,
@@ -142,14 +147,14 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         // With no setting from the writer, the AI's becomes the starting point, so the
         // Story Bible page has something to edit.
         world: { ...world, setting: world.setting.trim() || outline.setting },
-        bible: buildBible(outline, world, tags),
+        bible: buildBible(outline, world, tags, people),
       },
       characters: {
-        // The writer's cast beats the model's, and anyone the model added is kept.
-        // `mergeCast` also de-duplicates names: the (seriesId, name) constraint is
-        // unique, and models — real and mock alike — occasionally return two characters
-        // with one name.
-        create: mergeCast(cast, outline.characters).map((c) => ({
+        // The writer's cast beats the model's, and with a cast chosen the model's
+        // extras are dropped. `mergeCast` also de-duplicates names: the
+        // (seriesId, name) constraint is unique, and models occasionally return two
+        // characters with one name.
+        create: people.map((c) => ({
           name: c.name,
           role: c.role,
           description: c.description,
@@ -211,7 +216,7 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
     seriesId: series.id,
     title: outline.title,
     episodes: outline.episodes.length,
-    characters: outline.characters.length,
+    characters: people.length,
     tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
   };
 };

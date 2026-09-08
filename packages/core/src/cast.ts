@@ -82,8 +82,8 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
 
   parts.push(
     "",
-    "Return every character above in `characters`, with these exact names.",
-    "You may add more characters if the story needs them.",
+    "Return every character above in `characters`, with these exact names, and NOBODY ELSE.",
+    "The list is complete. A beat may still need a bus conductor or a passer-by — leave them nameless in the beat and out of `characters`.",
   );
 
   return parts.join("\n");
@@ -97,7 +97,11 @@ export function renderCastForOutline(cast: readonly CastMember[]): string {
  * the writer LEFT BLANK take the model's suggestion — pick a card with just a name
  * and you still get a role and a voice hint, instead of blanks to fill in by hand.
  *
- * Characters the model adds are kept: the chosen cast is a floor, not a ceiling.
+ * Characters the model adds on top are DROPPED. Having configured the cast, the
+ * writer has said who is in the story; every extra the model returns is one more
+ * `Character` row to delete by hand, and it goes into the Story Bible, so the next
+ * scene write treats it as part of the story. Choosing nobody is unchanged — the
+ * model's cast is then the whole cast.
  *
  * Does NOT assign a narrator. The narrator is a casting slot for the audio step —
  * which voice reads the narration — not an outlining decision, and the audio step
@@ -116,8 +120,12 @@ export function mergeCast(
   const extra = normalizeCast(generated);
   const byName = new Map(extra.map((c) => [c.name.toLowerCase(), c]));
 
-  const filled = chosen.map((c) => {
-    const g = byName.get((c.name ?? "").trim().toLowerCase());
+  // Normalized FIRST, so "nobody chosen" means what it says: a cast of nothing but
+  // blank names is nobody, and the model's cast has to stand in for it.
+  const picked = normalizeCast(chosen);
+
+  const filled = picked.map((c) => {
+    const g = byName.get(c.name.toLowerCase());
     if (!g) return c;
     return {
       ...c,
@@ -129,7 +137,11 @@ export function mergeCast(
     };
   });
 
-  return normalizeCast([...filled, ...extra]);
+  // Nobody chosen — the model invented the cast and it is the whole cast.
+  if (filled.length === 0) return extra;
+
+  // Chosen — the list is closed, whatever the model returned on top.
+  return filled;
 }
 
 /**
