@@ -11,7 +11,12 @@ services:
     # pgvector rather than plain postgres: related earlier episodes are found by vector
     # search instead of stuffing every summary into the context. See docs/database.md.
     image: pgvector/pgvector:pg17
-    container_name: postgres
+    # `postgres-vector`, not `postgres`: the plain name is the one every other project
+    # on a machine reaches for first, and this server is not interchangeable with them —
+    # it carries the pgvector extension, and `db:ext` will fail against one that does
+    # not. The name says which server it has to be. The three `docker exec` scripts in
+    # packages/database/package.json address it by this name.
+    container_name: postgres-vector
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
