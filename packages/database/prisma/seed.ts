@@ -31,6 +31,13 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
  * Generation parameters per step — creative prose needs a higher temperature than
  * utility work.
  *
+ * `maxTokens` is a CEILING, and you are billed for what a model generates, not for the
+ * room it was given. So the cost of setting it high is nothing and the cost of setting
+ * it low is a job that fails three times and gives up — which is what these did: they
+ * were sized against a local 14B writing tersely, and a larger model writing fuller
+ * Vietnamese ran straight through them. Size them for the longest LEGITIMATE answer,
+ * not the typical one.
+ *
  * The three summarising steps run at 0.2. They are not writing anything: they read a
  * text and say what is in it, under instructions with hard edges — "ONE paragraph",
  * "at most N words", "no bullet points", "return the summary text only". Temperature
@@ -44,22 +51,22 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // sits well above the word ceiling the prompt asks for, so a model writing right up
   // to it is not cut off mid-sentence — a truncated paragraph here is fed into the next
   // compression and the damage carries forward for the rest of the story.
-  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 1000 },
+  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 1500 },
   // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
   // goes in, and a character invented without reading it duplicates someone.
-  CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },
+  CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
   // A wider context than OUTLINE because it has to load the earlier episodes' summaries.
   NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
   // One chapter, so `maxTokens` is a fraction of NEXT_EPISODE's. `numCtx` is not: it
   // reads the same running summary and the chapters already written.
-  NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 600 },
+  NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1500 },
   // 0.9 — the default, the same as every other outlining step. It was 1.0 on the
   // argument that this button is pressed BECAUSE the first answer was not wanted, so
   // a near-identical second one is no use. That variety is better bought in the prompt,
   // which already sends the rejected beat and says to change what happens rather than
   // the wording: a temperature nobody else uses only makes this step's failures
   // different in kind from the rest.
-  SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 250 },
+  SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 500 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
   // words, only a third above the 750 target — a model writing thoroughly hits the
   // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
@@ -70,8 +77,8 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // Lower than scene writing because the plot is already fixed, higher than audio
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
-  AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
-  SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
+  AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 12000 },
+  SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2500 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
 };
 
