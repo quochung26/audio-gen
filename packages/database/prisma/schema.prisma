@@ -50,6 +50,36 @@ enum JobLane {
   FFMPEG
 }
 
+enum JobType {
+  /// Invent one character. Runs in the LLM lane like any other model call — going
+  /// straight to the model from the API would bypass the VRAM guard and collide
+  /// with a scene write already loaded on the card.
+  CHARACTER
+  /// Advances a batch run to its next step. Attached to no episode and using no
+  /// VRAM — it only reads state and queues the real job. Thanks to it, Studio only
+  /// has to enqueue rather than carry the orchestration logic.
+  BATCH
+  OUTLINE
+  NEXT_EPISODE
+  NEXT_CHAPTER
+  /// Propose a different beat for ONE scene, when the writer does not like the one
+  /// the outline gave it.
+  SCENE_BEAT
+  WRITE_SCENE
+  /// Rewrite the draft into the output language. Only runs when Series.draftLanguage
+  /// differs from Series.language — see packages/core/src/language.ts.
+  TRANSLATE
+  AUDIO_EDIT
+  SUMMARIZE
+  METADATA
+  TTS
+  MIX
+  VIDEO
+  SUBTITLE
+  PUBLISH
+  MOCK
+}
+
 enum JobStatus {
   QUEUED
   RUNNING
@@ -99,6 +129,30 @@ model Genre {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum PromptStep {
+  OUTLINE
+  /// Fold the scene just written into the episode's running summary — see
+  /// Scene.storySoFar.
+  STORY_SO_FAR
+  /// Invent ONE character on demand, for a story that already exists or one being
+  /// typed. Separate from OUTLINE because the outline no longer invents anybody:
+  /// a chosen cast is closed, and this is the button that adds to it.
+  CHARACTER
+  /// Outline ONE more episode, based on the ones that exist.
+  NEXT_EPISODE
+  /// Outline ONE more chapter of an episode already under way. Same reasoning as
+  /// NEXT_EPISODE one tier down: three chapters planned from one idea makes the
+  /// third the model's guess at a story not yet written.
+  NEXT_CHAPTER
+  SCENE_BEAT
+  WRITE_SCENE
+  /// Rewrite the draft into the output language.
+  TRANSLATE
+  AUDIO_EDIT
+  SUMMARIZE
+  METADATA
 }
 
 enum AudioTrackKind {
@@ -720,11 +774,7 @@ model Export {
 
 model Prompt {
   id      String     @id @default(cuid())
-  /// A PromptStep — see packages/database/src/catalogue.ts. Text, not an enum:
-  /// the set of steps is a list of the features that exist and changes with each one,
-  /// and as an enum every addition was a schema push and every removal a migration
-  /// Postgres refuses while a row still holds the value.
-  step    String
+  step    PromptStep
   /// The genre variant. "*" = applies to every genre.
   /// "*" rather than null because Postgres treats every NULL as distinct — a unique
   /// constraint on a nullable column would not block duplicate rows.
@@ -759,8 +809,7 @@ model LlmRun {
   promptId  String?
   prompt    Prompt?  @relation(fields: [promptId], references: [id], onDelete: SetNull)
 
-  /// A PromptStep — see packages/database/src/catalogue.ts.
-  step   String
+  step   PromptStep
   model  String
   params Json
 
@@ -827,8 +876,7 @@ model RenderJob {
   episodeId String?
   episode   Episode? @relation(fields: [episodeId], references: [id], onDelete: Cascade)
 
-  /// A JobType — see packages/database/src/catalogue.ts.
-  type   String
+  type   JobType
   lane   JobLane
   status JobStatus @default(QUEUED)
 
