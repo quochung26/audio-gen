@@ -32,7 +32,9 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // `world` and `cast` are the two blocks the writer sets up front: empty means the
   // AI invents them, present means the AI follows them. See renderWorldForOutline /
   // renderCastForOutline.
-  OUTLINE: ["idea", "genre", "tags", "episodeCount", "scenesPerChapter", "sceneWords", "world", "cast"],
+  // No `scenesPerChapter` or `sceneWords`: this step no longer plans anything inside
+  // an episode, so it has no beats to size.
+  OUTLINE: ["idea", "genre", "tags", "episodeCount", "world", "cast"],
   // Compression on compression: `previous` is the paragraph the last scene left
   // behind, `text` is the scene just written, and the answer replaces `previous`.
   // Nothing else goes in — asked to summarise with the whole story in front of it, a

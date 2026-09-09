@@ -4,9 +4,7 @@ import {
   toLanguage,
   withLanguage,
   outlineSchema,
-  planChapters,
   mergeCast,
-  namesMentionedIn,
   normalizeCast,
   parseWorld,
   planDraft,
@@ -14,7 +12,6 @@ import {
   type CastMember,
   renderWorldForOutline,
   slugify,
-  suggestScenesPerChapter,
 } from "@audio/core";
 import { EpisodeStatus, SeriesStatus, prisma } from "@audio/database";
 import {
@@ -26,7 +23,6 @@ import {
   renderTemplate,
   resolveModel,
 } from "@audio/llm";
-import { SCENE_TARGET_WORDS } from "@audio/config";
 import { freeSlug } from "../services/slug";
 import { streamProgress } from "../lib/progress";
 import type { JobHandler } from "../lanes/create-lane";
@@ -75,7 +71,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   );
   const modelName = (label: string) => forModel.get(label.trim().toLowerCase()) ?? label;
 
-  const scenesPerChapter = suggestScenesPerChapter();
   const prompt = await loadPrompt("OUTLINE", genre);
   const params = prompt.params;
 
@@ -110,8 +105,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         idea,
         genre: modelName(genre),
         episodeCount,
-        scenesPerChapter,
-        sceneWords: SCENE_TARGET_WORDS,
         tags: tags.length > 0 ? tags.map(modelName).join(", ") : "(none)",
         world: renderWorldForOutline(world),
         cast: renderCastForOutline(cast),
@@ -179,16 +172,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(80);
 
-  // Guess who is present in each scene, so the Bible only describes those in full.
-  // Guessing short leaves the scene with an empty list and the Bible loads in full as
-  // before — the writer fixes it on the episode page.
-  const roster = await prisma.character.findMany({
-    where: { seriesId: series.id },
-    select: { id: true, name: true },
-  });
-  const idOfName = new Map(roster.map((c) => [c.name, c.id]));
-  const names = roster.map((c) => c.name);
-
   for (const plan of outline.episodes) {
     await prisma.episode.create({
       data: {
@@ -198,21 +181,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         slug: await freeSlug(`${outline.title} tap ${plan.number}`),
         status: EpisodeStatus.OUTLINED,
         outline: plan,
-        chapters: {
-          create: planChapters(plan.chapters).map((ch) => ({
-            order: ch.order,
-            title: ch.title,
-            scenes: {
-              create: ch.scenes.map((sc) => ({
-                order: sc.order,
-                beat: sc.beat,
-                characterIds: namesMentionedIn(sc.beat, names)
-                  .map((n) => idOfName.get(n))
-                  .filter((id): id is string => Boolean(id)),
-              })),
-            },
-          })),
-        },
+        // No chapters. The episode is a title and a hook; "Outline chapter 1" on the
+        // episode page fills it in, and every chapter after that is planned knowing
+        // how the last one actually turned out rather than guessed from the idea.
       },
     });
   }

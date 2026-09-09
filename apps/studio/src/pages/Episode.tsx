@@ -164,7 +164,7 @@ export function Episode() {
       )}
 
       <Section title="Chapters & scenes">
-        {!allWritten && !active && (
+        {scenes.length > written && !active && (
           <Form
             path={`/api/episodes/${ep.id}/write-scenes`}
             submit={`Write all ${scenes.length - written} remaining scenes`}
@@ -337,9 +337,16 @@ export function Episode() {
           ))}
         </div>
 
-        {/* An episode opens with ONE chapter and grows one at a time — the same reason
-            the story grows an episode at a time. Three chapters planned from one idea
-            makes the third a guess at a draft nobody has written. */}
+        {ep.chapters.length === 0 && (
+          <p className="text-sm text-neutral-400">
+            Nothing in this episode yet. Creating a story writes its title and its closing
+            hook and stops — planning six beats from one line of idea makes the last five a
+            guess at a draft nobody has written. Outline the first chapter below.
+          </p>
+        )}
+
+        {/* An episode opens EMPTY and grows one chapter at a time — the same reason the
+            story grows an episode at a time. */}
         {!active && (
           <div className="rounded border border-dashed border-neutral-800 p-4">
             <Form
@@ -352,7 +359,10 @@ export function Episode() {
                 Planned from what the episode ACTUALLY says so far, not from the idea it started
                 from. A full-length episode is about {CHAPTERS_IN_A_FULL_EPISODE} chapters — but
                 that is a guide, not a limit.
-                {!allWritten && (
+                {/* Only when scenes are actually waiting. `allWritten` is false for an
+                    episode with NO scenes too, and telling someone to write the scenes
+                    above when there are none is the wrong end of the advice. */}
+                {scenes.length > written && (
                   <>
                     {" "}
                     Write the scenes above first: outlining on top of beats nobody has written yet

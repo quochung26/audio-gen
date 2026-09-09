@@ -51,10 +51,19 @@ export const chapterPlanSchema = z.object({
     .describe("The beats of this chapter, in order; each beat becomes one scene"),
 });
 
+/**
+ * An episode as the FIRST outline describes it: a title and a closing hook, nothing
+ * inside it.
+ *
+ * No chapters. Creating a story builds the episode and stops there; the writer asks
+ * for chapter 1 when they want it, and each chapter after that is planned knowing how
+ * the last one actually turned out. Asking for chapters here would spend tokens on a
+ * plan that is thrown away, and a model that has just planned six beats writes the
+ * first one as though the other five were already true.
+ */
 export const episodePlanSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1),
-  chapters: z.array(chapterPlanSchema).min(1),
   hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
 });
 

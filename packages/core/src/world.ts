@@ -104,7 +104,19 @@ export function renderBible(input: {
     /** Nobody cast as narrator yet means blank — the Bible prints nothing. */
     isNarrator?: boolean;
   }>;
-  episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
+  /**
+   * The episodes this story has, as an index.
+   *
+   * `chapters` is optional because an episode no longer has any when it is created:
+   * the first outline builds a title and a hook, and chapters are added one at a time
+   * afterwards. An entry without them is still worth printing — it is how the model
+   * knows episode 7 exists and what it was called.
+   */
+  episodes?: Array<{
+    number: number;
+    title: string;
+    chapters?: Array<{ title: string; beats: string[] }>;
+  }>;
   /**
    * The names of everyone PRESENT in the scene about to be written.
    *
@@ -212,10 +224,13 @@ export function renderBible(input: {
       ``,
       `## Episode outline`,
       // Every chapter's beats folded into one line: this is an index so the model
-      // remembers what happened where, not a place to rebuild chapter structure.
-      ...input.episodes.map(
-        (e) => `${e.number}. ${e.title} — ${e.chapters.flatMap((c) => c.beats).join(" / ")}`,
-      ),
+      // remembers what happened where, not a place to rebuild chapter structure. An
+      // episode with no chapters yet is listed by name alone rather than dropped —
+      // "episode 7 exists and is called X" is the point of an index.
+      ...input.episodes.map((e) => {
+        const beats = (e.chapters ?? []).flatMap((c) => c.beats).join(" / ");
+        return `${e.number}. ${e.title}${beats ? ` — ${beats}` : ""}`;
+      }),
     );
   }
 

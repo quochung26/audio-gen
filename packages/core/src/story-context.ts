@@ -30,7 +30,12 @@ export interface SeriesBibleInput {
     /** Where they stand at the end of the most recent episode. */
     state?: string | null;
   }>;
-  episodes?: Array<{ number: number; title: string; chapters: Array<{ title: string; beats: string[] }> }>;
+  /** `chapters` is optional: an episode has none until the writer asks for one. */
+  episodes?: Array<{
+    number: number;
+    title: string;
+    chapters?: Array<{ title: string; beats: string[] }>;
+  }>;
   /** Names present in the scene about to be written. Empty = describe everyone. */
   spotlight?: string[];
 }
