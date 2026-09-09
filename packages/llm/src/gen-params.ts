@@ -5,12 +5,6 @@
  * said nothing, the parameter was quietly ignored, and prose still came out — just
  * at the default value. Declared centrally here so the UI can build the inputs, and
  * so out-of-range values are caught at save time.
- *
- * TASTE ONLY. `numCtx` and `maxTokens` were here too and have moved to `GEN_LIMITS`
- * in prompt.ts, because they are not preferences: one is what has to fit, the other
- * is how long the answer may run, and both follow from numbers that live in code.
- * Kept as fields they were a knob nobody should turn, and a second copy of a constant
- * that drifted from it every time the scene size was retuned.
  */
 export interface GenParamSpec {
   key: string;
@@ -53,6 +47,24 @@ export const GEN_PARAMS: GenParamSpec[] = [
     max: 1.5,
     step: 0.01,
     fallback: 1.1,
+  },
+  {
+    key: "numCtx",
+    label: "numCtx",
+    hint: "The context ceiling. Lowering it cuts off the start of the prompt — losing the Story Bible with nothing to say so.",
+    min: 2048,
+    max: 131072,
+    step: 1024,
+    fallback: 16384,
+  },
+  {
+    key: "maxTokens",
+    label: "maxTokens",
+    hint: "The ceiling on reply length. Set it low and scenes stop mid-sentence.",
+    min: 128,
+    max: 32768,
+    step: 128,
+    fallback: 1500,
   },
 ];
 
