@@ -48,7 +48,11 @@ export const chapterPlanSchema = z.object({
   beats: z
     .array(z.string())
     .min(1)
-    .describe("The beats of this chapter, in order; each beat becomes one scene"),
+    .describe(
+      "The beats of this chapter, in order. ONE OR TWO SENTENCES each — what happens, " +
+        "so someone else can write the scene from it. Not the scene itself: no dialogue, " +
+        "no description, no prose",
+    ),
 });
 
 /**
