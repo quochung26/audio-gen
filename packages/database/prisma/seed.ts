@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { PrismaClient, PromptStep, TtsEngine, VoiceTier, LicenseType } from "@prisma/client";
+import { PrismaClient, TtsEngine, VoiceTier, LicenseType } from "@prisma/client";
+// From the catalogue, not the client: a prompt step is decided by the code that runs
+// it, and the column holding it is plain text. See src/catalogue.ts.
+import type { PromptStep } from "../src/catalogue";
 
 const prisma = new PrismaClient();
 

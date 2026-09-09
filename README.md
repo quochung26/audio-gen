@@ -985,6 +985,7 @@ Luật import: `apps/player` **không được** import `llm` / `tts` / `audio` 
 |---|---|
 | `pnpm infra:up` / `infra:down` | Bật/tắt Postgres + Redis |
 | `pnpm db:push` | Đồng bộ schema (lúc đang nghịch). Tự chạy `db:ext` + `db:prune` trước |
+| Thêm/bớt một bước prompt | Chỉ sửa `catalogue.ts` + `seed.ts` + file trong `prompts/` — **không cần** `db:push` |
 | `pnpm db:migrate` | Tạo migration (khi schema đã ổn định) |
 | `pnpm db:studio` | Xem dữ liệu bằng giao diện |
 | `pnpm typecheck` | Kiểm tra kiểu toàn bộ workspace |

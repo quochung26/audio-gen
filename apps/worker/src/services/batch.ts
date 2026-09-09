@@ -1,5 +1,5 @@
 import { planDraft } from "@audio/core";
-import { BatchStatus, JobStatus, prisma, type JobType } from "@audio/database";
+import { BatchStatus, JobStatus, isJobType, prisma, type JobType } from "@audio/database";
 import { logger } from "../lib/logger";
 import { enqueue } from "./queue";
 import { isEpisodeComplete, nextStep, type BatchOptions, type EpisodeProgress } from "./batch-plan";
@@ -43,7 +43,10 @@ async function advance(renderJobId: string): Promise<void> {
     return;
   }
 
-  await step(run.id, seriesId, { autoApprove: run.autoApprove, withAudio: run.withAudio }, job.type);
+  // `job.type` is text on the row. Anything not in the catalogue cannot have been
+  // queued by this code, so it tells the planner nothing about where the run got to.
+  const finished = isJobType(job.type) ? job.type : undefined;
+  await step(run.id, seriesId, { autoApprove: run.autoApprove, withAudio: run.withAudio }, finished);
 }
 
 /**

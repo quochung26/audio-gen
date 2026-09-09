@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { prisma, type PromptStep } from "@audio/database";
+import { isPromptStep, prisma, type PromptStep } from "@audio/database";
 import {
   checkPromptVariables,
   GEN_PARAMS,
@@ -51,8 +51,16 @@ prompts.get("/:id", async (c) => {
     },
     genParams: GEN_PARAMS,
     wins: pickPrompt(siblings, prompt.genre === "*" ? undefined : prompt.genre)?.id === id,
-    check: checkPromptVariables(prompt.step, prompt.content),
-    available: PROMPT_VARIABLES[prompt.step],
+    // A row's `step` is text, so it is checked rather than trusted. A row naming a
+    // step the code no longer has is not an error to throw on — the page still has to
+    // render so you can see it and delete it — it simply has no variables to check
+    // against.
+    ...(isPromptStep(prompt.step)
+      ? {
+          check: checkPromptVariables(prompt.step, prompt.content),
+          available: PROMPT_VARIABLES[prompt.step],
+        }
+      : { check: null, available: [] }),
     runs,
   });
 });
@@ -71,6 +79,12 @@ prompts.put("/:id", async (c) => {
   if (!content.trim()) throw new UserError("The prompt is empty");
 
   const existing = await prisma.prompt.findUniqueOrThrow({ where: { id } });
+  if (!isPromptStep(existing.step)) {
+    throw new UserError(
+      `This prompt is for "${existing.step}", which is not a step the code has any more. ` +
+        "Delete it, or reseed with `pnpm db:seed`.",
+    );
+  }
   const check = checkPromptVariables(existing.step, content);
   if (check.unknown.length > 0) {
     throw new UserError(
@@ -122,7 +136,11 @@ prompts.put("/:id/params", async (c) => {
 });
 
 prompts.post("/variants/:step", async (c) => {
-  const step = c.req.param("step") as PromptStep;
+  // A step arriving from a URL. Postgres used to reject a bad one because the column
+  // was an enum; it is text now, and without this a typo makes a Prompt row that
+  // matches no step and is never used again.
+  const step = c.req.param("step");
+  if (!isPromptStep(step)) throw new UserError(`No such prompt step: "${step}"`);
   const body = await c.req.parseBody();
   const genre = field(body, "genre");
 
