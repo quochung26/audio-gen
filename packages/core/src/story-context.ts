@@ -205,6 +205,22 @@ export function renderContext(ctx: StoryContext): string {
 
   parts.push(`## The scene to write\n${ctx.beat}`);
   if (ctx.sceneNote) parts.push(`Note for this scene: ${ctx.sceneNote}`);
+
+  // Last of the instructions, closest to the work: this is the writer saying what was
+  // wrong with the attempt in front of them, and it has to outrank every general rule
+  // above it. The draft goes in WITH it — told only what to fix, a model fixes it in a
+  // scene it has to imagine, and told only the draft, it returns the same scene with
+  // the words shuffled.
+  if (ctx.retryNote && ctx.rejectedDraft) {
+    parts.push(
+      `## Your previous attempt at this scene\n${ctx.rejectedDraft}`,
+      `## What is wrong with it\n` +
+        `${ctx.retryNote}\n\n` +
+        `Write the scene AGAIN, fixing this. Keep what works; the note is a correction, ` +
+        `not a request for a different scene. Do not mention the previous attempt.`,
+    );
+  }
+
   parts.push(`Target length: about ${ctx.targetWords} words.`);
 
   return parts.join("\n\n");

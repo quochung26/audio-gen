@@ -18,6 +18,11 @@ import { buildSceneContext } from "../services/story-context";
  */
 export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   const sceneId = job.data.sceneId ? String(job.data.sceneId) : undefined;
+
+  // A correction aimed at ONE attempt at ONE scene, so it only applies when a single
+  // scene was asked for. Writing a whole episode has no attempt to correct.
+  const retryNote = sceneId ? String(job.data.note ?? "") : "";
+  const rejectedDraft = sceneId ? String(job.data.rejected ?? "") : "";
   const episodeId = job.data.episodeId ? String(job.data.episodeId) : undefined;
 
   // Scenes belong to a CHAPTER, so filtering by episode goes through the chapter — and
@@ -89,6 +94,8 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
             overrides: context.overrides,
             sceneNote: context.sceneNote,
             beat: scene.beat,
+            retryNote,
+            rejectedDraft,
             targetWords: context.targetWords,
           }),
         }),

@@ -129,13 +129,28 @@ episodes.post("/:id/scenes/:sceneId/write", async (c) => {
   const episodeId = c.req.param("id");
   const sceneId = c.req.param("sceneId");
   const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+
+  // What the writer said is wrong with the attempt on screen. Read BEFORE the text is
+  // nulled below, and carried in the payload rather than looked up by the job — by the
+  // time the job runs, the draft it is about is gone.
+  const note = field(body, "note");
+  const rejected = note
+    ? ((await prisma.scene.findUnique({ where: { id: sceneId }, select: { text: true } }))?.text ??
+      "")
+    : "";
+
   await prisma.scene.update({ where: { id: sceneId }, data: { text: null } });
   await enqueue({
     type: "WRITE_SCENE",
     episodeId,
-    payload: { sceneId, model: field(body, "model") || undefined },
+    payload: {
+      sceneId,
+      model: field(body, "model") || undefined,
+      // Both or neither: a note about a draft nobody can see is advice about nothing.
+      ...(note && rejected ? { note, rejected } : {}),
+    },
   });
-  return c.json({ ok: true });
+  return c.json({ ok: note ? "Rewriting with your note…" : true });
 });
 
 /**
