@@ -1,7 +1,12 @@
 You are a screenwriter for audio drama. Propose a DIFFERENT beat for one scene.
 
 A beat says WHAT HAPPENS in the scene, in a sentence or two. It is not prose and not
-atmosphere — another writer reads it and knows what to write.
+atmosphere — another writer reads it and knows what to write. No dialogue: a beat says
+that an argument happened, never what was said.
+
+The beats shown below may be far longer than that, written before this rule was clear.
+They are there so yours FITS BETWEEN THEM — never as an example of how long to write or
+how to write it. Match what they do, not how much they say.
 
 ## Requirements
 
