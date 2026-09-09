@@ -291,6 +291,45 @@ export function Episode() {
                       )}
                     </div>
 
+                    {/* Editing the prose by HAND. A model gets a scene mostly right and
+                        one line wrong, and regenerating to fix that line rolls the dice
+                        on the rest of it — so the fix has to be a text box.
+
+                        Folded away rather than always open: the read view above is what
+                        this page is for, and a dozen textareas make an episode
+                        unreadable. Only for a scene that HAS prose; there is nothing to
+                        edit before it is written, and "rewrite" is the button for that. */}
+                    {scene.text && (
+                      <details className="border-t border-neutral-900">
+                        <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
+                          Edit the text
+                        </summary>
+                        <div className="border-t border-neutral-900 px-4 py-3">
+                          <Form
+                            path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                            method="PUT"
+                            submit="Save the text"
+                          >
+                            {/* `name="text"` alone: the route writes only the fields a
+                                form actually sent, so this leaves the beat and the setup
+                                exactly as they were. */}
+                            <textarea
+                              name="text"
+                              rows={16}
+                              defaultValue={scene.text}
+                              className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 font-mono text-sm leading-relaxed outline-none focus:border-neutral-600"
+                            />
+                            <p className="mt-2 text-xs text-neutral-600">
+                              Saving reassembles the episode draft and its word count. The
+                              running summary was folded from the OLD text and is not
+                              rebuilt — later scenes keep reading that until this one is
+                              written again.
+                            </p>
+                          </Form>
+                        </div>
+                      </details>
+                    )}
+
                     <details className="border-t border-neutral-900">
                       <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
                         Instructions for this scene
