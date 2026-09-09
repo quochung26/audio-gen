@@ -16,17 +16,20 @@ describe("the declaration table", () => {
     }
   });
 
-  it("has all the knobs providers actually read", () => {
+  it("is TASTE only — capacity is not a preference", () => {
+    // numCtx and maxTokens moved to GEN_LIMITS: one is what has to fit, the other how
+    // long the answer may run, and both follow from constants. As editable fields they
+    // were a knob nobody should turn and a second copy of a number in code.
     expect(GEN_PARAMS.map((p) => p.key).sort()).toEqual(
-      ["maxTokens", "numCtx", "repeatPenalty", "temperature", "topP"].sort(),
+      ["repeatPenalty", "temperature", "topP"].sort(),
     );
   });
 });
 
 describe("parseGenParams", () => {
   it("reads ordinary numbers", () => {
-    const r = parseGenParams({ temperature: "0.85", numCtx: "16384" });
-    expect(r.params).toEqual({ temperature: 0.85, numCtx: 16384 });
+    const r = parseGenParams({ temperature: "0.85", topP: "0.9" });
+    expect(r.params).toEqual({ temperature: 0.85, topP: 0.9 });
     expect(r.errors).toEqual([]);
   });
 
@@ -47,8 +50,8 @@ describe("parseGenParams", () => {
     expect(r.errors[0]).toMatch(/got 3/);
   });
 
-  it("rejects a numCtx that is too small — the thing that silently cuts off the Story Bible", () => {
-    expect(parseGenParams({ numCtx: "512" }).errors).toHaveLength(1);
+  it("rejects a topP outside its range", () => {
+    expect(parseGenParams({ topP: "2" }).errors).toHaveLength(1);
   });
 
   it("rejects non-numbers", () => {
@@ -57,10 +60,10 @@ describe("parseGenParams", () => {
     expect(r.params).toEqual({});
   });
 
-  it("rounds integer parameters", () => {
-    expect(parseGenParams({ numCtx: "16384.7" }).params.numCtx).toBe(16385);
-    // Decimal parameters are left as they are.
+  it("leaves decimal parameters as they are", () => {
+    // The rounding branch is for whole-number knobs; every one left here is decimal.
     expect(parseGenParams({ temperature: "0.85" }).params.temperature).toBe(0.85);
+    expect(parseGenParams({ repeatPenalty: "1.07" }).params.repeatPenalty).toBe(1.07);
   });
 
   it("one bad field does not lose the good ones", () => {
@@ -78,9 +81,9 @@ describe("parseGenParams", () => {
 
 describe("knownGenParams", () => {
   it("keeps the keys providers read", () => {
-    expect(knownGenParams({ temperature: 0.9, numCtx: 8192 })).toEqual({
+    expect(knownGenParams({ temperature: 0.9, repeatPenalty: 1.1 })).toEqual({
       temperature: 0.9,
-      numCtx: 8192,
+      repeatPenalty: 1.1,
     });
   });
 

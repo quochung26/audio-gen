@@ -31,6 +31,11 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
  * Generation parameters per step — creative prose needs a higher temperature than
  * utility work.
  *
+ * TASTE ONLY. `numCtx` and `maxTokens` used to sit here too; they are in `GEN_LIMITS`
+ * in @audio/llm now, because they are capacity rather than preference and were a
+ * second copy of numbers that live in code. They drifted apart on every retuning of
+ * the scene size, and a `db:seed` missed after one left the model cut off mid-sentence.
+ *
  * The three summarising steps run at 0.2. They are not writing anything: they read a
  * text and say what is in it, under instructions with hard edges — "ONE paragraph",
  * "at most N words", "no bullet points", "return the summary text only". Temperature
@@ -39,40 +44,40 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
  * grows past its word ceiling costs context in every later prompt that loads it.
  */
 const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
-  OUTLINE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 2500 },
+  OUTLINE: { temperature: 0.9, repeatPenalty: 1.1 },
   // `numCtx` has to hold the running summary AND a full 900-word scene. `maxTokens`
   // sits well above the word ceiling the prompt asks for, so a model writing right up
   // to it is not cut off mid-sentence — a truncated paragraph here is fed into the next
   // compression and the damage carries forward for the rest of the story.
-  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 1000 },
+  STORY_SO_FAR: { temperature: 0.2, repeatPenalty: 1.05 },
   // One person, so `maxTokens` is small — but `numCtx` is not: the whole Story Bible
   // goes in, and a character invented without reading it duplicates someone.
-  CHARACTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 700 },
+  CHARACTER: { temperature: 0.9, repeatPenalty: 1.1 },
   // A wider context than OUTLINE because it has to load the earlier episodes' summaries.
-  NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 1200 },
+  NEXT_EPISODE: { temperature: 0.9, repeatPenalty: 1.1 },
   // One chapter, so `maxTokens` is a fraction of NEXT_EPISODE's. `numCtx` is not: it
   // reads the same running summary and the chapters already written.
-  NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 600 },
+  NEXT_CHAPTER: { temperature: 0.9, repeatPenalty: 1.1 },
   // 0.9 — the default, the same as every other outlining step. It was 1.0 on the
   // argument that this button is pressed BECAUSE the first answer was not wanted, so
   // a near-identical second one is no use. That variety is better bought in the prompt,
   // which already sends the rejected beat and says to change what happens rather than
   // the wording: a temperature nobody else uses only makes this step's failures
   // different in kind from the rest.
-  SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 250 },
+  SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
   // words, only a third above the 750 target — a model writing thoroughly hits the
   // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
   //
   // `repeatPenalty` lowered from 1.12 to 1.05: a heavy repetition penalty also
   // crushes DELIBERATE repetition, which is a real device — "A knock. Then another knock."
-  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
+  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05 },
   // Lower than scene writing because the plot is already fixed, higher than audio
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
-  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
-  AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 4000 },
-  SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 900 },
-  METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
+  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05 },
+  AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05 },
+  SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05 },
+  METADATA: { temperature: 0.8, repeatPenalty: 1.1 },
 };
 
 async function seedPrompts() {

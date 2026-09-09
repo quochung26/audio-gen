@@ -1,5 +1,53 @@
 import { prisma, type PromptStep } from "@audio/database";
+import { SCENE_MAX_WORDS } from "@audio/config";
 import { LlmError } from "./provider";
+
+/** Vietnamese runs about 1.8 tokens to the word — the figure the context budget uses. */
+const TOKENS_PER_WORD = 1.8;
+
+/**
+ * Room for the longest scene the rules allow, and half again.
+ *
+ * A scene stopping mid-sentence is worse than a short one, so the ceiling has to sit
+ * well clear of the longest legal scene rather than near it. DERIVED, because the two
+ * numbers drifted apart every single time the scene size was retuned: the word count
+ * lives in code and the token ceiling lived in a JSON column, and nothing made them
+ * agree. A `pnpm db:seed` missed after changing the scene size left the model cut off
+ * mid-sentence, with nothing to say why.
+ */
+const SCENE_CEILING = Math.ceil((SCENE_MAX_WORDS * TOKENS_PER_WORD * 1.6) / 100) * 100;
+
+/**
+ * How much room each step gets — a CAPACITY, not a setting.
+ *
+ * These used to sit in `Prompt.params` beside temperature, and they do not belong
+ * there. Temperature is taste: you turn it up because the prose reads flat, and it can
+ * reasonably differ per genre. `numCtx` and `maxTokens` are consequences — of what has
+ * to fit in the prompt, and of how long the answer is allowed to be. Nobody prefers
+ * 2,600; it is what a 900-word scene needs.
+ *
+ * Editable, they were a knob in the UI that should not be touched, a second copy of a
+ * number that lives in code, and a value `db:seed` could quietly overwrite or fail to.
+ */
+export const GEN_LIMITS: Record<PromptStep, { numCtx: number; maxTokens: number }> = {
+  // The whole cast, the world setup and one episode of chapters.
+  OUTLINE: { numCtx: 8192, maxTokens: 2500 },
+  NEXT_EPISODE: { numCtx: 16384, maxTokens: 1200 },
+  // One chapter out; the Story Bible and the chapters so far in.
+  NEXT_CHAPTER: { numCtx: 16384, maxTokens: 600 },
+  // A sentence or two out. Everything else here is context.
+  SCENE_BEAT: { numCtx: 16384, maxTokens: 250 },
+  CHARACTER: { numCtx: 16384, maxTokens: 700 },
+  WRITE_SCENE: { numCtx: 16384, maxTokens: SCENE_CEILING },
+  // Rewrites one scene, so it needs exactly what writing one needs.
+  TRANSLATE: { numCtx: 16384, maxTokens: SCENE_CEILING },
+  // Reads a whole scene and answers in one paragraph.
+  STORY_SO_FAR: { numCtx: 8192, maxTokens: 1000 },
+  // The only step whose OUTPUT is long: a whole episode, split into speakable blocks.
+  AUDIO_EDIT: { numCtx: 16384, maxTokens: 4000 },
+  SUMMARIZE: { numCtx: 16384, maxTokens: 900 },
+  METADATA: { numCtx: 8192, maxTokens: 600 },
+};
 
 /** Replace {{var}} with a value. A missing variable is an error, never a silent blank. */
 export function renderTemplate(template: string, vars: Record<string, string | number>): string {
@@ -134,6 +182,9 @@ export async function loadPrompt(step: PromptStep, genre?: string): Promise<Load
     id: chosen.id,
     content: chosen.content,
     model: chosen.model,
-    params: (chosen.params as Record<string, unknown>) ?? {},
+    // Code LAST, so the capacity limits win over anything an old row still carries.
+    // The row keeps only taste — temperature and the rest — and a `db:seed` clears
+    // the stale keys, because the seed writes `params` whole.
+    params: { ...((chosen.params as Record<string, unknown>) ?? {}), ...GEN_LIMITS[step] },
   };
 }
