@@ -172,6 +172,30 @@ async function seedGenres() {
       description:
         "The supernatural must run on clear rules, and those rules must never be broken to get a character out of a corner. Show the rules through scenes, not through narration.",
     },
+    {
+      name: "hành động",
+      promptName: "action",
+      description:
+        "Action is told through what a body can and cannot do, not through adjectives. Short sentences while it is happening; every fight costs something that lasts past the scene. Somebody has to want something badly enough to risk being hurt for it — a chase nobody needs is furniture.",
+    },
+    {
+      name: "chính kịch",
+      promptName: "drama",
+      description:
+        "The conflict is between people who both have a case. Nobody is simply wrong, and the scene turns on what someone finally admits or refuses to. Keep events ordinary and let the pressure come from the relationship rather than from an outside threat.",
+    },
+    {
+      name: "gia đình",
+      promptName: "family drama",
+      description:
+        "Old debts inside one household: what was said years ago, and who still keeps score. Characters speak around the subject far more often than about it. A reconciliation must cost something, and it does not settle everything.",
+    },
+    {
+      name: "hài",
+      promptName: "comedy",
+      description:
+        "The comedy is in character, not in jokes: someone wants something reasonable and goes about it in a way nobody else would. Play it straight — a character who knows they are funny is not. Written to be HEARD, so the timing lives in sentence length and in pauses.",
+    },
   ];
 
   const before = await prisma.genre.findMany({ select: { name: true } });
