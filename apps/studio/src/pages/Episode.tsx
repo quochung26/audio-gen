@@ -49,6 +49,11 @@ interface Scene {
   text: string | null;
   /** The draft before the rewrite. Null means this scene has not been through it. */
   sourceText: string | null;
+  /**
+   * What this scene said before an edit — kept only while the episode is PUBLISHED.
+   * Newest first, capped at five by the API.
+   */
+  revisions: { id: string; text: string; createdAt: string }[];
 }
 interface Chapter {
   id: string;
@@ -324,8 +329,49 @@ export function Episode() {
                               running summary was folded from the OLD text and is not
                               rebuilt — later scenes keep reading that until this one is
                               written again.
+                              {ep.status === "PUBLISHED" && (
+                                <>
+                                  {" "}
+                                  This episode is <strong className="text-amber-500">published</strong>,
+                                  so what it says now is kept below before the change.
+                                </>
+                              )}
                             </p>
                           </Form>
+
+                          {/* `?? []` because Studio and the API restart separately:
+                              a page newer than the server it is talking to should show
+                              one section less, not a blank screen. */}
+                          {(scene.revisions ?? []).length > 0 && (
+                            <div className="mt-4 space-y-2 border-t border-neutral-900 pt-3">
+                              <p className="text-xs text-neutral-500">
+                                Earlier versions — kept because the episode was already
+                                published when it was edited.
+                              </p>
+                              {(scene.revisions ?? []).map((rev) => (
+                                <details key={rev.id} className="rounded border border-neutral-900">
+                                  <summary className="cursor-pointer px-3 py-2 text-xs text-neutral-500">
+                                    {new Date(rev.createdAt).toLocaleString()}
+                                  </summary>
+                                  <div className="border-t border-neutral-900 px-3 py-2">
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-400">
+                                      {rev.text}
+                                    </p>
+                                    {/* Restoring is the same save as any other, so it goes
+                                        through the same route and is itself kept. */}
+                                    <Form
+                                      path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                                      method="PUT"
+                                      submit="Put this back"
+                                      className="mt-2"
+                                    >
+                                      <input type="hidden" name="text" value={rev.text} />
+                                    </Form>
+                                  </div>
+                                </details>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </details>
                     )}

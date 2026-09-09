@@ -39,7 +39,16 @@ episodes.get("/:id", async (c) => {
       },
       chapters: {
         orderBy: { order: "asc" },
-        include: { scenes: { orderBy: { order: "asc" } } },
+        include: {
+          scenes: {
+            orderBy: { order: "asc" },
+            // Capped: a revision carries a whole scene, and an episode has a dozen
+            // scenes. Uncapped, the page payload grows with every edit ever made.
+            include: {
+              revisions: { orderBy: { createdAt: "desc" }, take: 5 },
+            },
+          },
+        },
       },
       blocks: { orderBy: { order: "asc" } },
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
@@ -228,6 +237,29 @@ episodes.post("/:id/chapters", async (c) => {
   return c.json({ ok: "Outlining the next chapter…" });
 });
 
+/**
+ * Keep what a scene said before an edit — but only once the episode is PUBLISHED.
+ *
+ * Editing a draft is just writing. Keeping every save of one would bury the versions
+ * that matter under dozens that do not, and the draft has no readers to be wrong for.
+ * Once an episode is out, the text being overwritten is the version listeners were
+ * given, and nothing else records it.
+ *
+ * A no-op when the text has not actually changed: pressing Save twice is not a version.
+ */
+async function keepRevision(sceneId: string, next: string): Promise<void> {
+  const scene = await prisma.scene.findUnique({
+    where: { id: sceneId },
+    select: { text: true, chapter: { select: { episode: { select: { status: true } } } } },
+  });
+
+  const previous = scene?.text;
+  if (!previous || previous === next) return;
+  if (scene.chapter.episode.status !== EpisodeStatus.PUBLISHED) return;
+
+  await prisma.sceneRevision.create({ data: { sceneId, text: previous } });
+}
+
 /** Rename a chapter. */
 episodes.put("/:id/chapters/:chapterId", async (c) => {
   const body = await c.req.parseBody();
@@ -247,7 +279,10 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
   // instructions — and writing both blindly means saving instructions wipes the
   // draft.
   const data: Record<string, unknown> = {};
-  if ("text" in body) data.text = String(body.text ?? "");
+  if ("text" in body) {
+    data.text = String(body.text ?? "");
+    await keepRevision(c.req.param("sceneId"), data.text as string);
+  }
   if ("beat" in body) data.beat = field(body, "beat");
   // Empty is valid and means something: "not known yet" → the Bible loads in full.
   if ("characterIds" in body) {

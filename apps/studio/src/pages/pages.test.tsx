@@ -190,6 +190,7 @@ const FIXTURES: Record<string, unknown> = {
             beat: "mở đầu",
             text: "Trời tối.",
             sourceText: null,
+            revisions: [],
             characterIds: [],
             setup: null,
           },

@@ -438,6 +438,27 @@ model CharacterCard {
 /// `setup` used to live on `Episode`, and that was the wrong place: it describes one
 /// movement, not a whole episode. The override chain is now three proper tiers —
 /// character card → chapter → scene.
+/// A scene's text as it stood before an edit, kept only while the episode is published.
+///
+/// Scene-level, not episode-level: an edit is made to one scene, and the episode's draft
+/// is assembled from its scenes anyway, so keeping both would store the same words twice
+/// and let them disagree.
+///
+/// No `restoredFrom` or branching. This answers one question — "what did it say before I
+/// changed it, and can I put that back" — and anything more is a version control system,
+/// which the repo already has for everything that is not a database row.
+model SceneRevision {
+  id      String @id @default(cuid())
+  sceneId String
+  scene   Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  text String
+
+  createdAt DateTime @default(now())
+
+  @@index([sceneId, createdAt])
+}
+
 model Chapter {
   id        String  @id @default(cuid())
   episodeId String
@@ -510,6 +531,14 @@ model Scene {
   /// The "not known" default is deliberate: guessing one person short only loses the
   /// filtering, rather than making the model write a scene missing its own people.
   characterIds String[] @default([])
+
+  /// What this scene said before it was edited — kept only for a PUBLISHED episode.
+  ///
+  /// Editing a draft is just writing, and keeping every save of one would bury the
+  /// versions that matter in noise. Once an episode is published the old text is the
+  /// version listeners were given, and overwriting it loses the only record of what
+  /// was actually broadcast.
+  revisions SceneRevision[]
 
   /// The SCENE's own setup: notes, and character overrides for this scene alone.
   /// Overrides `Chapter.setup` FIELD BY FIELD — a scene saying only "changed into a
