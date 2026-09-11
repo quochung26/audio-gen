@@ -299,6 +299,12 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     await keepRevision(c.req.param("sceneId"), data.text as string);
   }
   if ("beat" in body) data.beat = field(body, "beat");
+  // The running summary this scene left behind. Editable because it is the single
+  // thing every LATER scene reads about the story, and a model that folded it wrong
+  // — dropped a death, invented a reconciliation — poisons every scene after this
+  // one until somebody corrects it. Blank clears it: the block then disappears from
+  // the next scene's prompt rather than carrying something known to be wrong.
+  if ("storySoFar" in body) data.storySoFar = field(body, "storySoFar") || null;
   // Empty is valid and means something: "not known yet" → the Bible loads in full.
   if ("characterIds" in body) {
     data.characterIds = field(body, "characterIds").split(",").map((v) => v.trim()).filter(Boolean);

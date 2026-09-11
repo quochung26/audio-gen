@@ -50,6 +50,13 @@ interface Scene {
   /** The draft before the rewrite. Null means this scene has not been through it. */
   sourceText: string | null;
   /**
+   * The whole story as it stood after this scene, in one paragraph.
+   *
+   * Folded by STORY_SO_FAR right after the scene is written, and read by every scene
+   * after it — the one account of the story a scene write gets.
+   */
+  storySoFar: string | null;
+  /**
    * What this scene said before an edit — kept only while the episode is PUBLISHED.
    * Newest first, capped at five by the API.
    */
@@ -295,6 +302,44 @@ export function Episode() {
                         (scene.text ?? <span className="text-neutral-600">not written</span>)
                       )}
                     </div>
+
+                    {/* The paragraph every LATER scene reads. Shown because it was
+                        invisible: computed, stored, fed into every prompt, and never
+                        once on screen — which is how it went a dozen commits being
+                        built at both ends and never connected in the middle.
+
+                        Editable because a fold that went wrong — a death dropped, a
+                        reconciliation invented — poisons every scene after this one
+                        until somebody corrects it, and rewriting the scene to force a
+                        re-fold is a far bigger hammer. */}
+                    {scene.storySoFar && (
+                      <details className="border-t border-neutral-900">
+                        <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
+                          The story so far, after this scene
+                        </summary>
+                        <div className="border-t border-neutral-900 px-4 py-3">
+                          <Form
+                            path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                            method="PUT"
+                            submit="Save the summary"
+                          >
+                            <textarea
+                              name="storySoFar"
+                              rows={7}
+                              defaultValue={scene.storySoFar}
+                              className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed outline-none focus:border-neutral-600"
+                            />
+                            <p className="mt-2 text-xs text-neutral-600">
+                              What every scene AFTER this one is told about the story — and
+                              nothing else. Rewritten automatically each time this scene is
+                              written; edit it when the fold lost something or invented
+                              something. Empty removes the block from the next scene&apos;s
+                              prompt entirely.
+                            </p>
+                          </Form>
+                        </div>
+                      </details>
+                    )}
 
                     {/* Saying what was wrong with the attempt on screen, and getting
                         another one. Different from "Note for this scene" below, which is

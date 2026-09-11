@@ -190,6 +190,7 @@ const FIXTURES: Record<string, unknown> = {
             beat: "mở đầu",
             text: "Trời tối.",
             sourceText: null,
+            storySoFar: "Tài nhận chuyến xe đêm cuối cùng ở bến Sài Gòn.",
             revisions: [],
             characterIds: [],
             setup: null,
@@ -468,6 +469,17 @@ describe("every page renders", () => {
 });
 
 describe("pages surface the warnings that matter", () => {
+  it("the episode page SHOWS the running summary every later scene reads", async () => {
+    // It was computed, stored and fed into every prompt while being visible nowhere —
+    // which is how it spent a dozen commits built at both ends and never connected in
+    // the middle. Nobody could have seen that from the UI, because the UI had no idea
+    // it existed.
+    renderAt("/episode/e1", "/episode/:id", <Episode />);
+    await waitFor(() =>
+      expect(screen.getByText(/The story so far, after this scene/)).toBeDefined(),
+    );
+  });
+
   it("the music library warns about tracks with no verified licence", async () => {
     renderAt("/tracks", "/tracks", <Tracks />);
     await waitFor(() =>
