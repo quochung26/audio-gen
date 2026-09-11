@@ -18,6 +18,10 @@ const STEP_LABEL: Record<string, { title: string; desc: string }> = {
     title: "Another beat",
     desc: "Proposes a different beat for one scene, fitted between the ones around it.",
   },
+  SCENE_CONTEXT: {
+    title: "What this scene needs",
+    desc: "Only when \u201cAsk first\u201d is on: picks who and what to load before writing.",
+  },
   CHARACTER: {
     title: "Character",
     desc: "Invents one character to fit the story — the “let the AI write one” button.",

@@ -39,6 +39,8 @@ interface Data {
   recent: string[];
   /** Default language for NEW stories — existing ones are untouched. */
   language: { value: string; fromEnv: boolean };
+  /** How a scene write gets its context — see SceneContextMode in @audio/llm. */
+  sceneContext: "full" | "asked";
   configured: Array<{
     label: string;
     kind: string;
@@ -317,6 +319,28 @@ export function Models() {
             Any step marked “no model” stops the job that reaches it. Pull a model, or pick one.
           </p>
         )}
+      </Section>
+
+      <Section title="Scene context">
+        <p className="-mt-1 text-xs text-neutral-500">
+          What a scene write is told about the story. Two calls buy a smaller second one:
+          the model reads the beat, says who is in it and what it needs looking up, and only
+          that is loaded. One call sends everything the code can guess might matter.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Form path="/api/models/scene-context" method="PUT" submit="Everything, one call">
+            <input type="hidden" name="mode" value="full" />
+          </Form>
+          <Form path="/api/models/scene-context" method="PUT" submit="Ask first, then write">
+            <input type="hidden" name="mode" value="asked" />
+          </Form>
+        </div>
+        <p className="text-xs text-neutral-600">
+          Currently: <strong className="text-neutral-300">{data.sceneContext}</strong>.
+          {data.sceneContext === "asked"
+            ? " Asking runs on the utility model — it is picking from a list, not writing."
+            : " Asking is worth trying on a long story with a big cast, where most of the Bible is about people who are not in the scene."}
+        </p>
       </Section>
 
       <GenParamsSettings />

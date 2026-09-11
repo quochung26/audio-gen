@@ -176,6 +176,30 @@ export const sceneBeatSchema = z.object({
 
 export type SceneBeat = z.infer<typeof sceneBeatSchema>;
 
+/**
+ * What a scene write says it needs, before it is written — see the SCENE_CONTEXT step.
+ *
+ * The model picks instead of the code guessing. Today `Scene.characterIds` comes from
+ * matching cast names against the beat's text, which misses anyone the beat implies
+ * without naming ("the ferryman refuses" when the cast calls her Hạnh), and the fact
+ * search uses the raw beat as its query, which is a sentence about what happens rather
+ * than a question about what came before.
+ */
+export const sceneNeedsSchema = z.object({
+  characters: z
+    .array(z.string())
+    .describe("Exact names from the cast of everyone who appears in the scene"),
+  factQueries: z
+    .array(z.string())
+    .max(3)
+    .describe(
+      "Up to three short phrases: what to look up about EARLIER episodes to avoid " +
+        "contradicting them. Empty is a real answer",
+    ),
+});
+
+export type SceneNeeds = z.infer<typeof sceneNeedsSchema>;
+
 export const characterStateSchema = z.object({
   name: z.string().describe("Character name, exactly as given in the list"),
   state: z

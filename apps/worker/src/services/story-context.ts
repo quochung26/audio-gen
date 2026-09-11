@@ -7,6 +7,7 @@ import {
   renderChapterSetup,
   renderOverrides,
   seriesBible,
+  type SceneNeeds,
   type StoryBibleRecord,
 } from "@audio/core";
 import { Prisma, prisma } from "@audio/database";
@@ -65,7 +66,18 @@ export interface SceneContext {
  * retrieved facts and the open threads. It is still loaded for NEXT_EPISODE, which runs
  * once an episode rather than once a scene.
  */
-export async function buildSceneContext(sceneId: string): Promise<SceneContext> {
+export async function buildSceneContext(
+  sceneId: string,
+  /**
+   * What the model SAID it needs, when the writer has turned that on.
+   *
+   * Given, it replaces two guesses the code makes: who is in the scene (matched from
+   * the beat's text, so it misses anyone the beat implies without naming) and what to
+   * search history for (the beat itself, which is a sentence about what happens rather
+   * than a question about what came before).
+   */
+  needs?: SceneNeeds | null,
+): Promise<SceneContext> {
   const scene = await prisma.scene.findUniqueOrThrow({
     where: { id: sceneId },
     include: {
@@ -89,9 +101,14 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
 
   // Who is present in this scene — anyone outside the list keeps only name and role
   // in the Bible. Empty describes everyone in full, which is the old behaviour.
-  const inScene = series.characters
-    .filter((c) => scene.characterIds.includes(c.id))
-    .map((c) => c.name);
+  //
+  // A name the model asked for that no character has is DROPPED rather than trusted:
+  // it invents one occasionally, and an unmatched name would quietly narrow the
+  // spotlight to the people it did get right.
+  const known = new Set(series.characters.map((c) => c.name));
+  const inScene = needs
+    ? needs.characters.filter((n) => known.has(n))
+    : series.characters.filter((c) => scene.characterIds.includes(c.id)).map((c) => c.name);
 
   const bible = await renderBibleFor(series, inScene);
 
@@ -103,11 +120,26 @@ export async function buildSceneContext(sceneId: string): Promise<SceneContext> 
   });
 
   // Vector retrieval with a similarity floor — not an unconditional top-K.
-  const [retrieved, threads, pinned] = await Promise.all([
-    retrieveFacts({ seriesId: series.id, beforeEpisode: episode.number, query: scene.beat }),
+  // One search per thing the model asked about, or one against the beat when it was
+  // not asked. De-duplicated by text below, since two questions often land on one fact.
+  const queries = needs?.factQueries?.length ? needs.factQueries : [scene.beat];
+
+  const [retrievedPerQuery, threads, pinned] = await Promise.all([
+    Promise.all(
+      queries.map((query) =>
+        retrieveFacts({ seriesId: series.id, beforeEpisode: episode.number, query }),
+      ),
+    ),
     openThreads({ seriesId: series.id, beforeEpisode: episode.number }),
     pinnedFacts(series.id, episode.number),
   ]);
+
+  const seen = new Set<string>();
+  const retrieved = retrievedPerQuery.flat().filter((f) => {
+    if (seen.has(f.text)) return false;
+    seen.add(f.text);
+    return true;
+  });
 
   // Pinned facts sit alongside the retrieved ones, marked similarity = 1.
   const facts = [

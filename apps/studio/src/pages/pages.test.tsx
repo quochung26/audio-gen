@@ -260,6 +260,7 @@ const FIXTURES: Record<string, unknown> = {
     url: "http://localhost:11434",
     provider: "ollama",
     embedProvider: "mock",
+    sceneContext: "full",
     installed: [
       {
         name: "qwen3:8b",

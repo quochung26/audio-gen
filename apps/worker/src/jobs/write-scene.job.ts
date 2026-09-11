@@ -1,9 +1,29 @@
-import { countWords, planDraft, renderContext, storySoFarSchema, withLanguage } from "@audio/core";
+import {
+  countWords,
+  parseChapterSetup,
+  planDraft,
+  renderChapterSetup,
+  renderContext,
+  sceneNeedsSchema,
+  storySoFarSchema,
+  toLanguage,
+  withLanguage,
+  type SceneNeeds,
+} from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
-import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
+import {
+  getLlm,
+  getSceneContextMode,
+  loadPrompt,
+  recordFailure,
+  recordRun,
+  renderTemplate,
+  resolveModel,
+} from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
+import { openThreads } from "../services/fact-store";
 import { openSceneStream } from "../services/stream";
 import { buildSceneContext } from "../services/story-context";
 
@@ -45,8 +65,11 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   const llm = getLlm();
   const written: string[] = [];
 
+  // One lookup for the whole run, not per scene: the writer does not flip this mid-job.
+  const mode = await getSceneContextMode();
+
   for (const [index, scene] of scenes.entries()) {
-    const context = await buildSceneContext(scene.id);
+    const context = await buildSceneContext(scene.id, mode === "asked" ? await askWhatItNeeds(scene.id) : null);
     const prompt = await loadPrompt("WRITE_SCENE", context.genre);
     const ctx = {
       step: "WRITE_SCENE" as const,
@@ -244,5 +267,76 @@ async function foldIntoSummary({
       `[write-scene] could not fold the scene just written into the story summary (${sceneId}): ` +
         `${(err as Error).message}. The scene is saved; later scenes will not see it summarised.`,
     );
+  }
+}
+
+/**
+ * Ask the model what this scene needs, before writing it.
+ *
+ * Gets a MENU — the cast by name and the open threads — never the content behind them,
+ * because loading that content is the thing being avoided. It answers with who appears
+ * and up to three things to look up, and `buildSceneContext` uses those in place of two
+ * guesses the code otherwise makes.
+ *
+ * On the UTILITY model: it is reading a list and picking from it, and paying writing
+ * rates to choose names would undo the saving the whole mode exists for.
+ *
+ * Fails SOFT. A scene that cannot ask is written the old way — everything the code
+ * guesses at — which is worse context, not no scene.
+ */
+async function askWhatItNeeds(sceneId: string): Promise<SceneNeeds | null> {
+  try {
+    const scene = await prisma.scene.findUniqueOrThrow({
+      where: { id: sceneId },
+      include: {
+        chapter: {
+          include: {
+            episode: {
+              include: { series: { include: { characters: { orderBy: { name: "asc" } } } } },
+            },
+          },
+        },
+      },
+    });
+    const { series, number } = scene.chapter.episode;
+
+    const threads = await openThreads({ seriesId: series.id, beforeEpisode: number });
+    const prompt = await loadPrompt("SCENE_CONTEXT", series.genre);
+    const ctx = {
+      step: "SCENE_CONTEXT" as const,
+      episodeId: scene.chapter.episodeId,
+      sceneId,
+      promptId: prompt.id,
+      params: prompt.params,
+    };
+
+    const result = await getLlm().generateJson({
+      model: await resolveModel({ prompt: prompt.model, kind: "utility" }),
+      system: withLanguage(toLanguage(series.language)),
+      schema: sceneNeedsSchema,
+      prompt: renderTemplate(prompt.content, {
+        beat: scene.beat,
+        chapter: renderChapterSetup(parseChapterSetup(scene.chapter.setup)),
+        cast: series.characters.map((c) => `- ${c.name}${c.role ? ` — ${c.role}` : ""}`).join("\n"),
+        threads:
+          threads.length > 0
+            ? threads.map((t) => `- ${t.text}`).join("\n")
+            : "None — the story owes nothing yet.",
+      }),
+      ...(prompt.params as object),
+    });
+
+    await recordRun(ctx, result);
+    logger.info(
+      `[write-scene] asked: ${result.data.characters.join(", ") || "nobody"} · ` +
+        `${result.data.factQueries.length} lookup(s)`,
+    );
+    return result.data;
+  } catch (err) {
+    logger.warn(
+      `[write-scene] could not ask what scene ${sceneId} needs: ${(err as Error).message}. ` +
+        `Writing it with the context the code guesses at.`,
+    );
+    return null;
   }
 }

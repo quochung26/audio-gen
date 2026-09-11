@@ -147,6 +147,10 @@ enum PromptStep {
   /// third the model's guess at a story not yet written.
   NEXT_CHAPTER
   SCENE_BEAT
+  /// Ask the model WHICH context a scene needs, before writing it. NOT a job: it runs
+  /// inside WRITE_SCENE, and only when the writer turns it on — see Setting
+  /// `scene.context`.
+  SCENE_CONTEXT
   WRITE_SCENE
   /// Rewrite the draft into the output language.
   TRANSLATE

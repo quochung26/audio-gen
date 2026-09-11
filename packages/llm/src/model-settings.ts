@@ -19,6 +19,38 @@ import { listInstalledModels, pickInstalledModel } from "./installed-models";
 export type ModelKind = "write" | "utility" | "embed";
 
 const PROVIDER_KEY = "llm.provider";
+const SCENE_CONTEXT_KEY = "scene.context";
+
+/**
+ * How a scene write gets its context.
+ *
+ * `full` — everything that might bear on the scene goes in, chosen by the code: the
+ * cast named in the beat, facts retrieved against the beat itself. ONE model call.
+ *
+ * `asked` — a cheap call first, on the utility model, where the model reads the beat
+ * and says which characters and which pieces of history it needs; the write then
+ * carries only those. TWO calls, and a smaller second one.
+ *
+ * Not a tool loop, deliberately. Letting the writing model call back mid-scene means
+ * re-sending the whole conversation on every question — usually MORE tokens, not fewer
+ * — it breaks the token stream Studio shows live, and it makes two runs of one scene
+ * pull different context, so a contradiction can no longer be traced. Asking once, up
+ * front, is the same idea with none of that.
+ */
+export type SceneContextMode = "full" | "asked";
+
+export async function getSceneContextMode(): Promise<SceneContextMode> {
+  const row = await prisma.setting.findUnique({ where: { key: SCENE_CONTEXT_KEY } });
+  return row?.value?.trim() === "asked" ? "asked" : "full";
+}
+
+export async function setSceneContextMode(value: SceneContextMode): Promise<void> {
+  await prisma.setting.upsert({
+    where: { key: SCENE_CONTEXT_KEY },
+    create: { key: SCENE_CONTEXT_KEY, value },
+    update: { value },
+  });
+}
 
 /**
  * The key storing the default model — SPLIT BY PROVIDER.

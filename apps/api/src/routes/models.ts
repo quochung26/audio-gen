@@ -6,6 +6,8 @@ import {
   getActiveProvider,
   getDefaultLanguage,
   getDefaultLanguageSource,
+  getSceneContextMode,
+  setSceneContextMode,
   getDefaultModels,
   setDefaultLanguage,
   setActiveProvider,
@@ -173,6 +175,7 @@ models.get("/", async (c) => {
     installed,
     recent,
     language: await getDefaultLanguageSource(),
+    sceneContext: await getSceneContextMode(),
     configured: configured.map((x) => ({ ...x, ...describeModel(x.value) })),
     promptOverrides: promptOverrides.map((x) => ({ ...x, ...describeModel(x.model) })),
     pull: withElapsed(pull),
@@ -233,6 +236,20 @@ models.put("/provider", async (c) => {
  * the story is created. Changing the language of a story already being written is
  * a rewrite from scratch, not a settings toggle.
  */
+/** Switch how a scene write gets its context — see SceneContextMode. */
+models.put("/scene-context", async (c) => {
+  const value = field(await c.req.parseBody(), "mode");
+  if (value !== "full" && value !== "asked") throw new UserError(`Unknown mode: "${value}"`);
+
+  await setSceneContextMode(value);
+  return c.json({
+    ok:
+      value === "asked"
+        ? "Scenes will be asked about first. Two calls per scene, and a smaller second one."
+        : "Scenes get the full context in one call.",
+  });
+});
+
 models.put("/language", async (c) => {
   const body = await c.req.parseBody();
   try {

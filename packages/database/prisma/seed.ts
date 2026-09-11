@@ -20,6 +20,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "NEXT_CHAPTER", file: "next-chapter.md" },
   { step: "SCENE_BEAT", file: "scene-beat.md" },
+  { step: "SCENE_CONTEXT", file: "scene-context.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
   { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
@@ -67,6 +68,9 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // the wording: a temperature nobody else uses only makes this step's failures
   // different in kind from the rest.
   SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 500 },
+  // Picking from a list, not writing. Low temperature: two runs of the same beat
+  // should ask for the same things, or the scene stops being reproducible.
+  SCENE_CONTEXT: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 400 },
   // `maxTokens` has to be well above the target word count: 1,800 tokens ≈ 1,000
   // words, only a third above the 750 target — a model writing thoroughly hits the
   // ceiling and gets cut off. 2,600 tokens ≈ 1,450 words, room for a generous 900-word scene.
