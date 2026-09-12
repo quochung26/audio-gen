@@ -77,7 +77,17 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   //
   // `repeatPenalty` lowered from 1.12 to 1.05: a heavy repetition penalty also
   // crushes DELIBERATE repetition, which is a real device — "A knock. Then another knock."
-  WRITE_SCENE: { temperature: 0.95, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
+  //
+  // `temperature` 1.0 and `minP` 0.1 are what MS3.2-24B-Magnum-Diamond's model card asks
+  // for, and they are a pair rather than two numbers: minP cuts the tail by ratio to the
+  // likeliest token, so it tightens where the model is sure and loosens where it is not,
+  // which is what makes the higher temperature safe. Measured on that model, minP 0.1
+  // removed invented words outright.
+  //
+  // They apply to whatever model is active, OpenRouter included — params belong to a
+  // STEP, not to a model. That is deliberate here: the pairing is not specific to one
+  // finetune, and 0.1 is mild enough that a large cloud model barely notices it.
+  WRITE_SCENE: { temperature: 1.0, minP: 0.1, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
   // Lower than scene writing because the plot is already fixed, higher than audio
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
