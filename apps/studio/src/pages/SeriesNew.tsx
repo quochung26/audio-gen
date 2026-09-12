@@ -68,7 +68,7 @@ export function SeriesNew() {
             </select>
             {genres.length === 0 && (
               <span className="mt-1 block text-xs text-amber-500">
-                The genre catalogue is empty — add one under Settings → Genres.
+                The genre catalogue is empty — add one on the Genres page.
               </span>
             )}
           </label>

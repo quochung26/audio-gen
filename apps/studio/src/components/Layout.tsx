@@ -4,10 +4,13 @@ import { Link, NavLink } from "react-router";
 /** Day-to-day work: your content. */
 const NAV = [
   ["/series", "Stories"],
-  // Character cards sit next to the music library rather than under Settings:
-  // both are MATERIAL you collect over time and bring into a story, not part of
-  // how the machine runs.
+  // Character cards, genres and the music library sit here rather than under
+  // Settings: all three are MATERIAL you collect over time and bring into a story,
+  // not part of how the machine runs. A genre is picked on the New story form the
+  // same way a character card is, and its description is the writer's own words
+  // about how that genre should read — tuned like a prompt, but owned like content.
   ["/character-cards", "Character cards"],
+  ["/genres", "Genres"],
   ["/tracks", "Music library"],
   ["/stats", "Stats"],
   ["/comments", "Comments"],
@@ -16,7 +19,7 @@ const NAV = [
 /**
  * How the machine runs — kept apart, at the bottom of the column.
  *
- * A group, not a dropdown: opening a menu to reveal three items costs a click
+ * A group, not a dropdown: opening a menu to reveal two items costs a click
  * and hides nothing worth hiding.
  *
  * Prompts live here rather than in the main nav because they are how the MACHINE
@@ -24,7 +27,6 @@ const NAV = [
  */
 const SETTINGS_NAV = [
   ["/prompts", "Prompt"],
-  ["/genres", "Genres"],
   ["/model", "Models & language"],
 ] as const;
 

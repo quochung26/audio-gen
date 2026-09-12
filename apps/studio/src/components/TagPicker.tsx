@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 /**
- * Pick sub-genres by clicking, from the catalogue under Settings → Genres.
+ * Pick sub-genres by clicking, from the catalogue on the Genres page.
  *
  * Sends one comma-separated `tags` string — exactly what the API already
  * accepts, so nothing changes on the backend.
@@ -19,7 +19,7 @@ export function TagPicker({ genres, initial = [] }: { genres: string[]; initial?
       <input type="hidden" name="tags" value={picked.join(", ")} />
       {choices.length === 0 ? (
         <p className="text-xs text-amber-500">
-          The genre catalogue is empty — add one under Settings → Genres.
+          The genre catalogue is empty — add one on the Genres page.
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
