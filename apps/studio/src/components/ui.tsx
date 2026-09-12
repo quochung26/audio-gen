@@ -44,7 +44,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`rounded px-3 py-1.5 text-sm transition disabled:opacity-40 ${styles[variant]}`}
+      className={`rounded px-3 py-1.5 text-sm whitespace-nowrap transition disabled:opacity-40 ${styles[variant]}`}
     >
       {children}
     </button>

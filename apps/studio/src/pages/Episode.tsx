@@ -267,17 +267,30 @@ export function Episode() {
               <div className="space-y-3">
                 {chapter.scenes.map((scene) => (
                   <div key={scene.id} className="rounded border border-neutral-800">
-                    <div className="flex items-center justify-between border-b border-neutral-900 px-4 py-2">
-                      <span className="text-xs text-neutral-500">
-                        Scene {chapter.order}.{scene.order} · {scene.beat}
-                      </span>
+                    {/* `items-start`, not `items-center`: the beat is prose and has to
+                        be allowed its second line. Centred, it was one crushed line
+                        fighting the buttons for width — and since a flex child will
+                        not shrink below its content without `min-w-0`, it won that
+                        fight and the buttons broke into "another" / "beat". */}
+                    <div className="flex items-start gap-3 border-b border-neutral-900 px-4 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-2 text-xs text-neutral-600">
+                          <span className="tabular-nums">
+                            Scene {chapter.order}.{scene.order}
+                          </span>
+                          {/* The length, where the question about a written scene is
+                              usually whether it came out near the target at all. */}
+                          {scene.text && <span>{words(scene.text)} words</span>}
+                        </div>
+                        <p className="mt-1 text-xs leading-relaxed text-neutral-400">{scene.beat}</p>
+                      </div>
                       {/* One scene at a time: 600–900 words already takes tens of
                           seconds on a real GPU, so a whole episode is one long
                           wait with nothing to look at. Same endpoint — it nulls
                           `text` and queues WRITE_SCENE for that scene, so an
                           unwritten scene works too. */}
                       {!active && (
-                        <>
+                        <div className="flex shrink-0 items-center gap-1">
                           {/* A beat could only be retyped until now — the one step of
                               outlining with no button. Leaves any prose alone; the
                               rewrite next to it is the one that replaces that. */}
@@ -287,21 +300,28 @@ export function Episode() {
                           <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
                             {scene.text ? "rewrite" : "write this scene"}
                           </ActionButton>
-                        </>
+                        </div>
                       )}
                     </div>
-                    <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
-                      {stream && stream.sceneId === scene.id ? (
-                        <>
-                          {stream.text}
-                          {/* Blinking cursor: tells "still writing" apart from
-                              "finished, and that is all there was". */}
-                          <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
-                        </>
-                      ) : (
-                        (scene.text ?? <span className="text-neutral-600">not written</span>)
-                      )}
-                    </div>
+                    {/* An unwritten scene gets one thin line rather than the full
+                        prose band. Three empty bands the height of a paragraph was
+                        most of what a freshly outlined chapter showed. */}
+                    {stream?.sceneId === scene.id || scene.text ? (
+                      <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
+                        {stream && stream.sceneId === scene.id ? (
+                          <>
+                            {stream.text}
+                            {/* Blinking cursor: tells "still writing" apart from
+                                "finished, and that is all there was". */}
+                            <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
+                          </>
+                        ) : (
+                          scene.text
+                        )}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-2 text-xs text-neutral-600">not written</div>
+                    )}
 
                     {/* The paragraph every LATER scene reads. Shown because it was
                         invisible: computed, stored, fed into every prompt, and never
@@ -672,4 +692,9 @@ export function Episode() {
       </Section>
     </div>
   );
+}
+
+/** Word count for a written scene — the target is SCENE_TARGET_WORDS. */
+function words(text: string): number {
+  return text.trim().split(/\s+/).length;
 }
