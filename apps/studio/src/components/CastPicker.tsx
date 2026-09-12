@@ -34,9 +34,24 @@ interface Row extends CharacterValues {
   isNarrator: boolean;
 }
 
+/**
+ * The next throwaway React key.
+ *
+ * A counter and not `crypto.randomUUID()`, which is only defined in a SECURE
+ * context. `localhost` counts as one, so it worked on the machine running the dev
+ * server and threw `crypto.randomUUID is not a function` the moment Studio was
+ * opened over the LAN at http://10.10.10.3:3000 — taking the whole New story page
+ * down, because it throws during render.
+ *
+ * Nothing here needs to be unguessable or globally unique: the key never leaves the
+ * component (see `castJson`, which strips it) and only has to tell two rows of one
+ * mounted list apart.
+ */
+let nextKey = 0;
+
 const blank = (over: Partial<Row> = {}): Row => ({
   ...EMPTY_CHARACTER,
-  key: crypto.randomUUID(),
+  key: `row-${++nextKey}`,
   cardId: null,
   isNarrator: false,
   ...over,
