@@ -212,6 +212,18 @@ async function seedGenres() {
         "Old debts inside one household: what was said years ago, and who still keeps score. Characters speak around the subject far more often than about it. A reconciliation must cost something, and it does not settle everything.",
     },
     {
+      // English everywhere else in this list is the promptName's job; this one is
+      // named in Vietnamese like the rest because `name` is what a listener reads and
+      // filters on. "smut" is the tag Vietnamese web-novel readers actually use, so
+      // it is one word to change here if that is the audience — but change it BEFORE
+      // any story uses it: renaming strips the description from every Bible that
+      // looked it up by the old name.
+      name: "người lớn",
+      promptName: "erotica",
+      description:
+        "The relationship is carried THROUGH physical intimacy rather than around it, so a scene that cuts away at the door has cut away from the story. Write desire the way horror writes fear: through what a body does before its owner decides to, what someone keeps noticing and cannot stop noticing, what they will not say out loud. Everyone involved is an adult and wants to be there, and that is shown inside the scene rather than assumed outside it. Anticipation carries further than description — a scene that is only choreography reads as a list.",
+    },
+    {
       name: "hài",
       promptName: "comedy",
       description:
