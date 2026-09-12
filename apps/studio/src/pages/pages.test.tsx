@@ -60,12 +60,18 @@ const FIXTURES: Record<string, unknown> = {
     episodeId: null,
     result: null,
   },
+  // The shape `GET /api/series` really returns: the whole Series row plus `_count`.
+  // It was trimmed to the four fields the list happened to read, so adding a fifth
+  // crashed the page with `undefined` rather than failing an assertion.
   "/api/series": [
     {
       id: "s1",
       title: "Đường về",
       description: "mô tả",
+      coverUrl: null,
       genre: "kinh dị",
+      status: "ONGOING",
+      updatedAt: new Date().toISOString(),
       _count: { episodes: 3, characters: 2 },
     },
   ],

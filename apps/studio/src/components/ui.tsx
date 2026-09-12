@@ -10,6 +10,12 @@ export function Badge({ children, tone = "neutral" }: { children: React.ReactNod
 }
 
 export const STATUS_TONE: Record<string, string> = {
+  // SeriesStatus.
+  DRAFT: "neutral",
+  ONGOING: "blue",
+  COMPLETED: "green",
+  ARCHIVED: "neutral",
+  // EpisodeStatus.
   IDEA: "neutral",
   OUTLINED: "neutral",
   DRAFTING: "blue",
