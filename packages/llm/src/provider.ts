@@ -7,6 +7,18 @@ export interface GenerateOptions {
   /** Creative prose uses 0.85–1.0; work needing tight logic goes lower. */
   temperature?: number;
   topP?: number;
+  /**
+   * Drop any token below this fraction of the top token's probability.
+   *
+   * Cuts the tail by RELATIVE likelihood, where topP cuts by cumulative mass — so it
+   * stays tight when the model is confident and opens up when it genuinely hesitates.
+   * That is the difference that matters on a quantised model writing a language it was
+   * barely finetuned on: topP 0.92 keeps a fat tail of near-zero tokens, and what comes
+   * out is not bad prose but non-words.
+   *
+   * 0 (the default, and both providers') turns it off.
+   */
+  minP?: number;
   /** Guards against repeated phrases — the chronic illness of small models. */
   repeatPenalty?: number;
   /** Never leave this to the default: Ollama's is 2048, enough to cut off the Story Bible. */

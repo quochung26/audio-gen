@@ -18,7 +18,7 @@ describe("the declaration table", () => {
 
   it("has all the knobs providers actually read", () => {
     expect(GEN_PARAMS.map((p) => p.key).sort()).toEqual(
-      ["maxTokens", "numCtx", "repeatPenalty", "temperature", "topP"].sort(),
+      ["maxTokens", "minP", "numCtx", "repeatPenalty", "temperature", "topP"].sort(),
     );
   });
 });

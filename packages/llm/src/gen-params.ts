@@ -40,6 +40,16 @@ export const GEN_PARAMS: GenParamSpec[] = [
     fallback: 0.92,
   },
   {
+    key: "minP",
+    label: "minP",
+    hint: "Drop tokens below this share of the likeliest one's probability. A steadier cut than topP on quantised models — start at 0.1 and lower topP's bite by raising it to 1. 0 is off.",
+    min: 0,
+    // Past ~0.3 only a handful of tokens survive and the prose goes stiff.
+    max: 0.3,
+    step: 0.01,
+    fallback: 0,
+  },
+  {
     key: "repeatPenalty",
     label: "repeatPenalty",
     hint: "Penalise repeated phrases — the chronic illness of small models. Too high and sentences turn clipped and awkward.",

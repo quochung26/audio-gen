@@ -78,6 +78,7 @@ export class OllamaProvider implements LlmProvider {
             num_ctx: opts.numCtx ?? 16384,
             temperature: opts.temperature ?? 0.9,
             top_p: opts.topP ?? 0.92,
+            min_p: opts.minP ?? 0,
             repeat_penalty: opts.repeatPenalty ?? 1.1,
             num_predict: opts.maxTokens ?? 1500,
           },

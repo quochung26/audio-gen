@@ -99,6 +99,7 @@ export class OpenRouterProvider implements LlmProvider {
           stream_options: { include_usage: true },
           temperature: opts.temperature ?? 0.9,
           top_p: opts.topP ?? 0.92,
+          min_p: opts.minP ?? 0,
           repetition_penalty: opts.repeatPenalty ?? 1.1,
           max_tokens: opts.maxTokens ?? 1500,
           response_format: responseFormat,
