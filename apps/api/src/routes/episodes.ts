@@ -311,6 +311,120 @@ async function keepRevision(sceneId: string, next: string): Promise<void> {
   await prisma.sceneRevision.create({ data: { sceneId, text: previous } });
 }
 
+/**
+ * Refuse to change an episode's shape while it is in flight or already out.
+ *
+ * Shared by the chapter and scene deletes. A WRITE_SCENE mid-flight writes into a row
+ * that may no longer exist by the time it finishes, and a published episode's text is
+ * what listeners were given — the episode delete already refuses for the same reason.
+ */
+async function assertEditableShape(episodeId: string): Promise<void> {
+  const [ep, running] = await Promise.all([
+    prisma.episode.findUniqueOrThrow({
+      where: { id: episodeId },
+      select: { number: true, publishedAt: true },
+    }),
+    prisma.renderJob.count({
+      where: { episodeId, status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] } },
+    }),
+  ]);
+
+  if (running > 0) {
+    throw new UserError(
+      `${running} job${running === 1 ? " is" : "s are"} running or queued for this episode. ` +
+        `Wait for them to finish, then delete.`,
+    );
+  }
+  if (ep.publishedAt) {
+    throw new UserError(
+      `Episode ${ep.number} is published. Unpublish it first — the text being removed is ` +
+        `what listeners were given.`,
+    );
+  }
+}
+
+/**
+ * Delete a chapter, with its scenes and their revisions.
+ *
+ * Needed the moment chapters started arriving one at a time: "Outline the next chapter"
+ * hands back something to accept or reject, and until now there was no reject. The only
+ * way out was deleting the whole episode.
+ *
+ * Later chapters ARE renumbered, unlike episodes. A chapter's order is internal — it
+ * orders the draft and nothing else stores it, while an episode's number is in the slug,
+ * in StoryFact and in the feed. Ascending so each update lands on a number the one
+ * before it has already vacated; descending would collide on `(episodeId, order)`.
+ */
+episodes.delete("/:id/chapters/:chapterId", async (c) => {
+  const episodeId = c.req.param("id");
+  const chapterId = c.req.param("chapterId");
+  await assertEditableShape(episodeId);
+
+  const chapter = await prisma.chapter.findUniqueOrThrow({
+    where: { id: chapterId },
+    select: { order: true, title: true, _count: { select: { scenes: true } } },
+  });
+
+  const later = await prisma.chapter.findMany({
+    where: { episodeId, order: { gt: chapter.order } },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true },
+  });
+
+  await prisma.$transaction([
+    prisma.chapter.delete({ where: { id: chapterId } }),
+    ...later.map((ch) =>
+      prisma.chapter.update({ where: { id: ch.id }, data: { order: ch.order - 1 } }),
+    ),
+  ]);
+
+  return c.json({
+    ok:
+      `Deleted chapter ${chapter.order}${chapter.title ? ` "${chapter.title}"` : ""} ` +
+      `and its ${chapter._count.scenes} scene${chapter._count.scenes === 1 ? "" : "s"}.`,
+  });
+});
+
+/**
+ * Delete ONE scene, with its revisions.
+ *
+ * The reject half of "Outline the next scene". "Another beat" replaces a beat in place,
+ * which is the right tool when the scene should exist and say something else; this is
+ * for when it should not exist at all.
+ *
+ * Scenes are renumbered within the chapter, for the same reason chapters are.
+ *
+ * Does NOT re-fold `storySoFar`. Deleting the LAST scene of a chapter — what this is
+ * almost always for — leaves the chain correct, because the running summary a scene
+ * carries is the one it produced. Delete one from the MIDDLE and every later scene's
+ * summary still contains it, until those scenes are written again.
+ */
+episodes.delete("/:id/scenes/:sceneId", async (c) => {
+  const episodeId = c.req.param("id");
+  const sceneId = c.req.param("sceneId");
+  await assertEditableShape(episodeId);
+
+  const scene = await prisma.scene.findUniqueOrThrow({
+    where: { id: sceneId },
+    select: { order: true, chapterId: true, chapter: { select: { order: true } } },
+  });
+
+  const later = await prisma.scene.findMany({
+    where: { chapterId: scene.chapterId, order: { gt: scene.order } },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true },
+  });
+
+  await prisma.$transaction([
+    prisma.scene.delete({ where: { id: sceneId } }),
+    ...later.map((sc) =>
+      prisma.scene.update({ where: { id: sc.id }, data: { order: sc.order - 1 } }),
+    ),
+  ]);
+
+  return c.json({ ok: `Deleted scene ${scene.chapter.order}.${scene.order}.` });
+});
+
 /** Rename a chapter. */
 episodes.put("/:id/chapters/:chapterId", async (c) => {
   const body = await c.req.parseBody();

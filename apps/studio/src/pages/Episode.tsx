@@ -303,6 +303,20 @@ export function Episode() {
                           <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
                             {scene.text ? "rewrite" : "write this scene"}
                           </ActionButton>
+                          {/* "another beat" replaces a beat in place, for when the scene
+                              should exist and say something else. This is for when it
+                              should not exist at all. */}
+                          <ActionButton
+                            path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
+                            method="DELETE"
+                            confirmText={
+                              scene.text
+                                ? `Delete scene ${chapter.order}.${scene.order} and its ${words(scene.text)} written words? This cannot be undone.`
+                                : `Delete scene ${chapter.order}.${scene.order}?`
+                            }
+                          >
+                            delete
+                          </ActionButton>
                         </div>
                       )}
                     </div>
@@ -526,9 +540,19 @@ export function Episode() {
                   <ActionButton path={`/api/episodes/${ep.id}/chapters/${chapter.id}/scenes`}>
                     + Outline scene {chapter.order}.{chapter.scenes.length + 1}
                   </ActionButton>
-                  <span className="text-xs text-neutral-600">
+                  <span className="flex-1 text-xs text-neutral-600">
                     A chapter usually runs to about {SCENES_PER_CHAPTER} scenes.
                   </span>
+                  {/* Chapters arrive one at a time to be accepted or rejected, and until
+                      now there was no reject — the only way out was deleting the episode.
+                      Later chapters are renumbered, so no gap is left behind. */}
+                  <ActionButton
+                    path={`/api/episodes/${ep.id}/chapters/${chapter.id}`}
+                    method="DELETE"
+                    confirmText={`Delete chapter ${chapter.order}${chapter.title ? ` "${chapter.title}"` : ""} with its ${chapter.scenes.length} scene${chapter.scenes.length === 1 ? "" : "s"}? This cannot be undone.`}
+                  >
+                    delete chapter
+                  </ActionButton>
                 </div>
               )}
             </div>
