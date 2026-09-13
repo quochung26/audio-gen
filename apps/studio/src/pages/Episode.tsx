@@ -749,17 +749,34 @@ export function Episode() {
         </Section>
       )}
 
-      {allWritten && (
+      {/* Shown whenever there IS a summary, not only while every scene is written.
+          `allWritten` alone was right when an episode was outlined whole: you wrote the
+          scenes, then summarised, and it stayed true. Outlining a chapter at a time
+          broke that — asking for the next chapter creates an unwritten scene, so the
+          moment you do, `allWritten` flips and the summary you just generated
+          disappears off the page along with the box holding it. Which reads exactly
+          like "summarise again does not put anything in the box". */}
+      {(allWritten || ep.summary) && (
         <Section
           title="Summary"
           action={
-            !active ? (
+            // Still gated on every scene being written: summarising an episode with a
+            // hole in it produces a summary with the same hole, and that text is what
+            // the NEXT episode is written from.
+            !active && allWritten ? (
               <ActionButton path={`/api/episodes/${ep.id}/summarize`}>
                 {ep.summary ? "summarise again" : "summarise"}
               </ActionButton>
             ) : null
           }
         >
+          {!allWritten && (
+            <p className="mb-3 text-xs text-neutral-600">
+              {scenes.length - written} scene{scenes.length - written === 1 ? "" : "s"} still
+              unwritten, so this cannot be summarised again yet — it would summarise the gap
+              too. You can still edit the text below by hand.
+            </p>
+          )}
           {/* Editable, not just displayed. "summarise again" is a re-roll, and what is
               usually wanted is fixing the one sentence the fold got wrong — this text is
               read verbatim by the NEXT episode's scenes, and it is the description
