@@ -19,6 +19,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "CHARACTER", file: "character.md" },
   { step: "NEXT_EPISODE", file: "next-episode.md" },
   { step: "NEXT_CHAPTER", file: "next-chapter.md" },
+  { step: "NEXT_SCENE", file: "next-scene.md" },
   { step: "SCENE_BEAT", file: "scene-beat.md" },
   { step: "SCENE_CONTEXT", file: "scene-context.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
@@ -68,6 +69,9 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // the wording: a temperature nobody else uses only makes this step's failures
   // different in kind from the rest.
   SCENE_BEAT: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 500 },
+  // One beat, so the same small ceiling as SCENE_BEAT. `numCtx` is NOT small: this step
+  // reads the previous scene in full — roughly 750 words of prose — on top of the Bible.
+  NEXT_SCENE: { temperature: 0.9, repeatPenalty: 1.1, numCtx: 16384, maxTokens: 500 },
   // Picking from a list, not writing. Low temperature: two runs of the same beat
   // should ask for the same things, or the scene stops being reproducible.
   SCENE_CONTEXT: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 8192, maxTokens: 400 },

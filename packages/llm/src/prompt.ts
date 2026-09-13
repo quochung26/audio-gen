@@ -56,6 +56,22 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // the replacement still leads into the beat that follows it; `current` is what the
   // writer turned down, sent so the model does not offer it back in other words.
   SCENE_BEAT: ["bible", "context", "chapter", "soFar", "current"],
+  // One SCENE for a chapter already under way. `previousScene` is that scene's prose in
+  // full rather than a summary — the whole point is to plan from what was written, not
+  // from what was planned. `position` is what stops sequential outlining ending the
+  // chapter at every scene; see positionNote in the job.
+  NEXT_SCENE: [
+    "bible",
+    "context",
+    "chapter",
+    "soFar",
+    "previousScene",
+    "chapterNumber",
+    "sceneNumber",
+    "scenesPerChapter",
+    "sceneWords",
+    "position",
+  ],
   // One chapter for an episode already under way. `soFar` is the chapters it already
   // has — the model has to carry on from them rather than restart the episode.
   NEXT_CHAPTER: ["bible", "context", "soFar", "chapterNumber", "scenesPerChapter", "sceneWords"],

@@ -17,6 +17,9 @@ import { languageLabel } from "@/components/LanguagePicker";
  */
 const CHAPTERS_IN_A_FULL_EPISODE = 2;
 
+/** Mirrors SCENES_PER_CHAPTER in @audio/config, for the same reason as the line above. */
+const SCENES_PER_CHAPTER = 3;
+
 interface Streaming {
   sceneId: string;
   order: number;
@@ -513,6 +516,21 @@ export function Episode() {
                   </div>
                 ))}
               </div>
+
+              {/* One scene at a time, for the same reason the chapter holding them
+                  arrives one at a time: a beat planned before the scene before it was
+                  written is planned against a plan, and the prose always says something
+                  the plan did not. See the NEXT_SCENE step. */}
+              {!active && (
+                <div className="mt-2 flex items-baseline gap-3">
+                  <ActionButton path={`/api/episodes/${ep.id}/chapters/${chapter.id}/scenes`}>
+                    + Outline scene {chapter.order}.{chapter.scenes.length + 1}
+                  </ActionButton>
+                  <span className="text-xs text-neutral-600">
+                    A chapter usually runs to about {SCENES_PER_CHAPTER} scenes.
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -521,7 +539,8 @@ export function Episode() {
           <p className="text-sm text-neutral-400">
             Nothing in this episode yet. Creating a story writes its title and its closing
             hook and stops — planning six beats from one line of idea makes the last five a
-            guess at a draft nobody has written. Outline the first chapter below.
+            guess at a draft nobody has written. Outline the first chapter below: it arrives
+            with its opening scene, and grows a scene at a time from there.
           </p>
         )}
 

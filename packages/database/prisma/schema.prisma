@@ -62,6 +62,9 @@ enum JobType {
   OUTLINE
   NEXT_EPISODE
   NEXT_CHAPTER
+  /// Outline ONE more scene of a chapter already under way, knowing what the scenes
+  /// before it actually say rather than what they were planned to say.
+  NEXT_SCENE
   /// Propose a different beat for ONE scene, when the writer does not like the one
   /// the outline gave it.
   SCENE_BEAT
@@ -146,6 +149,7 @@ enum PromptStep {
   /// NEXT_EPISODE one tier down: three chapters planned from one idea makes the
   /// third the model's guess at a story not yet written.
   NEXT_CHAPTER
+  NEXT_SCENE
   SCENE_BEAT
   /// Ask the model WHICH context a scene needs, before writing it. NOT a job: it runs
   /// inside WRITE_SCENE, and only when the writer turns it on — see Setting

@@ -1,4 +1,4 @@
-import { chapterPlanSchema, planChapters, namesMentionedIn, toLanguage, withLanguage } from "@audio/core";
+import { chapterOpeningSchema, namesMentionedIn, toLanguage, withLanguage } from "@audio/core";
 import { prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { SCENE_TARGET_WORDS, SCENES_PER_CHAPTER } from "@audio/config";
@@ -14,6 +14,11 @@ import { logger } from "../lib/logger";
  * idea makes the third a guess at a story nobody has written yet, and the draft almost
  * always leaves the outline behind — so an episode now opens with a single chapter and
  * grows one at a time, each one planned knowing how the last actually turned out.
+ *
+ * The chapter it creates holds ONE scene: its opening beat. The argument runs one tier
+ * further down too, and NEXT_SCENE adds the rest one at a time, each knowing what the
+ * scene before it actually says. A chapter's remaining beats used to be planned here,
+ * against a first scene that did not exist yet.
  *
  * The chapter NUMBER is decided by the server from the highest existing one, never by
  * the model: `(episodeId, order)` is unique, so a model that restarts at 1 kills the job.
@@ -74,7 +79,7 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
     result = await getLlm().generateJson({
       model,
       system: withLanguage(language),
-      schema: chapterPlanSchema,
+      schema: chapterOpeningSchema,
       prompt: renderTemplate(prompt.content, {
         bible,
         context: running || "This is the very start of the story.",
@@ -99,48 +104,49 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
   await recordRun(ctx, result);
   await setProgress(80);
 
-  // `startAt` so the new chapter lands after the ones already there. planChapters also
-  // drops a chapter with no beats — a model occasionally returns one, and a row for it
-  // shows a chapter on the episode page that can never be written.
-  const [plan] = planChapters([result.data], chapterNumber);
-  if (!plan) throw new Error("The model returned a chapter with no beats");
+  const beat = result.data.beat.trim();
+  // A chapter with no beat is a row on the episode page that can never be written, and
+  // no button removes it. The schema requires one, but a model can still return
+  // whitespace and satisfy `min(1)`.
+  if (!beat) throw new Error("The model returned a chapter with no opening beat");
 
   const roster = await prisma.character.findMany({
     where: { seriesId: episode.series.id },
     select: { id: true, name: true },
   });
   const idOfName = new Map(roster.map((c) => [c.name, c.id]));
-  const names = roster.map((c) => c.name);
 
   const created = await prisma.chapter.create({
     data: {
       episodeId,
-      order: plan.order,
-      title: plan.title,
+      // Decided here and not by the model — see the note above about `(episodeId, order)`.
+      order: chapterNumber,
+      title: result.data.title.trim() || null,
       scenes: {
-        create: plan.scenes.map((sc) => ({
-          order: sc.order,
-          beat: sc.beat,
-          characterIds: namesMentionedIn(sc.beat, names)
-            .map((n) => idOfName.get(n))
-            .filter((id): id is string => Boolean(id)),
-        })),
+        create: [
+          {
+            order: 1,
+            beat,
+            characterIds: namesMentionedIn(beat, roster.map((c) => c.name))
+              .map((n) => idOfName.get(n))
+              .filter((id): id is string => Boolean(id)),
+          },
+        ],
       },
     },
-    include: { scenes: true },
   });
 
   logger.info(
-    `[next-chapter] episode ${episode.number} chapter ${plan.order} "${plan.title ?? ""}" — ` +
-      `${created.scenes.length} scenes`,
+    `[next-chapter] episode ${episode.number} chapter ${chapterNumber} ` +
+      `"${created.title ?? ""}" — opening beat`,
   );
 
   await setProgress(100);
   return {
     episodeId,
     chapterId: created.id,
-    order: plan.order,
-    scenes: created.scenes.length,
+    order: chapterNumber,
+    scenes: 1,
     tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
   };
 };

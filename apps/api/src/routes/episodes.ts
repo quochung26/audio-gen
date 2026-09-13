@@ -253,6 +253,42 @@ episodes.post("/:id/chapters", async (c) => {
 });
 
 /**
+ * Outline ONE more scene for a chapter already under way.
+ *
+ * The scene tier's version of "Outline the next chapter". Three beats planned at once
+ * are two guesses at scenes nobody has written; asked for one at a time, each is
+ * planned from the previous scene's actual prose.
+ *
+ * Blocked while the chapter's last scene is unwritten, for exactly that reason — the
+ * new beat would be planned against a beat rather than against a scene, which is the
+ * thing this replaces. `force=1` for a writer laying out the shape first anyway.
+ */
+episodes.post("/:id/chapters/:chapterId/scenes", async (c) => {
+  const chapterId = c.req.param("chapterId");
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+
+  const last = await prisma.scene.findFirst({
+    where: { chapterId },
+    orderBy: { order: "desc" },
+    select: { order: true, text: true },
+  });
+
+  if (last && !last.text && field(body, "force") !== "1") {
+    throw new UserError(
+      `Scene ${last.order} has not been written yet. Write it first, so the next scene ` +
+        `is planned from what it actually says rather than from what it was meant to say.`,
+    );
+  }
+
+  await enqueue({
+    type: "NEXT_SCENE",
+    episodeId: c.req.param("id"),
+    payload: { chapterId, model: field(body, "model") || undefined },
+  });
+  return c.json({ ok: "Outlining the next scene…" });
+});
+
+/**
  * Keep what a scene said before an edit — but only once the episode is PUBLISHED.
  *
  * Editing a draft is just writing. Keeping every save of one would bury the versions

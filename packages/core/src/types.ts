@@ -177,6 +177,27 @@ export const sceneBeatSchema = z.object({
 export type SceneBeat = z.infer<typeof sceneBeatSchema>;
 
 /**
+ * A chapter as it is first created: a title and its OPENING beat, nothing else.
+ *
+ * Separate from `chapterPlanSchema`, which takes a whole array of beats and is still
+ * what NEXT_EPISODE returns. The rest of a chapter's beats are asked for one at a time
+ * now — see the NEXT_SCENE step — so planning them here would only produce guesses that
+ * the next scene's real context immediately contradicts.
+ */
+export const chapterOpeningSchema = z.object({
+  title: z.string().min(1).describe("Title of this chapter — what happens in it, in a few words"),
+  beat: z
+    .string()
+    .min(1)
+    .describe(
+      "The chapter's FIRST beat: what happens in its opening scene, in one or two " +
+        "sentences. Events, not atmosphere and not prose",
+    ),
+});
+
+export type ChapterOpening = z.infer<typeof chapterOpeningSchema>;
+
+/**
  * What a scene write says it needs, before it is written — see the SCENE_CONTEXT step.
  *
  * The model picks instead of the code guessing. Today `Scene.characterIds` comes from
