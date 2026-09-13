@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
@@ -136,6 +137,28 @@ export function Episode() {
     { refetchMs: 700 },
   );
 
+  /**
+   * Whether a chapter starts expanded — decided the FIRST time it is seen, then
+   * remembered.
+   *
+   * `open` on `<details>` is a real prop, not an initial value. Recomputed from live
+   * data it would be re-asserted on every render, so a chapter would snap shut under
+   * the writer at the moment its last scene finished, and a chapter they had collapsed
+   * on purpose would spring back open on the next 3-second poll. Frozen here, React
+   * sets it once and the toggle belongs to the reader after that.
+   */
+  const openedOnce = useRef(new Map<string, boolean>());
+  function startsOpen(chapter: { id: string; scenes: Array<{ text: string | null }> }): boolean {
+    const decided = openedOnce.current.get(chapter.id);
+    if (decided !== undefined) return decided;
+    // Open the chapters there is still work in: one with an unwritten scene, and a
+    // brand-new empty one. A chapter with nothing left to write is finished, and on a
+    // long episode it is mostly scrollbar.
+    const open = chapter.scenes.length === 0 || chapter.scenes.some((sc) => !sc.text);
+    openedOnce.current.set(chapter.id, open);
+    return open;
+  }
+
   if (isLoading || !ep) return <Loading error={error} />;
 
   // Count across the WHOLE EPISODE: chapters are only a grouping, and "is it
@@ -196,8 +219,8 @@ export function Episode() {
 
         <div className="space-y-6">
           {ep.chapters.map((chapter) => (
-            <div key={chapter.id}>
-              <div className="mb-2 flex flex-wrap items-baseline gap-2">
+            <details key={chapter.id} open={startsOpen(chapter)}>
+              <summary className="mb-2 flex cursor-pointer flex-wrap items-baseline gap-2">
                 <h2 className="text-sm font-medium text-neutral-200">
                   Chapter {chapter.order}
                   {chapter.title ? `: ${chapter.title}` : ""}
@@ -205,7 +228,7 @@ export function Episode() {
                 <span className="text-xs text-neutral-600">
                   {chapter.scenes.filter((sc) => sc.text).length}/{chapter.scenes.length} scenes
                 </span>
-              </div>
+              </summary>
 
               <details className="mb-3 rounded border border-neutral-800">
                 <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
@@ -593,7 +616,7 @@ export function Episode() {
                   </ActionButton>
                 </div>
               )}
-            </div>
+            </details>
           ))}
         </div>
 
