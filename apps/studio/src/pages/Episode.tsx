@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
-import { Field } from "@/components/Field";
+import { Field, TextInput } from "@/components/Field";
 import { ScenePeoplePicker } from "@/components/ScenePeoplePicker";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
@@ -209,9 +209,27 @@ export function Episode() {
 
               <details className="mb-3 rounded border border-neutral-800">
                 <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
-                  Chapter {chapter.order} setup — applies to every scene in it
+                  Chapter {chapter.order} — title and setup
                 </summary>
                 <div className="border-t border-neutral-800 px-4 py-4">
+                  {/* Its own form, and its own route: a title is what the chapter is
+                      CALLED, while everything below is what is true inside it. The
+                      rename endpoint existed from the start and nothing ever called it,
+                      so a title could only be whatever NEXT_CHAPTER happened to pick. */}
+                  <Form
+                    path={`/api/episodes/${ep.id}/chapters/${chapter.id}`}
+                    method="PUT"
+                    submit="Rename"
+                    className="mb-5 max-w-md"
+                  >
+                    <TextInput
+                      name="title"
+                      label="Chapter title"
+                      placeholder="Untitled — shown as just “Chapter 2”"
+                      defaultValue={chapter.title ?? ""}
+                    />
+                  </Form>
+
                   <p className="mb-3 text-xs text-neutral-500">
                     The middle tier: the story has{" "}
                     <strong className="text-neutral-400">World setup</strong>, a scene has a{" "}
