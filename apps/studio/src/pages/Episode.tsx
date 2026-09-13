@@ -374,6 +374,26 @@ export function Episode() {
                               prompt entirely.
                             </p>
                           </Form>
+
+                          {/* Each paragraph is the one before it plus a scene, so editing
+                              this one — or the prose above it — leaves every LATER
+                              paragraph still describing the old version. The deletes
+                              repair that themselves; an edit offers it, because refolding
+                              the rest of the story on every save would be dozens of model
+                              calls to fix a typo. */}
+                          <div className="mt-3 flex items-baseline gap-3 border-t border-neutral-900 pt-3">
+                            <ActionButton
+                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/refold`}
+                              confirmText="Rebuild the running summary of every scene from here to the end of the story? That is one model call per written scene."
+                            >
+                              rebuild from here
+                            </ActionButton>
+                            <span className="flex-1 text-xs text-neutral-600">
+                              Re-folds every later scene&apos;s summary too — needed after
+                              editing this scene&apos;s prose, not after editing the
+                              paragraph above.
+                            </span>
+                          </div>
                         </div>
                       </details>
                     )}

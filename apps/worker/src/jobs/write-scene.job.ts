@@ -5,7 +5,6 @@ import {
   renderChapterSetup,
   renderContext,
   sceneNeedsSchema,
-  storySoFarSchema,
   toLanguage,
   withLanguage,
   type SceneNeeds,
@@ -26,6 +25,7 @@ import { syncEpisodeDraft } from "../services/episode-draft";
 import { openThreads } from "../services/fact-store";
 import { openSceneStream } from "../services/stream";
 import { buildSceneContext } from "../services/story-context";
+import { foldScene } from "../services/story-summary";
 
 /**
  * Step 0b — write one scene.
@@ -184,33 +184,15 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
 };
 
 /**
- * One paragraph, the same ceiling the arc summary uses.
- *
- * It has to hold a whole story, so it cannot be short; it is loaded into every scene
- * write, so it cannot be long. 400 words ≈ 720 tokens, paid once per scene against a
- * 16K context — the same trade the arc summary already settled at this number.
- */
-const SO_FAR_MAX_WORDS = 400;
-
-/**
  * Fold the scene just written into the story's running summary.
  *
- * Compression on compression, the same shape as the arc summary: what the previous
- * scene left behind goes in WITH the new scene, and the answer replaces it. So it stays
- * one paragraph whether the story is three scenes or three hundred.
+ * The fold itself lives in services/story-summary.ts, shared with REFOLD_SUMMARY. What
+ * is here is the part specific to having just written a scene.
  *
- * The STORY's, not the episode's — it carries across episode boundaries, so opening
- * episode 12 picks up where the last scene of episode 11 left off.
- *
- * It exists because every other story-wide tier is coarser in time: the arc summary is
- * rebuilt every few episodes, and an episode summary only exists once that episode is
- * finished. Between them a scene could see nothing at all of the twenty scenes before
- * it, and would re-introduce people, re-open settled arguments, and walk characters
- * back into rooms they had left.
- *
- * The UTILITY model, not the writing one: this is compression, not writing, and it
- * runs once per scene — on the writing model it would be a second full-sized call for
- * every scene of the story.
+ * It exists because every other story-wide tier is coarser in time: an episode summary
+ * only exists once that episode is finished, so between them a scene could see nothing
+ * at all of the twenty scenes before it, and would re-introduce people, re-open settled
+ * arguments, and walk characters back into rooms they had left.
  *
  * A failure here is LOGGED, NOT THROWN. The scene itself is already written and saved;
  * losing an episode's worth of prose because a summary came back malformed would be
@@ -229,39 +211,18 @@ async function foldIntoSummary({
   context: Awaited<ReturnType<typeof buildSceneContext>>;
 }): Promise<void> {
   try {
-    const prompt = await loadPrompt("STORY_SO_FAR", context.genre);
-    const ctx = {
-      step: "STORY_SO_FAR" as const,
-      episodeId,
+    const summary = await foldScene({
       sceneId,
-      promptId: prompt.id,
-      params: prompt.params,
-    };
-
-    const model = await resolveModel({ prompt: prompt.model, kind: "utility" });
-
-    const result = await getLlm().generateJson({
-      model,
-      // The DRAFT language, matching the scene it is reading: this paragraph is fed
-      // back into later scene writes, which happen in that same language.
-      system: withLanguage(planDraft(context.language, context.draftLanguage).draft),
-      schema: storySoFarSchema,
-      prompt: renderTemplate(prompt.content, {
-        maxWords: SO_FAR_MAX_WORDS,
-        text,
-        // Empty for the very first scene of a story: there is nothing to fold into, and
-        // the model then just summarises the one scene it was given.
-        previous: context.storySoFar
-          ? `## The running summary so far\n${context.storySoFar}\n\nFold what follows into it.`
-          : "",
-      }),
-      ...(prompt.params as object),
+      episodeId,
+      genre: context.genre,
+      language: context.language,
+      draftLanguage: context.draftLanguage,
+      previous: context.storySoFar,
+      text,
     });
-
-    await recordRun(ctx, result);
-
-    const summary = result.data.summary.trim();
-    if (summary) await prisma.scene.update({ where: { id: sceneId }, data: { storySoFar: summary } });
+    if (summary) {
+      await prisma.scene.update({ where: { id: sceneId }, data: { storySoFar: summary } });
+    }
   } catch (err) {
     logger.warn(
       `[write-scene] could not fold the scene just written into the story summary (${sceneId}): ` +

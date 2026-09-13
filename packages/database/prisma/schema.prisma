@@ -65,6 +65,9 @@ enum JobType {
   /// Outline ONE more scene of a chapter already under way, knowing what the scenes
   /// before it actually say rather than what they were planned to say.
   NEXT_SCENE
+  /// Rebuild Scene.storySoFar down the rest of the story, after a scene in the middle
+  /// of it was deleted or rewritten. Reuses the STORY_SO_FAR prompt.
+  REFOLD_SUMMARY
   /// Propose a different beat for ONE scene, when the writer does not like the one
   /// the outline gave it.
   SCENE_BEAT

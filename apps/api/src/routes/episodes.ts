@@ -312,6 +312,85 @@ async function keepRevision(sceneId: string, next: string): Promise<void> {
 }
 
 /**
+ * Queue the running-summary rebuild, but only when there is actually a chain to repair.
+ *
+ * `Scene.storySoFar` is each paragraph plus the next scene folded in, so removing a
+ * scene from the MIDDLE leaves every paragraph after it describing something that no
+ * longer happened. Nothing fails; later scenes are just written against a story that
+ * did not take place, which only ever shows up as prose that does not fit.
+ *
+ * Removing the LAST scene needs nothing — the paragraph a scene carries is the one it
+ * produced, so the chain behind it is untouched. That is the common case, and it is why
+ * this is a condition rather than an unconditional enqueue: a story of sixty scenes is
+ * sixty model calls, and paying that to repair nothing would be its own bug.
+ *
+ * Says what it did, in the message the writer sees. A repair that takes minutes and
+ * announces itself nowhere is indistinguishable from a stuck queue.
+ */
+async function repairSummaryFrom({
+  episodeId,
+  seriesId,
+  fromSceneId,
+}: {
+  episodeId: string;
+  seriesId: string;
+  fromSceneId: string | null;
+}): Promise<string> {
+  if (!fromSceneId) return "";
+
+  await enqueue({
+    type: "REFOLD_SUMMARY",
+    episodeId,
+    payload: { seriesId, fromSceneId },
+  });
+  return " Rebuilding the story summary from the scene after it — later scenes still describe what was just deleted until that finishes.";
+}
+
+/**
+ * Rebuild the running summary from this scene onward.
+ *
+ * The manual half of the same repair. Editing a scene's prose by hand breaks the chain
+ * exactly the way deleting one does, but a delete is a deliberate structural change
+ * while an edit is often a typo — refolding the rest of the story on every save would
+ * cost dozens of model calls to fix nothing. So the deletes do it themselves and the
+ * edits offer this.
+ */
+episodes.post("/:id/scenes/:sceneId/refold", async (c) => {
+  const sceneId = c.req.param("sceneId");
+  const scene = await prisma.scene.findUniqueOrThrow({
+    where: { id: sceneId },
+    select: { chapter: { select: { episode: { select: { seriesId: true } } } } },
+  });
+
+  await enqueue({
+    type: "REFOLD_SUMMARY",
+    episodeId: c.req.param("id"),
+    payload: { seriesId: scene.chapter.episode.seriesId, fromSceneId: sceneId },
+  });
+  return c.json({ ok: "Rebuilding the story summary from this scene onward…" });
+});
+
+/**
+ * Scene ids of the WHOLE story in reading order.
+ *
+ * The series, not the episode: `Scene.storySoFar` is the story's running summary and
+ * carries across episode boundaries, so the scene following the last one of episode 4
+ * is the first one of episode 5.
+ */
+async function sceneIdsInReadingOrder(seriesId: string): Promise<string[]> {
+  const rows = await prisma.scene.findMany({
+    where: { chapter: { episode: { seriesId } } },
+    orderBy: [
+      { chapter: { episode: { number: "asc" } } },
+      { chapter: { order: "asc" } },
+      { order: "asc" },
+    ],
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
+/**
  * Refuse to change an episode's shape while it is in flight or already out.
  *
  * Shared by the chapter and scene deletes. A WRITE_SCENE mid-flight writes into a row
@@ -362,8 +441,21 @@ episodes.delete("/:id/chapters/:chapterId", async (c) => {
 
   const chapter = await prisma.chapter.findUniqueOrThrow({
     where: { id: chapterId },
-    select: { order: true, title: true, _count: { select: { scenes: true } } },
+    select: {
+      order: true,
+      title: true,
+      _count: { select: { scenes: true } },
+      episode: { select: { seriesId: true } },
+      scenes: { orderBy: { order: "desc" }, take: 1, select: { id: true } },
+    },
   });
+  const { seriesId } = chapter.episode;
+
+  // What follows the chapter's LAST scene: where the running summary picks up once
+  // everything in this chapter is gone.
+  const order = await sceneIdsInReadingOrder(seriesId);
+  const lastOfChapter = chapter.scenes[0]?.id;
+  const nextSceneId = lastOfChapter ? (order[order.indexOf(lastOfChapter) + 1] ?? null) : null;
 
   const later = await prisma.chapter.findMany({
     where: { episodeId, order: { gt: chapter.order } },
@@ -378,10 +470,13 @@ episodes.delete("/:id/chapters/:chapterId", async (c) => {
     ),
   ]);
 
+  const repairing = await repairSummaryFrom({ episodeId, seriesId, fromSceneId: nextSceneId });
+
   return c.json({
     ok:
       `Deleted chapter ${chapter.order}${chapter.title ? ` "${chapter.title}"` : ""} ` +
-      `and its ${chapter._count.scenes} scene${chapter._count.scenes === 1 ? "" : "s"}.`,
+      `and its ${chapter._count.scenes} scene${chapter._count.scenes === 1 ? "" : "s"}.` +
+      repairing,
   });
 });
 
@@ -406,8 +501,19 @@ episodes.delete("/:id/scenes/:sceneId", async (c) => {
 
   const scene = await prisma.scene.findUniqueOrThrow({
     where: { id: sceneId },
-    select: { order: true, chapterId: true, chapter: { select: { order: true } } },
+    select: {
+      order: true,
+      chapterId: true,
+      chapter: { select: { order: true, episode: { select: { seriesId: true } } } },
+    },
   });
+  const { seriesId } = scene.chapter.episode;
+
+  // The scene that follows this one in the STORY, captured before the delete — it is
+  // where the running summary has to be rebuilt from. Null means this was the last
+  // scene there is, and the chain is already correct.
+  const order = await sceneIdsInReadingOrder(seriesId);
+  const nextSceneId = order[order.indexOf(sceneId) + 1] ?? null;
 
   const later = await prisma.scene.findMany({
     where: { chapterId: scene.chapterId, order: { gt: scene.order } },
@@ -422,7 +528,11 @@ episodes.delete("/:id/scenes/:sceneId", async (c) => {
     ),
   ]);
 
-  return c.json({ ok: `Deleted scene ${scene.chapter.order}.${scene.order}.` });
+  const repairing = await repairSummaryFrom({ episodeId, seriesId, fromSceneId: nextSceneId });
+
+  return c.json({
+    ok: `Deleted scene ${scene.chapter.order}.${scene.order}.` + repairing,
+  });
 });
 
 /** Rename a chapter. */

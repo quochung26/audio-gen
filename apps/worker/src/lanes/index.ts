@@ -4,6 +4,7 @@ import { mockJob } from "../jobs/mock.job";
 import { nextEpisodeJob } from "../jobs/next-episode.job";
 import { nextChapterJob } from "../jobs/next-chapter.job";
 import { nextSceneJob } from "../jobs/next-scene.job";
+import { refoldSummaryJob } from "../jobs/refold-summary.job";
 import { sceneBeatJob } from "../jobs/scene-beat.job";
 import { outlineJob } from "../jobs/outline.job";
 import { characterJob } from "../jobs/character.job";
@@ -31,6 +32,7 @@ export function startLanes() {
       [JobType.NEXT_EPISODE]: nextEpisodeJob,
       [JobType.NEXT_CHAPTER]: nextChapterJob,
       [JobType.NEXT_SCENE]: nextSceneJob,
+      [JobType.REFOLD_SUMMARY]: refoldSummaryJob,
       [JobType.SCENE_BEAT]: sceneBeatJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
       [JobType.TRANSLATE]: translateJob,
