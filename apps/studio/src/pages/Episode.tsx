@@ -770,6 +770,18 @@ export function Episode() {
             ) : null
           }
         >
+          {/* Said HERE, not only in the banner at the top of the page. An episode page
+              runs to several screens, and this section is at the bottom of it — so the
+              banner is out of frame exactly when you are staring at this box waiting
+              for it to change. Without this line, a summary still being written looks
+              identical to one that finished and did nothing. */}
+          {active?.type === "SUMMARIZE" && (
+            <p className="mb-3 text-xs text-blue-300">
+              Writing a new summary — {active.progress}%. The text below is the previous
+              one, and is replaced when it finishes.
+            </p>
+          )}
+
           {!allWritten && (
             <p className="mb-3 text-xs text-neutral-600">
               {scenes.length - written} scene{scenes.length - written === 1 ? "" : "s"} still
