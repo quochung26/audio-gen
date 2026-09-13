@@ -315,19 +315,6 @@ export interface StoryContext {
   sceneNote?: string;
   /** What the scene being written has to contain */
   beat: string;
-  /**
-   * What the writer said about the attempt being replaced — "slower", "he changes his
-   * mind too fast" — and the draft they said it about.
-   *
-   * A pair: the note without the draft is advice about nothing, and the draft without
-   * the note invites the model to hand back the same scene with the words shuffled.
-   * Both empty on a first write, and the block disappears.
-   *
-   * Different from `sceneNote`, which is standing instruction for the scene and applies
-   * to every attempt. This is about ONE attempt, and is not stored.
-   */
-  retryNote?: string;
-  rejectedDraft?: string;
   /** Target word count */
   targetWords: number;
 }

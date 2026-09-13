@@ -67,40 +67,6 @@ describe("renderContext — the story so far", () => {
   });
 });
 
-describe("renderContext — correcting the attempt on screen", () => {
-  const note = "Quá nhanh — anh ta quyết định quay lại chỉ trong một đoạn.";
-  const draft = "«BẢN NHÁP BỊ TỪ CHỐI»";
-
-  it("puts the draft and the note in together", () => {
-    const out = renderContext({ ...base, retryNote: note, rejectedDraft: draft });
-    expect(out).toContain(draft);
-    expect(out).toContain(note);
-  });
-
-  it("needs BOTH — one without the other says nothing useful", () => {
-    // A note about a draft nobody can see is advice about nothing; a draft with no note
-    // invites the same scene back with the words shuffled.
-    expect(renderContext({ ...base, retryNote: note })).not.toContain(note);
-    expect(renderContext({ ...base, rejectedDraft: draft })).not.toContain(draft);
-  });
-
-  it("comes AFTER the beat — a correction outranks the general instruction", () => {
-    const out = renderContext({ ...base, retryNote: note, rejectedDraft: draft });
-    expect(out.indexOf("The scene to write")).toBeLessThan(out.indexOf("What is wrong with it"));
-  });
-
-  it("says to fix the draft, not to write a different scene", () => {
-    // Without this a model reads "wrong" as "start over" and throws away what worked.
-    expect(renderContext({ ...base, retryNote: note, rejectedDraft: draft })).toMatch(
-      /Keep what works/,
-    );
-  });
-
-  it("a first write carries no such block", () => {
-    expect(renderContext(base)).not.toContain("previous attempt");
-  });
-});
-
 describe("the writer's note for one scene", () => {
   const base = { bible: "B", previousSummaries: [], storySoFar: "", beat: "Thiện rút kiếm.", targetWords: 750 };
 

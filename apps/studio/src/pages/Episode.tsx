@@ -439,36 +439,6 @@ export function Episode() {
                       </details>
                     )}
 
-                    {/* Saying what was wrong with the attempt on screen, and getting
-                        another one. Different from "Note for this scene" below, which is
-                        standing instruction and applies to every future write — this is
-                        about THIS draft, and is not stored.
-
-                        Only for a scene that has prose: there is no attempt to correct
-                        before the first one. */}
-                    {scene.text && !active && (
-                      <details className="border-t border-neutral-900">
-                        <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
-                          Rewrite with a note
-                        </summary>
-                        <div className="border-t border-neutral-900 px-4 py-3">
-                          <Form
-                            path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}
-                            submit="Rewrite this scene"
-                          >
-                            <Field
-                              name="note"
-                              label="What is wrong with it"
-                              hint="Plain words, about THIS draft. The model is shown the text above alongside it, so say what to change rather than describing the scene again."
-                              placeholder="Too fast — he decides to go back within a paragraph. Let him refuse first, and keep the rain going."
-                              rows={3}
-                            />
-                            <ModelPicker />
-                          </Form>
-                        </div>
-                      </details>
-                    )}
-
                     {/* Editing the prose by HAND. A model gets a scene mostly right and
                         one line wrong, and regenerating to fix that line rolls the dice
                         on the rest of it — so the fix has to be a text box.
