@@ -3,6 +3,7 @@ import { prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
 import { buildSeriesBible } from "../services/story-context";
+import { beatWithRetry } from "../services/beat";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";
 
@@ -61,7 +62,7 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
     params: prompt.params,
   };
 
-  let result;
+  let beat: string;
   try {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -69,33 +70,37 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
       kind: "write",
     });
 
-    result = await getLlm().generateJson({
-      model,
-      system: withLanguage(toLanguage(episode.series.language)),
-      schema: sceneBeatSchema,
-      prompt: renderTemplate(prompt.content, {
-        bible,
-        context: running || "This is the very start of the story.",
-        chapter: renderChapterSetup(parseChapterSetup(chapter.setup)),
-        soFar,
-        current: scene.beat,
-      }),
-      onToken: streamProgress({
-        setProgress,
-        from: 25,
-        to: 80,
-        maxTokens: Number(prompt.params.maxTokens) || undefined,
-      }),
-      ...(prompt.params as object),
+    const base = renderTemplate(prompt.content, {
+      bible,
+      context: running || "This is the very start of the story.",
+      chapter: renderChapterSetup(parseChapterSetup(chapter.setup)),
+      soFar,
+      current: scene.beat,
     });
+
+    // Each attempt records its own run: a rejected beat costs tokens like any other.
+    ({ beat } = await beatWithRetry("scene-beat", async (extra) => {
+      const result = await getLlm().generateJson({
+        model,
+        system: withLanguage(toLanguage(episode.series.language)),
+        schema: sceneBeatSchema,
+        prompt: base + extra,
+        onToken: streamProgress({
+          setProgress,
+          from: 25,
+          to: 80,
+          maxTokens: Number(prompt.params.maxTokens) || undefined,
+        }),
+        ...(prompt.params as object),
+      });
+      await recordRun(ctx, result);
+      return { beat: result.data.beat.trim(), result };
+    }));
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
   }
 
-  await recordRun(ctx, result);
-
-  const beat = result.data.beat.trim();
   if (!beat) throw new Error("The model returned an empty beat");
 
   // Who is in the scene follows the beat that named them. Left as it was, the Story

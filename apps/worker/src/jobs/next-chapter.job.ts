@@ -4,6 +4,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import { SCENE_TARGET_WORDS, SCENES_PER_CHAPTER } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { buildSeriesBible } from "../services/story-context";
+import { beatWithRetry } from "../services/beat";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";
 
@@ -68,7 +69,9 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
   const prompt = await loadPrompt("NEXT_CHAPTER", episode.series.genre);
   const ctx = { step: "NEXT_CHAPTER" as const, episodeId, promptId: prompt.id, params: prompt.params };
 
-  let result;
+  let beat: string;
+  let title: string;
+  let tokensPerSec = 0;
   try {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -76,35 +79,45 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
       kind: "write",
     });
 
-    result = await getLlm().generateJson({
-      model,
-      system: withLanguage(language),
-      schema: chapterOpeningSchema,
-      prompt: renderTemplate(prompt.content, {
-        bible,
-        context: running || "This is the very start of the story.",
-        soFar,
-        chapterNumber,
-        scenesPerChapter: SCENES_PER_CHAPTER,
-        sceneWords: SCENE_TARGET_WORDS,
-      }),
-      onToken: streamProgress({
-        setProgress,
-        from: 25,
-        to: 75,
-        maxTokens: Number(prompt.params.maxTokens) || undefined,
-      }),
-      ...(prompt.params as object),
+    const base = renderTemplate(prompt.content, {
+      bible,
+      context: running || "This is the very start of the story.",
+      soFar,
+      chapterNumber,
+      scenesPerChapter: SCENES_PER_CHAPTER,
+      sceneWords: SCENE_TARGET_WORDS,
     });
+
+    // The opening beat goes through the same check as every other beat: it is the same
+    // kind of instruction, and it starts the chapter every later beat is written after.
+    const checked = await beatWithRetry("next-chapter", async (extra) => {
+      const result = await getLlm().generateJson({
+        model,
+        system: withLanguage(language),
+        schema: chapterOpeningSchema,
+        prompt: base + extra,
+        onToken: streamProgress({
+          setProgress,
+          from: 25,
+          to: 75,
+          maxTokens: Number(prompt.params.maxTokens) || undefined,
+        }),
+        ...(prompt.params as object),
+      });
+      await recordRun(ctx, result);
+      return { beat: result.data.beat.trim(), result };
+    });
+
+    beat = checked.beat;
+    title = checked.result.data.title.trim();
+    tokensPerSec = checked.result.tokensPerSec;
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
   }
 
-  await recordRun(ctx, result);
   await setProgress(80);
 
-  const beat = result.data.beat.trim();
   // A chapter with no beat is a row on the episode page that can never be written, and
   // no button removes it. The schema requires one, but a model can still return
   // whitespace and satisfy `min(1)`.
@@ -121,7 +134,7 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
       episodeId,
       // Decided here and not by the model — see the note above about `(episodeId, order)`.
       order: chapterNumber,
-      title: result.data.title.trim() || null,
+      title: title || null,
       scenes: {
         create: [
           {
@@ -147,7 +160,7 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
     chapterId: created.id,
     order: chapterNumber,
     scenes: 1,
-    tokensPerSec: Number(result.tokensPerSec.toFixed(1)),
+    tokensPerSec: Number(tokensPerSec.toFixed(1)),
   };
 };
 

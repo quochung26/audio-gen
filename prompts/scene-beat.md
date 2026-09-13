@@ -1,12 +1,21 @@
 You are a screenwriter for audio drama. Propose a DIFFERENT beat for one scene.
 
 A beat says WHAT HAPPENS in the scene, in a sentence or two. It is not prose and not
-atmosphere — another writer reads it and knows what to write. No dialogue: a beat says
-that an argument happened, never what was said.
+atmosphere — another writer reads it and knows what to write.
 
-The beats shown below may be far longer than that, written before this rule was clear.
-They are there so yours FITS BETWEEN THEM — never as an example of how long to write or
-how to write it. Match what they do, not how much they say.
+- No dialogue. Not one quoted line. A beat says that an argument happened, never what
+  was said.
+- No stage direction and no description: not how a face looked, not how a voice sounded.
+- At most 50 words. Twenty-five is normal.
+
+The beats shown below are NOT examples. Some of them are far longer than that, and the
+one you are replacing may be the worst of them — it was turned down. They are there so
+yours fits where it sits, and for nothing else. Match what they DO, never how much they
+say or how they say it.
+
+Good:   Thiện lao tới khống chế Vũ, nhưng khí đen đẩy anh văng ra.
+Bad:    Thiện lao tới. "Em đã làm gì?" anh hét lên, mặt trắng bệch, trong khi luồng khí
+        đen cuộn quanh Vũ như một con rắn sống…
 
 ## Requirements
 

@@ -11,6 +11,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import { SCENES_PER_CHAPTER, SCENE_TARGET_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { buildSeriesBible } from "../services/story-context";
+import { beatWithRetry } from "../services/beat";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";
 
@@ -79,7 +80,7 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
     params: prompt.params,
   };
 
-  let result;
+  let beat: string;
   try {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -87,38 +88,41 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
       kind: "write",
     });
 
-    result = await getLlm().generateJson({
-      model,
-      system: withLanguage(toLanguage(episode.series.language)),
-      schema: sceneBeatSchema,
-      prompt: renderTemplate(prompt.content, {
-        bible,
-        context: running || "This is the very start of the story.",
-        chapter: renderChapterSetup(parseChapterSetup(chapter.setup)),
-        soFar,
-        previousScene,
-        chapterNumber: chapter.order,
-        sceneNumber,
-        scenesPerChapter: SCENES_PER_CHAPTER,
-        sceneWords: SCENE_TARGET_WORDS,
-        position: positionNote(sceneNumber),
-      }),
-      onToken: streamProgress({
-        setProgress,
-        from: 25,
-        to: 80,
-        maxTokens: Number(prompt.params.maxTokens) || undefined,
-      }),
-      ...(prompt.params as object),
+    const base = renderTemplate(prompt.content, {
+      bible,
+      context: running || "This is the very start of the story.",
+      chapter: renderChapterSetup(parseChapterSetup(chapter.setup)),
+      soFar,
+      previousScene,
+      chapterNumber: chapter.order,
+      sceneNumber,
+      scenesPerChapter: SCENES_PER_CHAPTER,
+      sceneWords: SCENE_TARGET_WORDS,
+      position: positionNote(sceneNumber),
     });
+
+    ({ beat } = await beatWithRetry("next-scene", async (extra) => {
+      const result = await getLlm().generateJson({
+        model,
+        system: withLanguage(toLanguage(episode.series.language)),
+        schema: sceneBeatSchema,
+        prompt: base + extra,
+        onToken: streamProgress({
+          setProgress,
+          from: 25,
+          to: 80,
+          maxTokens: Number(prompt.params.maxTokens) || undefined,
+        }),
+        ...(prompt.params as object),
+      });
+      await recordRun(ctx, result);
+      return { beat: result.data.beat.trim(), result };
+    }));
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
   }
 
-  await recordRun(ctx, result);
-
-  const beat = result.data.beat.trim();
   if (!beat) throw new Error("The model returned an empty beat");
 
   const roster = await prisma.character.findMany({

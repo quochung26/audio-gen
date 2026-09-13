@@ -14,7 +14,11 @@ everything hanging for a scene that will never come.
 ## Requirements
 
 - A BEAT IS ONE OR TWO SENTENCES. It says what happens, so that somebody else can write
-  the scene from it — it is not the scene. No dialogue, no description, no prose.
+  the scene from it — it is not the scene.
+- No dialogue. Not one quoted line. No stage direction, no description of faces or
+  voices. At most 50 words, and twenty-five is normal.
+- The scene you are given in full below is PROSE, and yours must not look like it. It is
+  there so you know where the characters have been left, not as a model to imitate.
 - It is later written up as a scene of about {{sceneWords}} words. That number is the
   SCENE's, never the beat's; use it only to judge how much action one beat should carry.
 - CARRY ON from the scene before it. You are given that scene's full text, not a summary
