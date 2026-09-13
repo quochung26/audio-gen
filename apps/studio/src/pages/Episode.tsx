@@ -401,7 +401,21 @@ export function Episode() {
                             method="PUT"
                             submit="Save the summary"
                           >
+                            {/* `key` on the value, and this is the reason it appears on
+                                four inputs on this page: `defaultValue` is applied ONCE,
+                                when the element mounts. Everything here is also written
+                                by a job, and the page polls every 3 seconds — so the box
+                                went on showing whatever was in it when the page loaded
+                                while the text underneath had already changed. Pressing
+                                "summarise again" and watching the box not move is how it
+                                was found.
+
+                                Keyed on the value, the element is replaced when and only
+                                when the value actually changes, so it picks the new text
+                                up. A poll returning the same value leaves it alone, which
+                                is what protects anything half-typed. */}
                             <textarea
+                              key={scene.storySoFar}
                               name="storySoFar"
                               rows={7}
                               defaultValue={scene.storySoFar}
@@ -461,7 +475,9 @@ export function Episode() {
                             {/* `name="text"` alone: the route writes only the fields a
                                 form actually sent, so this leaves the beat and the setup
                                 exactly as they were. */}
+                            {/* Keyed for the reason above: WRITE_SCENE replaces it. */}
                             <textarea
+                              key={scene.text}
                               name="text"
                               rows={16}
                               defaultValue={scene.text}
@@ -530,7 +546,9 @@ export function Episode() {
                           submit="Save instructions"
                           className="space-y-3"
                         >
+                          {/* Keyed for the reason above: "another beat" replaces it. */}
                           <Field
+                            key={scene.beat}
                             name="beat"
                             label="Beat — what happens in the scene"
                             rows={2}
@@ -748,7 +766,10 @@ export function Episode() {
               listeners see on the episode in the feed. */}
           <div className="rounded border border-neutral-800 p-4">
             <Form path={`/api/episodes/${ep.id}/summary`} method="PUT" submit="Save the summary">
+              {/* Keyed for the reason above: SUMMARIZE replaces it, and this is the
+                  box where the staleness was noticed. */}
               <textarea
+                key={ep.summary ?? ""}
                 name="summary"
                 rows={6}
                 defaultValue={ep.summary ?? ""}
