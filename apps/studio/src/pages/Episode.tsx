@@ -730,9 +730,26 @@ export function Episode() {
             ) : null
           }
         >
-          <p className="rounded border border-neutral-800 p-4 text-sm text-neutral-400">
-            {ep.summary ?? "Nothing yet. The summary is loaded as context when writing later episodes."}
-          </p>
+          {/* Editable, not just displayed. "summarise again" is a re-roll, and what is
+              usually wanted is fixing the one sentence the fold got wrong — this text is
+              read verbatim by the NEXT episode's scenes, and it is the description
+              listeners see on the episode in the feed. */}
+          <div className="rounded border border-neutral-800 p-4">
+            <Form path={`/api/episodes/${ep.id}/summary`} method="PUT" submit="Save the summary">
+              <textarea
+                name="summary"
+                rows={6}
+                defaultValue={ep.summary ?? ""}
+                placeholder="Nothing yet — press summarise above, or write it yourself."
+                className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed outline-none focus:border-neutral-600"
+              />
+              <p className="mt-2 text-xs text-neutral-600">
+                Read by the next episode&apos;s scenes as “the summary of the previous
+                episode”, and used as this episode&apos;s description in the podcast feed.
+                Empty means the next episode is written without it.
+              </p>
+            </Form>
+          </div>
         </Section>
       )}
 

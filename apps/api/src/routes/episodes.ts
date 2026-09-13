@@ -545,6 +545,37 @@ episodes.put("/:id/chapters/:chapterId", async (c) => {
   return c.json({ ok: "Chapter title saved." });
 });
 
+/**
+ * Edit the episode's summary by hand.
+ *
+ * It was written by SUMMARIZE and shown read-only, which left "summarise again" as the
+ * only way to change it — a re-roll, when what is usually wanted is fixing the one
+ * sentence that got it wrong.
+ *
+ * Worth editing because it is read in two places that do not forgive it. The NEXT
+ * episode's scenes get it verbatim as "the summary of the previous episode", so a fold
+ * that dropped a death has every later scene writing around someone who is dead. And it
+ * is the `<description>` of the episode's item in the RSS feed, where listeners read it.
+ *
+ * Blank clears it rather than storing "": `buildSceneContext` only loads a summary that
+ * is `not: null`, so an empty one would otherwise send the next episode a heading with
+ * nothing under it.
+ */
+episodes.put("/:id/summary", async (c) => {
+  const body = await c.req.parseBody();
+  const summary = field(body, "summary").trim();
+
+  await prisma.episode.update({
+    where: { id: c.req.param("id") },
+    data: { summary: summary || null },
+  });
+  return c.json({
+    ok: summary
+      ? "Summary saved. The next episode's scenes read this one."
+      : "Summary cleared. The next episode will be written without it.",
+  });
+});
+
 episodes.put("/:id/scenes/:sceneId", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody();
