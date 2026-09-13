@@ -74,11 +74,15 @@ export function Dashboard() {
                   <th className="text-right">VRAM</th>
                   <th className="text-right">Progress</th>
                   <th className="text-right">Took</th>
+                  <th className="text-right">Finished</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-900">
                 {data.recent.map((j) => (
-                  <tr key={j.id}>
+                  // The job in flight, marked on the ROW rather than only by its badge.
+                  // The badge is one word in a column of five identical-looking columns;
+                  // scanning for which of 25 rows is moving should not need reading.
+                  <tr key={j.id} className={j.status === "RUNNING" ? "bg-blue-950/30" : ""}>
                     <td className="py-2">
                       <Link
                         to={`/job/${j.id}`}
@@ -101,6 +105,7 @@ export function Dashboard() {
                     <td className="text-right tabular-nums text-neutral-400">{j.vramMb} MB</td>
                     <td className="text-right tabular-nums text-neutral-400">{j.progress}%</td>
                     <td className="text-right tabular-nums text-neutral-500">{duration(j)}</td>
+                    <td className="text-right tabular-nums text-neutral-500">{finished(j)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -112,9 +117,38 @@ export function Dashboard() {
   );
 }
 
+/**
+ * How long a job has taken — counting UP while it is still running.
+ *
+ * A running job used to read "—", the same as one that never started, so the only
+ * moving number on the page was a percentage that sits in one place for minutes at a
+ * time. The page polls every 2 seconds, so this ticks on its own.
+ */
 function duration(j: Job): string {
-  if (!j.finishedAt || !j.startedAt) return "—";
-  return `${new Date(j.finishedAt).getTime() - new Date(j.startedAt).getTime()} ms`;
+  if (!j.startedAt) return "—";
+  const end = j.finishedAt ? new Date(j.finishedAt).getTime() : Date.now();
+  return took(end - new Date(j.startedAt).getTime());
+}
+
+/** The clock time a job ended, or what it is doing instead of having ended. */
+function finished(j: Job): string {
+  if (j.finishedAt) return new Date(j.finishedAt).toLocaleTimeString();
+  if (j.status === "RUNNING") return "running…";
+  if (j.status === "QUEUED") return "waiting";
+  return "—";
+}
+
+/**
+ * Milliseconds, read by a person.
+ *
+ * It printed raw ms, which is fine for the mock job and useless for everything real:
+ * a scene write is "155231 ms", and nobody reads that as two and a half minutes.
+ */
+function took(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
