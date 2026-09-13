@@ -610,7 +610,12 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
   await prisma.scene.update({ where: { id: c.req.param("sceneId") }, data });
 
   // Editing only the instructions leaves the draft alone — no need to reassemble.
-  if (!("text" in body)) return c.json({ ok: "Instructions saved for this scene." });
+  if (!("text" in body)) {
+    // Says WHEN, because it is not now: a scene already written keeps the prose it
+    // has, and the note reaches the model on the next write or rewrite. Saving a
+    // note and seeing the old scene unchanged reads as the note doing nothing.
+    return c.json({ ok: "Saved. Applies the next time this scene is written." });
+  }
 
   // The draft is the scenes joined in READING order: chapter first, then scene
   // within it. Update now so the next step does not have to reassemble.

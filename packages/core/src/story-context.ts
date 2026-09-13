@@ -204,7 +204,19 @@ export function renderContext(ctx: StoryContext): string {
   if (ctx.overrides) parts.push(ctx.overrides);
 
   parts.push(`## The scene to write\n${ctx.beat}`);
-  if (ctx.sceneNote) parts.push(`Note for this scene: ${ctx.sceneNote}`);
+
+  // Its own heading, and worded as a rule. It used to be one unlabelled line — "Note
+  // for this scene: …" — dropped among a dozen `##` blocks, which is the weakest any
+  // instruction in this prompt is formatted, while being the only one the writer typed
+  // by hand for this exact scene. It outranks the general guidance in the prompt for
+  // the same reason the retry note below it does: it is specific, and it is theirs.
+  if (ctx.sceneNote) {
+    parts.push(
+      `## What this scene must do\n` +
+        `The writer's own instruction for THIS scene. It overrides the general guidance ` +
+        `above wherever they disagree:\n${ctx.sceneNote}`,
+    );
+  }
 
   // Last of the instructions, closest to the work: this is the writer saying what was
   // wrong with the attempt in front of them, and it has to outrank every general rule

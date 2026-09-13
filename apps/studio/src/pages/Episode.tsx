@@ -573,6 +573,7 @@ export function Episode() {
                           <Field
                             name="note"
                             label="Note for this scene"
+                            hint="Read as a rule for this scene alone, above the general guidance. Applies the next time the scene is written — it does not change prose already there."
                             placeholder="No dialogue in this scene. Only rain and footsteps."
                             rows={2}
                             defaultValue={scene.setup?.note ?? ""}

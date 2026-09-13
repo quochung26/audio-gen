@@ -100,3 +100,30 @@ describe("renderContext — correcting the attempt on screen", () => {
     expect(renderContext(base)).not.toContain("previous attempt");
   });
 });
+
+describe("the writer's note for one scene", () => {
+  const base = { bible: "B", previousSummaries: [], storySoFar: "", beat: "Thiện rút kiếm.", targetWords: 750 };
+
+  it("is rendered under its own heading, not as a loose line", () => {
+    // It was `Note for this scene: …` with no heading — the weakest formatting of
+    // anything in a prompt where every other block gets a `##`, while being the only
+    // one typed by hand for this exact scene.
+    const out = renderContext({ ...base, sceneNote: "Không thoại. Chỉ có mưa." });
+    expect(out).toContain("## What this scene must do");
+    expect(out).toContain("Không thoại. Chỉ có mưa.");
+  });
+
+  it("says it outranks the general guidance", () => {
+    expect(renderContext({ ...base, sceneNote: "Chậm lại" })).toMatch(/overrides the general/i);
+  });
+
+  it("comes AFTER the beat, so the nearest instruction is the most specific", () => {
+    const out = renderContext({ ...base, sceneNote: "Chậm lại" });
+    expect(out.indexOf("## The scene to write")).toBeLessThan(out.indexOf("## What this scene must do"));
+  });
+
+  it("leaves the block out entirely when there is no note", () => {
+    expect(renderContext({ ...base, sceneNote: "" })).not.toContain("What this scene must do");
+    expect(renderContext(base)).not.toContain("What this scene must do");
+  });
+});
