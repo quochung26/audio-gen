@@ -40,7 +40,7 @@ const schema = z.object({
   // Which model does which job is NOT in `.env`: it depends on what is actually
   // downloaded, or on what you pick on the Models page. Hard-coding a name here
   // makes it a lie the moment the machine does not have that model.
-  EMBED_PROVIDER: z.enum(["mock", "ollama"]).default("mock"),
+  EMBED_PROVIDER: z.enum(["mock", "ollama", "openrouter"]).default("mock"),
 
   OLLAMA_URL: z.string().url().default("http://localhost:11434"),
 

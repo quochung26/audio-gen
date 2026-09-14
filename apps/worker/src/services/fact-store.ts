@@ -1,4 +1,4 @@
-import { FACT_MIN_SIMILARITY, FACT_TOP_K, OPEN_THREAD_LIMIT } from "@audio/config";
+import { FACT_TOP_K, OPEN_THREAD_LIMIT } from "@audio/config";
 import type { StoryFactInput } from "@audio/core";
 import { prisma, type FactKind } from "@audio/database";
 import { getEmbedding, toVectorLiteral } from "@audio/llm";
@@ -87,7 +87,13 @@ export async function retrieveFacts(input: {
     LIMIT ${FACT_TOP_K}
   `;
 
-  return rows.filter((r) => r.similarity >= FACT_MIN_SIMILARITY);
+  // The floor comes from the PROVIDER that made the vectors, not from a shared
+  // constant. Swap the embedding model and the scale changes underneath it: what
+  // reads as "unrelated" to bge-m3 at 0.32 is 0.50 to gemini-embedding-001, and a
+  // threshold left behind by its model fails silently — every fact passes, nothing
+  // errors, and the only symptom is scenes written around events that never mattered.
+  const { minSimilarity } = await getEmbedding();
+  return rows.filter((r) => r.similarity >= minSimilarity);
 }
 
 /**

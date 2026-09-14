@@ -129,7 +129,46 @@ export const RECENT_SUMMARY_COUNT = 3;
  * 5 nearest in that case only distracts the model.
  */
 export const FACT_TOP_K = 6;
+
+/**
+ * The floor, for bge-m3 through Ollama.
+ *
+ * MEASURED on real Vietnamese pairs from this repo's own stories, not picked: related
+ * facts scored 0.48–0.68 and unrelated ones 0.30–0.34, so 0.35 sits in the gap with
+ * room either side.
+ *
+ * It belongs to the MODEL, not to the idea of similarity. Every embedding model puts
+ * its vectors at its own scale, which is why this number is reached through
+ * `EmbeddingProvider.minSimilarity` rather than imported at the point of use — see the
+ * OpenRouter figure below for what happens when a threshold outlives its model.
+ */
 export const FACT_MIN_SIMILARITY = 0.35;
+
+/**
+ * The same floor for `openai/text-embedding-3-large` at 1024 dimensions.
+ *
+ * Measured the same way, same sentences: related 0.49–0.59, unrelated 0.27–0.28. The
+ * widest separation of the three models OpenRouter serves — 3-small gives +0.14 and
+ * gemini-embedding-001 +0.13, against +0.21 here.
+ *
+ * gemini-embedding-001 is the cautionary one and the reason this is per-model: it
+ * scores everything high, unrelated pairs included, at 0.47–0.54. Run it under the
+ * bge-m3 floor of 0.35 and every irrelevant fact in the story passes the gate, with
+ * nothing failing and nothing logged — just three unrelated events pushed into every
+ * scene the model writes.
+ */
+export const FACT_MIN_SIMILARITY_OPENROUTER = 0.38;
+
+/**
+ * The embedding model used when `EMBED_PROVIDER=openrouter`.
+ *
+ * A constant rather than a setting. There are three usable models, the choice between
+ * them was measured, and the similarity floor above is tied to THIS one — a picker
+ * would mostly offer people a way to break retrieval silently. `dimensions: 1024` is
+ * sent with every request so the vectors fit the existing `vector(1024)` column; the
+ * model's own default is 3072.
+ */
+export const OPENROUTER_EMBED_MODEL = "openai/text-embedding-3-large";
 
 /** How many open threads load at most (always loaded, whatever the similarity). */
 export const OPEN_THREAD_LIMIT = 5;

@@ -204,12 +204,18 @@ export function Models() {
             </div>
           )}
 
+          {/* A separate decision from the one above, and no longer always local: with
+              EMBED_PROVIDER=openrouter the vectors come from the cloud too. Set in
+              .env, not here, because changing it invalidates every vector already
+              stored — see the note. */}
           <p className="mt-3 text-xs text-neutral-500">
             Embeddings:{" "}
             <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
               {data.embedProvider}
             </Badge>{" "}
-            — always local, unaffected by the choice above.
+            — set by <code>EMBED_PROVIDER</code> in <code>.env</code>, independent of the
+            choice above.
+            {data.embedProvider === "mock" && " Mock vectors carry no meaning: retrieval returns something, but not the right thing."}
           </p>
         </div>
       </Section>
