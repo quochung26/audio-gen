@@ -125,7 +125,16 @@ export async function setActiveProvider(value: string): Promise<void> {
  * name became a lie the moment the machine did not have that model — the job died
  * mid-run with "model not found", rather than saying so when Studio opened.
  */
-export type ModelSource = "setting" | "installed" | "none";
+/**
+ * Where a default model came from.
+ *
+ * `fixed` is the odd one: the model is decided by `EMBED_PROVIDER` in `.env` rather
+ * than by anything on the Models page. Embeddings through OpenRouter use a constant,
+ * and mock embeddings ignore the name entirely — in both cases the picker below is
+ * asking a question that has no effect, and said so wrongly: it reported "no model"
+ * and told the writer to run `ollama serve`.
+ */
+export type ModelSource = "setting" | "installed" | "none" | "fixed";
 
 export async function getDefaultModel(kind: ModelKind): Promise<string> {
   return (await resolveDefault(kind)).value;

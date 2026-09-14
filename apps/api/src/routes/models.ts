@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { loadEnv } from "@audio/config";
+import { OPENROUTER_EMBED_MODEL, loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import {
   forgetInstalledModels,
@@ -161,10 +161,26 @@ models.get("/", async (c) => {
   addRecent(defaults.utility.value);
   for (const r of recentRuns) addRecent(r.model);
 
+  /**
+   * Embeddings follow `EMBED_PROVIDER`, which is NOT the provider switch on this page.
+   *
+   * Only `ollama` takes a model name from here. OpenRouter uses a constant tied to the
+   * measured similarity floor, and mock ignores the name altogether — so for those two
+   * the stored Ollama tag is not the model that runs, and offering to change it is
+   * offering to change nothing.
+   */
+  const embed =
+    env.EMBED_PROVIDER === "ollama"
+      ? defaults.embed
+      : {
+          value: env.EMBED_PROVIDER === "openrouter" ? OPENROUTER_EMBED_MODEL : "mock",
+          source: "fixed" as const,
+        };
+
   const configured = [
     { label: "Story writing", kind: "write" as ModelKind, ...defaults.write },
     { label: "Utility work — summaries, metadata", kind: "utility" as ModelKind, ...defaults.utility },
-    { label: "Embeddings", kind: "embed" as ModelKind, ...defaults.embed },
+    { label: `Embeddings — via ${env.EMBED_PROVIDER}`, kind: "embed" as ModelKind, ...embed },
   ];
 
   const promptOverrides = promptModels.map((p) => ({

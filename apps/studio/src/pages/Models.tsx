@@ -54,7 +54,7 @@ interface Data {
     kind: string;
     value: string;
     /** "setting" = you chose it · "installed" = follows what is pulled · "none" = nothing */
-    source: "setting" | "installed" | "none";
+    source: "setting" | "installed" | "none" | "fixed";
     model: string;
   }>;
   promptOverrides: Array<{ label: string; model: string }>;
@@ -350,31 +350,50 @@ export function Models() {
           <strong className="text-neutral-300">{data.provider}</strong>.
         </p>
         <div className="space-y-3">
-          {data.configured.map((cfg) => (
-            <Form
-              key={cfg.kind}
-              path={`/api/models/default/${cfg.kind}`}
-              method="PUT"
-              submit="Save"
-              className="rounded border border-neutral-800 p-4"
-            >
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="text-sm text-neutral-300">{cfg.label}</span>
-                {/* Automatic: say so, or the user thinks they set it by hand. */}
-                {cfg.source === "installed" && <Badge tone="blue">follows what is pulled</Badge>}
-                {cfg.source === "none" && <Badge tone="red">no model</Badge>}
-                {/* "not pulled" only means anything on Ollama — cloud models are never pulled. */}
-                {isPulled(cfg.model) === true && <Badge tone="green">ready</Badge>}
-                {isPulled(cfg.model) === false && <Badge tone="red">not pulled</Badge>}
+          {data.configured.map((cfg) =>
+            /* Decided by .env, so there is nothing here to change. It used to render the
+               Ollama picker anyway — "no model" in red, and advice to run `ollama serve`
+               — for a step that was about to embed perfectly well through OpenRouter. */
+            cfg.source === "fixed" ? (
+              <div key={cfg.kind} className="rounded border border-neutral-800 p-4">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-neutral-300">{cfg.label}</span>
+                  <Badge tone="blue">set in .env</Badge>
+                </div>
+                <code className="text-sm text-neutral-200">{cfg.value}</code>
+                <p className="mt-2 text-xs text-neutral-600">
+                  Follows <code>EMBED_PROVIDER</code>, not the provider switch above.
+                  {cfg.value === "mock"
+                    ? " Mock vectors carry no meaning — retrieval returns facts, but not the right ones."
+                    : " Changing it invalidates every vector already stored."}
+                </p>
               </div>
-              <ModelDefaultField
-                choices={pick(cfg.kind).choices}
-                emptyReason={pick(cfg.kind).reason}
-                value={cfg.value}
-                auto={cfg.source !== "setting"}
-              />
-            </Form>
-          ))}
+            ) : (
+              <Form
+                key={cfg.kind}
+                path={`/api/models/default/${cfg.kind}`}
+                method="PUT"
+                submit="Save"
+                className="rounded border border-neutral-800 p-4"
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-neutral-300">{cfg.label}</span>
+                  {/* Automatic: say so, or the user thinks they set it by hand. */}
+                  {cfg.source === "installed" && <Badge tone="blue">follows what is pulled</Badge>}
+                  {cfg.source === "none" && <Badge tone="red">no model</Badge>}
+                  {/* "not pulled" only means anything on Ollama — cloud models are never pulled. */}
+                  {isPulled(cfg.model) === true && <Badge tone="green">ready</Badge>}
+                  {isPulled(cfg.model) === false && <Badge tone="red">not pulled</Badge>}
+                </div>
+                <ModelDefaultField
+                  choices={pick(cfg.kind).choices}
+                  emptyReason={pick(cfg.kind).reason}
+                  value={cfg.value}
+                  auto={cfg.source !== "setting"}
+                />
+              </Form>
+            ),
+          )}
         </div>
         {data.configured.some((c) => c.source === "none") && (
           <p className="text-xs text-red-400">
