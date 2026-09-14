@@ -254,6 +254,72 @@ print('Tốc độ: %.1f tok/s' % (d['eval_count'] / (d['eval_duration']/1e9)))
 
 ---
 
+### Gọi Ollama từ máy khác trong LAN
+
+Bỏ qua được nếu chỉ chạy trên chính máy đó. Cần khi muốn một máy khác — máy Mac, máy đồng nghiệp — gọi vào model này.
+
+**Vì sao không chạy ngay:** WSL2 nằm trong một máy ảo có mạng NAT riêng. Cơ chế `localhostForwarding` của nó bắc cầu cổng ra **`127.0.0.1` của Windows**, và chỉ `127.0.0.1`. Nên Windows gọi được, còn máy khác trong LAN thì không thấy gì — card mạng của Windows không hề lắng nghe cổng đó.
+
+Triệu chứng phân biệt: từ máy khác sẽ **timeout**, không phải *connection refused*. Cổng đóng thì trả `RST` ngay lập tức; timeout nghĩa là gói bị thả im.
+
+**Không cần đổi `OLLAMA_HOST`.** Ollama cứ bind `127.0.0.1` bên trong WSL cũng được — `localhostForwarding` vẫn bắc cầu. Đây là chỗ dễ mất thời gian vì tưởng phải mở nó ra `0.0.0.0` trước.
+
+Ba thứ cần, chạy trong **PowerShell quyền Administrator** trên Windows (thay `10.10.10.1` bằng IP LAN của máy, `10.10.10.0/24` bằng dải mạng của bạn):
+
+```powershell
+# 1. Bac cau tu card LAN ve localhost — noi WSL da bac cau san
+netsh interface portproxy add v4tov4 listenaddress=10.10.10.1 listenport=11434 connectaddress=127.0.0.1 connectport=11434
+
+# 2. Mo cong, chi cho dai LAN
+New-NetFirewallRule -DisplayName "Ollama LAN (11434)" -Direction Inbound -Protocol TCP -LocalPort 11434 -Action Allow -Profile Any -RemoteAddress 10.10.10.0/24
+
+# 3. Da service de no tao listener
+Restart-Service iphlpsvc
+```
+
+`connectaddress` là **`127.0.0.1`**, không phải IP của WSL. Quan trọng: IP của WSL đổi sau mỗi lần khởi động, còn `127.0.0.1` thì không — nên luật này không chết theo.
+
+**✅ Kiểm tra — chỉ `netstat` mới nói thật:**
+
+```powershell
+netstat -ano | findstr LISTENING | findstr :11434
+```
+
+Phải ra **hai** dòng:
+
+```
+TCP    10.10.10.1:11434    0.0.0.0:0    LISTENING    <pid iphlpsvc>
+TCP    127.0.0.1:11434     0.0.0.0:0    LISTENING    <pid cau WSL>
+```
+
+Rồi từ máy khác: `curl http://10.10.10.1:11434/api/tags` — ra danh sách model là xong.
+
+#### Sau mỗi lần reboot
+
+```powershell
+Restart-Service iphlpsvc
+```
+
+Chỉ vậy. Luật portproxy và luật firewall đều sống qua reboot; thứ duy nhất mất là **listener** trên IP LAN, vì `iphlpsvc` khởi động trước khi card mạng có IP nên nó bỏ qua luật đó và không thử lại.
+
+Muốn khỏi phải nhớ: `sc.exe config iphlpsvc start= delayed-auto` cho service khởi động sau khi mạng đã lên.
+
+#### Bốn cái bẫy — đều hỏng im lặng
+
+| Bẫy | Vì sao mất thời gian |
+|---|---|
+| `netsh` báo thành công và `show v4tov4` liệt kê luật đầy đủ — **nhưng không có listener nào** | Nhìn vào luật sẽ tưởng mọi thứ ổn. Chỉ `netstat` mới cho biết sự thật. |
+| Card mạng bị Windows xếp loại **Public** (hay gặp với mạng tên `Unidentified network`) | Luật firewall khai `-Profile Private,Domain` sẽ **không áp dụng** lên card đó. Dùng `-Profile Any` và để `-RemoteAddress` lo việc giới hạn — nó chặn theo địa chỉ, không phụ thuộc profile. |
+| Dán nhiều dòng lệnh một lúc vào PowerShell | Thứ tự có thể bị **đảo ngược**, và nếu có `delete` trong đó thì nó chạy cuối, xoá mất luật vừa thêm. Gộp thành **một dòng** ngăn bằng `;`. |
+| Gõ `sc config ...` trong PowerShell | `sc` là alias của `Set-Content`. Phải dùng **`sc.exe`**, và có dấu cách sau `start=`. |
+
+Hai lưu ý còn lại:
+
+- **`-RemoteAddress` mới là thứ giới hạn phạm vi**, không phải `-Profile`. Dùng `LocalSubnet` cùng `-Profile Any` sẽ mở cho **mọi** dải mà máy đang có — kể cả Wi-Fi, VPN và card ảo của WSL. Ghi thẳng dải LAN thì mới đúng ý.
+- **Ollama không có xác thực.** Mở ra LAN nghĩa là ai trong dải đó cũng gọi model được, và cũng xoá hoặc tải model được qua API.
+
+---
+
 ## Bước 5 — Kokoro TTS tiếng Việt
 
 > **Kokoro chạy trên CPU — không cần GPU.** Model chỉ 82M tham số (bản ONNX lượng tử hoá chưa tới 100MB), CPU xử lý vẫn nhanh hơn thời gian thực nhiều lần. Đây là lựa chọn có chủ đích: để dành toàn bộ VRAM cho LLM. Xem mục 6.1 của `PLAN.md`.

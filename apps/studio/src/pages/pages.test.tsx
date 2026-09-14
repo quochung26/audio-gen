@@ -259,30 +259,20 @@ const FIXTURES: Record<string, unknown> = {
     ],
     storageDriver: "local",
   },
+  // Settings only — the Ollama probe is its own request now, so that the Models page
+  // renders without waiting on another machine.
   "/api/models": {
-    reachable: true,
-    reason: null,
-    version: "0.5.0",
     url: "http://localhost:11434",
     provider: "ollama",
     embedProvider: "mock",
     sceneContext: "full",
-    installed: [
-      {
-        name: "qwen3:8b",
-        sizeBytes: 5_200_000_000,
-        parameterSize: "8.2B",
-        quantization: "Q4_K_M",
-        modifiedAt: "2026-08-01T00:00:00Z",
-      },
-    ],
     recent: ["qwen3:8b"],
     language: { value: "vi", fromEnv: true },
     configured: [
-      { label: "Writing", kind: "write", value: "qwen3:14b", source: "installed", model: "qwen3:14b", installed: false },
-      { label: "Utility — summaries, metadata", kind: "utility", value: "qwen3:8b", source: "setting", model: "qwen3:8b", installed: true },
+      { label: "Writing", kind: "write", value: "qwen3:14b", source: "installed", model: "qwen3:14b" },
+      { label: "Utility — summaries, metadata", kind: "utility", value: "qwen3:8b", source: "setting", model: "qwen3:8b" },
     ],
-    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b", installed: false }],
+    promptOverrides: [{ label: "Prompt WRITE_SCENE", model: "qwen3:32b" }],
     pull: {
       model: "qwen3:14b-q4_K_M",
       status: "downloading",
@@ -292,6 +282,20 @@ const FIXTURES: Record<string, unknown> = {
       error: null,
       elapsedMs: 45_000,
     },
+  },
+  "/api/models/ollama": {
+    reachable: true,
+    reason: null,
+    version: "0.5.0",
+    installed: [
+      {
+        name: "qwen3:8b",
+        sizeBytes: 5_200_000_000,
+        parameterSize: "8.2B",
+        quantization: "Q4_K_M",
+        modifiedAt: "2026-08-01T00:00:00Z",
+      },
+    ],
   },
   "/api/models/openrouter": {
     hasKey: true,
@@ -661,10 +665,14 @@ describe("when there is no model to pick", () => {
       "fetch",
       vi.fn((input: string) => {
         const path = String(input).split("?")[0]!;
+        // "Ollama down" now lives in the probe's payload, not the settings one; the
+        // empty `recent` still belongs to the settings half.
         const body =
           path === "/api/models"
-            ? { ...base, reachable: false, version: null, installed: [], recent: [] }
-            : FIXTURES[path];
+            ? { ...base, recent: [] }
+            : path === "/api/models/ollama"
+              ? { reachable: false, reason: "Connection refused", version: null, installed: [] }
+              : FIXTURES[path];
         return Promise.resolve(
           new Response(JSON.stringify(body ?? { error: "missing fixture" }), {
             status: body ? 200 : 404,

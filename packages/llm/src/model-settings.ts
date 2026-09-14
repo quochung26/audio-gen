@@ -155,9 +155,13 @@ async function resolveDefault(kind: ModelKind): Promise<{ value: string; source:
 export async function getDefaultModels(): Promise<
   Record<ModelKind, { value: string; source: ModelSource }>
 > {
+  // In parallel, not one after another. Each kind may ask Ollama what is installed,
+  // and sequentially that is three timeouts back to back whenever it is down —
+  // six seconds before the Models page could render anything at all.
   const kinds: ModelKind[] = ["write", "utility", "embed"];
+  const resolved = await Promise.all(kinds.map((k) => resolveDefault(k)));
   const out = {} as Record<ModelKind, { value: string; source: ModelSource }>;
-  for (const kind of kinds) out[kind] = await resolveDefault(kind);
+  kinds.forEach((kind, i) => (out[kind] = resolved[i]!));
   return out;
 }
 

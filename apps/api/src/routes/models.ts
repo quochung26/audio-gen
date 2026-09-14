@@ -61,10 +61,17 @@ async function ollamaFetch(path: string, init?: RequestInit): Promise<Response> 
   return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 }
 
-/** Connection status, installed models, and the models the system is set to use. */
-models.get("/", async (c) => {
-  const env = loadEnv();
-  const provider = await getActiveProvider();
+/**
+ * Whether Ollama is up, and what it has pulled.
+ *
+ * Its own route, and NOT part of `GET /` any more. It is the only part of this page
+ * that talks to another machine, so it is the only part that can be slow — and with
+ * Ollama down it is slow every time, for the full five-second timeout. Inside the main
+ * payload that blocked the entire Models page behind it: switching provider, changing
+ * the default language and reading the OpenRouter panel all waited on a probe none of
+ * them need. Split out, the page renders at once and this section loads into it.
+ */
+models.get("/ollama", async (c) => {
   let reachable = false;
   let version: string | null = null;
   let installed: OllamaModel[] = [];
@@ -100,6 +107,20 @@ models.get("/", async (c) => {
       modifiedAt: m.modified_at ?? null,
     }));
   }
+
+  return c.json({ reachable, reason, version, installed });
+});
+
+/**
+ * The models the system is set to use — settings only, no network.
+ *
+ * Everything here is the DB or the env, so it answers in milliseconds whatever state
+ * Ollama is in. "Is it downloaded?" is deliberately NOT answered: that needs Ollama's
+ * list, and the page joins the two by name once the route above returns.
+ */
+models.get("/", async (c) => {
+  const env = loadEnv();
+  const provider = await getActiveProvider();
 
   // The models the system will use. Prompts can override per step — read those
   // too, so we can flag a model referenced but not downloaded.
@@ -151,33 +172,15 @@ models.get("/", async (c) => {
     model: p.model!,
   }));
 
-  const names = new Set(installed.map((m) => m.name));
-
-  /**
-   * "Is it downloaded?" — a question that only means anything under Ollama.
-   *
-   * OpenRouter models are never downloaded; checking them against Ollama's list
-   * would flag every cloud model as "not downloaded" with nothing to download.
-   */
-  const describeModel = (m: string) => ({
-    model: m,
-    // Ollama treats "qwen3:14b" and "qwen3:14b:latest" as one; compare both forms.
-    installed: provider === "ollama" ? names.has(m) || names.has(`${m}:latest`) : true,
-  });
-
   return c.json({
-    reachable,
-    reason,
-    version,
     url: env.OLLAMA_URL,
     provider,
     embedProvider: env.EMBED_PROVIDER,
-    installed,
     recent,
     language: await getDefaultLanguageSource(),
     sceneContext: await getSceneContextMode(),
-    configured: configured.map((x) => ({ ...x, ...describeModel(x.value) })),
-    promptOverrides: promptOverrides.map((x) => ({ ...x, ...describeModel(x.model) })),
+    configured: configured.map((x) => ({ ...x, model: x.value })),
+    promptOverrides,
     pull: withElapsed(pull),
   });
 });

@@ -25,16 +25,24 @@ interface Pull {
   /** How long it has been running — computed server-side; see the API note. */
   elapsedMs: number;
 }
-interface Data {
+/**
+ * The Ollama probe — its own request, because it is the only thing on this page that
+ * talks to another machine, and with Ollama down it takes the full timeout every time.
+ * Inside the main payload it held the whole page at "Loading…" for five seconds.
+ */
+interface Ollama {
   reachable: boolean;
   reason: string | null;
   version: string | null;
+  installed: Model[];
+}
+
+interface Data {
   url: string;
   /** The provider in use — one of the two. */
   provider: string;
   /** The value in .env, so it is clear what the UI choice is overriding. */
   embedProvider: string;
-  installed: Model[];
   /** Recently used models, already filtered to the provider in use. */
   recent: string[];
   /** Default language for NEW stories — existing ones are untouched. */
@@ -48,9 +56,8 @@ interface Data {
     /** "setting" = you chose it · "installed" = follows what is pulled · "none" = nothing */
     source: "setting" | "installed" | "none";
     model: string;
-    installed: boolean;
   }>;
-  promptOverrides: Array<{ label: string; model: string; installed: boolean }>;
+  promptOverrides: Array<{ label: string; model: string }>;
   pull: Pull | null;
 }
 
@@ -71,11 +78,47 @@ export function Models() {
   const { data, isLoading, error } = useApi<Data>("/api/models", { refetchMs: 1500 });
   // Same key as OpenRouterPanel, so TanStack Query shares one request.
   const or = useApi<OrStatus>("/api/models/openrouter");
+  // Slower than the page: this one crosses the network, and what it reports — up or
+  // down, which models are pulled — does not change between two heartbeats.
+  const oll = useApi<Ollama>("/api/models/ollama", { refetchMs: 5000 });
+
+  // Only the settings payload gates the page. Waiting on the probe here is exactly the
+  // five-second block being removed.
   if (isLoading || !data) return <Loading error={error} />;
 
+  const ollama = oll.data;
+  const pulledNames = new Set((ollama?.installed ?? []).map((m) => m.name));
+
+  /**
+   * Is this model downloaded?
+   *
+   * Joined by name in the browser now, because the two halves arrive in two requests.
+   * `undefined` means the probe has not answered yet — different from "no", so the page
+   * says nothing rather than flashing "not pulled" at a model that is sitting on disk.
+   *
+   * Only meaningful under Ollama: OpenRouter models are never downloaded, and checking
+   * them against Ollama's list would flag every cloud model as missing.
+   */
+  const isPulled = (model: string): boolean | undefined => {
+    // No badge at all under OpenRouter, which is what the old `provider === "ollama"`
+    // guard did. Returning true here would have labelled every cloud model "ready".
+    if (data.provider !== "ollama") return undefined;
+    if (!ollama?.reachable) return undefined;
+    // Ollama treats "qwen3:14b" and "qwen3:14b:latest" as one; compare both forms.
+    return pulledNames.has(model) || pulledNames.has(`${model}:latest`);
+  };
+
+  // `modelChoices` needs both halves, so they are joined back together for it. An
+  // unanswered probe reads as "not reachable, nothing installed", which is what it
+  // already did while the single request was in flight.
+  const forChoices = {
+    ...data,
+    reachable: ollama?.reachable ?? false,
+    installed: ollama?.installed ?? [],
+  };
   // Embeddings ALWAYS run locally, even when OpenRouter is in use.
-  const localChoices = modelChoices({ ...data, provider: "ollama" });
-  const choicesFor = modelChoices(data);
+  const localChoices = modelChoices({ ...forChoices, provider: "ollama" });
+  const choicesFor = modelChoices(forChoices);
   const pick = (kind: string) => (kind === "embed" ? localChoices : choicesFor);
 
   /** What this model is currently set as — saves scrolling down to check. */
@@ -134,17 +177,26 @@ export function Models() {
       <Section title="Ollama — local models">
         <div
           className={`rounded border p-4 ${
-            data.reachable ? "border-emerald-900/60 bg-emerald-950/20" : "border-red-900 bg-red-950/30"
+            !ollama
+              ? "border-neutral-800"
+              : ollama.reachable
+                ? "border-emerald-900/60 bg-emerald-950/20"
+                : "border-red-900 bg-red-950/30"
           }`}
         >
-          {data.reachable ? (
+          {/* Three states, not two. "Not answered yet" used to be indistinguishable
+              from "down", so a reachable Ollama showed a red box for the first second
+              of every page load. */}
+          {!ollama ? (
+            <p className="text-sm text-neutral-500">Checking {data.url}…</p>
+          ) : ollama.reachable ? (
             <p className="text-sm text-emerald-200">
-              Ollama {data.version} · {data.url}
+              Ollama {ollama.version} · {data.url}
             </p>
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-red-200">Cannot reach Ollama at {data.url}</p>
-              {data.reason && <p className="text-xs text-red-300/80">{data.reason}</p>}
+              {ollama.reason && <p className="text-xs text-red-300/80">{ollama.reason}</p>}
               <p className="text-xs text-neutral-400">
                 Install from <code>ollama.com/download</code>, then run <code>ollama serve</code>.
                 Change the address with <code>OLLAMA_URL</code> in <code>.env</code>.
@@ -207,14 +259,18 @@ export function Models() {
 
       <ModelDownload busy={Boolean(p && !p.done)} />
 
-      <Section title={`Models available (${data.installed.length})`}>
-        {data.installed.length === 0 ? (
+      <Section title={`Models available${ollama ? ` (${ollama.installed.length})` : ""}`}>
+        {!ollama ? (
           <p className="rounded border border-dashed border-neutral-800 p-4 text-sm text-neutral-500">
-            {data.reachable ? "No models pulled yet." : "Cannot reach Ollama."}
+            Checking…
+          </p>
+        ) : ollama.installed.length === 0 ? (
+          <p className="rounded border border-dashed border-neutral-800 p-4 text-sm text-neutral-500">
+            {ollama.reachable ? "No models pulled yet." : "Cannot reach Ollama."}
           </p>
         ) : (
           <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
-            {data.installed.map((m) => (
+            {ollama.installed.map((m) => (
               <div key={m.name} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <div className="font-mono text-sm">{m.name}</div>
@@ -302,8 +358,8 @@ export function Models() {
                 {cfg.source === "installed" && <Badge tone="blue">follows what is pulled</Badge>}
                 {cfg.source === "none" && <Badge tone="red">no model</Badge>}
                 {/* "not pulled" only means anything on Ollama — cloud models are never pulled. */}
-                {data.reachable && data.provider === "ollama" &&
-                  (cfg.installed ? <Badge tone="green">ready</Badge> : <Badge tone="red">not pulled</Badge>)}
+                {isPulled(cfg.model) === true && <Badge tone="green">ready</Badge>}
+                {isPulled(cfg.model) === false && <Badge tone="red">not pulled</Badge>}
               </div>
               <ModelDefaultField
                 choices={pick(cfg.kind).choices}
@@ -353,8 +409,8 @@ export function Models() {
                 <span className="text-sm text-neutral-400">{o.label}</span>
                 <span className="flex items-center gap-2">
                   <code className="text-xs text-neutral-300">{o.model}</code>
-                  {data.reachable && data.provider === "ollama" &&
-                    (o.installed ? <Badge tone="green">ready</Badge> : <Badge tone="red">not pulled</Badge>)}
+                  {isPulled(o.model) === true && <Badge tone="green">ready</Badge>}
+                  {isPulled(o.model) === false && <Badge tone="red">not pulled</Badge>}
                 </span>
               </div>
             ))}
