@@ -625,6 +625,16 @@ model StoryFact {
   /// bge-m3 returns 1024 dimensions. Changing model means changing this and re-embedding everything.
   embedding Unsupported("vector(1024)")?
 
+  /// Which model produced `embedding` — "ollama:bge-m3", "openrouter:openai/text-embedding-3-large".
+  ///
+  /// Width cannot tell two vector spaces apart: both of those are 1024, so changing
+  /// EMBED_PROVIDER leaves every stored vector looking valid while meaning nothing
+  /// against the new queries. Retrieval filters on this, so rows from another model are
+  /// skipped rather than silently ranked.
+  ///
+  /// NULL means the row predates this column and its model is genuinely unknown.
+  embedModel String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

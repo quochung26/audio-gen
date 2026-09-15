@@ -14,6 +14,16 @@ export const EMBED_DIM = 1024;
 
 export interface EmbeddingProvider {
   readonly name: string;
+  /**
+   * Which vector SPACE these belong to — provider and model, e.g. `ollama:bge-m3`.
+   *
+   * Stored beside every vector, because the width cannot tell two spaces apart:
+   * bge-m3 and text-embedding-3-large are both 1024, so swapping one for the other
+   * passes every check there is, Postgres accepts the rows, queries return results,
+   * and the results are noise. Nothing errors and nothing logs. Recorded here so the
+   * mismatch is detectable at all.
+   */
+  readonly id: string;
   readonly dim: number;
   /**
    * The cosine floor a retrieved fact has to clear, for THIS model.
@@ -40,6 +50,9 @@ export interface EmbeddingProvider {
 class OllamaEmbedding implements EmbeddingProvider {
   readonly name = "ollama";
   readonly dim = EMBED_DIM;
+  get id(): string {
+    return `ollama:${this.model}`;
+  }
   readonly minSimilarity = FACT_MIN_SIMILARITY;
 
   constructor(
@@ -109,6 +122,9 @@ class OllamaEmbedding implements EmbeddingProvider {
 class OpenRouterEmbedding implements EmbeddingProvider {
   readonly name = "openrouter";
   readonly dim = EMBED_DIM;
+  get id(): string {
+    return `openrouter:${this.model}`;
+  }
   readonly minSimilarity = FACT_MIN_SIMILARITY_OPENROUTER;
 
   constructor(
@@ -168,6 +184,7 @@ class OpenRouterEmbedding implements EmbeddingProvider {
  */
 class MockEmbedding implements EmbeddingProvider {
   readonly name = "mock";
+  readonly id = "mock";
   readonly dim = EMBED_DIM;
   // Meaningless either way — word-overlap hashing has no scale to tune against.
   readonly minSimilarity = FACT_MIN_SIMILARITY;

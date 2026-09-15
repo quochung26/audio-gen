@@ -43,11 +43,16 @@ export async function saveFacts(input: {
   });
 
   // Embedded in batches — embeddings are cheap, and one call per sentence is self-inflicted slowness.
-  const vectors = await (await getEmbedding()).embed(created.map((c) => c.text));
+  const embedding = await getEmbedding();
+  const vectors = await embedding.embed(created.map((c) => c.text));
 
   for (const [i, row] of created.entries()) {
+    // The model goes in WITH the vector, in one statement. Written separately, a crash
+    // between the two leaves a vector whose space nobody can name — which is the state
+    // this column exists to make impossible.
     await prisma.$executeRaw`
-      UPDATE "StoryFact" SET embedding = ${toVectorLiteral(vectors[i]!)}::vector
+      UPDATE "StoryFact"
+      SET embedding = ${toVectorLiteral(vectors[i]!)}::vector, "embedModel" = ${embedding.id}
       WHERE id = ${row.id}
     `;
   }
@@ -70,7 +75,8 @@ export async function retrieveFacts(input: {
   beforeEpisode: number;
   query: string;
 }): Promise<RetrievedFact[]> {
-  const [vector] = await (await getEmbedding()).embed([input.query]);
+  const embedding = await getEmbedding();
+  const [vector] = await embedding.embed([input.query]);
   if (!vector) return [];
 
   // `1 - (a <=> b)` turns cosine distance into a similarity that reads sensibly.
@@ -83,17 +89,37 @@ export async function retrieveFacts(input: {
     WHERE "seriesId" = ${input.seriesId}
       AND "episodeNumber" < ${input.beforeEpisode}
       AND embedding IS NOT NULL
+      AND "embedModel" = ${embedding.id}
     ORDER BY embedding <=> ${toVectorLiteral(vector)}::vector
     LIMIT ${FACT_TOP_K}
   `;
+
+  // Say when facts exist but belong to another model's space. Without this the writer
+  // sees retrieval quietly return nothing after switching EMBED_PROVIDER and has no way
+  // to tell that from a story with no relevant history.
+  if (rows.length === 0) {
+    const stale = await prisma.storyFact.count({
+      where: {
+        seriesId: input.seriesId,
+        episodeNumber: { lt: input.beforeEpisode },
+        NOT: { embedModel: embedding.id },
+      },
+    });
+    if (stale > 0) {
+      logger.warn(
+        `[facts] ${stale} fact${stale === 1 ? "" : "s"} were embedded by another model and ` +
+          `cannot be compared against "${embedding.id}". Clear them to rebuild: ` +
+          `UPDATE "StoryFact" SET embedding = NULL, "embedModel" = NULL;`,
+      );
+    }
+  }
 
   // The floor comes from the PROVIDER that made the vectors, not from a shared
   // constant. Swap the embedding model and the scale changes underneath it: what
   // reads as "unrelated" to bge-m3 at 0.32 is 0.50 to gemini-embedding-001, and a
   // threshold left behind by its model fails silently — every fact passes, nothing
   // errors, and the only symptom is scenes written around events that never mattered.
-  const { minSimilarity } = await getEmbedding();
-  return rows.filter((r) => r.similarity >= minSimilarity);
+  return rows.filter((r) => r.similarity >= embedding.minSimilarity);
 }
 
 /**
