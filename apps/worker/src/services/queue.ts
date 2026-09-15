@@ -26,6 +26,7 @@ const LANE_OF: Record<JobType, Lane> = {
   REFOLD_SUMMARY: "LLM",
   SCENE_BEAT: "LLM",
   REVISE_PASSAGE: "LLM",
+  READING_COPY: "LLM",
   WRITE_SCENE: "LLM",
   TRANSLATE: "LLM",
   AUDIO_EDIT: "LLM",

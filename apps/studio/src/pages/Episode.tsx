@@ -46,6 +46,9 @@ interface ChapterSetup {
 }
 
 interface Scene {
+  /** The scene in the other language, for reading. Replaces nothing — see READING_COPY. */
+  reading: string | null;
+  readingLanguage: string | null;
   id: string;
   order: number;
   beat: string;
@@ -344,6 +347,16 @@ export function Episode() {
                           <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
                             {scene.text ? "rewrite" : "write this scene"}
                           </ActionButton>
+                          {/* Reading only: it lands beside the scene and replaces
+                              nothing. For checking what the model actually wrote in a
+                              language you do not read. */}
+                          {scene.text && (
+                            <ActionButton
+                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/reading`}
+                            >
+                              {scene.reading ? "translate again" : "translate"}
+                            </ActionButton>
+                          )}
                           {/* "another beat" replaces a beat in place, for when the scene
                               should exist and say something else. This is for when it
                               should not exist at all. */}
@@ -386,6 +399,23 @@ export function Episode() {
                       </PassageReviser>
                     ) : (
                       <div className="px-4 py-2 text-xs text-neutral-600">not written</div>
+                    )}
+
+                    {/* Folded away: it is a second copy of a scene already on screen, so
+                        open by default would double the length of every episode page. */}
+                    {scene.reading && (
+                      <details className="border-t border-neutral-900">
+                        <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
+                          Read in {languageLabel(scene.readingLanguage ?? "")}
+                        </summary>
+                        <div className="border-t border-neutral-900 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-400">
+                          {scene.reading}
+                        </div>
+                        <p className="px-4 pb-3 text-xs text-neutral-600">
+                          For reading only — never spoken, never exported, and no prompt
+                          reads it. Editing the scene above does not update this.
+                        </p>
+                      </details>
                     )}
 
                     {/* Editing the prose by HAND. A model gets a scene mostly right and

@@ -561,6 +561,27 @@ episodes.put("/:id/chapters/:chapterId", async (c) => {
  * A note is required. Without one there is nothing to ask for, and the model returns
  * the same passage with the words shuffled.
  */
+/**
+ * A reading copy of one scene in the other language.
+ *
+ * Nothing is replaced: the scene keeps its text, and this lands beside it. It is for a
+ * writer who does not read the story's language and wants to check what the model
+ * actually wrote — which, with a model that writes English well and Vietnamese badly,
+ * is the difference between noticing and not.
+ *
+ * Distinct from the TRANSLATE job on the episode, which rewrites the draft INTO the
+ * output language and does replace it. That one is production; this one is reading.
+ */
+episodes.post("/:id/scenes/:sceneId/reading", async (c) => {
+  const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  await enqueue({
+    type: "READING_COPY",
+    episodeId: c.req.param("id"),
+    payload: { sceneId: c.req.param("sceneId"), model: field(body, "model") || undefined },
+  });
+  return c.json({ ok: "Translating this scene to read…" });
+});
+
 episodes.post("/:id/scenes/:sceneId/revise", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody();

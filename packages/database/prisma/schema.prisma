@@ -70,6 +70,9 @@ enum JobType {
   REFOLD_SUMMARY
   /// Rewrite ONE selected passage of a written scene, leaving the rest byte for byte.
   REVISE_PASSAGE
+  /// A reading copy of one scene in the other language. Reuses the TRANSLATE prompt,
+  /// and unlike TRANSLATE it REPLACES NOTHING — see Scene.reading.
+  READING_COPY
   /// Propose a different beat for ONE scene, when the writer does not like the one
   /// the outline gave it.
   SCENE_BEAT
@@ -504,6 +507,18 @@ model Scene {
   beat  String
   /// The version actually used — always in the story's output language.
   text  String?
+
+  /// The scene in the OTHER language, for reading. Never spoken, never exported, and
+  /// never read by any prompt — a writer who does not read the story's language wants
+  /// to check what the model actually wrote.
+  ///
+  /// Separate from `text` on purpose. TRANSLATE replaces `text` because the draft
+  /// language is a production step; this one is a second copy that leaves the story
+  /// exactly as it is.
+  reading         String?
+  /// Which language `reading` is in, so a stale copy is visible after the story's
+  /// language changes rather than being shown as current.
+  readingLanguage String?
 
   /// The WHOLE STORY up to and including this scene, in one paragraph.
   ///
