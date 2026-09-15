@@ -228,6 +228,42 @@ async function seedGenres() {
         "The relationship is carried THROUGH physical intimacy rather than around it, so a scene that cuts away at the door has cut away from the story. Write desire the way horror writes fear: through what a body does before its owner decides to, what someone keeps noticing and cannot stop noticing, what they will not say out loud. Everyone involved is an adult and wants to be there, and that is shown inside the scene rather than assumed outside it. Anticipation carries further than description — a scene that is only choreography reads as a list.",
     },
     {
+      name: "kỳ ảo hắc ám",
+      promptName: "dark fantasy",
+      description:
+        "Magic costs something, and the cost is paid on screen — someone is worse off for having used it, including whoever won. Keep ordinary life visible: dread in a world where everything is already terrible has nothing to push against. Nobody is evil for its own sake; the frightening ones want something a listener recognises.",
+    },
+    {
+      name: "võ hiệp",
+      promptName: "wuxia",
+      description:
+        "How someone fights says what they are — restraint, cruelty, showing off — so a fight is a scene about people, not choreography. Forms of address carry the whole hierarchy and must stay exact: sư phụ, sư huynh, tiền bối, vãn bối. Debt, oath and face drive the story more often than the blade does, and a duel that settles nothing between two people is furniture.",
+    },
+    {
+      name: "tiên hiệp",
+      promptName: "xianxia (cultivation fantasy)",
+      description:
+        "Progress IS the plot, so the listener must always know which rung the character stands on and what the next one costs — years, pills, a thing given up. The ladder has to hold: a breakthrough that arrives because the scene needed one spends every stake the story had. Heaven, fate and karma act; they are not scenery.",
+    },
+    {
+      name: "khoa học viễn tưởng",
+      promptName: "science fiction",
+      description:
+        "One thing differs from our world and everything else follows from it. The story is what people DO about that difference, never the difference itself — explain nothing a character would find ordinary, the way nobody explains a lift. The technology must be able to fail, and it should.",
+    },
+    {
+      name: "hậu tận thế",
+      promptName: "post-apocalyptic",
+      description:
+        "What is missing is more vivid than what is left: name the specific absence — no antibiotics, nobody alive who remembers how the dam worked. The disaster is over and this is about after, so no flashbacks explaining it. Ordinary objects become currency, and the cruelty is practical rather than gleeful.",
+    },
+    {
+      name: "giật gân",
+      promptName: "thriller",
+      description:
+        "The listener knows something a character does not, and the waiting is the pleasure. Pace with information rather than with running: withhold one fact, pay it off, open another. Nobody survives on luck — the danger is earned by someone being good at their job, the person causing it included.",
+    },
+    {
       name: "hài",
       promptName: "comedy",
       description:
