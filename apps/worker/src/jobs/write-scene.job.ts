@@ -220,6 +220,15 @@ async function foldIntoSummary({
       await prisma.scene.update({ where: { id: sceneId }, data: { storySoFar: summary } });
     }
   } catch (err) {
+    // Logged AND recorded. Soft-failing is right — the prose is already saved and losing
+    // an episode of it to a malformed summary would be absurd — but a warning in a
+    // terminal is not a record. A fold that failed left NOTHING in `LlmRun`, so the only
+    // trace was a scene whose `storySoFar` stayed null, and the next scene quietly
+    // written without it.
+    await recordFailure(
+      { step: "STORY_SO_FAR", episodeId, sceneId, params: {} },
+      (err as Error).message,
+    );
     logger.warn(
       `[write-scene] could not fold the scene just written into the story summary (${sceneId}): ` +
         `${(err as Error).message}. The scene is saved; later scenes will not see it summarised.`,
