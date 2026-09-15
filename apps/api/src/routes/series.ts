@@ -16,7 +16,7 @@ import { rename, unlink } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { checkCover, ffprobe } from "@audio/audio";
 import { loadEnv } from "@audio/config";
-import { getDefaultLanguage } from "@audio/llm";
+import { getDefaultLanguage, getEmbedding, toVectorLiteral } from "@audio/llm";
 import { enqueue } from "../lib/queue";
 import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
 import { putLocal, safeFileName, storageRoot } from "../lib/storage";
@@ -651,14 +651,69 @@ series.get("/:id/facts", async (c) => {
       where: { seriesId },
       orderBy: [{ episodeNumber: "asc" }, { kind: "asc" }],
     }),
-    // A fact without an embedding is invisible to vector retrieval — count them so
-    // it shows. The `embedding` column is an Unsupported type, hence raw SQL.
-    prisma.$queryRaw<Array<{ n: bigint }>>`
-      SELECT count(*)::bigint AS n FROM "StoryFact"
-      WHERE "seriesId" = ${seriesId} AND embedding IS NULL`,
+    // A fact the CURRENT model cannot use is invisible to vector retrieval. Two ways
+    // for that: no vector at all, or a vector from another model — both are skipped by
+    // `retrieveFacts`, and neither says anything on its own. The `embedding` column is
+    // an Unsupported type, hence raw SQL.
+    (async () => {
+      const id = (await getEmbedding()).id;
+      return prisma.$queryRaw<Array<{ n: bigint }>>`
+        SELECT count(*)::bigint AS n FROM "StoryFact"
+        WHERE "seriesId" = ${seriesId}
+          AND (embedding IS NULL OR "embedModel" IS DISTINCT FROM ${id})`;
+    })(),
     prisma.series.findUniqueOrThrow({ where: { id: seriesId }, select: { title: true } }),
   ]);
   return c.json({ facts, missingVector: Number(missing[0]?.n ?? 0), title: meta.title });
+});
+
+/**
+ * Re-embed the facts the current model cannot use.
+ *
+ * Only the vectors are rebuilt. The fact TEXT is already stored — it is the sentence
+ * SUMMARIZE pulled out of the episode — so nothing is re-read and no writing model is
+ * called. Re-running SUMMARIZE instead would cost a real generation AND extract the
+ * same facts a second time, leaving duplicates.
+ *
+ * Picks up both cases `retrieveFacts` skips: no vector, and a vector from another
+ * model. Those are the same repair, because a vector in the wrong space is no more
+ * usable than no vector at all.
+ *
+ * Runs inline rather than as a job: embedding is one batched call per 64 facts and
+ * finishes in seconds, where a job would mean a new JobType and a lane for work that
+ * never touches the GPU.
+ */
+series.post("/:id/facts/reembed", async (c) => {
+  const seriesId = c.req.param("id");
+  const embedding = await getEmbedding();
+
+  const stale = await prisma.$queryRaw<Array<{ id: string; text: string }>>`
+    SELECT id, text FROM "StoryFact"
+    WHERE "seriesId" = ${seriesId}
+      AND (embedding IS NULL OR "embedModel" IS DISTINCT FROM ${embedding.id})
+    ORDER BY "episodeNumber" ASC`;
+
+  if (stale.length === 0) {
+    return c.json({ ok: `Every fact is already embedded by ${embedding.id}.` });
+  }
+
+  const BATCH = 64;
+  for (let i = 0; i < stale.length; i += BATCH) {
+    const chunk = stale.slice(i, i + BATCH);
+    const vectors = await embedding.embed(chunk.map((f) => f.text));
+    for (const [j, f] of chunk.entries()) {
+      // Vector and model in one statement, the same rule storeFacts follows: written
+      // apart, a crash between them leaves a vector nobody can place.
+      await prisma.$executeRaw`
+        UPDATE "StoryFact"
+        SET embedding = ${toVectorLiteral(vectors[j]!)}::vector, "embedModel" = ${embedding.id}
+        WHERE id = ${f.id}`;
+    }
+  }
+
+  return c.json({
+    ok: `Re-embedded ${stale.length} fact${stale.length === 1 ? "" : "s"} with ${embedding.id}.`,
+  });
 });
 
 /** Pin a fact: always loaded into the prompt, whatever its similarity. */

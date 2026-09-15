@@ -229,6 +229,20 @@ export async function resolveModel(input: {
   if (!fallback) {
     // Stop HERE rather than sending an empty model name: the provider would report
     // something baffling, while this points straight at what to fix.
+    //
+    // Embeddings name a different culprit, because they follow a different setting.
+    // Reporting the chat provider for them sent the reader to the Models page to fix
+    // something that page does not control — the answer is EMBED_PROVIDER in .env, or
+    // an Ollama that is not answering.
+    if (input.kind === "embed") {
+      throw new Error(
+        `No embedding model. EMBED_PROVIDER is "ollama", so one has to be pulled — ` +
+          `\`ollama pull bge-m3\` — and Ollama has to be reachable at ` +
+          `${loadEnv().OLLAMA_URL}. Set EMBED_PROVIDER="openrouter" in .env to embed ` +
+          `in the cloud instead. This is NOT the provider switch on the Models page, ` +
+          `which only chooses who writes the prose.`,
+      );
+    }
     throw new Error(
       `No model for step "${input.kind}". Go to the Models page: download one ` +
         `or pick a default. (Running provider "${await getActiveProvider()}".)`,

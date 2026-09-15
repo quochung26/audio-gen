@@ -65,11 +65,28 @@ export function Facts() {
         <Stat label="Still open" value={String(open.length)} hint="always loaded" />
         <Stat label="Pinned" value={String(pinned.length)} hint="always loaded" />
         <Stat
-          label="No vector yet"
+          label="Not retrievable"
           value={String(data.missingVector)}
-          hint={data.missingVector > 0 ? "cannot be retrieved" : "all set"}
+          hint={data.missingVector > 0 ? "no vector, or another model's" : "all set"}
         />
       </div>
+
+      {/* Two causes, one repair: a fact with no vector and a fact carrying another
+          model's vector are both skipped by retrieval, and a vector in the wrong space
+          is no more usable than none. Only the vectors are rebuilt — the text is
+          already stored, so nothing is re-read and no writing model runs. */}
+      {data.missingVector > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded border border-amber-900/50 bg-amber-950/20 p-4">
+          <ActionButton path={`/api/series/${id}/facts/reembed`}>
+            Re-embed {data.missingVector} fact{data.missingVector === 1 ? "" : "s"}
+          </ActionButton>
+          <span className="flex-1 text-xs text-neutral-400">
+            These cannot be retrieved while writing — they either have no vector, or one made
+            by a different embedding model, which cannot be compared against the current one.
+            Rebuilding embeds the stored text again; it does not re-read any episode.
+          </span>
+        </div>
+      )}
 
       {open.length > 0 && (
         <Section title={`Open threads (${open.length})`}>
