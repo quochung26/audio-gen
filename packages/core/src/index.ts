@@ -12,3 +12,4 @@ export * from "./chapter-setup";
 export * from "./language";
 export * from "./tags";
 export * from "./beat";
+export * from "./passage";

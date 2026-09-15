@@ -1,4 +1,10 @@
-import { revisedPassageSchema, toLanguage, withLanguage } from "@audio/core";
+import {
+  findPassage,
+  revisedPassageSchema,
+  splicePassage,
+  toLanguage,
+  withLanguage,
+} from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
@@ -48,16 +54,18 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
   const { episode } = scene.chapter;
   const text = scene.text ?? "";
 
-  // Locate the passage. The offset first, because a short passage can occur twice and
-  // the writer selected ONE of them.
-  let start = at >= 0 && text.slice(at, at + passage.length) === passage ? at : text.indexOf(passage);
-  if (start < 0) {
+  // `findPassage` rather than indexOf: the selection arrives through multipart, which
+  // normalises newlines to CRLF, so anything crossing a paragraph break stopped matching
+  // the stored text while every single-line selection worked. It also tolerates a
+  // browser handing back a paragraph gap as one newline, and uses `at` only to tell two
+  // identical passages apart.
+  const range = findPassage(text, passage, at);
+  if (!range) {
     throw new Error(
-      "That passage is no longer in the scene — it was rewritten or edited since it was " +
-        "selected. Select it again.",
+      "That passage could not be found in the scene — it was rewritten or edited since " +
+        "it was selected, or it appears more than once. Select it again.",
     );
   }
-  const end = start + passage.length;
 
   await setProgress(10);
   const bible = await buildSeriesBible(episode.series.id);
@@ -87,8 +95,12 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
         bible,
         // The whole scene with the selection marked, so the model can see what it has
         // to join onto at both ends.
-        scene: text.slice(0, start) + OPEN + passage + CLOSE + text.slice(end),
-        passage,
+        scene:
+          text.slice(0, range.start) + OPEN + text.slice(range.start, range.end) + CLOSE +
+          text.slice(range.end),
+        // What is ACTUALLY being replaced, read back out of the scene — not the string
+        // that arrived, whose whitespace may differ from the stored text's.
+        passage: text.slice(range.start, range.end),
         note,
       }),
       onToken: streamProgress({
@@ -117,20 +129,20 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
     await prisma.sceneRevision.create({ data: { sceneId, text } });
   }
 
-  const next = text.slice(0, start) + clean + text.slice(end);
+  const next = splicePassage(text, range, clean);
   await prisma.scene.update({ where: { id: sceneId }, data: { text: next } });
   await syncEpisodeDraft(episode.id);
 
   logger.info(
     `[revise-passage] chapter ${scene.chapter.order} scene ${scene.order} — ` +
-      `${passage.split(/\s+/).length} words → ${clean.split(/\s+/).length}`,
+      `${text.slice(range.start, range.end).split(/\s+/).length} words → ${clean.split(/\s+/).length}`,
   );
 
   await setProgress(100);
   return {
     episodeId: episode.id,
     sceneId,
-    before: passage.split(/\s+/).length,
+    before: text.slice(range.start, range.end).split(/\s+/).length,
     after: clean.split(/\s+/).length,
   };
 };
