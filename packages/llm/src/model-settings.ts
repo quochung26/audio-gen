@@ -147,6 +147,24 @@ async function resolveDefault(kind: ModelKind): Promise<{ value: string; source:
   const stored = row?.value?.trim();
   if (stored) return { value: stored, source: "setting" };
 
+  // Embeddings do NOT follow the chat provider, so the branches below must not decide
+  // for them. `getActiveProvider()` answers "who writes the prose"; embeddings follow
+  // EMBED_PROVIDER in .env, and this function is only reached for them when that says
+  // `ollama` — the other two settings never ask, because mock ignores the name and
+  // OpenRouter uses a constant.
+  //
+  // Falling through to the openrouter branch is what broke WRITE_SCENE the moment the
+  // writing moved to OpenRouter while embeddings stayed local: it returned "" and every
+  // scene died on "No model for step embed", naming a provider that was never going to
+  // run the embedding.
+  if (kind === "embed") {
+    const value = pickInstalledModel({
+      installed: await listInstalledModels(loadEnv().OLLAMA_URL),
+      wantEmbedding: true,
+    });
+    return value ? { value, source: "installed" } : { value: "", source: "none" };
+  }
+
   // The mock provider ignores the model name — and its whole reason to exist is
   // running with no models on the machine. Requiring one breaks exactly that.
   if (provider === "mock") return { value: "mock", source: "installed" };
@@ -154,9 +172,11 @@ async function resolveDefault(kind: ModelKind): Promise<{ value: string; source:
   // OpenRouter has no notion of "downloaded" — it has to be picked on the Models page.
   if (provider === "openrouter") return { value: "", source: "none" };
 
+  // `kind` is narrowed to write | utility here — the embed case returned above, which
+  // the compiler proved by rejecting `kind === "embed"` as impossible.
   const value = pickInstalledModel({
     installed: await listInstalledModels(loadEnv().OLLAMA_URL),
-    wantEmbedding: kind === "embed",
+    wantEmbedding: false,
   });
   return value ? { value, source: "installed" } : { value: "", source: "none" };
 }

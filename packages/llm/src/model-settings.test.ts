@@ -35,6 +35,7 @@ vi.mock("@audio/config", () => ({
   }),
 }));
 
+const { forgetInstalledModels } = await import("./installed-models");
 const {
   getActiveProvider,
   getDefaultModel,
@@ -229,5 +230,39 @@ describe("needsLocalGpu", () => {
   it("the mock needs no GPU either", async () => {
     await setActiveProvider("mock");
     expect(await needsLocalGpu()).toBe(false);
+  });
+});
+
+describe("the embed model does not follow the chat provider", () => {
+  // The bug: `resolveDefault` branched on getActiveProvider(), so moving the WRITING to
+  // OpenRouter made it answer "" for embeddings too, and every WRITE_SCENE died on
+  // "No model for step embed. (Running provider openrouter.)" — naming a provider that
+  // was never going to run the embedding. Embeddings follow EMBED_PROVIDER in .env.
+  it("still asks Ollama for one while OpenRouter writes the prose", async () => {
+    await setActiveProvider("openrouter");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ models: [{ name: "qwen3:8b" }, { name: "bge-m3" }] })),
+        ),
+      ),
+    );
+    forgetInstalledModels();
+
+    expect(await getDefaultModel("embed")).toBe("bge-m3");
+    // Writing still answers the OpenRouter way: nothing downloaded is relevant to it.
+    expect(await getDefaultModel("write")).toBe("");
+  });
+
+  it("returns empty when Ollama has no embedding model, rather than a writing one", async () => {
+    await setActiveProvider("openrouter");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({ models: [{ name: "qwen3:8b" }] })))),
+    );
+    forgetInstalledModels();
+
+    expect(await getDefaultModel("embed")).toBe("");
   });
 });
