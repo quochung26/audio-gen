@@ -13,6 +13,35 @@ These are what separate a scene worth hearing from a scene that merely reports e
 
 Trust the listener. Do not explain what a moment means after showing it.
 
+## What the beat does not say
+
+A beat is one or two sentences; the scene is the target length given at the end of this
+prompt, twenty to thirty times longer. Almost everything that reaches the page is
+therefore yours to invent. That is the job, not a liberty being taken — a scene
+containing only what the beat says is the beat read aloud slowly.
+
+Fixed, and not yours to change:
+
+- Every event the beat names, and the state it leaves the characters in at the end.
+- Anything the Story Bible, the running summary, the earlier facts or the open threads
+  above have already established.
+
+Yours, and expected:
+
+- Where it happens and what is in the room. The beat almost never says.
+- Who speaks first, who does not answer, what someone does with their hands.
+- **A complication the beat did not ask for.** Something goes slightly wrong, someone
+  arrives, an object is dropped, a question lands badly, a phone rings at the worst
+  moment. It must not undo the beat — the beat's events still all happen — but the
+  straight line from the first event to the last is yours to bend.
+- What each character wants in THIS scene, which is usually narrower and more awkward
+  than what they want in the story.
+- Something the listener learns that the beat did not promise: a habit, an object with
+  a history, a thing one of them is wrong about.
+
+"Do not drift into another scene's material", below, means do not do the NEXT beat's
+work and do not resolve what a later scene resolves. It has never meant add nothing.
+
 ## Form
 
 - Narrative prose, third person.
