@@ -79,8 +79,19 @@ describe("the writer's note for one scene", () => {
     expect(out).toContain("Không thoại. Chỉ có mưa.");
   });
 
-  it("says it outranks the general guidance", () => {
-    expect(renderContext({ ...base, sceneNote: "Chậm lại" })).toMatch(/overrides the general/i);
+  it("says it WINS over the beat, not merely over the general guidance", () => {
+    // The wording that failed: "overrides the general guidance above". The beat is not
+    // general guidance — it is the assignment — so a note describing a different scene
+    // lost to it silently, and the model was right to do that.
+    const out = renderContext({ ...base, sceneNote: "Họ đi dạo quanh hồ" });
+    expect(out).toMatch(/where it and the beat disagree/i);
+    expect(out).toMatch(/FOLLOW THIS/);
+  });
+
+  it("says a note may change WHAT happens, not only how it is written", () => {
+    expect(renderContext({ ...base, sceneNote: "Họ đi dạo quanh hồ" })).toMatch(
+      /add to what happens/i,
+    );
   });
 
   it("comes AFTER the beat, so the nearest instruction is the most specific", () => {

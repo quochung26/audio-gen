@@ -16,7 +16,9 @@ Trust the listener. Do not explain what a moment means after showing it.
 ## Form
 
 - Narrative prose, third person.
-- Follow the assigned beat exactly. Do not drift into another scene's material.
+- Follow the assignment exactly — the beat, plus the note for this scene if there is
+  one. Do not drift into another scene's material. The note is not optional and not
+  background: where it and the beat disagree, the note is the one that is right.
 - Keep the names and personalities set out in the Story Bible.
 - Put dialogue in quotation marks, one turn per line.
 - This will be READ ALOUD, so keep clauses speakable — but vary the rhythm. All-short sentences read as flat as all-long ones.

@@ -205,16 +205,24 @@ export function renderContext(ctx: StoryContext): string {
 
   parts.push(`## The scene to write\n${ctx.beat}`);
 
-  // Its own heading, and worded as a rule. It used to be one unlabelled line — "Note
-  // for this scene: …" — dropped among a dozen `##` blocks, which is the weakest any
-  // instruction in this prompt is formatted, while being the only one the writer typed
-  // by hand for this exact scene. It outranks the general guidance in the prompt for
-  // the same reason the retry note below it does: it is specific, and it is theirs.
+  // Read TOGETHER with the beat, and winning where the two disagree.
+  //
+  // It said "overrides the general guidance above", which was not enough: the beat is
+  // not general guidance, it is the assignment, and write-scene.md tells the model to
+  // follow it exactly. Given a note describing a walk by a lake and a beat describing
+  // a drive home, the model wrote the drive home and dropped every word of the note —
+  // correctly, by the instructions it had.
+  //
+  // The beat is generated, by NEXT_SCENE or SCENE_BEAT. The note is typed by hand, for
+  // this one scene, usually after reading what the last attempt got wrong. When those
+  // two disagree the person is right, and saying so is the whole point of the block.
   if (ctx.sceneNote) {
     parts.push(
       `## What this scene must do\n` +
-        `The writer's own instruction for THIS scene. It overrides the general guidance ` +
-        `above wherever they disagree:\n${ctx.sceneNote}`,
+        `The writer's own instruction for THIS scene, and part of the assignment — not ` +
+        `background. Read it together with the beat above: it may add to what happens, ` +
+        `change it, or say how it should be written. Where it and the beat disagree, ` +
+        `FOLLOW THIS:\n${ctx.sceneNote}`,
     );
   }
 
