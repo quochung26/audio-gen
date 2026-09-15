@@ -79,7 +79,11 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
       const model = await resolveModel({
         requested: typeof job.data.model === "string" ? job.data.model : null,
         prompt: prompt.model,
-        kind: "write",
+        // UTILITY. The write model is picked for the DRAFT language — the whole
+        // reason this step exists is that it writes that one well and the output
+        // language badly — so handing it the rewrite hands the job to the model
+        // already known to be wrong for it. Rendering faithfully is utility work.
+        kind: "utility",
       });
 
       result = await llm.generate({

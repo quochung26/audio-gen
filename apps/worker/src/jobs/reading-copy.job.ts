@@ -67,10 +67,21 @@ export const readingCopyJob: JobHandler = async ({ job, setProgress }) => {
 
   let reading: string;
   try {
+    // UTILITY, not write. Two reasons, and the first is the one that bites.
+    //
+    // The write model is chosen for the story's own language; this renders it into the
+    // OTHER one, which is not the same skill and the default cannot know it. Measured
+    // on one scene of the English story: the write model at the time — a creative
+    // finetune — produced "tiếng hùng hăng nhẹ nhàng của máy tính" and "Bảng
+    // tính đãFinally nhượng bộ", an English word spliced in mid-sentence with no space.
+    //
+    // And this is faithful rendering rather than invention, which is what the utility
+    // tier is for. On the same scene it was 5× faster and half the price for prose of
+    // the same quality — 33s against 155s.
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
       prompt: prompt.model,
-      kind: "write",
+      kind: "utility",
     });
 
     const result = await getLlm().generate({
