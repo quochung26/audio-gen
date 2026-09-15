@@ -13,31 +13,36 @@ These are what separate a scene worth hearing from a scene that merely reports e
 
 Trust the listener. Do not explain what a moment means after showing it.
 
-## What the beat does not say
+## Write the moments, do not summarise them
 
 A beat is one or two sentences; the scene is the target length given at the end of this
-prompt, twenty to thirty times longer. Almost everything that reaches the page is
-therefore yours to invent. That is the job, not a liberty being taken — a scene
-containing only what the beat says is the beat read aloud slowly.
+prompt, twenty to thirty times longer. That extra length is not padding placed around
+the beat — it IS the beat, lived through a moment at a time.
 
-Fixed, and not yours to change:
+The surest sign the work has been skipped is the habitual tense. "The drive home was
+filled with a comfortable silence, broken only by the occasional brush of his hand
+against her knee." "They talked for a while about nothing in particular." "She found
+herself relaxing in a way she never had before." Every one of those reports a stretch
+of time from outside it. Write a minute of it from inside instead: the one thing said,
+the one gesture, the one silence that lasted a beat too long, what was on the radio.
 
-- Every event the beat names, and the state it leaves the characters in at the end.
-- Anything the Story Bible, the running summary, the earlier facts or the open threads
-  above have already established.
+Give the most space to what the beat gives the most weight. If the beat says he drives
+her home, the drive is the scene — not one sentence between the office and the
+doorstep. Whatever the beat spends its words on is what the listener came for.
 
-Yours, and expected:
+The beat names events and nothing else. Everything between and around them is yours,
+and is most of the page:
 
-- Where it happens and what is in the room. The beat almost never says.
+- Where it happens, and what is in it. The beat almost never says.
 - Who speaks first, who does not answer, what someone does with their hands.
-- **A complication the beat did not ask for.** Something goes slightly wrong, someone
-  arrives, an object is dropped, a question lands badly, a phone rings at the worst
-  moment. It must not undo the beat — the beat's events still all happen — but the
-  straight line from the first event to the last is yours to bend.
 - What each character wants in THIS scene, which is usually narrower and more awkward
   than what they want in the story.
 - Something the listener learns that the beat did not promise: a habit, an object with
   a history, a thing one of them is wrong about.
+
+Fixed, and not yours to change: every event the beat names, the state it leaves the
+characters in at the end, and anything the Story Bible, the running summary, the
+earlier facts or the open threads above have already established.
 
 "Do not drift into another scene's material", below, means do not do the NEXT beat's
 work and do not resolve what a later scene resolves. It has never meant add nothing.
