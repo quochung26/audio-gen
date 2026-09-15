@@ -23,6 +23,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "SCENE_BEAT", file: "scene-beat.md" },
   { step: "SCENE_CONTEXT", file: "scene-context.md" },
   { step: "WRITE_SCENE", file: "write-scene.md" },
+  { step: "REVISE_PASSAGE", file: "revise-passage.md" },
   { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
@@ -92,6 +93,11 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // STEP, not to a model. That is deliberate here: the pairing is not specific to one
   // finetune, and 0.1 is mild enough that a large cloud model barely notices it.
   WRITE_SCENE: { temperature: 1.0, minP: 0.1, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
+  // Lower than writing a scene: this is a correction, not an invention, and the one
+  // thing it must not do is drift from the prose it has to join onto at both ends.
+  // `maxTokens` is generous against the passage itself because "add more detail" is the
+  // commonest note, and a ceiling near the original length would forbid obeying it.
+  REVISE_PASSAGE: { temperature: 0.8, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 1600 },
   // Lower than scene writing because the plot is already fixed, higher than audio
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },

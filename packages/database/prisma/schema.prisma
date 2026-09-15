@@ -68,6 +68,8 @@ enum JobType {
   /// Rebuild Scene.storySoFar down the rest of the story, after a scene in the middle
   /// of it was deleted or rewritten. Reuses the STORY_SO_FAR prompt.
   REFOLD_SUMMARY
+  /// Rewrite ONE selected passage of a written scene, leaving the rest byte for byte.
+  REVISE_PASSAGE
   /// Propose a different beat for ONE scene, when the writer does not like the one
   /// the outline gave it.
   SCENE_BEAT
@@ -153,6 +155,7 @@ enum PromptStep {
   /// third the model's guess at a story not yet written.
   NEXT_CHAPTER
   NEXT_SCENE
+  REVISE_PASSAGE
   SCENE_BEAT
   /// Ask the model WHICH context a scene needs, before writing it. NOT a job: it runs
   /// inside WRITE_SCENE, and only when the writer turns it on — see Setting

@@ -62,6 +62,7 @@ describe("the default prompts in the repo", () => {
     ["SCENE_BEAT", "scene-beat.md"],
     ["SCENE_CONTEXT", "scene-context.md"],
     ["WRITE_SCENE", "write-scene.md"],
+    ["REVISE_PASSAGE", "revise-passage.md"],
     ["TRANSLATE", "translate.md"],
     ["AUDIO_EDIT", "audio-edit.md"],
     ["SUMMARIZE", "summarize.md"],
@@ -75,7 +76,7 @@ describe("the default prompts in the repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("declares all 13 steps", () => {
+  it("declares all 14 steps", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

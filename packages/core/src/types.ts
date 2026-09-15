@@ -177,6 +177,27 @@ export const sceneBeatSchema = z.object({
 export type SceneBeat = z.infer<typeof sceneBeatSchema>;
 
 /**
+ * A rewritten passage — see the REVISE_PASSAGE step.
+ *
+ * Forced through a schema because the answer is spliced straight back into the scene
+ * between two pieces of prose that are not changing. Asked in words, a model returns
+ * "Sure, here is the revised passage:" and that sentence lands in the middle of the
+ * story, in quotation marks nobody wrote.
+ */
+export const revisedPassageSchema = z.object({
+  passage: z
+    .string()
+    .min(1)
+    .describe(
+      "The replacement for the selected passage, and nothing else. No preamble, no " +
+        "explanation, no quotation marks around it, and none of the text before or " +
+        "after the selection",
+    ),
+});
+
+export type RevisedPassage = z.infer<typeof revisedPassageSchema>;
+
+/**
  * A chapter as it is first created: a title and its OPENING beat, nothing else.
  *
  * Separate from `chapterPlanSchema`, which takes a whole array of beats and is still

@@ -6,6 +6,7 @@ import { nextChapterJob } from "../jobs/next-chapter.job";
 import { nextSceneJob } from "../jobs/next-scene.job";
 import { refoldSummaryJob } from "../jobs/refold-summary.job";
 import { sceneBeatJob } from "../jobs/scene-beat.job";
+import { revisePassageJob } from "../jobs/revise-passage.job";
 import { outlineJob } from "../jobs/outline.job";
 import { characterJob } from "../jobs/character.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
@@ -34,6 +35,7 @@ export function startLanes() {
       [JobType.NEXT_SCENE]: nextSceneJob,
       [JobType.REFOLD_SUMMARY]: refoldSummaryJob,
       [JobType.SCENE_BEAT]: sceneBeatJob,
+      [JobType.REVISE_PASSAGE]: revisePassageJob,
       [JobType.WRITE_SCENE]: writeSceneJob,
       [JobType.TRANSLATE]: translateJob,
       [JobType.AUDIO_EDIT]: audioEditJob,

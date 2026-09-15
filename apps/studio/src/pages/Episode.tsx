@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { Field, TextInput } from "@/components/Field";
+import { PassageReviser } from "@/components/PassageReviser";
 import { ScenePeoplePicker } from "@/components/ScenePeoplePicker";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
@@ -363,19 +364,26 @@ export function Episode() {
                     {/* An unwritten scene gets one thin line rather than the full
                         prose band. Three empty bands the height of a paragraph was
                         most of what a freshly outlined chapter showed. */}
-                    {stream?.sceneId === scene.id || scene.text ? (
+                    {stream?.sceneId === scene.id ? (
                       <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
-                        {stream && stream.sceneId === scene.id ? (
-                          <>
-                            {stream.text}
-                            {/* Blinking cursor: tells "still writing" apart from
-                                "finished, and that is all there was". */}
-                            <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
-                          </>
-                        ) : (
-                          scene.text
-                        )}
+                        {stream.text}
+                        {/* Blinking cursor: tells "still writing" apart from
+                            "finished, and that is all there was". */}
+                        <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-500 align-text-bottom" />
                       </div>
+                    ) : scene.text ? (
+                      /* Selecting inside the prose asks for just that part to be
+                         rewritten. Wrapped rather than placed beside it, so the
+                         selection and the form cannot disagree about what is on
+                         screen. Not while streaming: the text is still moving. */
+                      <PassageReviser
+                        path={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
+                        text={scene.text}
+                      >
+                        <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
+                          {scene.text}
+                        </div>
+                      </PassageReviser>
                     ) : (
                       <div className="px-4 py-2 text-xs text-neutral-600">not written</div>
                     )}

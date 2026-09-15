@@ -56,6 +56,12 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // the replacement still leads into the beat that follows it; `current` is what the
   // writer turned down, sent so the model does not offer it back in other words.
   SCENE_BEAT: ["bible", "context", "chapter", "soFar", "current"],
+  // Rewriting ONE passage in place. `scene` is the whole scene with the selection
+  // marked, because a passage rewritten without its surroundings stops joining onto
+  // them — the tense drifts, a name becomes a pronoun with no referent, a beat that
+  // already landed lands twice. `passage` is that selection on its own, so there is no
+  // doubt about which words are being replaced.
+  REVISE_PASSAGE: ["bible", "scene", "passage", "note"],
   // One SCENE for a chapter already under way. `previousScene` is that scene's prose in
   // full rather than a summary — the whole point is to plan from what was written, not
   // from what was planned. `position` is what stops sequential outlining ending the

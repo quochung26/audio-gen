@@ -547,6 +547,43 @@ episodes.put("/:id/chapters/:chapterId", async (c) => {
  * is `not: null`, so an empty one would otherwise send the next episode a heading with
  * nothing under it.
  */
+/**
+ * Rewrite ONE selected passage of a scene.
+ *
+ * Between the two things that existed: "rewrite" discards 900 words to fix one
+ * paragraph, and the edit box keeps them but means writing the paragraph yourself.
+ *
+ * `at` is where the selection started in the browser. Sent as a HINT, not as the
+ * splice point — the job matches on the text and uses the offset only to tell two
+ * identical passages apart, because anything editing the scene in between would move
+ * the offset silently and land the replacement mid-sentence somewhere else.
+ *
+ * A note is required. Without one there is nothing to ask for, and the model returns
+ * the same passage with the words shuffled.
+ */
+episodes.post("/:id/scenes/:sceneId/revise", async (c) => {
+  const episodeId = c.req.param("id");
+  const body = await c.req.parseBody();
+  const passage = field(body, "passage").trim();
+  const note = field(body, "note").trim();
+
+  if (!passage) throw new UserError("Select the passage to change first.");
+  if (!note) throw new UserError("Say what to change about it.");
+
+  await enqueue({
+    type: "REVISE_PASSAGE",
+    episodeId,
+    payload: {
+      sceneId: c.req.param("sceneId"),
+      passage,
+      note,
+      at: Number(field(body, "at")) || -1,
+      model: field(body, "model") || undefined,
+    },
+  });
+  return c.json({ ok: "Rewriting that passage…" });
+});
+
 episodes.put("/:id/summary", async (c) => {
   const body = await c.req.parseBody();
   const summary = field(body, "summary").trim();
