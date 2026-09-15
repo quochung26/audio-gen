@@ -26,6 +26,9 @@ interface Char {
   name: string;
   role: string | null;
   description: string | null;
+  /** Where they are NOW — rewritten by SUMMARIZE after each episode. */
+  state: string | null;
+  stateThroughEpisode: number | null;
   isNarrator: boolean;
   voiceHint: string | null;
   voice: { name: string } | null;
@@ -176,6 +179,21 @@ export function Series() {
               <p className="mt-1 text-xs text-neutral-500">{c.role}</p>
               {c.description && (
                 <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{c.description}</p>
+              )}
+
+              {/* Where they are NOW, as opposed to who they are. Written by SUMMARIZE
+                  after every episode and read back into the Story Bible on every scene
+                  write, so it is the field most likely to be quietly wrong — and it was
+                  only visible on the Characters page, two clicks from the cast list
+                  anyone actually looks at. */}
+              {c.state && (
+                <div className="mt-2 rounded border border-neutral-800/80 bg-neutral-900/50 p-2">
+                  <span className="text-xs text-neutral-500">
+                    Current state
+                    {c.stateThroughEpisode ? ` — through episode ${c.stateThroughEpisode}` : ""}
+                  </span>
+                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-400">{c.state}</p>
+                </div>
               )}
               <p className="mt-2 text-xs text-neutral-600">
                 voice hint: {c.voiceHint ?? "—"}
