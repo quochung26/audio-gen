@@ -6,6 +6,7 @@ import { GenParamsSettings } from "@/components/GenParamsSettings";
 import { ModelDownload } from "@/components/ModelDownload";
 import { ModelDefaultField } from "@/components/ModelDefaultField";
 import { OpenRouterPanel, type Status as OrStatus } from "@/components/OpenRouterPanel";
+import { EmbeddingSwitch } from "@/components/EmbeddingSwitch";
 import { ProviderSwitch } from "@/components/ProviderSwitch";
 
 interface Model {
@@ -203,49 +204,16 @@ export function Models() {
               </p>
             </div>
           )}
-
-          {/* Its own switch, not a note about a file. A machine can write in the cloud
-              and embed locally, or the reverse, so one choice must not move the other.
-              Changing it re-embeds nothing: every stored vector keeps the space it was
-              made in, and the Facts page counts and rebuilds the ones left behind. */}
-          <div className="mt-4 border-t border-neutral-800 pt-3">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-neutral-300">Embeddings run on</span>
-              <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
-                {data.embedProvider}
-              </Badge>
-              <span className="text-xs text-neutral-600">
-                — a separate choice from the one above, which only picks who writes prose
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["ollama", "Ollama — local", "Needs a pulled model and a reachable Ollama."],
-                  ["openrouter", "OpenRouter — cloud", "text-embedding-3-large, about $0.13/M tokens."],
-                  ["mock", "Mock — off", "Hashes words. Retrieval returns facts, but not the right ones."],
-                ] as const
-              ).map(([id, title, desc]) => (
-                <Form
-                  key={id}
-                  path="/api/models/embed-provider"
-                  method="PUT"
-                  submit={data.embedProvider === id ? `✓ ${title}` : title}
-                  disabled={data.embedProvider === id}
-                  className="min-w-56 flex-1 rounded border border-neutral-800 p-3"
-                >
-                  <input type="hidden" name="provider" value={id} />
-                  <p className="mb-2 text-xs text-neutral-500">{desc}</p>
-                </Form>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-neutral-600">
-              Switching does not rebuild anything. Vectors made by the old model cannot be
-              compared against the new one, so retrieval skips them — the Story facts page
-              counts those and has the button that re-embeds them.
-            </p>
-          </div>
         </div>
+      </Section>
+
+      <Section title="Embeddings">
+        <p className="-mt-1 text-xs text-neutral-500">
+          Story facts are stored as vectors so a scene can pull in only the history that bears
+          on it. This picks who makes those vectors — nothing to do with the choice above,
+          which only picks who writes the prose.
+        </p>
+        <EmbeddingSwitch provider={data.embedProvider} />
       </Section>
 
       <OpenRouterPanel />
