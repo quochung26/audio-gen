@@ -2,10 +2,13 @@ import { Hono } from "hono";
 import { OPENROUTER_EMBED_MODEL, loadEnv } from "@audio/config";
 import { prisma } from "@audio/database";
 import {
+  forgetEmbedding,
   forgetInstalledModels,
   getActiveProvider,
   getDefaultLanguage,
   getDefaultLanguageSource,
+  getEmbedProvider,
+  setEmbedProvider,
   getSceneContextMode,
   setSceneContextMode,
   getDefaultModels,
@@ -169,18 +172,19 @@ models.get("/", async (c) => {
    * the stored Ollama tag is not the model that runs, and offering to change it is
    * offering to change nothing.
    */
+  const embedProvider = await getEmbedProvider();
   const embed =
-    env.EMBED_PROVIDER === "ollama"
+    embedProvider === "ollama"
       ? defaults.embed
       : {
-          value: env.EMBED_PROVIDER === "openrouter" ? OPENROUTER_EMBED_MODEL : "mock",
+          value: embedProvider === "openrouter" ? OPENROUTER_EMBED_MODEL : "mock",
           source: "fixed" as const,
         };
 
   const configured = [
     { label: "Story writing", kind: "write" as ModelKind, ...defaults.write },
     { label: "Utility work — summaries, metadata", kind: "utility" as ModelKind, ...defaults.utility },
-    { label: `Embeddings — via ${env.EMBED_PROVIDER}`, kind: "embed" as ModelKind, ...embed },
+    { label: `Embeddings — via ${embedProvider}`, kind: "embed" as ModelKind, ...embed },
   ];
 
   const promptOverrides = promptModels.map((p) => ({
@@ -191,13 +195,38 @@ models.get("/", async (c) => {
   return c.json({
     url: env.OLLAMA_URL,
     provider,
-    embedProvider: env.EMBED_PROVIDER,
+    embedProvider,
     recent,
     language: await getDefaultLanguageSource(),
     sceneContext: await getSceneContextMode(),
     configured: configured.map((x) => ({ ...x, model: x.value })),
     promptOverrides,
     pull: withElapsed(pull),
+  });
+});
+
+/**
+ * Choose who makes the vectors.
+ *
+ * Its own route, and its own switch on the page, because it is its own decision: a
+ * machine can write in the cloud and embed locally, or the reverse. Sharing the
+ * provider switch would make one choice silently move the other.
+ *
+ * Changing it does NOT re-embed anything. Every stored vector keeps the space it was
+ * made in, and retrieval skips the ones the new provider cannot compare against —
+ * which the Facts page counts, with the button that rebuilds them.
+ */
+models.put("/embed-provider", async (c) => {
+  const body = await c.req.parseBody();
+  const value = field(body, "provider");
+  try {
+    await setEmbedProvider(value);
+  } catch (err) {
+    throw new UserError((err as Error).message);
+  }
+  forgetEmbedding();
+  return c.json({
+    ok: `Embeddings now use ${value || "the value in .env"}. Existing vectors were made by the previous model — rebuild them on the Story facts page.`,
   });
 });
 

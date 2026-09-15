@@ -1,4 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * `getEmbedding` reads `embed.provider` from the Setting table now, so the DB has to be
+ * mocked — the point of these cases is the provider choice, not Prisma. Empty means no
+ * row, which is what makes `.env` the fallback under test.
+ */
+vi.mock("@audio/database", () => ({
+  prisma: {
+    setting: {
+      findUnique: async () => null,
+      deleteMany: async () => {},
+      upsert: async () => {},
+    },
+  },
+}));
+
 import { FACT_MIN_SIMILARITY, FACT_MIN_SIMILARITY_OPENROUTER, resetEnvCache } from "@audio/config";
 import { EMBED_DIM, forgetEmbedding, getEmbedding, toVectorLiteral } from "./embedding";
 

@@ -204,19 +204,47 @@ export function Models() {
             </div>
           )}
 
-          {/* A separate decision from the one above, and no longer always local: with
-              EMBED_PROVIDER=openrouter the vectors come from the cloud too. Set in
-              .env, not here, because changing it invalidates every vector already
-              stored — see the note. */}
-          <p className="mt-3 text-xs text-neutral-500">
-            Embeddings:{" "}
-            <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
-              {data.embedProvider}
-            </Badge>{" "}
-            — set by <code>EMBED_PROVIDER</code> in <code>.env</code>, independent of the
-            choice above.
-            {data.embedProvider === "mock" && " Mock vectors carry no meaning: retrieval returns something, but not the right thing."}
-          </p>
+          {/* Its own switch, not a note about a file. A machine can write in the cloud
+              and embed locally, or the reverse, so one choice must not move the other.
+              Changing it re-embeds nothing: every stored vector keeps the space it was
+              made in, and the Facts page counts and rebuilds the ones left behind. */}
+          <div className="mt-4 border-t border-neutral-800 pt-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-neutral-300">Embeddings run on</span>
+              <Badge tone={data.embedProvider === "mock" ? "amber" : "green"}>
+                {data.embedProvider}
+              </Badge>
+              <span className="text-xs text-neutral-600">
+                — a separate choice from the one above, which only picks who writes prose
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["ollama", "Ollama — local", "Needs a pulled model and a reachable Ollama."],
+                  ["openrouter", "OpenRouter — cloud", "text-embedding-3-large, about $0.13/M tokens."],
+                  ["mock", "Mock — off", "Hashes words. Retrieval returns facts, but not the right ones."],
+                ] as const
+              ).map(([id, title, desc]) => (
+                <Form
+                  key={id}
+                  path="/api/models/embed-provider"
+                  method="PUT"
+                  submit={data.embedProvider === id ? `✓ ${title}` : title}
+                  disabled={data.embedProvider === id}
+                  className="min-w-56 flex-1 rounded border border-neutral-800 p-3"
+                >
+                  <input type="hidden" name="provider" value={id} />
+                  <p className="mb-2 text-xs text-neutral-500">{desc}</p>
+                </Form>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-neutral-600">
+              Switching does not rebuild anything. Vectors made by the old model cannot be
+              compared against the new one, so retrieval skips them — the Story facts page
+              counts those and has the button that re-embeds them.
+            </p>
+          </div>
         </div>
       </Section>
 

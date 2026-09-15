@@ -212,20 +212,31 @@ function hashVector(text: string, dim: number): number[] {
   return v.map((x) => x / norm);
 }
 
-let cached: EmbeddingProvider | undefined;
+/**
+ * Built lazily and remembered PER PROVIDER, the same shape `ActiveProvider` uses for
+ * chat. One slot would mean a switch on the Models page took effect only after a
+ * restart, which is the cost this setting exists to remove.
+ */
+const built = new Map<string, EmbeddingProvider>();
 
 /**
  * The embedding provider.
  *
- * The model no longer comes from `.env` but from the Models page (or a downloaded
- * model suited to embedding). Hence this being async — the provider has to know its
- * model before being built, rather than leaving it blank and sending Ollama nothing.
+ * Neither half comes from `.env` any more. WHICH provider is a Setting, changeable
+ * from the Models page and re-read on every call; WHICH model is the Models page too
+ * for Ollama, and a constant for OpenRouter. Hence this being async — the provider has
+ * to know its model before being built, rather than leaving it blank and sending
+ * Ollama nothing.
  */
 export async function getEmbedding(): Promise<EmbeddingProvider> {
-  if (cached) return cached;
+  const { getEmbedProvider } = await import("./model-settings");
+  const provider = await getEmbedProvider();
+  const hit = built.get(provider);
+  if (hit) return hit;
+
   const env = loadEnv();
 
-  if (env.EMBED_PROVIDER === "openrouter") {
+  if (provider === "openrouter") {
     if (!env.OPENROUTER_API_KEY) {
       throw new LlmError(
         "EMBED_PROVIDER is openrouter but OPENROUTER_API_KEY is not set in .env.",
@@ -234,27 +245,31 @@ export async function getEmbedding(): Promise<EmbeddingProvider> {
     // The model is a constant, not `resolveModel`: the Models page's embed slot holds
     // an Ollama tag, and sending "bge-m3" to OpenRouter asks for a model that does not
     // exist there. See OPENROUTER_EMBED_MODEL for why it is not configurable.
-    cached = new OpenRouterEmbedding(
+    const p = new OpenRouterEmbedding(
       env.OPENROUTER_API_KEY,
       env.OPENROUTER_URL,
       OPENROUTER_EMBED_MODEL,
     );
-    return cached;
+    built.set(provider, p);
+    return p;
   }
 
-  if (env.EMBED_PROVIDER !== "ollama") {
-    cached = new MockEmbedding();
-    return cached;
+  if (provider !== "ollama") {
+    const p = new MockEmbedding();
+    built.set(provider, p);
+    return p;
   }
 
   const { resolveModel } = await import("./model-settings");
-  cached = new OllamaEmbedding(env.OLLAMA_URL, await resolveModel({ kind: "embed" }));
-  return cached;
+  // NOT remembered: the model behind it comes from the Models page and from what is
+  // pulled, both of which change while the worker runs. The provider object is cheap;
+  // a stale model name inside it is not.
+  return new OllamaEmbedding(env.OLLAMA_URL, await resolveModel({ kind: "embed" }));
 }
 
-/** Forget the remembered provider — call when the embedding model changes. */
+/** Forget the remembered providers — call when the embedding model changes. */
 export function forgetEmbedding(): void {
-  cached = undefined;
+  built.clear();
 }
 
 /** Format a vector for pgvector: '[0.1,0.2,...]' */

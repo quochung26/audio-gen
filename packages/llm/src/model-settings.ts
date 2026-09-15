@@ -19,6 +19,7 @@ import { listInstalledModels, pickInstalledModel } from "./installed-models";
 export type ModelKind = "write" | "utility" | "embed";
 
 const PROVIDER_KEY = "llm.provider";
+const EMBED_PROVIDER_KEY = "embed.provider";
 const SCENE_CONTEXT_KEY = "scene.context";
 
 /**
@@ -100,6 +101,52 @@ export async function getActiveProvider(): Promise<ProviderName> {
   const stored = row?.value?.trim();
   if (stored && isProviderName(stored)) return stored;
   return DEFAULT_PROVIDER;
+}
+
+/**
+ * Who makes the vectors — a SEPARATE decision from who writes the prose.
+ *
+ * Separate because the two do not move together: a machine can write in the cloud and
+ * embed locally, or the other way round, and the common reason to change one is not a
+ * reason to change the other.
+ *
+ * In the Setting table, with `.env` as the fallback, for the reason `llm.provider` is:
+ * changing it in `.env` needs a full restart of the worker AND the API, since dotenv
+ * reads the file once at exec and `loadEnv` memoises the result. That restart is the
+ * whole cost of a decision that is one click otherwise.
+ *
+ * `openrouter` here is NOT the same choice as `openrouter` for writing. Embeddings use
+ * a fixed model tied to a measured similarity floor; the writing provider has nothing
+ * to do with it.
+ */
+export type EmbedProviderName = "mock" | "ollama" | "openrouter";
+
+function isEmbedProvider(v: string): v is EmbedProviderName {
+  return v === "mock" || v === "ollama" || v === "openrouter";
+}
+
+export async function getEmbedProvider(): Promise<EmbedProviderName> {
+  const row = await prisma.setting.findUnique({ where: { key: EMBED_PROVIDER_KEY } });
+  const stored = row?.value?.trim();
+  if (stored && isEmbedProvider(stored)) return stored;
+  // `.env` is the floor, not the source of truth — a machine set up before this
+  // existed keeps answering the way it always did.
+  return loadEnv().EMBED_PROVIDER;
+}
+
+/** Change it. An empty string clears the setting, falling back to `.env`. */
+export async function setEmbedProvider(value: string): Promise<void> {
+  const v = value.trim();
+  if (!v) {
+    await prisma.setting.deleteMany({ where: { key: EMBED_PROVIDER_KEY } });
+    return;
+  }
+  if (!isEmbedProvider(v)) throw new Error(`Invalid embedding provider: "${v}"`);
+  await prisma.setting.upsert({
+    where: { key: EMBED_PROVIDER_KEY },
+    create: { key: EMBED_PROVIDER_KEY, value: v },
+    update: { value: v },
+  });
 }
 
 /** Change provider. An empty string clears it, back to the built-in default. */
@@ -236,11 +283,10 @@ export async function resolveModel(input: {
     // an Ollama that is not answering.
     if (input.kind === "embed") {
       throw new Error(
-        `No embedding model. EMBED_PROVIDER is "ollama", so one has to be pulled — ` +
+        `No embedding model. Embeddings are set to Ollama, so one has to be pulled — ` +
           `\`ollama pull bge-m3\` — and Ollama has to be reachable at ` +
-          `${loadEnv().OLLAMA_URL}. Set EMBED_PROVIDER="openrouter" in .env to embed ` +
-          `in the cloud instead. This is NOT the provider switch on the Models page, ` +
-          `which only chooses who writes the prose.`,
+          `${loadEnv().OLLAMA_URL}. Or switch embeddings to OpenRouter on the Models ` +
+          `page. That is a different switch from the one choosing who writes the prose.`,
       );
     }
     throw new Error(
