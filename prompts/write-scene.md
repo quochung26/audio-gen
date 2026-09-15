@@ -57,7 +57,15 @@ work and do not resolve what a later scene resolves. It has never meant add noth
 - Do not drift into another scene's material.
 - Keep the names and personalities set out in the Story Bible.
 - Put dialogue in quotation marks, one turn per line.
-- This will be READ ALOUD, so keep clauses speakable — but vary the rhythm. All-short sentences read as flat as all-long ones.
+- This will be READ ALOUD, so keep clauses speakable.
+- **Vary sentence length on purpose, and mostly write long.** A page whose sentences
+  average under eight words reads as a telegram however good each one is, and the
+  clipped ones only land when there is something longer around them. Let description,
+  movement and interior thought run on; keep the fragments for the moments that
+  actually turn. "The report was done. Saved. Emailed." is three sentences doing the
+  work of one clause.
+- A paragraph is usually more than one sentence. A one-line paragraph is emphasis, and
+  emphasis stops meaning anything when half the page is made of it.
 - No title, no numbering, no notes. Return the scene text only.
 - Do not recap the previous scene. Write on, for a listener who has followed from the start.
 
