@@ -413,18 +413,20 @@ export function Episode() {
                               Not translated yet.
                             </p>
                           )}
-                          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-neutral-900 pt-3">
-                            <ActionButton
-                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/reading`}
-                            >
-                              {scene.reading ? "translate again" : "translate"}
-                            </ActionButton>
-                            <span className="flex-1 text-xs text-neutral-600">
+                          {/* A Form rather than a bare button, so the picker's
+                              `<select name="model">` is actually submitted — an
+                              ActionButton posts a fixed body and would drop it. */}
+                          <Form
+                            path={`/api/episodes/${ep.id}/scenes/${scene.id}/reading`}
+                            submit={scene.reading ? "translate again" : "translate"}
+                            className="mt-3 border-t border-neutral-900 pt-3"
+                          >
+                            <ModelPicker kind="translate" />
+                            <p className="mt-2 text-xs text-neutral-600">
                               For reading only — never spoken, never exported, and no prompt
-                              reads it. Editing the scene above does not update it. Uses the
-                              Translation model on the Models page.
-                            </span>
-                          </div>
+                              reads it. Editing the scene above does not update it.
+                            </p>
+                          </Form>
                         </div>
                       </details>
                     )}

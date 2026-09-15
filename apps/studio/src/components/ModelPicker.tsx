@@ -2,13 +2,25 @@ import { useApi } from "@/lib/api";
 import { modelChoices } from "@/lib/model-choices";
 
 interface ModelsData {
-  reachable: boolean;
   provider: string;
   /** Ollama address — so the explanation points straight at what to fix. */
   url: string;
-  installed: Array<{ name: string; parameterSize: string | null; quantization: string | null }>;
   recent: string[];
   configured: Array<{ label: string; kind: string; value: string }>;
+}
+
+/**
+ * The Ollama probe, its own request since the Models page stopped waiting on it.
+ *
+ * Fetched here too, and NOT optional: `reachable` and `installed` moved out of
+ * `/api/models` with that split, so this component went on reading two fields the
+ * route no longer sends. Under OpenRouter nothing showed, because that branch only
+ * uses `recent`; under Ollama the list was permanently empty with "cannot reach
+ * Ollama" as the reason, whatever Ollama was doing.
+ */
+interface OllamaData {
+  reachable: boolean;
+  installed: Array<{ name: string; parameterSize: string | null; quantization: string | null }>;
 }
 
 /**
@@ -23,11 +35,21 @@ interface ModelsData {
  * - OpenRouter: models used recently. You cannot pour 300+ models into a select;
  *   to try a new one, use the Models page, which has search and pricing.
  */
-export function ModelPicker({ kind = "write" }: { kind?: "write" | "utility" }) {
+export function ModelPicker({
+  kind = "write",
+}: {
+  kind?: "write" | "utility" | "translate";
+}) {
   const { data } = useApi<ModelsData>("/api/models");
+  // Same keys as the Models page, so TanStack Query shares both requests.
+  const { data: ollama } = useApi<OllamaData>("/api/models/ollama");
   if (!data) return null;
 
-  const { choices, reason } = modelChoices(data);
+  const { choices, reason } = modelChoices({
+    ...data,
+    reachable: ollama?.reachable ?? false,
+    installed: ollama?.installed ?? [],
+  });
   const def = data.configured.find((c) => c.kind === kind);
 
   // This block used to disappear when there was nothing to pick — the form then
