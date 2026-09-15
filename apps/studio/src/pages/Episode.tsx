@@ -59,7 +59,6 @@ interface Scene {
    * Folded by STORY_SO_FAR right after the scene is written, and read by every scene
    * after it — the one account of the story a scene write gets.
    */
-  storySoFar: string | null;
   /**
    * What this scene said before an edit — kept only while the episode is PUBLISHED.
    * Newest first, capped at five by the API.
@@ -379,78 +378,6 @@ export function Episode() {
                       </div>
                     ) : (
                       <div className="px-4 py-2 text-xs text-neutral-600">not written</div>
-                    )}
-
-                    {/* The paragraph every LATER scene reads. Shown because it was
-                        invisible: computed, stored, fed into every prompt, and never
-                        once on screen — which is how it went a dozen commits being
-                        built at both ends and never connected in the middle.
-
-                        Editable because a fold that went wrong — a death dropped, a
-                        reconciliation invented — poisons every scene after this one
-                        until somebody corrects it, and rewriting the scene to force a
-                        re-fold is a far bigger hammer. */}
-                    {scene.storySoFar && (
-                      <details className="border-t border-neutral-900">
-                        <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
-                          The story so far, after this scene
-                        </summary>
-                        <div className="border-t border-neutral-900 px-4 py-3">
-                          <Form
-                            path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
-                            method="PUT"
-                            submit="Save the summary"
-                          >
-                            {/* `key` on the value, and this is the reason it appears on
-                                four inputs on this page: `defaultValue` is applied ONCE,
-                                when the element mounts. Everything here is also written
-                                by a job, and the page polls every 3 seconds — so the box
-                                went on showing whatever was in it when the page loaded
-                                while the text underneath had already changed. Pressing
-                                "summarise again" and watching the box not move is how it
-                                was found.
-
-                                Keyed on the value, the element is replaced when and only
-                                when the value actually changes, so it picks the new text
-                                up. A poll returning the same value leaves it alone, which
-                                is what protects anything half-typed. */}
-                            <textarea
-                              key={scene.storySoFar}
-                              name="storySoFar"
-                              rows={7}
-                              defaultValue={scene.storySoFar}
-                              className="w-full rounded border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed outline-none focus:border-neutral-600"
-                            />
-                            <p className="mt-2 text-xs text-neutral-600">
-                              What every scene AFTER this one is told about the story — and
-                              nothing else. Rewritten automatically each time this scene is
-                              written; edit it when the fold lost something or invented
-                              something. Empty removes the block from the next scene&apos;s
-                              prompt entirely.
-                            </p>
-                          </Form>
-
-                          {/* Each paragraph is the one before it plus a scene, so editing
-                              this one — or the prose above it — leaves every LATER
-                              paragraph still describing the old version. The deletes
-                              repair that themselves; an edit offers it, because refolding
-                              the rest of the story on every save would be dozens of model
-                              calls to fix a typo. */}
-                          <div className="mt-3 flex items-baseline gap-3 border-t border-neutral-900 pt-3">
-                            <ActionButton
-                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/refold`}
-                              confirmText="Rebuild the running summary of every scene from here to the end of the story? That is one model call per written scene."
-                            >
-                              rebuild from here
-                            </ActionButton>
-                            <span className="flex-1 text-xs text-neutral-600">
-                              Re-folds every later scene&apos;s summary too — needed after
-                              editing this scene&apos;s prose, not after editing the
-                              paragraph above.
-                            </span>
-                          </div>
-                        </div>
-                      </details>
                     )}
 
                     {/* Editing the prose by HAND. A model gets a scene mostly right and
