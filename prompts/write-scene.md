@@ -51,8 +51,10 @@ work and do not resolve what a later scene resolves. It has never meant add noth
 
 - Narrative prose, third person.
 - Follow the assignment exactly — the beat, plus the note for this scene if there is
-  one. Do not drift into another scene's material. The note is not optional and not
-  background: where it and the beat disagree, the note is the one that is right.
+  one. BOTH of them, not whichever is easier: everything each one asks for happens in
+  the scene. They are almost always compatible, and fitting them together is part of
+  the work. Only where the two cannot both be true is the note the one that is right.
+- Do not drift into another scene's material.
 - Keep the names and personalities set out in the Story Bible.
 - Put dialogue in quotation marks, one turn per line.
 - This will be READ ALOUD, so keep clauses speakable — but vary the rhythm. All-short sentences read as flat as all-long ones.

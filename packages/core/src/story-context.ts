@@ -220,9 +220,11 @@ export function renderContext(ctx: StoryContext): string {
     parts.push(
       `## What this scene must do\n` +
         `The writer's own instruction for THIS scene, and part of the assignment — not ` +
-        `background. Read it together with the beat above: it may add to what happens, ` +
-        `change it, or say how it should be written. Where it and the beat disagree, ` +
-        `FOLLOW THIS:\n${ctx.sceneNote}`,
+        `background. Everything it asks for HAPPENS in the scene, alongside everything ` +
+        `the beat asks for. Fit them together rather than choosing between them: the ` +
+        `beat is usually the frame the scene opens and closes on, and this is what ` +
+        `fills it. Only where the two cannot both be true does this one win:\n` +
+        ctx.sceneNote,
     );
   }
 

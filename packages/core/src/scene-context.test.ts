@@ -79,18 +79,19 @@ describe("the writer's note for one scene", () => {
     expect(out).toContain("Không thoại. Chỉ có mưa.");
   });
 
-  it("says it WINS over the beat, not merely over the general guidance", () => {
-    // The wording that failed: "overrides the general guidance above". The beat is not
-    // general guidance — it is the assignment — so a note describing a different scene
-    // lost to it silently, and the model was right to do that.
+  it("asks for the note AND the beat, not one or the other", () => {
+    // Two wordings failed before this. "Overrides the general guidance above" lost to
+    // the beat, which is not general guidance but the assignment. Then "where it and
+    // the beat disagree, FOLLOW THIS" read as either/or, and at temperature 1 the same
+    // scene came back as the beat's story on one run and the note's on the next.
     const out = renderContext({ ...base, sceneNote: "Họ đi dạo quanh hồ" });
-    expect(out).toMatch(/where it and the beat disagree/i);
-    expect(out).toMatch(/FOLLOW THIS/);
+    expect(out).toMatch(/alongside everything the beat asks for/i);
+    expect(out).toMatch(/rather than choosing between them/i);
   });
 
-  it("says a note may change WHAT happens, not only how it is written", () => {
+  it("keeps the note as the winner for the case where both cannot be true", () => {
     expect(renderContext({ ...base, sceneNote: "Họ đi dạo quanh hồ" })).toMatch(
-      /add to what happens/i,
+      /cannot both be true does this one win/i,
     );
   });
 
