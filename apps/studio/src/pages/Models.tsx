@@ -343,7 +343,10 @@ export function Models() {
           <strong className="text-neutral-300">nothing</strong> — and a job reaching that step stops
           with a message, instead of dying on a model name that does not exist. Each provider
           remembers its own — these are the models for{" "}
-          <strong className="text-neutral-300">{data.provider}</strong>.
+          <strong className="text-neutral-300">{data.provider}</strong>.{" "}
+          <strong className="text-neutral-300">Translation</strong> is separate because it is the
+          one job written in the OTHER language: a model picked for the story&apos;s own language
+          can be hopeless outside it. Left empty it follows the utility model.
         </p>
         <div className="space-y-3">
           {data.configured.map((cfg) =>

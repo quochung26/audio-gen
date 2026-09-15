@@ -16,7 +16,7 @@ import { listInstalledModels, pickInstalledModel } from "./installed-models";
  * default model is a routine thing while experimenting; editing `.env` would mean
  * restarting
  */
-export type ModelKind = "write" | "utility" | "embed";
+export type ModelKind = "write" | "utility" | "embed" | "translate";
 
 const PROVIDER_KEY = "llm.provider";
 const EMBED_PROVIDER_KEY = "embed.provider";
@@ -194,6 +194,16 @@ async function resolveDefault(kind: ModelKind): Promise<{ value: string; source:
   const stored = row?.value?.trim();
   if (stored) return { value: stored, source: "setting" };
 
+  // Translation falls back to UTILITY rather than to what is installed. It is its own
+  // tier because it is the one job whose language is the OTHER one — the writing model
+  // is chosen for the story's own language and can be hopeless outside it, which is the
+  // entire reason the draft-language step exists. But most machines will never set it,
+  // and utility is the right answer for them: faithful rendering, not invention.
+  if (kind === "translate") {
+    const fallback = await resolveDefault("utility");
+    return { value: fallback.value, source: fallback.value ? "installed" : "none" };
+  }
+
   // Embeddings do NOT follow the chat provider, so the branches below must not decide
   // for them. `getActiveProvider()` answers "who writes the prose"; embeddings follow
   // EMBED_PROVIDER in .env, and this function is only reached for them when that says
@@ -234,7 +244,7 @@ export async function getDefaultModels(): Promise<
   // In parallel, not one after another. Each kind may ask Ollama what is installed,
   // and sequentially that is three timeouts back to back whenever it is down —
   // six seconds before the Models page could render anything at all.
-  const kinds: ModelKind[] = ["write", "utility", "embed"];
+  const kinds: ModelKind[] = ["write", "utility", "translate", "embed"];
   const resolved = await Promise.all(kinds.map((k) => resolveDefault(k)));
   const out = {} as Record<ModelKind, { value: string; source: ModelSource }>;
   kinds.forEach((kind, i) => (out[kind] = resolved[i]!));

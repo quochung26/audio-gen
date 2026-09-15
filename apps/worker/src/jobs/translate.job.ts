@@ -83,7 +83,7 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
         // reason this step exists is that it writes that one well and the output
         // language badly — so handing it the rewrite hands the job to the model
         // already known to be wrong for it. Rendering faithfully is utility work.
-        kind: "utility",
+        kind: "translate",
       });
 
       result = await llm.generate({

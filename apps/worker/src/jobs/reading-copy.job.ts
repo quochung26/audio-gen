@@ -81,7 +81,7 @@ export const readingCopyJob: JobHandler = async ({ job, setProgress }) => {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
       prompt: prompt.model,
-      kind: "utility",
+      kind: "translate",
     });
 
     const result = await getLlm().generate({

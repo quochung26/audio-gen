@@ -184,6 +184,11 @@ models.get("/", async (c) => {
   const configured = [
     { label: "Story writing", kind: "write" as ModelKind, ...defaults.write },
     { label: "Utility work — summaries, metadata", kind: "utility" as ModelKind, ...defaults.utility },
+    {
+      label: "Translation — reading copies, draft rewrites",
+      kind: "translate" as ModelKind,
+      ...defaults.translate,
+    },
     { label: `Embeddings — via ${embedProvider}`, kind: "embed" as ModelKind, ...embed },
   ];
 

@@ -347,16 +347,6 @@ export function Episode() {
                           <ActionButton path={`/api/episodes/${ep.id}/scenes/${scene.id}/write`}>
                             {scene.text ? "rewrite" : "write this scene"}
                           </ActionButton>
-                          {/* Reading only: it lands beside the scene and replaces
-                              nothing. For checking what the model actually wrote in a
-                              language you do not read. */}
-                          {scene.text && (
-                            <ActionButton
-                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/reading`}
-                            >
-                              {scene.reading ? "translate again" : "translate"}
-                            </ActionButton>
-                          )}
                           {/* "another beat" replaces a beat in place, for when the scene
                               should exist and say something else. This is for when it
                               should not exist at all. */}
@@ -401,20 +391,41 @@ export function Episode() {
                       <div className="px-4 py-2 text-xs text-neutral-600">not written</div>
                     )}
 
-                    {/* Folded away: it is a second copy of a scene already on screen, so
-                        open by default would double the length of every episode page. */}
-                    {scene.reading && (
+                    {/* Reading, not generating — so it sits with the other things done
+                        TO a finished scene rather than in the row that makes one. The
+                        panel is folded away because it is a second copy of a scene
+                        already on screen, and open by default would double the length
+                        of every episode page. */}
+                    {scene.text && !active && (
                       <details className="border-t border-neutral-900">
                         <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
-                          Read in {languageLabel(scene.readingLanguage ?? "")}
+                          {scene.reading
+                            ? `Read in ${languageLabel(scene.readingLanguage ?? "")}`
+                            : "Read it in the other language"}
                         </summary>
-                        <div className="border-t border-neutral-900 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-400">
-                          {scene.reading}
+                        <div className="border-t border-neutral-900 px-4 py-3">
+                          {scene.reading ? (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-neutral-400">
+                              {scene.reading}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-neutral-500">
+                              Not translated yet.
+                            </p>
+                          )}
+                          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-neutral-900 pt-3">
+                            <ActionButton
+                              path={`/api/episodes/${ep.id}/scenes/${scene.id}/reading`}
+                            >
+                              {scene.reading ? "translate again" : "translate"}
+                            </ActionButton>
+                            <span className="flex-1 text-xs text-neutral-600">
+                              For reading only — never spoken, never exported, and no prompt
+                              reads it. Editing the scene above does not update it. Uses the
+                              Translation model on the Models page.
+                            </span>
+                          </div>
                         </div>
-                        <p className="px-4 pb-3 text-xs text-neutral-600">
-                          For reading only — never spoken, never exported, and no prompt
-                          reads it. Editing the scene above does not update this.
-                        </p>
                       </details>
                     )}
 
