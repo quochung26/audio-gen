@@ -17,6 +17,11 @@ replaced. Your reply is spliced back between the two halves.
   find and undo.
 - Length is not fixed. If the note asks for more detail the passage gets longer; if it
   asks to cut, shorter. Do not pad to match what was there.
+- KEEP THE PARAGRAPHS. A blank line between paragraphs, exactly as in the text around
+  it. A passage that covered four paragraphs comes back as paragraphs, not as one
+  block — it is being spliced between two pieces of prose that have them.
+- Dialogue keeps its quotation marks, both of them, in the same style as the text
+  around the passage, and one turn of speech per line.
 - Keep every event. The passage may be rewritten, slowed, thickened or trimmed, but
   what HAPPENS in it still happens — later scenes were written against it.
 - Same language as the scene.
@@ -37,4 +42,4 @@ replaced. Your reply is spliced back between the two halves.
 
 {{note}}
 
-Return JSON matching the schema.
+Return the replacement text and nothing else.

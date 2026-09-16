@@ -1,10 +1,4 @@
-import {
-  findPassage,
-  revisedPassageSchema,
-  splicePassage,
-  toLanguage,
-  withLanguage,
-} from "@audio/core";
+import { findPassage, splicePassage, toLanguage, withLanguage } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
@@ -87,10 +81,17 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
       kind: "write",
     });
 
-    const result = await getLlm().generateJson({
+    // PLAIN TEXT, not generateJson. Forcing the reply through a JSON string is what
+    // flattened the prose: a model writing `{"passage": "..."}` avoids newlines to keep
+    // the JSON valid, so a four-paragraph selection came back as 259 words in one block
+    // with paragraph breaks rendered as two spaces. The schema bought a guaranteed-clean
+    // string and cost the structure the splice exists to preserve.
+    //
+    // The preamble it was guarding against is handled the way WRITE_SCENE and TRANSLATE
+    // handle it — by saying so in the prompt — plus the strip below.
+    const result = await getLlm().generate({
       model,
       system: withLanguage(toLanguage(episode.series.language)),
-      schema: revisedPassageSchema,
       prompt: renderTemplate(prompt.content, {
         bible,
         // The whole scene with the selection marked, so the model can see what it has
@@ -112,16 +113,29 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
       ...(prompt.params as object),
     });
     await recordRun(ctx, result);
-    replacement = result.data.passage.trim();
+    replacement = result.text.trim();
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
   }
 
   if (!replacement) throw new Error("The model returned an empty passage");
+
   // It is told not to, and it sometimes does anyway: a reply that still carries the
   // marks would splice them into the story.
-  const clean = replacement.split(OPEN).join("").split(CLOSE).join("").trim();
+  let clean = replacement.split(OPEN).join("").split(CLOSE).join("").trim();
+
+  // A leading "Here is the revised passage:" would be spliced into the middle of a
+  // sentence. Only a FIRST line is considered, and only one that announces itself and
+  // is followed by a blank line — prose does not open that way, and a real first
+  // sentence never ends in a colon.
+  const firstBreak = clean.indexOf("\n\n");
+  if (firstBreak > 0 && firstBreak < 120) {
+    const head = clean.slice(0, firstBreak).trim();
+    if (/^(here|sure|certainly|okay|revised|rewritten)\b/i.test(head) && head.endsWith(":")) {
+      clean = clean.slice(firstBreak + 2).trim();
+    }
+  }
 
   // Keep what the scene said before, but only once the episode is published — the same
   // rule the hand-editing route follows, and for the same reason.
