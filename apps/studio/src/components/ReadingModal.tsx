@@ -30,12 +30,23 @@ export function ReadingModal({
   const ref = useRef<HTMLDialogElement>(null);
   const [size, setSize] = useState<(typeof SIZES)[number]["id"]>("l");
 
+  /**
+   * `<dialog>`'s methods are feature-checked, not assumed.
+   *
+   * jsdom renders the element but implements neither `showModal` nor `close`, so the
+   * unmount cleanup threw "d?.close is not a function" and took every test that renders
+   * an episode down with it. The same guard covers a browser old enough to lack the
+   * element, where the button does nothing rather than throwing.
+   */
+  const open = () => ref.current?.showModal?.();
+  const close = () => ref.current?.close?.();
+
   // Closed on unmount. The episode page re-renders on a 3-second poll and a scene can
   // vanish under it — a chapter deleted in another tab — and a `<dialog>` left open by
   // a removed subtree keeps the whole page inert behind a backdrop nobody can dismiss.
   useEffect(() => {
     const d = ref.current;
-    return () => d?.close();
+    return () => d?.close?.();
   }, []);
 
   const s = SIZES.find((x) => x.id === size)!;
@@ -44,7 +55,7 @@ export function ReadingModal({
     <>
       <button
         type="button"
-        onClick={() => ref.current?.showModal()}
+        onClick={open}
         className="rounded border border-neutral-700 px-3 py-1.5 text-sm whitespace-nowrap text-neutral-300 transition hover:border-neutral-500"
       >
         Open to read
@@ -55,7 +66,7 @@ export function ReadingModal({
         // Clicking the backdrop closes it. The check is on the target being the dialog
         // itself: clicks inside land on a child, so selecting text does not close it.
         onClick={(e) => {
-          if (e.target === ref.current) ref.current?.close();
+          if (e.target === ref.current) close();
         }}
         className="m-auto max-h-[88vh] w-[min(92vw,58rem)] rounded-lg border border-neutral-700 bg-neutral-950 p-0 text-neutral-100 backdrop:bg-black/70"
       >
@@ -85,7 +96,7 @@ export function ReadingModal({
 
           <button
             type="button"
-            onClick={() => ref.current?.close()}
+            onClick={close}
             className="rounded border border-neutral-700 px-2.5 py-1 text-xs text-neutral-400 hover:border-neutral-500 hover:text-neutral-100"
           >
             Close

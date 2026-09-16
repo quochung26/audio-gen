@@ -383,6 +383,13 @@ export function Episode() {
                       <PassageReviser
                         path={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
                         text={scene.text}
+                        actions={
+                          <ReadingModal
+                            title={`Scene ${chapter.order}.${scene.order}`}
+                            subtitle={`${ep.number}. ${ep.title}`}
+                            text={scene.text}
+                          />
+                        }
                       >
                         <div className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-neutral-300">
                           {scene.text}

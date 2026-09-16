@@ -14,12 +14,19 @@ import { ActionButton } from "@/components/Form";
 export function PassageReviser({
   path,
   text,
+  actions,
   children,
 }: {
   /** POST target — `/api/episodes/:id/scenes/:sceneId/revise`. */
   path: string;
   /** The scene as stored. The selection is measured against exactly this string. */
   text: string;
+  /**
+   * Put beside the hint below the prose — anything that acts on the whole scene rather
+   * than on a selection. A slot rather than a second row, because two footers under one
+   * block of prose is one more line to read past on a page of six scenes.
+   */
+  actions?: React.ReactNode;
   /** The rendered prose, so the reader's view is unchanged when nothing is selected. */
   children: React.ReactNode;
 }) {
@@ -99,9 +106,12 @@ export function PassageReviser({
           </div>
         </div>
       ) : (
-        <p className="px-4 pb-2 text-xs text-neutral-700">
-          Select any part of the text above to have just that part rewritten.
-        </p>
+        <div className="flex flex-wrap items-center gap-3 px-4 pb-3">
+          {actions}
+          <p className="flex-1 text-xs text-neutral-700">
+            Select any part of the text above to have just that part rewritten.
+          </p>
+        </div>
       )}
     </div>
   );
