@@ -20,6 +20,42 @@ export const characterOverrideSchema = z.object({
 export type CharacterOverride = z.infer<typeof characterOverrideSchema>;
 
 /**
+ * Read the one-per-line override box: `Name: what they wear | note`.
+ *
+ * Returns what could not be read as well as what could. It used to return only the
+ * overrides and drop the rest with `.filter(Boolean)` — so a line without a colon
+ * vanished, the form answered "Saved", and nothing had been stored. Somebody set a
+ * character's clothes for a scene, was told it saved, and watched the scene come back
+ * in the Story Bible's outfit with nothing anywhere to say why.
+ *
+ * A colon is the only thing required. Everything after it is free text, because the
+ * outfit is prose and so is the note.
+ */
+export function parseOverrideLines(text: string): {
+  overrides: CharacterOverride[];
+  ignored: string[];
+} {
+  const overrides: CharacterOverride[] = [];
+  const ignored: string[] = [];
+
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const at = line.indexOf(":");
+    const name = at < 0 ? "" : line.slice(0, at).trim();
+    if (!name) {
+      ignored.push(line);
+      continue;
+    }
+    const [outfit = "", note = ""] = line.slice(at + 1).split("|");
+    overrides.push({ name, outfit: outfit.trim(), note: note.trim() });
+  }
+
+  return { overrides, ignored };
+}
+
+/**
  * Setup for ONE chapter — the middle tier between `WorldSetup` and `Scene.beat`.
  *
  * Before it existed this tier was simply missing: a story had world setup, a scene

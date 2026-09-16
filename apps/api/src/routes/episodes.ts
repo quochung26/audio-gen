@@ -7,6 +7,7 @@ import {
   estimateDurationMs,
   sceneSetupSchema,
   syncState,
+  parseOverrideLines,
   type CharacterOverride,
 } from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
@@ -155,17 +156,25 @@ episodes.post("/:id/scenes/:sceneId/write", async (c) => {
  * rules: the number of characters varies per chapter, and a flat `FormData`
  * would need indexed field names that every reader has to reassemble.
  */
-function parseOverrides(value: unknown): CharacterOverride[] {
-  return splitLines(value)
-    .map((line) => {
-      const at = line.indexOf(":");
-      if (at < 0) return null;
-      const name = line.slice(0, at).trim();
-      const rest = line.slice(at + 1);
-      const [outfit = "", note = ""] = rest.split("|");
-      return name ? { name, outfit: outfit.trim(), note: note.trim() } : null;
-    })
-    .filter((c): c is CharacterOverride => Boolean(c));
+function parseOverrides(value: unknown): { overrides: CharacterOverride[]; ignored: string[] } {
+  return parseOverrideLines(typeof value === "string" ? value : "");
+}
+
+/**
+ * Say which lines were not understood, in the form's own warning strip.
+ *
+ * Returned rather than thrown: the good lines are already saved, and refusing the whole
+ * save over one malformed line would discard the others too. Silence was the old
+ * behaviour and the reason this exists.
+ */
+function overrideWarnings(ignored: string[]): string[] {
+  if (ignored.length === 0) return [];
+  return [
+    `${ignored.length} line${ignored.length === 1 ? "" : "s"} could not be read and ` +
+      `${ignored.length === 1 ? "was" : "were"} NOT saved — each needs a colon, as ` +
+      `"Name: what they wear | note": ` +
+      ignored.map((l) => `“${l}”`).join(", "),
+  ];
 }
 
 /**
@@ -197,16 +206,20 @@ episodes.post("/:id/scenes/:sceneId/beat", async (c) => {
 
 episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
   const body = await c.req.parseBody();
+  const { overrides, ignored } = parseOverrides(body.characters);
   const setup = chapterSetupSchema.parse({
     focus: field(body, "focus"),
     tone: field(body, "tone"),
     mustHappen: splitLines(body.mustHappen),
     constraints: splitLines(body.constraints),
-    characters: parseOverrides(body.characters),
+    characters: overrides,
   });
 
   await prisma.chapter.update({ where: { id: c.req.param("chapterId") }, data: { setup } });
-  return c.json({ ok: "Saved. Applies to every scene in this chapter, from the next run." });
+  return c.json({
+    ok: "Saved. Applies to every scene in this chapter, from the next run.",
+    warnings: overrideWarnings(ignored),
+  });
 });
 
 /**
@@ -658,10 +671,13 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
   if ("characterIds" in body) {
     data.characterIds = field(body, "characterIds").split(",").map((v) => v.trim()).filter(Boolean);
   }
+  let ignoredOverrides: string[] = [];
   if ("note" in body || "characters" in body) {
+    const parsed = parseOverrides(body.characters);
+    ignoredOverrides = parsed.ignored;
     data.setup = sceneSetupSchema.parse({
       note: field(body, "note"),
-      characters: parseOverrides(body.characters),
+      characters: parsed.overrides,
     });
   }
 
@@ -672,7 +688,10 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     // Says WHEN, because it is not now: a scene already written keeps the prose it
     // has, and the note reaches the model on the next write or rewrite. Saving a
     // note and seeing the old scene unchanged reads as the note doing nothing.
-    return c.json({ ok: "Saved. Applies the next time this scene is written." });
+    return c.json({
+      ok: "Saved. Applies the next time this scene is written.",
+      warnings: overrideWarnings(ignoredOverrides),
+    });
   }
 
   // The draft is the scenes joined in READING order: chapter first, then scene
