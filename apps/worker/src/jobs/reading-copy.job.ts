@@ -1,4 +1,11 @@
-import { LANGUAGES, languageLabel, toLanguage, withLanguage, type LanguageCode } from "@audio/core";
+import {
+  LANGUAGES,
+  isLanguage,
+  languageLabel,
+  toLanguage,
+  withLanguage,
+  type LanguageCode,
+} from "@audio/core";
 import { prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
@@ -52,7 +59,19 @@ export const readingCopyJob: JobHandler = async ({ job, setProgress }) => {
     throw new Error("That scene has not been written yet — there is nothing to read.");
   }
 
-  const target = otherLanguage(series.language);
+  // The writer's choice when there is one. `otherLanguage` is the fallback, which is
+  // what it always was — a reading copy of an English story is wanted in Vietnamese far
+  // more often than the reverse, but "far more often" is not "always".
+  const asked = String(job.data.language ?? "");
+  const target = isLanguage(asked) ? asked : otherLanguage(series.language);
+
+  if (target === toLanguage(series.language)) {
+    throw new Error(
+      `This story is already written in ${languageLabel(target)} — a reading copy in the ` +
+        `same language would only be a rewrite of itself.`,
+    );
+  }
+
   await setProgress(10);
 
   const bible = await buildSeriesBible(series.id);

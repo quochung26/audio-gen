@@ -577,7 +577,13 @@ episodes.post("/:id/scenes/:sceneId/reading", async (c) => {
   await enqueue({
     type: "READING_COPY",
     episodeId: c.req.param("id"),
-    payload: { sceneId: c.req.param("sceneId"), model: field(body, "model") || undefined },
+    payload: {
+      sceneId: c.req.param("sceneId"),
+      // Validated in the job against the real language list, not here — the job is
+      // where an unknown code has to fall back to something rather than throw.
+      language: field(body, "language") || undefined,
+      model: field(body, "model") || undefined,
+    },
   });
   return c.json({ ok: "Translating this scene to read…" });
 });

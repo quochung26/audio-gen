@@ -402,7 +402,7 @@ export function Episode() {
                         <summary className="cursor-pointer px-4 py-2 text-xs text-neutral-500">
                           {scene.reading
                             ? `Read in ${languageLabel(scene.readingLanguage ?? "")}`
-                            : "Read it in the other language"}
+                            : "Read it in another language"}
                         </summary>
                         <div className="border-t border-neutral-900 px-4 py-3">
                           {scene.reading ? (
@@ -434,6 +434,31 @@ export function Episode() {
                             submit={scene.reading ? "translate again" : "translate"}
                             className="mt-3 border-t border-neutral-900 pt-3"
                           >
+                            {/* Vietnamese by default, because that is the copy anyone
+                                asks for — unless the story is already in it, where the
+                                same language would be a rewrite of itself and the job
+                                refuses. The story's own language is not offered. */}
+                            <label className="mb-3 block w-56">
+                              <span className="mb-1 block text-xs text-neutral-500">
+                                Read it in
+                              </span>
+                              <select
+                                name="language"
+                                defaultValue={
+                                  scene.readingLanguage ??
+                                  (ep.series.language === "vi" ? "en" : "vi")
+                                }
+                                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+                              >
+                                {["vi", "en"]
+                                  .filter((c) => c !== ep.series.language)
+                                  .map((c) => (
+                                    <option key={c} value={c}>
+                                      {languageLabel(c)}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
                             <ModelPicker kind="translate" />
                             <p className="mt-2 text-xs text-neutral-600">
                               For reading only — never spoken, never exported, and no prompt
