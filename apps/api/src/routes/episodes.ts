@@ -130,7 +130,15 @@ episodes.post("/:id/scenes/:sceneId/write", async (c) => {
   const sceneId = c.req.param("sceneId");
   const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
 
-  await prisma.scene.update({ where: { id: sceneId }, data: { text: null } });
+  // The prose is NOT cleared here. It used to be, and that destroyed it before anything
+  // had been written to take its place: a rewrite whose job then failed — three attempts
+  // against an OpenRouter 429 — left the scene empty, and nothing had kept a copy,
+  // because revisions are only taken on published episodes.
+  //
+  // Clearing bought nothing. A single-scene run selects by `{ id: sceneId }`; only the
+  // whole-episode route needs `text: null`, and it is the marker for scenes never
+  // written rather than something it sets itself. The streaming view already draws over
+  // whatever is there, so the old text simply stays readable until the new one lands.
   await enqueue({
     type: "WRITE_SCENE",
     episodeId,
