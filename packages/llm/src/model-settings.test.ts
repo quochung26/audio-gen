@@ -37,6 +37,8 @@ vi.mock("@audio/config", () => ({
 
 const { forgetInstalledModels } = await import("./installed-models");
 const {
+  MODEL_KINDS,
+  isModelKind,
   getActiveProvider,
   getDefaultModel,
   getDefaultModels,
@@ -264,5 +266,21 @@ describe("the embed model does not follow the chat provider", () => {
     forgetInstalledModels();
 
     expect(await getDefaultModel("embed")).toBe("");
+  });
+});
+
+describe("MODEL_KINDS is the one list", () => {
+  // The bug it exists to prevent: `translate` was added to the type, the Models page
+  // rendered its row, the select worked — and Save answered "Invalid kind" from a
+  // hard-coded array in the API three files away.
+  it("covers every kind the defaults resolve", async () => {
+    const defaults = await getDefaultModels();
+    expect(Object.keys(defaults).sort()).toEqual([...MODEL_KINDS].sort());
+  });
+
+  it("accepts each of them and rejects anything else", () => {
+    for (const k of MODEL_KINDS) expect(isModelKind(k)).toBe(true);
+    expect(isModelKind("writing")).toBe(false);
+    expect(isModelKind("")).toBe(false);
   });
 });

@@ -16,7 +16,21 @@ import { listInstalledModels, pickInstalledModel } from "./installed-models";
  * default model is a routine thing while experimenting; editing `.env` would mean
  * restarting
  */
-export type ModelKind = "write" | "utility" | "embed" | "translate";
+/**
+ * Every kind of work a model is picked for.
+ *
+ * A VALUE, not just a type, because the API has to validate a path parameter against it
+ * at run time. Kept as one list so adding a kind cannot leave a guard behind — which is
+ * exactly what happened when `translate` arrived: the page offered the row and the save
+ * was refused by a hard-coded array three files away.
+ */
+export const MODEL_KINDS = ["write", "utility", "translate", "embed"] as const;
+
+export type ModelKind = (typeof MODEL_KINDS)[number];
+
+export function isModelKind(v: string): v is ModelKind {
+  return (MODEL_KINDS as readonly string[]).includes(v);
+}
 
 const PROVIDER_KEY = "llm.provider";
 const EMBED_PROVIDER_KEY = "embed.provider";
@@ -244,7 +258,7 @@ export async function getDefaultModels(): Promise<
   // In parallel, not one after another. Each kind may ask Ollama what is installed,
   // and sequentially that is three timeouts back to back whenever it is down —
   // six seconds before the Models page could render anything at all.
-  const kinds: ModelKind[] = ["write", "utility", "translate", "embed"];
+  const kinds = MODEL_KINDS;
   const resolved = await Promise.all(kinds.map((k) => resolveDefault(k)));
   const out = {} as Record<ModelKind, { value: string; source: ModelSource }>;
   kinds.forEach((kind, i) => (out[kind] = resolved[i]!));

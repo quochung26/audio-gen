@@ -7,6 +7,7 @@ import {
   getActiveProvider,
   getDefaultLanguage,
   getDefaultLanguageSource,
+  isModelKind,
   getEmbedProvider,
   setEmbedProvider,
   getSceneContextMode,
@@ -243,10 +244,17 @@ models.put("/embed-provider", async (c) => {
   });
 });
 
-/** Set the default model for one kind of work. Blank = fall back to .env. */
+/**
+ * Set the default model for one kind of work. Blank = fall back to .env.
+ *
+ * The list is derived from `MODEL_KINDS` rather than written out again. Written out, it
+ * went stale the moment `translate` was added to `ModelKind` — the Models page rendered
+ * the row, the select worked, and Save answered "Invalid kind" from a guard nobody
+ * thought to update.
+ */
 models.put("/default/:kind", async (c) => {
   const kind = c.req.param("kind") as ModelKind;
-  if (!["write", "utility", "embed"].includes(kind)) throw new UserError("Invalid kind");
+  if (!isModelKind(kind)) throw new UserError(`Invalid kind "${kind}"`);
 
   const body = await c.req.parseBody();
   const model = field(body, "model");

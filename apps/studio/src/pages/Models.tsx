@@ -357,11 +357,11 @@ export function Models() {
               <div key={cfg.kind} className="rounded border border-neutral-800 p-4">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-neutral-300">{cfg.label}</span>
-                  <Badge tone="blue">set in .env</Badge>
+                  <Badge tone="blue">follows the Embeddings switch</Badge>
                 </div>
                 <code className="text-sm text-neutral-200">{cfg.value}</code>
                 <p className="mt-2 text-xs text-neutral-600">
-                  Follows <code>EMBED_PROVIDER</code>, not the provider switch above.
+                  Decided by the Embeddings section above, not here.
                   {cfg.value === "mock"
                     ? " Mock vectors carry no meaning — retrieval returns facts, but not the right ones."
                     : " Changing it invalidates every vector already stored."}
