@@ -22,8 +22,13 @@ replaced. Your reply is spliced back between the two halves.
   block — it is being spliced between two pieces of prose that have them.
 - Dialogue keeps its quotation marks, both of them, in the same style as the text
   around the passage, and one turn of speech per line.
-- Keep every event. The passage may be rewritten, slowed, thickened or trimmed, but
-  what HAPPENS in it still happens — later scenes were written against it.
+- Keep every event the note does not touch. The passage may be rewritten, slowed,
+  thickened or trimmed, and what happens in it goes on happening — later scenes were
+  written against it.
+- **But the note outranks that.** If it asks for something to happen differently, or
+  not to happen at all, REPLACE it. Do not keep the old events and add the new one after
+  them: that is not what was asked, it contradicts itself on the page, and the writer
+  then has to delete by hand the part they were trying to change.
 - Same language as the scene.
 
 ## The series
