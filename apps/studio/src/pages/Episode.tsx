@@ -4,6 +4,7 @@ import { useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { Field, TextInput } from "@/components/Field";
 import { PassageReviser } from "@/components/PassageReviser";
+import { ReadingModal } from "@/components/ReadingModal";
 import { ScenePeoplePicker } from "@/components/ScenePeoplePicker";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { ModelPicker } from "@/components/ModelPicker";
@@ -405,9 +406,21 @@ export function Episode() {
                         </summary>
                         <div className="border-t border-neutral-900 px-4 py-3">
                           {scene.reading ? (
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-neutral-400">
-                              {scene.reading}
-                            </p>
+                            <>
+                              <p className="max-h-40 overflow-hidden text-sm leading-relaxed whitespace-pre-wrap text-neutral-400">
+                                {scene.reading}
+                              </p>
+                              {/* The panel is a preview; reading happens full-screen. At
+                                  14px with tight leading, Vietnamese diacritics sit on
+                                  top of each other. */}
+                              <div className="mt-2">
+                                <ReadingModal
+                                  title={`Scene ${chapter.order}.${scene.order}`}
+                                  subtitle={`${ep.number}. ${ep.title} — in ${languageLabel(scene.readingLanguage ?? "")}`}
+                                  text={scene.reading}
+                                />
+                              </div>
+                            </>
                           ) : (
                             <p className="text-sm text-neutral-500">
                               Not translated yet.
