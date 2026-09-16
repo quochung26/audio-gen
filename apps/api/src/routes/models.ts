@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { OPENROUTER_EMBED_MODEL, loadEnv } from "@audio/config";
-import { prisma } from "@audio/database";
+import { EpisodeStatus, prisma } from "@audio/database";
 import {
   forgetEmbedding,
   forgetInstalledModels,
@@ -58,6 +58,14 @@ let pull: PullProgress | null = null;
 let pullAbort: AbortController | null = null;
 
 const TIMEOUT_MS = 5_000;
+
+/**
+ * How far back the cost estimate looks.
+ *
+ * Wider than the history prune's 30 days: an estimate wants as many finished episodes
+ * as it can get, and a machine writing one a week would otherwise be averaging two.
+ */
+const USAGE_WINDOW_DAYS = 90;
 
 async function ollamaFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = `${loadEnv().OLLAMA_URL.replace(/\/+$/, "")}${path}`;
@@ -436,9 +444,41 @@ models.get("/openrouter", async (c) => {
   const env = loadEnv();
   const hasKey = env.OPENROUTER_API_KEY.length > 0;
 
-  // Cost estimates come from REAL recorded runs, not guesses.
+  /**
+   * Cost estimates come from REAL recorded runs, not guesses — but only from episodes
+   * that were actually FINISHED, and only from the recent ones.
+   *
+   * It used to read every run carrying an episode id, unbounded, on every request. Two
+   * faults, and the second is the one that matters.
+   *
+   * It grew without limit: one query loading the whole table into memory, for a figure
+   * that is an average.
+   *
+   * And it counted episodes still being written as though they were episodes. Measured
+   * on this machine: one finished episode at 633,784 input tokens, one three scenes old
+   * at 8,625, averaged to 321,205 — half the real cost of an episode. The comment on
+   * `averagePerEpisode` says underestimating here is the worst way to be wrong, and it
+   * was underestimating by a factor of two.
+   *
+   * DRAFTING and earlier are excluded because they are mid-flight; their total is not
+   * an episode's cost, it is how far somebody has got. The window keeps the estimate on
+   * the models and prompts currently in use, and keeps the query bounded.
+   */
   const runs = await prisma.llmRun.findMany({
-    where: { episodeId: { not: null } },
+    where: {
+      createdAt: { gte: new Date(Date.now() - USAGE_WINDOW_DAYS * 86_400_000) },
+      episode: {
+        status: {
+          in: [
+            EpisodeStatus.DRAFTED,
+            EpisodeStatus.SCRIPTED,
+            EpisodeStatus.RENDERING,
+            EpisodeStatus.READY,
+            EpisodeStatus.PUBLISHED,
+          ],
+        },
+      },
+    },
     select: { episodeId: true, inputTokens: true, outputTokens: true },
   });
   const usage = averagePerEpisode(runs);

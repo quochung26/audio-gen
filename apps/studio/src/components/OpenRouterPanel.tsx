@@ -166,9 +166,12 @@ export function OpenRouterPanel() {
 
           {data.usage ? (
             <p className="text-xs text-neutral-600">
-              The “per episode” figure uses consumption measured over {data.usage.episodes}{" "}
-              episodes: {data.usage.inputTokens.toLocaleString("en-GB")} input tokens +{" "}
-              {data.usage.outputTokens.toLocaleString("en-GB")} output.
+              The “per episode” figure is measured over {data.usage.episodes} FINISHED{" "}
+              episode{data.usage.episodes === 1 ? "" : "s"}:{" "}
+              {data.usage.inputTokens.toLocaleString("en-GB")} input tokens +{" "}
+              {data.usage.outputTokens.toLocaleString("en-GB")} output. Episodes still
+              being written are left out — counting one three scenes old as an episode
+              halves the estimate.
             </p>
           ) : (
             <p className="text-xs text-neutral-600">

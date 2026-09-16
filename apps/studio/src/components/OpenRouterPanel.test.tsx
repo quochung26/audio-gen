@@ -121,7 +121,9 @@ describe("OpenRouterPanel", () => {
     // 3820 input tokens × $3/1M + 1718 output × $15/1M = $0.0115 + $0.0258 ≈ $0.037
     await waitFor(() => expect(container.textContent).toContain("anthropic/claude-sonnet-4.5"));
     expect(container.textContent).toContain("~$0.037");
-    expect(container.textContent).toContain("20 episodes");
+    // "FINISHED episodes", because an episode three scenes old is not an episode's cost
+    // — counting one halved the estimate on a real machine.
+    expect(container.textContent).toContain("20 FINISHED episodes");
   });
 
   it("a free model gets a badge and no per-episode cost", async () => {
