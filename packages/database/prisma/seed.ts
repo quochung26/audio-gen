@@ -100,7 +100,19 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   REVISE_PASSAGE: { temperature: 0.8, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 1600 },
   // Lower than scene writing because the plot is already fixed, higher than audio
   // editing because it is still prose: 0.4 gives a flat translation that reads like a news bulletin.
-  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2600 },
+  //
+  // `maxTokens` 6000, not the 2600 every other step uses, and the difference is not
+  // caution. This step's output is the INPUT rendered again, so its size is set by the
+  // scene rather than by how much the model feels like writing — and Vietnamese costs
+  // more tokens than the English it comes from. Measured: a 985-word scene produced
+  // 2,334 output tokens, 90% of the old ceiling, so roughly 2.4 tokens per source word.
+  //
+  // The longest scene in this repo is 1,988 words — revisions and a model that overruns
+  // SCENE_MAX_WORDS both push past 900 — which needs about 4,800. 6000 covers 2,500
+  // source words. Being wrong downwards costs a whole generation and a job that fails
+  // after a minute of work; being wrong upwards costs nothing, because a translation
+  // stops when the scene does.
+  TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 6000 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 12000 },
   SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2500 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
