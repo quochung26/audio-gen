@@ -55,7 +55,9 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // Replacing ONE beat. `soFar` is the whole chapter's beats with this one marked, so
   // the replacement still leads into the beat that follows it; `current` is what the
   // writer turned down, sent so the model does not offer it back in other words.
-  SCENE_BEAT: ["bible", "context", "chapter", "soFar", "current"],
+  // `cast` is who the WRITER says is in the scene. Without it the step saw the whole
+  // Story Bible at equal weight and kept writing an absent character back in.
+  SCENE_BEAT: ["bible", "context", "chapter", "soFar", "current", "cast"],
   // Rewriting ONE passage in place. `scene` is the whole scene with the selection
   // marked, because a passage rewritten without its surroundings stops joining onto
   // them — the tense drifts, a name becomes a pronoun with no referent, a beat that

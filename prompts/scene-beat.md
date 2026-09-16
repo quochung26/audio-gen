@@ -25,6 +25,9 @@ Bad:    Thiện lao tới. "Em đã làm gì?" anh hét lên, mặt trắng bệ
   from the one before it and lead into the one after it, if there is one.
 - Something has to change in it. A scene where nobody learns, loses, decides or admits
   anything is the beat that was rejected, written twice.
+- THE PEOPLE IN THIS SCENE ARE LISTED BELOW. Write for them. Do not bring in anyone
+  else — a character can be mentioned in passing if the beat before it already puts
+  them somewhere, but the scene is these people's.
 - Use the characters the story has. Anyone who died or left must not walk back in.
 - Do not repeat what another beat in this chapter already does.
 
@@ -41,6 +44,10 @@ Bad:    Thiện lao tới. "Em đã làm gì?" anh hét lên, mặt trắng bệ
 ## The chapter's beats
 
 {{soFar}}
+
+## The people in this scene
+
+{{cast}}
 
 ## The beat being replaced
 

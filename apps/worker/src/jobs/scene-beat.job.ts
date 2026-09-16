@@ -46,8 +46,25 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
     .map((sc) => `${sc.order}. ${sc.beat}${sc.id === sceneId ? "   ← the one being replaced" : ""}`)
     .join("\n");
 
+  /**
+   * Who is in this scene, as the writer set it.
+   *
+   * The step had no idea. It received the whole Story Bible with every character
+   * described in full, so a character with a vivid `state` stayed as present in the
+   * prompt as the two people the scene is actually about — and kept being written back
+   * into a chapter she was never in, twice in a row, because nothing said otherwise.
+   *
+   * Empty means the writer has not said, which is the old behaviour: everyone in full,
+   * and no constraint.
+   */
+  const roster = await prisma.character.findMany({
+    where: { seriesId: episode.series.id },
+    select: { id: true, name: true },
+  });
+  const inScene = roster.filter((c) => scene.characterIds.includes(c.id)).map((c) => c.name);
+
   const [bible, running] = await Promise.all([
-    buildSeriesBible(episode.series.id),
+    buildSeriesBible(episode.series.id, inScene),
     lastRunningSummary(episode.series.id, episode.number),
   ]);
 
@@ -76,6 +93,9 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
       chapter: renderChapterSetup(parseChapterSetup(chapter.setup)),
       soFar,
       current: scene.beat,
+      cast: inScene.length
+        ? inScene.join(", ")
+        : "Not set — use whoever the surrounding beats call for.",
     });
 
     // Each attempt records its own run: a rejected beat costs tokens like any other.
@@ -103,12 +123,8 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
 
   if (!beat) throw new Error("The model returned an empty beat");
 
-  // Who is in the scene follows the beat that named them. Left as it was, the Story
-  // Bible would go on describing in full the people the old beat mentioned.
-  const roster = await prisma.character.findMany({
-    where: { seriesId: episode.series.id },
-    select: { id: true, name: true },
-  });
+  // Who is in the scene follows the beat that named them: a replacement that drops
+  // somebody should stop spotlighting them next time. Reuses the roster loaded above.
   const idOfName = new Map(roster.map((c) => [c.name, c.id]));
 
   await prisma.scene.update({

@@ -4,6 +4,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import type { JobHandler } from "../lanes/create-lane";
 import { buildSeriesBible } from "../services/story-context";
 import { syncEpisodeDraft } from "../services/episode-draft";
+import { enqueue } from "../services/queue";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";
 
@@ -146,6 +147,24 @@ export const revisePassageJob: JobHandler = async ({ job, setProgress }) => {
   const next = splicePassage(text, range, clean);
   await prisma.scene.update({ where: { id: sceneId }, data: { text: next } });
   await syncEpisodeDraft(episode.id);
+
+  // The running summary was folded from the text this just replaced, so it now
+  // describes prose that is gone — and `Scene.storySoFar` is a CHAIN, so every
+  // paragraph after it inherits the mismatch.
+  //
+  // This is not hypothetical. Scene 6.1 was revised three times after its fold, and the
+  // summary went on asserting a thread the prose never contained; NEXT_SCENE read that
+  // as history and built the next beat on it, bringing a character into a chapter she
+  // was never in. Two presses of "another beat" could not escape it, because the
+  // summary was in the context every time.
+  //
+  // From THIS scene, not the next: unlike a delete, the revised scene's own paragraph
+  // is one of the wrong ones.
+  await enqueue({
+    type: "REFOLD_SUMMARY",
+    episodeId: episode.id,
+    payload: { seriesId: episode.series.id, fromSceneId: sceneId },
+  });
 
   logger.info(
     `[revise-passage] chapter ${scene.chapter.order} scene ${scene.order} — ` +

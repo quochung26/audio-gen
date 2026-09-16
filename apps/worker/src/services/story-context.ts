@@ -268,10 +268,14 @@ async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Pro
  * address, but must NOT see summaries or old facts — giving it story context invites it
  * to retell the story better, when its job is to preserve every detail.
  */
-export async function buildSeriesBible(seriesId: string): Promise<string> {
+export async function buildSeriesBible(seriesId: string, spotlight?: string[]): Promise<string> {
   const series = await prisma.series.findUniqueOrThrow({
     where: { id: seriesId },
     include: { characters: { orderBy: [{ isNarrator: "desc" }, { name: "asc" }] } },
   });
-  return renderBibleFor(series);
+  // `spotlight` describes those people in full and reduces everyone else to name and
+  // role — the same narrowing a scene write gets. Without it every step sees the whole
+  // cast at equal weight, and a character with a vivid `state` keeps being written into
+  // scenes she has no business in.
+  return renderBibleFor(series, spotlight?.length ? spotlight : undefined);
 }
