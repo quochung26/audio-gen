@@ -48,6 +48,9 @@ const FIXTURES: Record<string, unknown> = {
     ],
     byStatus: [{ status: "QUEUED", _count: 2 }],
     vram: { usableMb: 14336, totalMb: 16384, reservedMb: 2048 },
+    // Enough old rows for the cleanup panel to render — it hides itself when there is
+    // nothing to remove, so a zero here would test the empty case only.
+    history: { jobs: 143, runs: 238, prunableJobs: 40, prunableRuns: 61, keepDays: 30 },
   },
   "/api/jobs/j1": {
     id: "j1",
@@ -476,6 +479,22 @@ describe("every page renders", () => {
   it.each(PAGES)("%s", async (_name, path, route, element, expected) => {
     renderAt(path, route, element);
     await waitFor(() => expect(screen.getByText(new RegExp(expected))).toBeDefined());
+  });
+});
+
+describe("the dashboard offers to clean up its own history", () => {
+  it("says how many rows go, and that failures stay", async () => {
+    // A "clean up" button that does not say what it removes is a dare. And the two
+    // exceptions are the point of the feature: a failure is the row somebody goes
+    // looking for, and a rating is a judgement recorded nowhere else.
+    // `container.textContent`, not getByText: the sentence is stitched from four JSX
+    // interpolations, so no single text node holds it.
+    const { container } = renderAt("/", "/", <Dashboard />);
+    await waitFor(() => expect(screen.getByText(/Clean up history/)).toBeDefined());
+    // 40 jobs + 61 runs — the panel reports the TOTAL that goes, not one of the two.
+    expect(container.textContent).toContain("101 of them are finished and older than 30 days");
+    expect(container.textContent).toContain("143 jobs and 238 model runs recorded");
+    expect(container.textContent).toContain("Failures and anything you rated stay");
   });
 });
 

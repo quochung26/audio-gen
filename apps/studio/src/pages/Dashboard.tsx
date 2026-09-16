@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useApi } from "@/lib/api";
-import { Loading } from "@/components/Form";
+import { ActionButton, Loading } from "@/components/Form";
 
 const STATUS_STYLE: Record<string, string> = {
   QUEUED: "bg-neutral-800 text-neutral-300",
@@ -26,6 +26,14 @@ interface Data {
   recent: Job[];
   byStatus: Array<{ status: string; _count: number }>;
   vram: { usableMb: number; totalMb: number; reservedMb: number };
+  /** Rows kept, and how many a prune would take. See pruneCounts in the jobs route. */
+  history: {
+    jobs: number;
+    runs: number;
+    prunableJobs: number;
+    prunableRuns: number;
+    keepDays: number;
+  };
 }
 
 export function Dashboard() {
@@ -54,6 +62,25 @@ export function Dashboard() {
         <Stat label="Queued" value={String(count("QUEUED"))} hint="waiting for a slot" />
         <Stat label="Running" value={String(count("RUNNING"))} hint="holding resources" />
       </section>
+
+      {/* Only when there is something to remove. A permanent "clean up" button on a
+          page with nothing to clean is one more thing to read past. */}
+      {data.history.prunableJobs + data.history.prunableRuns > 0 && (
+        <section className="flex flex-wrap items-center gap-3 rounded border border-neutral-800 p-4">
+          <ActionButton
+            path="/api/jobs/prune"
+            confirmText={`Remove ${data.history.prunableJobs} finished jobs and ${data.history.prunableRuns} model runs older than ${data.history.keepDays} days? Failures and rated runs are kept.`}
+          >
+            Clean up history
+          </ActionButton>
+          <span className="flex-1 text-xs text-neutral-500">
+            {data.history.jobs} jobs and {data.history.runs} model runs recorded.{" "}
+            {data.history.prunableJobs + data.history.prunableRuns} of them are finished and
+            older than {data.history.keepDays} days. Failures and anything you rated stay
+            whatever their age.
+          </span>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-neutral-300">Recent jobs</h2>
