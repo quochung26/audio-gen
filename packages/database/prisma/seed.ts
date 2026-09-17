@@ -299,6 +299,18 @@ async function seedGenres() {
         "The listener knows something a character does not, and the waiting is the pleasure. Pace with information rather than with running: withhold one fact, pay it off, open another. Nobody survives on luck — the danger is earned by someone being good at their job, the person causing it included.",
     },
     {
+      name: "phương tây",
+      promptName: "a European or North American setting",
+      description:
+        "Set in Europe or North America, and the setting has to hold: names, money, food and work all come from one real place rather than half from there and half from home. Forms of address are the hard part — Vietnamese kinship pronouns import a hierarchy these characters do not live under, so choose the register deliberately and keep it. Disagreement is said to someone's face, not routed through a third person. Do not tour the landmarks; the detail that convinces is ordinary.",
+    },
+    {
+      name: "phương đông",
+      promptName: "an East Asian setting",
+      description:
+        "Pick ONE place — Việt Nam, Trung Hoa, Nhật Bản, Triều Tiên — and stay inside it; a blur of all four is the failure, and a listener from any of them hears it at once. Forms of address carry the hierarchy and must stay exact: they say who may speak first and who may not. The pressure comes from obligation and from face — what is owed to a family, what everyone knows and nobody will name. No scenery for its own sake: nothing here is exotic to the people living in it.",
+    },
+    {
       name: "hài",
       promptName: "comedy",
       description:
