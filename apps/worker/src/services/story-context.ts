@@ -242,7 +242,7 @@ async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Pro
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
 
   // Descriptions for exactly the genres this story uses. One query, in exchange for the
-  // model reading "kinh dị" the way the writer means it.
+  // model reading "horror" the way the writer means it.
   const genreNotes = await prisma.genre.findMany({
     where: { name: { in: [series.genre, ...series.tags] } },
     select: { name: true, promptName: true, description: true },

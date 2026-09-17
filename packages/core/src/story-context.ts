@@ -11,7 +11,7 @@ export interface SeriesBibleInput {
   /**
    * Descriptions of the genres this story uses (main and sub alike).
    *
-   * With them, "kinh dị" means what the writer means, rather than whatever the
+   * With them, "horror" means what the writer means, rather than whatever the
    * model guesses — and every model guesses differently.
    *
    * REQUIRED, even as an empty array: made optional, forgetting to pass it makes

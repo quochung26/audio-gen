@@ -20,12 +20,29 @@ These are DATA, not prose. Translating them changes behaviour:
 | Thing | Why |
 |---|---|
 | `"Audio Truyện"` | The product name — page title, manifest, ID3 tag, lock screen. |
-| `Genre.name` in `seed.ts` | Both the lookup key (`Series.genre`) and the label listeners see, and it goes into the RSS `itunes:keywords`. The model-facing name is a separate column, `Genre.promptName`. |
-| The `"kinh dị"` genre default in `outline.job.ts`, `routes/series.ts`, `write-story.ts` | Has to match a seeded `Genre.name` or the story gets a genre nothing describes. |
+| The `"horror"` genre default in `outline.job.ts`, `routes/series.ts`, `write-story.ts` | Not Vietnamese any more, but listed here for the same reason: it has to match a seeded `Genre.name` exactly or the story gets a genre nothing describes. |
 | Vietnamese fixtures in tests | They exercise the Vietnamese path: diacritic stripping in `slugify` / `safeFileName`, XML escaping in the feed, the pronunciation dictionary. |
 | The mock provider's placeholder prose | Stands in for a Vietnamese story, and runs through word counting and slugs like the real thing. |
 | Two label assertions in `providers/mock.test.ts` | They pin that the OLD Vietnamese prompt labels still parse — the `Prompt` table keeps them until a reseed. |
 | The AI disclosure in `lib/rss.ts` | Follows `series.language`, not the reader's language: a feed carries the story's language. Not the same string as the UI's `aiDisclosure`. |
+
+### Genre names are English, and that is not settled
+
+`Genre.name` used to be Vietnamese and is now English (`horror`, `danmei`,
+`western setting`). It is still the label a LISTENER sees — the Player page and the RSS
+`itunes:keywords` — so a Vietnamese story currently advertises an English genre. That is
+known and deliberate; it gets fixed on the Player side, by giving it its own labels, not
+by renaming the catalogue back.
+
+`Genre.promptName` survives for the cases where the model wants a fuller label than the
+listener does (`xianxia` → `xianxia (cultivation fantasy)`). Blank falls back to `name`,
+which is now most of them.
+
+A name is a lookup key in `Series.genre`, `Series.tags` and `Prompt.genre`, none of them
+foreign keys. Renaming one in `seed.ts` alone strips the description from the Bible of
+every story still on the old name, and nothing reports it — the prose just drifts a run
+or two later. Rename through `scripts/rename-genres-en.mts`, which moves the columns in
+the same transaction.
 
 ## Commits
 

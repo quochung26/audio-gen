@@ -179,140 +179,129 @@ const OVERWRITE = process.env.SEED_OVERWRITE === "1";
  *
  * Being instructions, they are written in ENGLISH like every other prompt — they sit
  * inside an English instruction block, and 7–14B models follow English instructions
- * markedly more closely. The NAMES stay Vietnamese: they are the lookup key
- * (`Series.genre`) and the key for choosing a prompt variant, and renaming one
- * silently strips the description from the Bible of every story using the old name.
+ * markedly more closely.
+ *
+ * The NAMES are English too. They used to be Vietnamese, because `name` is the label
+ * a listener reads; the Player still shows it, so a Vietnamese story currently carries
+ * an English genre on its page and in the RSS keywords — to be dealt with on the
+ * Player side, not by renaming back.
+ *
+ * `promptName` therefore appears only where it says something the name does not, and
+ * a blank one falls back to `name`. Whatever the language, a name is the lookup key
+ * (`Series.genre`, `Series.tags`, `Prompt.genre`): renaming one silently strips the
+ * description from the Bible of every story still on the old name, so a rename means
+ * rewriting those columns in the same breath — see scripts/rename-genres-en.mts.
  */
 async function seedGenres() {
   const genres = [
     {
-      name: "kinh dị",
-      promptName: "horror",
+      name: "horror",
       description:
         "Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.",
     },
     {
-      name: "tình cảm",
-      promptName: "romance",
+      name: "romance",
       description:
         "The subject is a relationship between two people, and how it changes. Feeling shows through action and through silence, not through long interior monologue. Avoid sentimentality and dialogue that explains itself.",
     },
     {
-      // The tag Vietnamese web-novel readers actually search for, which is what
-      // `name` is for — `promptName` carries the plain description the model reads.
-      // Renaming either of these two again strips the description from every Bible
-      // that looked it up by the old name, so do it before a story uses one.
-      name: "đam mỹ",
+      // Vietnamese readers search for this one as "đam mỹ" and for the next as
+      // "bách hợp". Worth remembering when the Player gets its own labels: these
+      // two lose more than the others by being listed in English.
+      name: "danmei",
       promptName: "danmei / male-male romance",
       description:
         "A romance between two men, written as a romance: nobody in the scene has to justify it to the listener, and the story is not about it being unusual. Give the two of them different registers — the commonest failure is two voices a listener cannot tell apart, which is fatal in audio where there is no name at the top of the line. What keeps them apart should be something one of them chose — a duty, a lie, a debt — rather than a disapproving world doing the work. Neither of them is the woman in the pair.",
     },
     {
-      // See the note on "đam mỹ".
-      name: "bách hợp",
+      name: "yuri",
       promptName: "yuri / female-female romance",
       description:
         "A romance between two women, and the listener must never be left wondering whether it is one — the commonest failure is a story that stays close enough to friendship to deny at the end. The closeness builds through proximity and habit: shared work, shared rooms, being the first person told. Let the turn be something one of them DOES that only makes sense if she is in love, rather than a speech announcing it. The desire is hers, not arranged for someone watching.",
     },
     {
-      name: "trinh thám",
+      name: "detective",
       promptName: "detective fiction",
       description:
         "The listener must be given enough clues to work it out. Never withhold a fact just to reveal it at the last minute. Each episode closes one small question and opens a larger one.",
     },
     {
-      name: "đời thường",
-      promptName: "slice of life",
+      name: "slice of life",
       description:
         "Nothing dramatic happens. The weight sits in small detail and in what the characters do not say. Keep the tone level and let the listener see it for themselves.",
     },
     {
-      name: "kỳ ảo",
-      promptName: "fantasy",
+      name: "fantasy",
       description:
         "The supernatural must run on clear rules, and those rules must never be broken to get a character out of a corner. Show the rules through scenes, not through narration.",
     },
     {
-      name: "hành động",
-      promptName: "action",
+      name: "action",
       description:
         "Action is told through what a body can and cannot do, not through adjectives. Short sentences while it is happening; every fight costs something that lasts past the scene. Somebody has to want something badly enough to risk being hurt for it — a chase nobody needs is furniture.",
     },
     {
-      name: "chính kịch",
-      promptName: "drama",
+      name: "drama",
       description:
         "The conflict is between people who both have a case. Nobody is simply wrong, and the scene turns on what someone finally admits or refuses to. Keep events ordinary and let the pressure come from the relationship rather than from an outside threat.",
     },
     {
-      name: "gia đình",
-      promptName: "family drama",
+      name: "family drama",
       description:
         "Old debts inside one household: what was said years ago, and who still keeps score. Characters speak around the subject far more often than about it. A reconciliation must cost something, and it does not settle everything.",
     },
     {
-      // English everywhere else in this list is the promptName's job; this one is
-      // named in Vietnamese like the rest because `name` is what a listener reads and
-      // filters on. "smut" is the tag Vietnamese web-novel readers actually use, so
-      // it is one word to change here if that is the audience — but change it BEFORE
-      // any story uses it: renaming strips the description from every Bible that
-      // looked it up by the old name.
-      name: "người lớn",
-      promptName: "erotica",
+      // "smut" is the word the audience this is for actually uses, in either
+      // language. One word to change here — but only alongside the columns that
+      // point at it; see the note above the list.
+      name: "erotica",
       description:
         "The relationship is carried THROUGH physical intimacy rather than around it, so a scene that cuts away at the door has cut away from the story. Write desire the way horror writes fear: through what a body does before its owner decides to, what someone keeps noticing and cannot stop noticing, what they will not say out loud. Everyone involved is an adult and wants to be there, and that is shown inside the scene rather than assumed outside it. Anticipation carries further than description — a scene that is only choreography reads as a list.",
     },
     {
-      name: "kỳ ảo hắc ám",
-      promptName: "dark fantasy",
+      name: "dark fantasy",
       description:
         "Magic costs something, and the cost is paid on screen — someone is worse off for having used it, including whoever won. Keep ordinary life visible: dread in a world where everything is already terrible has nothing to push against. Nobody is evil for its own sake; the frightening ones want something a listener recognises.",
     },
     {
-      name: "võ hiệp",
-      promptName: "wuxia",
+      name: "wuxia",
       description:
         "How someone fights says what they are — restraint, cruelty, showing off — so a fight is a scene about people, not choreography. Forms of address carry the whole hierarchy and must stay exact: sư phụ, sư huynh, tiền bối, vãn bối. Debt, oath and face drive the story more often than the blade does, and a duel that settles nothing between two people is furniture.",
     },
     {
-      name: "tiên hiệp",
+      name: "xianxia",
       promptName: "xianxia (cultivation fantasy)",
       description:
         "Progress IS the plot, so the listener must always know which rung the character stands on and what the next one costs — years, pills, a thing given up. The ladder has to hold: a breakthrough that arrives because the scene needed one spends every stake the story had. Heaven, fate and karma act; they are not scenery.",
     },
     {
-      name: "khoa học viễn tưởng",
-      promptName: "science fiction",
+      name: "science fiction",
       description:
         "One thing differs from our world and everything else follows from it. The story is what people DO about that difference, never the difference itself — explain nothing a character would find ordinary, the way nobody explains a lift. The technology must be able to fail, and it should.",
     },
     {
-      name: "hậu tận thế",
-      promptName: "post-apocalyptic",
+      name: "post-apocalyptic",
       description:
         "What is missing is more vivid than what is left: name the specific absence — no antibiotics, nobody alive who remembers how the dam worked. The disaster is over and this is about after, so no flashbacks explaining it. Ordinary objects become currency, and the cruelty is practical rather than gleeful.",
     },
     {
-      name: "giật gân",
-      promptName: "thriller",
+      name: "thriller",
       description:
         "The listener knows something a character does not, and the waiting is the pleasure. Pace with information rather than with running: withhold one fact, pay it off, open another. Nobody survives on luck — the danger is earned by someone being good at their job, the person causing it included.",
     },
     {
-      name: "phương tây",
+      name: "western setting",
       promptName: "a European or North American setting",
       description:
         "Set in Europe or North America, and the setting has to hold: names, money, food and work all come from one real place rather than half from there and half from home. Forms of address are the hard part — Vietnamese kinship pronouns import a hierarchy these characters do not live under, so choose the register deliberately and keep it. Disagreement is said to someone's face, not routed through a third person. Do not tour the landmarks; the detail that convinces is ordinary.",
     },
     {
-      name: "phương đông",
-      promptName: "an East Asian setting",
+      name: "east asian setting",
       description:
         "Pick ONE place — Việt Nam, Trung Hoa, Nhật Bản, Triều Tiên — and stay inside it; a blur of all four is the failure, and a listener from any of them hears it at once. Forms of address carry the hierarchy and must stay exact: they say who may speak first and who may not. The pressure comes from obligation and from face — what is owed to a family, what everyone knows and nobody will name. No scenery for its own sake: nothing here is exotic to the people living in it.",
     },
     {
-      name: "hài",
-      promptName: "comedy",
+      name: "comedy",
       description:
         "The comedy is in character, not in jokes: someone wants something reasonable and goes about it in a way nobody else would. Play it straight — a character who knows they are funny is not. Written to be HEARD, so the timing lives in sentence length and in pauses.",
     },
@@ -330,7 +319,10 @@ async function seedGenres() {
       //
       // `enabled` is left alone even when overwriting: a genre hidden on purpose that
       // the seed switches back on reappears in the picker with no explanation.
-      update: OVERWRITE ? { description: g.description, promptName: g.promptName } : {},
+      // `?? ""` rather than `g.promptName`: most entries no longer carry the field
+      // at all, and `undefined` tells Prisma to leave the column alone — a genre
+      // that had a promptName before would keep the old one for ever.
+      update: OVERWRITE ? { description: g.description, promptName: g.promptName ?? "" } : {},
       create: g,
     });
   }

@@ -92,19 +92,21 @@ Script dừng lại ở bước duyệt — đó là chốt chặn duy nhất ng
 
 `/genres` trong Studio (Cài đặt → Thể loại): thêm thể loại với **tên** và **mô tả**.
 
-Mô tả không phải ghi chú cho người đọc — nó được nhét vào Story Bible, ngay sau dòng thể loại, dưới mục *"Thể loại này nghĩa là gì"*. Nhờ vậy `kinh dị` mang nghĩa **bạn** định chứ không phải nghĩa model tự đoán, mà mỗi model đoán một kiểu. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
+Mô tả không phải ghi chú cho người đọc — nó được nhét vào Story Bible, ngay sau dòng thể loại, dưới mục *"Thể loại này nghĩa là gì"*. Nhờ vậy `horror` mang nghĩa **bạn** định chứ không phải nghĩa model tự đoán, mà mỗi model đoán một kiểu. Sửa mô tả là đổi cách viết của mọi bộ dùng thể loại đó, từ lượt viết kế tiếp.
 
 Viết mô tả **bằng tiếng Anh**, như đang dặn người viết thuê — nói rõ cái gì nên và cái gì tránh:
 
-> **kinh dị**: Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.
+> **horror**: Fear comes from what cannot be explained, not from gore. Keep the pace slow: lay down ordinary, everyday detail first, then let one detail go wrong. No jump scares.
 
 Tiếng Anh vì mô tả là **chỉ dẫn**, không phải nội dung: nó nằm giữa khối prompt tiếng Anh (xem mục [Ngôn ngữ](#ngôn-ngữ)), và model 7–14B tuân thủ chỉ dẫn tiếng Anh chặt hơn hẳn. Nó không kéo văn sang tiếng Anh — ngôn ngữ đầu ra do chỉ thị đầu system prompt quyết.
 
-**TÊN** thể loại thì gõ tiếng gì cũng được và nên giữ nguyên: đó là khoá tra cứu (`Series.genre`) và là khoá chọn biến thể prompt, nên đổi tên là các bộ đang dùng tên cũ lặng lẽ mất phần mô tả trong Bible.
+**TÊN** thể loại gõ tiếng gì cũng được, nhưng **đừng sửa tại chỗ**: đó là khoá tra cứu (`Series.genre`, `Series.tags`, `Prompt.genre`) và không cột nào là khoá ngoại, nên đổi tên là các bộ đang dùng tên cũ lặng lẽ mất phần mô tả trong Bible — văn trôi đi sau một hai lượt viết, không có gì báo. Muốn đổi thì chạy `pnpm --filter @audio/database db:rename-genres`, nó đổi tên và viết lại các cột đó trong cùng một transaction (chạy không cờ để xem trước, `--write` để làm thật).
 
-**Tên hiển thị và tên cho model tách làm hai ô.** Cùng một thể loại kéo hai hướng: `kinh dị` là thứ **người nghe** nhìn thấy — trang chủ Player lọc theo nó, trang bộ truyện in nó, và nó vào `itunes:keywords` của feed RSS; còn `horror` là thứ **model** có liên tưởng dày hơn hẳn, vì nó gặp nhãn đó hàng triệu lần lúc huấn luyện. Gộp một ô thì phải hy sinh một bên.
+Danh mục mặc định **hiện đang là tiếng Anh** (`horror`, `danmei`, `western setting`). Đây vẫn là nhãn **người nghe** thấy, nên một bộ truyện tiếng Việt đang mang thể loại tiếng Anh trên trang Player và trong `itunes:keywords`. Chỗ đó sẽ vá ở phía Player bằng nhãn riêng, không phải bằng cách đổi tên danh mục về lại tiếng Việt.
 
-`Genre.name` giữ nhãn người nghe và vẫn là khoá tra cứu (`Series.genre`, `Series.tags`, `Prompt.genre` không đổi gì). `Genre.promptName` là tên thay vào **mọi chỗ model đọc**: dòng `Genre:` và `Sub-genres:` trong Story Bible, tiêu đề mỗi mô tả, và hai dòng `Main genre:` / `Sub-genres:` trong prompt dàn ý. Bỏ trống thì model đọc luôn `name` — thể loại gõ tay không có trong danh mục vẫn chạy như cũ.
+**Tên hiển thị và tên cho model vẫn tách làm hai ô.** Từ khi tên chính là tiếng Anh thì phần lớn thể loại chỉ cần một ô, nhưng hai bên không phải lúc nào cũng muốn cùng một chữ: người nghe đọc `xianxia`, còn model ăn `xianxia (cultivation fantasy)` chắc hơn hẳn. Ô thứ hai giữ lại cho đúng những chỗ đó.
+
+`Genre.name` là nhãn người nghe và là khoá tra cứu (`Series.genre`, `Series.tags`, `Prompt.genre` không đổi gì). `Genre.promptName` là tên thay vào **mọi chỗ model đọc**: dòng `Genre:` và `Sub-genres:` trong Story Bible, tiêu đề mỗi mô tả, và hai dòng `Main genre:` / `Sub-genres:` trong prompt dàn ý. Bỏ trống thì model đọc luôn `name` — thể loại gõ tay không có trong danh mục vẫn chạy như cũ.
 
 Thể loại **chính đứng đầu** danh sách mô tả, vì model đọc tuần tự — truy vấn DB trả về thứ tự tuỳ ý nên phải sắp lại.
 

@@ -145,7 +145,7 @@ export function renderBible(input: {
   if (input.logline) parts.push(`Logline: ${input.logline}`);
 
   // Right after the genre line, before the setting: the model has to know what
-  // "kinh dị" means here before it reads anything else.
+  // "horror" means here before it reads anything else.
   const notes = (input.genreNotes ?? []).filter((g) => g.description.trim());
   if (notes.length > 0) {
     parts.push(

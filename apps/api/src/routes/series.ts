@@ -114,7 +114,7 @@ series.post("/", async (c) => {
       language: language || (await getDefaultLanguage()),
       draftLanguage,
       cast,
-      genre: field(body, "genre") || "kinh dị",
+      genre: field(body, "genre") || "horror",
       tags: field(body, "tags"),
       // Always EXACTLY ONE episode. Outlining 10 up front from one line of idea
       // makes episode 8 onward the model's guess at a story not yet written;

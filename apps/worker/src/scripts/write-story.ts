@@ -3,7 +3,7 @@
  *   idea → outline → write scenes → (approve) → audio script → summary
  *
  *   pnpm story "a night bus driver picks up a passenger who is already dead"
- *   pnpm story "..." --genre="kinh dị" --episodes=2
+ *   pnpm story "..." --genre="horror" --episodes=2
  *
  * Needs the worker running in another terminal.
  */
@@ -12,7 +12,7 @@ import { enqueue, shutdownQueueClient } from "../services/queue";
 
 const args = process.argv.slice(2);
 const idea = args.find((a) => !a.startsWith("--"));
-const genre = args.find((a) => a.startsWith("--genre="))?.split("=")[1] ?? "kinh dị";
+const genre = args.find((a) => a.startsWith("--genre="))?.split("=")[1] ?? "horror";
 const episodeCount = Number(args.find((a) => a.startsWith("--episodes="))?.split("=")[1] ?? 1);
 const autoApprove = args.includes("--auto-approve");
 

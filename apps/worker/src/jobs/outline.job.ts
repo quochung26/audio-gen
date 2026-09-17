@@ -37,7 +37,7 @@ import { logger } from "../lib/logger";
  */
 export const outlineJob: JobHandler = async ({ job, setProgress }) => {
   const idea = String(job.data.idea ?? "");
-  const genre = String(job.data.genre ?? "kinh dị");
+  const genre = String(job.data.genre ?? "horror");
   const episodeCount = Number(job.data.episodeCount ?? 1);
   // World setup the writer laid down FIRST — given one, the AI has to follow it rather
   // than inventing a setting of its own.
@@ -134,9 +134,10 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       description: outline.logline,
       // The genre the WRITER chose, NOT the one the model returned. This column is
       // the lookup key into `Genre.name` — it feeds the genre descriptions loaded
-      // into every later Bible, the home page label and the RSS keywords. A model
-      // answering "horror" for a story created under "kinh dị" matched nothing, and
-      // the story then wrote on with no genre description at all.
+      // into every later Bible, the home page label and the RSS keywords. The model
+      // answers in whatever words it likes — "psychological horror", or Vietnamese,
+      // which is what the catalogue used to be in — and anything but an exact name
+      // matched nothing, leaving the story to write on with no genre description.
       genre,
       tags,
       language,
