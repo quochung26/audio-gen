@@ -102,6 +102,7 @@ interface Ep {
     title: string;
     language: string;
     draftLanguage: string;
+    model: string;
     characters: Array<{ id: string; name: string; isNarrator: boolean }>;
   };
   chapters: Chapter[];
@@ -212,7 +213,7 @@ export function Episode() {
             submit={`Write all ${scenes.length - written} remaining scenes`}
             className="max-w-md rounded border border-neutral-800 p-4"
           >
-            <ModelPicker />
+            <ModelPicker seriesModel={ep.series.model} />
             <p className="mt-2 text-xs text-neutral-600">
               One long job, and nothing is readable until it finishes. To see sooner, use{" "}
               <strong className="text-neutral-400">write this scene</strong> on each scene below —
@@ -466,6 +467,8 @@ export function Episode() {
                                   ))}
                               </select>
                             </label>
+                            {/* No seriesModel: TRANSLATE is not one of the steps a story's model applies
+                                to, so naming it here would be the same lie in the other direction. */}
                             <ModelPicker kind="translate" />
                             <p className="mt-2 text-xs text-neutral-600">
                               For reading only — never spoken, never exported, and no prompt
@@ -650,7 +653,7 @@ export function Episode() {
               submit={`Outline chapter ${ep.chapters.length + 1}`}
               className="max-w-md"
             >
-              <ModelPicker />
+              <ModelPicker seriesModel={ep.series.model} />
               <p className="mt-2 text-xs text-neutral-600">
                 Planned from what the episode ACTUALLY says so far, not from the idea it started
                 from. A full-length episode is about {CHAPTERS_IN_A_FULL_EPISODE} chapters — but

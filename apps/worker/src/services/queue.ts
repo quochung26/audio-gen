@@ -1,7 +1,7 @@
 import { Queue } from "bullmq";
 import { JobLane, JobStatus, JobType, prisma } from "@audio/database";
 import { getJobVramCost, type Lane } from "@audio/config";
-import { needsLocalGpu } from "@audio/llm";
+import { needsLocalGpu, seriesModelFor } from "@audio/llm";
 import { connection } from "../lib/redis";
 
 const queues = new Map<Lane, Queue>();
@@ -56,6 +56,16 @@ export async function enqueue(input: {
   const lane = input.lane ?? LANE_OF[input.type];
   const vramMb = input.vramMb ?? (await vramCostFor(input.type));
 
+  // Same rule as the API's enqueue, and the same helper: a batch run queues its steps
+  // from in here, so the fallback living only on the API side meant a story with its
+  // own model kept it for every button in Studio and lost it the moment the batch
+  // took over — the one path that writes a whole story unattended.
+  const payload = { ...(input.payload ?? {}) };
+  if (!payload.model) {
+    const fromSeries = await seriesModelFor(input.type, input.episodeId, payload);
+    if (fromSeries) payload.model = fromSeries;
+  }
+
   const renderJob = await prisma.renderJob.create({
     data: {
       type: input.type,
@@ -63,13 +73,13 @@ export async function enqueue(input: {
       status: JobStatus.QUEUED,
       vramMb,
       episodeId: input.episodeId ?? null,
-      payload: (input.payload ?? {}) as object,
+      payload: payload as object,
     },
   });
 
   await getQueue(lane).add(
     input.type,
-    { renderJobId: renderJob.id, vramMb, ...input.payload },
+    { renderJobId: renderJob.id, vramMb, ...payload },
     {
       jobId: renderJob.id,
       attempts: renderJob.maxAttempts,

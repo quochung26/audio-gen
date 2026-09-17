@@ -43,12 +43,22 @@ interface OllamaData {
 export function ModelPicker({
   kind = "write",
   current,
+  seriesModel,
 }: {
   kind?: "write" | "utility" | "translate";
   /** The story's saved model — present only when this select IS that setting. */
   current?: string;
+  /**
+   * The story's saved model, on a picker that runs one job rather than setting it.
+   *
+   * Only for the wording. Leaving a run blank already uses it — the fallback is
+   * applied when the job is queued, not here — but the box said "default:
+   * <whatever the Models page says>", which is not what was about to run.
+   */
+  seriesModel?: string;
 }) {
   const sticky = current !== undefined;
+  const inherited = !sticky ? seriesModel?.trim() : undefined;
   const { data } = useApi<ModelsData>("/api/models");
   // Same keys as the Models page, so TanStack Query shares both requests.
   const { data: ollama } = useApi<OllamaData>("/api/models/ollama");
@@ -71,8 +81,9 @@ export function ModelPicker({
           {sticky ? "Model for this story" : "Model for this run"}
         </span>
         <p className="rounded border border-neutral-800 bg-neutral-900/60 p-2.5 text-xs text-neutral-400">
-          Nothing to pick — {sticky ? "this story uses" : "this run uses"} the default
-          {def ? ` (${def.value})` : ""}. {reason}
+          Nothing to pick — {sticky ? "this story uses" : "this run uses"}{" "}
+          {inherited ? `this story's model (${inherited})` : `the default${def ? ` (${def.value})` : ""}`}.{" "}
+          {reason}
         </p>
       </div>
     );
@@ -91,7 +102,9 @@ export function ModelPicker({
         defaultValue={current ?? ""}
         className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
       >
-        <option value="">— default{def ? `: ${def.value}` : ""} —</option>
+        <option value="">
+          {inherited ? `— this story: ${inherited} —` : `— default${def ? `: ${def.value}` : ""} —`}
+        </option>
         {/* A story's saved model that the provider no longer lists — Ollama has not
             pulled it back, or it has dropped off the recent list. Without this the
             select falls silently to "default" and one Save moves the story onto
@@ -108,7 +121,9 @@ export function ModelPicker({
       <span className="mt-1 block text-xs text-neutral-600">
         {sticky
           ? "Every writing run for this story uses it, until you change it here. Summaries and the other short steps keep the default."
-          : "Applies to this run only. Change the default on the Models page."}
+          : inherited
+            ? "Applies to this run only. Leave it alone and the story's own model writes it — change that on the story page."
+            : "Applies to this run only. Change the default on the Models page."}
       </span>
     </label>
   );

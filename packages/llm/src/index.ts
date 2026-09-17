@@ -12,6 +12,7 @@ export * from "./telemetry";
 export { zodToJsonSchema } from "./json-schema";
 export * from "./embedding";
 export * from "./model-settings";
+export * from "./series-model";
 export * from "./language-settings";
 export * from "./gen-params";
 export * from "./installed-models";

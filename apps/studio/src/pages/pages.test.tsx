@@ -108,6 +108,7 @@ const FIXTURES: Record<string, unknown> = {
     genre: "kinh dị",
     tags: ["tình cảm", "slow burn"],
     language: "en",
+    model: "qwen3:32b",
     kind: "LONG",
     world: { setting: "", tone: "", rules: [], constraints: [], glossary: [] },
     characters: [
@@ -191,6 +192,7 @@ const FIXTURES: Record<string, unknown> = {
       title: "Đường về",
       language: "vi",
       draftLanguage: "",
+      model: "qwen3:32b",
       characters: [{ id: "c1", name: "Tài", isNarrator: true }],
     },
     chapters: [
@@ -966,3 +968,74 @@ async function withEmptyCatalog<T>(body: () => Promise<T>): Promise<T> {
     FIXTURES["/api/genres"] = saved;
   }
 }
+
+describe("the model box says which model is actually about to run", () => {
+  // The story had its own model saved and the episode page still offered
+  // "— default: <the Models page default> —". The run did use the story's model,
+  // because the fallback is applied when the job is queued — so the only thing
+  // wrong was the sentence, which is the worst kind of wrong: you change the box
+  // to fix something that was never broken, and now it IS.
+  // The page carries several of these — one per thing you can start from it — and
+  // they do NOT all follow the story's model, so read them as a set.
+  const boxes = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLSelectElement>('select[name="model"]')].map((sel) => ({
+      blank: sel.querySelector('option[value=""]')?.textContent ?? "",
+      hint: sel.closest("label")?.textContent ?? "",
+    }));
+
+  it("names the story's model on a run started from the episode page", async () => {
+    const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+    await waitFor(() => expect(container.querySelector('select[name="model"]')).toBeTruthy());
+    expect(boxes(container).some((b) => b.blank.includes("this story: qwen3:32b"))).toBe(true);
+  });
+
+  it("does NOT claim it on the translate box, which follows its own default", async () => {
+    // Naming the story's model there would be the same lie pointing the other way:
+    // TRANSLATE is not one of the steps a story's model applies to.
+    const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+    await waitFor(() => expect(container.querySelector('select[name="model"]')).toBeTruthy());
+    const translate = boxes(container).find((b) =>
+      b.hint.includes("Change the default on the Models page"),
+    );
+    expect(translate).toBeTruthy();
+    expect(translate!.blank).not.toContain("this story");
+  });
+
+  it("falls back to naming the global default when the story has no model", async () => {
+    const ep = FIXTURES["/api/episodes/e1"] as { series: { model: string } };
+    const saved = ep.series.model;
+    ep.series.model = "";
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(container.querySelector('select[name="model"]')).toBeTruthy());
+      expect(boxes(container).some((b) => b.blank.includes("default: qwen3:14b"))).toBe(true);
+      expect(boxes(container).every((b) => !b.blank.includes("this story"))).toBe(true);
+    } finally {
+      ep.series.model = saved;
+    }
+  });
+
+  it("the story page's own box shows the saved model, not the default", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(container.querySelector('select[name="model"]')).toBeTruthy());
+    const select = container.querySelector<HTMLSelectElement>('select[name="model"]')!;
+    expect(select.value).toBe("qwen3:32b");
+  });
+
+  it("keeps a saved model that the provider no longer lists", async () => {
+    // Ollama has not pulled it back, or it dropped off the recent list. Falling
+    // silently to "default" would move the story onto another model on one Save.
+    const s1 = FIXTURES["/api/series/s1"] as { model: string };
+    const saved = s1.model;
+    s1.model = "some-model-nobody-has";
+    try {
+      const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+      await waitFor(() => expect(container.querySelector('select[name="model"]')).toBeTruthy());
+      const select = container.querySelector<HTMLSelectElement>('select[name="model"]')!;
+      expect(select.value).toBe("some-model-nobody-has");
+      expect(container.textContent).toContain("(not listed)");
+    } finally {
+      s1.model = saved;
+    }
+  });
+});

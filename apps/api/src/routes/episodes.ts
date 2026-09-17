@@ -31,6 +31,9 @@ episodes.get("/:id", async (c) => {
           genre: true,
           language: true,
           draftLanguage: true,
+          // What a blank "model for this run" will actually use. Without it the page
+          // could only name the global default, which is not what runs.
+          model: true,
           // So the episode page can build the "who is in this scene" picker.
           characters: {
             orderBy: [{ isNarrator: "desc" }, { name: "asc" }],

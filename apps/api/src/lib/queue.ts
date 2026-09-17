@@ -2,8 +2,7 @@ import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 import { JobLane, JobStatus, JobType, prisma } from "@audio/database";
 import { getJobVramCost, loadEnv } from "@audio/config";
-import { needsLocalGpu } from "@audio/llm";
-import { seriesModelFor } from "./series-model";
+import { needsLocalGpu, seriesModelFor } from "@audio/llm";
 
 /**
  * The API only QUEUES jobs; it never runs an LLM or ffmpeg itself.
