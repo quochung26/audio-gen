@@ -1,7 +1,7 @@
 import {
   namesMentionedIn,
   nextEpisodePlanSchema,
-  openingChapterOnly,
+  episodeOpening,
   planChapters,
   renderEpisodeContext,
   suggestScenesPerChapter,
@@ -111,13 +111,15 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(80);
 
   const plan = result.data;
-  // ONE chapter, whatever the model returned — see openingChapterOnly.
-  const opening = openingChapterOnly(plan.chapters);
+  // One chapter, one beat, whatever came back — see episodeOpening.
+  const opening = episodeOpening(plan.chapters);
   const chapters = planChapters(opening);
-  if (plan.chapters.length > opening.length) {
+  const plannedBeats = plan.chapters.reduce((n, c) => n + c.beats.length, 0);
+  const keptBeats = opening.reduce((n, c) => n + c.beats.length, 0);
+  if (plan.chapters.length > opening.length || plannedBeats > keptBeats) {
     logger.warn(
-      `[next-episode] the model planned ${plan.chapters.length} chapters; kept the first. ` +
-        `Chapter 2 is outlined from chapter 1 once it is written.`,
+      `[next-episode] the model planned ${plan.chapters.length} chapters / ${plannedBeats} beats; ` +
+        `kept the opening one. The rest are outlined once this scene has been written.`,
     );
   }
 

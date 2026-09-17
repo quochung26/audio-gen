@@ -24,26 +24,26 @@ export interface ChapterOutline {
 }
 
 /**
- * The ONE chapter a new episode opens with.
+ * What a new episode opens with: ONE chapter, and its FIRST beat.
  *
- * An episode is outlined a chapter at a time — chapter 2 is planned from what chapter 1
- * ACTUALLY says once it is written, not from a guess made before a word of it existed.
- * The first episode of a story gets this for free: its schema has no chapters at all.
- * A later episode has to ask for one, and asking is not the same as getting: the
- * prompt says "return exactly ONE chapter", and a model large enough to have its own
- * opinion returns three. Nothing stopped them being created, so a story whose model
- * changed started planning whole episodes again with no setting having moved.
+ * Everything else in the story is outlined one at a time — one episode, then one
+ * chapter of it, then one scene of that chapter, each planned from what the last one
+ * ACTUALLY turned out to say. NEXT_EPISODE was the piece left behind: it asked for a
+ * chapter split into SCENES_PER_CHAPTER beats and created all of them, so a new
+ * episode arrived with three scenes already planned while "Outline chapter N" on the
+ * same page produced exactly one. Two rules for the same tier, and the older one was
+ * winning wherever a new episode came from.
  *
- * Dropping the extras rather than failing the job, the same rule as a cast the model
- * added to: the run is expensive and nearly right, and dropping is what makes the
- * instruction stick.
+ * Trimming rather than failing the job: the run is expensive and nearly right, and
+ * trimming is what makes the instruction stick — the same reasoning as dropping the
+ * characters a model adds to a cast that was already chosen.
  */
-export function openingChapterOnly(chapters: readonly ChapterOutline[]): ChapterOutline[] {
-  // A chapter with no beats plans nothing — `planChapters` drops it anyway, and
-  // taking it as THE chapter would leave the episode empty while the real opening
-  // sat in the one after it.
-  const usable = chapters.filter((c) => c.beats.length > 0);
-  return usable.slice(0, 1);
+export function episodeOpening(chapters: readonly ChapterOutline[]): ChapterOutline[] {
+  // A chapter with no beats plans nothing — `planChapters` drops it anyway, and taking
+  // it as THE chapter would leave the episode empty while its real opening sat in the
+  // one after it.
+  const first = chapters.find((c) => c.beats.length > 0);
+  return first ? [{ ...first, beats: first.beats.slice(0, 1) }] : [];
 }
 
 /**

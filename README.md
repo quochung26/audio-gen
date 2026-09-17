@@ -226,7 +226,7 @@ Hai chỗ chặn:
 
 - **Số tập do server chốt**, không để model tự đánh — model hay đánh lại từ 1 hoặc nhảy số, mà `(seriesId, number)` là ràng buộc duy nhất nên trùng số là job chết.
 - **Tập gần nhất chưa có tóm tắt thì không cho viết tiếp.** Không có tóm tắt nghĩa là tập mới sẽ được dựng mà không biết tập trước kết thúc ra sao — đúng thứ mà viết-từng-tập sinh ra để tránh.
-- **Tập mới chỉ mở ra MỘT chương**, dù model trả về mấy chương. Prompt có ghi "trả đúng một chương", nhưng ghi trong prompt là lời dặn chứ không phải ràng buộc: model đủ lớn để có ý riêng thì trả ba, và trước đây cả ba đều được tạo. Thế là một bộ truyện vừa đổi model lặng lẽ quay về lối dựng cả tập từ trước, dù không ai chỉnh cài đặt nào. Chương thừa bị bỏ chứ không làm job chết — cùng quy tắc với nhân vật model tự thêm vào dàn đã chọn.
+- **Tập mới chỉ mở ra MỘT chương và MỘT cảnh.** Trước đây `NEXT_EPISODE` xin một chương chia sẵn `SCENES_PER_CHAPTER` beat rồi tạo hết — nên tập mới đẻ ra ba cảnh đã lên kế hoạch, trong khi nút "Outline chapter N" ngay trên cùng trang đó chỉ đẻ ra một. Cùng một tầng, hai luật, và được luật nào là tuỳ chương đó từ đâu tới. Phần thừa bị cắt chứ không làm job chết — cùng quy tắc với nhân vật model tự thêm vào dàn đã chọn. Lời dặn trong prompt vẫn giữ, nhưng ràng buộc nằm trong code: prompt là lời dặn, model đủ lớn để có ý riêng thì bỏ ngoài tai.
 
 Ngữ cảnh cho bước này KHÔNG truy hồi sự kiện theo ngữ nghĩa như lúc viết cảnh: chưa biết tập sắp viết nói về cái gì thì lấy gì mà truy hồi. Đổi lại, tình tiết bỏ ngỏ được nạp đầy đủ.
 

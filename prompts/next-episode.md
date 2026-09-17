@@ -9,7 +9,10 @@ You are a screenwriter for audio drama. Build the outline for ONE next episode o
   happens in it. A chapter is one stretch of the story with a beginning and an end, usually
   one place and one stretch of time. Later chapters are outlined afterwards, once this one
   has been written, so do not plan the whole episode here.
-- Split the chapter into {{scenesPerChapter}} beats.
+- Give its OPENING beat, and only that one. The chapter will run to about
+  {{scenesPerChapter}} scenes, but the rest are asked for one at a time once this one
+  has actually been written — so plan the chapter's shape in your head, and return only
+  the beat that starts it.
 - A BEAT IS ONE OR TWO SENTENCES. It says what happens, so that somebody else can write
   the scene from it — it is not the scene. No dialogue, no description, no prose.
 - Each beat is later written up as a scene of about {{sceneWords}} words. That number is
