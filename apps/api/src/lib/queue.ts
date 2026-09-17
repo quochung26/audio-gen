@@ -3,6 +3,7 @@ import { Redis } from "ioredis";
 import { JobLane, JobStatus, JobType, prisma } from "@audio/database";
 import { getJobVramCost, loadEnv } from "@audio/config";
 import { needsLocalGpu } from "@audio/llm";
+import { seriesModelFor } from "./series-model";
 
 /**
  * The API only QUEUES jobs; it never runs an LLM or ffmpeg itself.
@@ -56,6 +57,16 @@ export async function enqueue(input: {
   const lane = LANE_OF[input.type] ?? JobLane.LLM;
   const vramMb = await vramCostFor(input.type);
 
+  // The story's model, unless this run picked one. Done HERE rather than in the ten
+  // routes that enqueue: every one of them already reads `model` off the form, and a
+  // route that forgot the fallback would look exactly like a route that had it —
+  // right up until the story quietly changed voice mid-episode.
+  const payload = { ...(input.payload ?? {}) };
+  if (!payload.model) {
+    const fromSeries = await seriesModelFor(input.type, input.episodeId, payload);
+    if (fromSeries) payload.model = fromSeries;
+  }
+
   // Write to Postgres before pushing to Redis: Postgres is the source of truth,
   // Redis is only a transient queue.
   const job = await prisma.renderJob.create({
@@ -65,13 +76,13 @@ export async function enqueue(input: {
       status: JobStatus.QUEUED,
       vramMb,
       episodeId: input.episodeId ?? null,
-      payload: (input.payload ?? {}) as object,
+      payload: payload as object,
     },
   });
 
   await queue(lane).add(
     input.type,
-    { renderJobId: job.id, vramMb, ...input.payload },
+    { renderJobId: job.id, vramMb, ...payload },
     {
       jobId: job.id,
       attempts: job.maxAttempts,

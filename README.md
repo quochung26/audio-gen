@@ -400,17 +400,31 @@ Kokoro khai báo `vramMb = 0` vì chạy CPU — làn `TTS_CPU` không tranh VRA
 
 ### Model nào cho lần chạy nào
 
-Ba tầng, cụ thể hơn thì thắng:
+Bốn tầng, cụ thể hơn thì thắng:
 
 ```
 model chọn cho LẦN CHẠY này   ← ô "Model cho lần chạy này" ở form tạo truyện / viết cảnh
         ↓ không chọn
+model của BỘ TRUYỆN           ← trang truyện, mục "Model"
+        ↓ không đặt
 model của PROMPT              ← trang Prompt, ô "Model"
         ↓ không đặt
-model MẶC ĐỊNH                ← trang Model
+model MẶC ĐỊNH               ← trang Model
         ↓ chưa đặt
 giá trị trong .env
 ```
+
+**Model của bộ truyện** (`Series.model`) có vì tầng trên cùng chỉ sống đúng một lần
+chạy: chọn model ở form rồi bấm viết, lần sau ô đó lại về mặc định, và một bộ truyện
+viết dở bằng model này đi tiếp bằng model khác mà không có gì báo. Đặt ở trang truyện
+thì mọi lần chạy **viết** của bộ đó dùng nó cho tới khi bạn đổi. Bỏ trống là trả về mặc
+định.
+
+Chỉ các bước VIẾT. Tóm tắt và mấy bước phụ vẫn theo mặc định riêng của chúng — chúng
+ngắn, chạy liên tục, và cho một model 70B đọc chúng là trả giá truyện cho một đoạn
+không ai nghe. Model của bộ được nhét vào job ở đúng một chỗ, lúc xếp hàng
+(`apps/api/src/lib/series-model.ts`), chứ không rải ở mười route enqueue — một route
+quên thì trông y hệt route không quên, cho tới lúc bộ truyện đổi giọng giữa tập.
 
 **Model dùng cho từng việc KHÔNG nằm trong `.env`.** Chưa chọn gì thì hệ thống hỏi Ollama xem đang có model nào rồi lấy model đã tải đầu tiên hợp với loại việc. Không có model nào hợp thì **không chọn gì** — và job chạy tới bước đó dừng lại kèm câu chỉ rõ chỗ sửa:
 

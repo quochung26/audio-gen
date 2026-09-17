@@ -235,6 +235,19 @@ model Series {
   /// Sarah you then translate forever.
   draftLanguage String @default("")
 
+  /// The model that WRITES this story. Blank = whatever the Models page defaults to.
+  ///
+  /// There because picking a model on a form applied to that one run and nothing
+  /// else: the next run silently went back to the default, and a story half-written
+  /// by one model carried on in another voice with nothing saying so.
+  ///
+  /// The writing steps only. Summaries and the other utility calls keep their own
+  /// default — they are short, they run constantly, and a 70B model reading them is
+  /// paying story prices for a paragraph nobody hears.
+  ///
+  /// Still beaten by a model picked for one run, which is what that picker is for.
+  model String @default("")
+
   /// World rules, setting, prose voice. Characters do NOT live here — see the Character model.
   storyBible Json?
 

@@ -24,7 +24,12 @@ interface OllamaData {
 }
 
 /**
- * Pick a model for ONE run.
+ * Pick a model.
+ *
+ * Two jobs, one select. On a form that starts a run it picks the model for THAT run;
+ * given `current` it is a story setting instead, and the blank option hands the story
+ * back to the Models page default. The wording changes with it, because "applies to
+ * this run only" on a box that in fact persists is worse than no wording at all.
  *
  * Leaving it blank uses the default — and that is the first option, because
  * most runs need no change.
@@ -37,9 +42,13 @@ interface OllamaData {
  */
 export function ModelPicker({
   kind = "write",
+  current,
 }: {
   kind?: "write" | "utility" | "translate";
+  /** The story's saved model — present only when this select IS that setting. */
+  current?: string;
 }) {
+  const sticky = current !== undefined;
   const { data } = useApi<ModelsData>("/api/models");
   // Same keys as the Models page, so TanStack Query shares both requests.
   const { data: ollama } = useApi<OllamaData>("/api/models/ollama");
@@ -58,9 +67,11 @@ export function ModelPicker({
   if (choices.length === 0) {
     return (
       <div>
-        <span className="mb-1 block text-xs text-neutral-500">Model for this run</span>
+        <span className="mb-1 block text-xs text-neutral-500">
+          {sticky ? "Model for this story" : "Model for this run"}
+        </span>
         <p className="rounded border border-neutral-800 bg-neutral-900/60 p-2.5 text-xs text-neutral-400">
-          Nothing to pick — this run uses the default
+          Nothing to pick — {sticky ? "this story uses" : "this run uses"} the default
           {def ? ` (${def.value})` : ""}. {reason}
         </p>
       </div>
@@ -69,13 +80,25 @@ export function ModelPicker({
 
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-neutral-500">Model for this run</span>
+      <span className="mb-1 block text-xs text-neutral-500">
+        {sticky ? "Model for this story" : "Model for this run"}
+      </span>
       <select
         name="model"
-        defaultValue=""
+        // Keyed so the saved value takes once it arrives: the catalogue and the story
+        // load separately, and a plain defaultValue would have settled on "" first.
+        key={current ?? ""}
+        defaultValue={current ?? ""}
         className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
       >
         <option value="">— default{def ? `: ${def.value}` : ""} —</option>
+        {/* A story's saved model that the provider no longer lists — Ollama has not
+            pulled it back, or it has dropped off the recent list. Without this the
+            select falls silently to "default" and one Save moves the story onto
+            another model. */}
+        {sticky && current && !choices.some((c) => c.value === current) && (
+          <option value={current}>{current} (not listed)</option>
+        )}
         {choices.map((c) => (
           <option key={c.value} value={c.value}>
             {c.label}
@@ -83,7 +106,9 @@ export function ModelPicker({
         ))}
       </select>
       <span className="mt-1 block text-xs text-neutral-600">
-        Applies to this run only. Change the default on the Models page.
+        {sticky
+          ? "Every writing run for this story uses it, until you change it here. Summaries and the other short steps keep the default."
+          : "Applies to this run only. Change the default on the Models page."}
       </span>
     </label>
   );

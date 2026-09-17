@@ -3,6 +3,7 @@ import { mediaUrl, useApi } from "@/lib/api";
 import { Badge, Section, STATUS_TONE } from "@/components/ui";
 import { ActionButton, Form, Loading } from "@/components/Form";
 import { TagPicker } from "@/components/TagPicker";
+import { ModelPicker } from "@/components/ModelPicker";
 
 interface World {
   setting: string;
@@ -46,6 +47,7 @@ interface Data {
   genre: string;
   tags: string[];
   language: string;
+  model: string;
   coverUrl: string | null;
   world: World;
   characters: Char[];
@@ -298,6 +300,17 @@ export function Series() {
             The previous run failed: {run.error}
           </p>
         )}
+      </Section>
+
+      <Section title="Model">
+        <Form
+          path={`/api/series/${s.id}/model`}
+          method="PUT"
+          submit="Save"
+          className="rounded border border-neutral-800 p-4"
+        >
+          <ModelPicker current={s.model} />
+        </Form>
       </Section>
 
       <Section title="Sub-genres">

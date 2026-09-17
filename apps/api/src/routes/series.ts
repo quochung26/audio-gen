@@ -208,6 +208,27 @@ series.get("/:id/world", async (c) => {
  * outline, and regenerating the outline cannot lose the world rules.
  */
 /**
+ * Change the model that WRITES this story.
+ *
+ * Blank hands it back to the Models page default. Like the draft language, it only
+ * decides the next run — episodes already written stay exactly as they were written,
+ * because they were.
+ */
+series.put("/:id/model", async (c) => {
+  const body = await c.req.parseBody();
+  const value = field(body, "model").trim();
+  if (value.length > 200) throw new UserError("That does not look like a model name");
+
+  await prisma.series.update({ where: { id: c.req.param("id") }, data: { model: value } });
+
+  return c.json({
+    ok: value
+      ? `From now on this story is written by "${value}".`
+      : "Back to the default model from the Models page.",
+  });
+});
+
+/**
  * Change a story's DRAFT language.
  *
  * Unlike `Series.language`, this one can change midway: it only decides the next

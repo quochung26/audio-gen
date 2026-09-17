@@ -142,6 +142,11 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       tags,
       language,
       draftLanguage: draft.translate ? draft.draft : "",
+      // The model picked on the New story form becomes the story's model, rather than
+      // applying to this one outline and then being forgotten. Blank stays blank: that
+      // means "whatever the Models page says", and pinning the resolved default here
+      // would freeze the story onto a model the writer never chose.
+      model: String(job.data.model ?? "").trim(),
       status: SeriesStatus.DRAFT,
       storyBible: {
         raw: outline,
