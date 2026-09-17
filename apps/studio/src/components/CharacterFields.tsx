@@ -64,7 +64,7 @@ export function CharacterFields({
 
       <Textarea
         label="Personality"
-        hint="Who this person is — what drives their ACTIONS and choices."
+        hint="Who this person is: what they are LIKE, and what drives their ACTIONS and choices."
         placeholder="Stubborn, never complains. Believes in omens but will not say so. Most afraid of owing anyone."
         rows={3}
         {...bind("description")}

@@ -6,8 +6,10 @@ You are a screenwriter for audio drama. From a short idea, build a full series o
 - Follow ALL the sub-genres, not just the main genre.
 - `logline` states the central conflict in ONE sentence.
 - `setting` states time, place and atmosphere — this is what the listener pictures.
-- Every character needs a `description`: their PERSONALITY — what drives the choices they
-  make. Not their looks, and not their job; what they want and what they will not do.
+- Every character needs a `description`: their PERSONALITY, both halves. What they are
+  LIKE — temperament, how they carry themselves, what they do when something goes wrong
+  — and what drives their choices, what they want and what they will not do. Wants
+  alone describe a position rather than a person. Not their looks, and not how they talk.
 - Every character needs a `speech`: rhythm, verbal habits, what they call people, what happens
   to their speech under stress. This is what keeps their dialogue recognisable across episodes.
 - Every character needs an `outfit`: what they usually wear. A default only — each chapter

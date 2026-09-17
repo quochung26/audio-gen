@@ -16,7 +16,7 @@ export const characterSchema = z.object({
   description: z
     .string()
     .describe(
-      "Personality: what drives their ACTIONS and choices. Not their looks — those go in appearance",
+      "Personality: what they are LIKE — temperament, how they behave when things go wrong — and what drives their choices. Not their looks, which go in appearance; not how they talk, which goes in speech",
     ),
   outfit: z
     .string()

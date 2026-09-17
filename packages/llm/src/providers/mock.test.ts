@@ -65,4 +65,13 @@ describe("the mock tells the two `description` fields apart", () => {
     const schema = z.object({ description: z.string() });
     expect(await one(schema)).toBe("Mock description, for testing.");
   });
+
+  it("still recognises the REAL character schema, not just a lookalike", async () => {
+    // The two tests above build their own schema, so they would keep passing after
+    // `characterSchema`'s wording was rewritten out from under the mock — which is
+    // exactly what happened once already. This one uses the schema in use.
+    const { characterSchema } = await import("@audio/core");
+    const { data } = await llm.generateJson({ model: "mock", prompt: "x", schema: characterSchema });
+    expect(data.description).not.toContain("Mock description");
+  });
 });

@@ -136,7 +136,7 @@ function CardForm({ voices, card }: { voices: Voice[]; card?: Card }) {
       <Field
         name="description"
         label="Personality"
-        hint="Who this person is — what drives their actions and choices."
+        hint="Who this person is: what they are like, and what drives their actions and choices."
         placeholder="Stubborn, never complains. Believes in omens but will not say so."
         rows={2}
         defaultValue={card?.description ?? ""}

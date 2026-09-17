@@ -338,6 +338,14 @@ model Character {
 
   name        String
   role        String?
+
+  /// Personality, in BOTH halves: what they are like — temperament, how they behave
+  /// when something goes wrong — and what drives their choices.
+  ///
+  /// Asked for as drives alone, models answer with a position: what she wants, what
+  /// she will not do, and nothing about how she carries herself. That reads like a
+  /// case being argued rather than a person, and leaves every scene to invent her
+  /// manner afresh.
   description String?
 
   /// Speech: rhythm, verbal habits, forms of address, what they do when moved.
@@ -412,6 +420,8 @@ model CharacterCard {
   /// Unique so a clash is reported clearly rather than producing two identical-looking cards.
   name        String  @unique
   role        String?
+
+  /// Personality — see `Character.description`, which this is copied into.
   description String?
 
   /// Speech: rhythm, verbal habits, forms of address, what they do when moved.
