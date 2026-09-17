@@ -198,6 +198,23 @@ async function seedGenres() {
         "The subject is a relationship between two people, and how it changes. Feeling shows through action and through silence, not through long interior monologue. Avoid sentimentality and dialogue that explains itself.",
     },
     {
+      // Named the way the ask came in. "đam mỹ" is the tag Vietnamese web-novel
+      // readers actually search for, and is one word to change here if that is the
+      // audience — but change it BEFORE any story uses it: renaming strips the
+      // description from every Bible that looked it up by the old name.
+      name: "đồng tính nam",
+      promptName: "danmei / male-male romance",
+      description:
+        "A romance between two men, written as a romance: nobody in the scene has to justify it to the listener, and the story is not about it being unusual. Give the two of them different registers — the commonest failure is two voices a listener cannot tell apart, which is fatal in audio where there is no name at the top of the line. What keeps them apart should be something one of them chose — a duty, a lie, a debt — rather than a disapproving world doing the work. Neither of them is the woman in the pair.",
+    },
+    {
+      // See the note on "đồng tính nam": the reader tag is "bách hợp".
+      name: "đồng tính nữ",
+      promptName: "yuri / female-female romance",
+      description:
+        "A romance between two women, and the listener must never be left wondering whether it is one — the commonest failure is a story that stays close enough to friendship to deny at the end. The closeness builds through proximity and habit: shared work, shared rooms, being the first person told. Let the turn be something one of them DOES that only makes sense if she is in love, rather than a speech announcing it. The desire is hers, not arranged for someone watching.",
+    },
+    {
       name: "trinh thám",
       promptName: "detective fiction",
       description:
