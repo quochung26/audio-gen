@@ -89,6 +89,13 @@ const FIXTURES: Record<string, unknown> = {
         usedBy: 3,
       },
       { id: "g2", name: "kỳ ảo", description: "Siêu nhiên phải có luật.", enabled: false, usedBy: 0 },
+      {
+        id: "g3",
+        name: "trinh thám",
+        description: "Người nghe phải đủ manh mối để tự đoán ra.",
+        enabled: true,
+        usedBy: 2,
+      },
     ],
     unlisted: [{ name: "slow burn", usedBy: 1 }],
   },
@@ -791,7 +798,7 @@ describe("sub-genres", () => {
   it("says editing here does NOT touch the main genre", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
     await waitFor(() => expect(container.textContent).toContain("Sub-genres"));
-    expect(container.textContent).toMatch(/changing things here does not touch it/i);
+    expect(container.textContent).toMatch(/nothing here touches it/i);
   });
 });
 
@@ -841,7 +848,7 @@ describe("the new-story screen takes genres from the catalogue", () => {
     // Wait for the CONTENT, not for "any options yet": before the catalogue
     // arrives the select already holds one empty-state option, so counting
     // options waits for nothing. "kỳ ảo" is hidden and must not appear.
-    await waitFor(() => expect(options()).toEqual(["kinh dị"]));
+    await waitFor(() => expect(options()).toEqual(["kinh dị", "trinh thám"]));
   });
 
   it("an empty catalogue says so in one line rather than a blank select", async () => {
@@ -861,14 +868,14 @@ describe("the new-story screen takes genres from the catalogue", () => {
 describe("picking sub-genres", () => {
   it("allows several, and sends one comma-separated string", async () => {
     const { container } = renderAt("/series/s1", "/series/:id", <Series />);
-    await waitFor(() => expect(screen.getByRole("checkbox", { name: "kinh dị" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "trinh thám" })).toBeTruthy());
     const tags = () => container.querySelector<HTMLInputElement>('input[name="tags"]')!.value;
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "kinh dị" }));
-    expect(tags()).toBe("tình cảm, slow burn, kinh dị");
+    fireEvent.click(screen.getByRole("checkbox", { name: "trinh thám" }));
+    expect(tags()).toBe("tình cảm, slow burn, trinh thám");
 
     fireEvent.click(screen.getByRole("checkbox", { name: "tình cảm" }));
-    expect(tags()).toBe("slow burn, kinh dị");
+    expect(tags()).toBe("slow burn, trinh thám");
   });
 
   it("a genre the story carries but the catalogue lacks still shows, still ticked", async () => {
@@ -878,6 +885,63 @@ describe("picking sub-genres", () => {
       expect(screen.getByRole("checkbox", { name: "slow burn" })).toBeInstanceOf(HTMLInputElement),
     );
     expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "slow burn" }).checked).toBe(true);
+  });
+
+  it("does not offer the main genre — a story is not a sub-genre of itself", async () => {
+    renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "trinh thám" })).toBeTruthy());
+    // "kinh dị" is this story's main genre and is in the catalogue, so before
+    // this it sat in the list waiting to be ticked a second time.
+    expect(screen.queryByRole("checkbox", { name: "kinh dị" })).toBeNull();
+  });
+
+  it("follows the main genre while the new-story form is open", async () => {
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    const select = () => container.querySelector<HTMLSelectElement>('select[name="genre"]')!;
+    await waitFor(() => expect(select().options).toHaveLength(2));
+
+    // "kinh dị" is selected by default, so the picker starts on the other one.
+    expect(screen.queryByRole("checkbox", { name: "kinh dị" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "trinh thám" })).toBeTruthy();
+
+    fireEvent.change(select(), { target: { value: "trinh thám" } });
+    expect(screen.getByRole("checkbox", { name: "kinh dị" })).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: "trinh thám" })).toBeNull();
+  });
+
+  it("keeps a sub-genre on screen after it becomes the main genre", async () => {
+    // Hiding it while it is still in `tags` leaves a tag that gets saved and
+    // that nobody can take off again.
+    const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+    const select = () => container.querySelector<HTMLSelectElement>('select[name="genre"]')!;
+    await waitFor(() => expect(select().options).toHaveLength(2));
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "trinh thám" }));
+    fireEvent.change(select(), { target: { value: "trinh thám" } });
+
+    const box = screen.getByRole<HTMLInputElement>("checkbox", { name: "trinh thám" });
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    expect(container.querySelector<HTMLInputElement>('input[name="tags"]')!.value).toBe("");
+    expect(screen.queryByRole("checkbox", { name: "trinh thám" })).toBeNull();
+  });
+
+  it("says so when the catalogue holds nothing BUT the main genre", async () => {
+    // Different from an empty catalogue: there is no job to go and do.
+    const saved = FIXTURES["/api/genres"];
+    FIXTURES["/api/genres"] = {
+      genres: [{ id: "g1", name: "kinh dị", description: "…", enabled: true, usedBy: 3 }],
+      unlisted: [],
+    };
+    try {
+      const { container } = renderAt("/series/new", "/series/new", <SeriesNew />);
+      await waitFor(() =>
+        expect(container.textContent).toContain("every genre in it is the main one"),
+      );
+      expect(container.textContent).not.toContain("The genre catalogue is empty");
+    } finally {
+      FIXTURES["/api/genres"] = saved;
+    }
   });
 
   it("an empty catalogue and no sub-genres yet just reports empty", async () => {

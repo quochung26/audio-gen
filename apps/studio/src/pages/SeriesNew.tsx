@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useApi } from "@/lib/api";
 import { Form } from "@/components/Form";
@@ -16,6 +17,12 @@ export function SeriesNew() {
     "/api/genres",
   );
   const genres = (data?.genres ?? []).filter((g) => g.enabled);
+
+  // The main genre has to be state, not left to the DOM: the sub-genre picker
+  // below is driven by it, and it changes while the form is open. Until someone
+  // picks, it is whatever the select shows by itself — the first option.
+  const [chosen, setChosen] = useState("");
+  const mainGenre = chosen || genres[0]?.name || "";
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -50,7 +57,8 @@ export function SeriesNew() {
             <span className="mb-1 block text-sm text-neutral-400">Main genre</span>
             <select
               name="genre"
-              key={genres.length}
+              value={mainGenre}
+              onChange={(e) => setChosen(e.target.value)}
               disabled={genres.length === 0}
               className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm disabled:text-neutral-600"
             >
@@ -76,17 +84,20 @@ export function SeriesNew() {
           <DraftLanguagePicker />
         </div>
 
-        <label className="block">
+        {/* A div, not a label: a label names ONE control, and this one wrapped the
+            whole row of checkboxes, which left every one of them announcing the
+            paragraph below instead of its own genre. */}
+        <div className="block">
           <span className="mb-1 block text-sm text-neutral-400">
             Sub-genres <span className="text-neutral-600">— optional</span>
           </span>
-          <TagPicker genres={genres.map((g) => g.name)} />
+          <TagPicker genres={genres.map((g) => g.name)} exclude={mainGenre} />
           <span className="mt-1 block text-xs text-neutral-600">
             Click to pick; pick as many as you like. The AI reads them while writing — the main
             genre decides which prompt runs, sub-genres steer tone and events. They also become
             keywords listeners search by.
           </span>
-        </label>
+        </div>
 
         <ModelPicker />
 

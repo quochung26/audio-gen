@@ -310,11 +310,12 @@ export function Series() {
           <TagPicker
             genres={(catalog?.genres ?? []).filter((g) => g.enabled).map((g) => g.name)}
             initial={s.tags}
+            exclude={s.genre}
           />
           <p className="mt-2 text-xs text-neutral-600">
             Click to add or remove. The AI reads them while writing, and they become RSS keywords.
             The <strong className="text-neutral-400">main</strong> genre ({s.genre}) is what decides
-            which prompt runs — changing things here does not touch it.
+            which prompt runs; it is not on the list, and nothing here touches it.
           </p>
         </Form>
       </Section>
