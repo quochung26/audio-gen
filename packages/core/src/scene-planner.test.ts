@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SCENES_PER_CHAPTER,
   chaptersInAFullEpisode,
+  openingChapterOnly,
   planChapters,
   scenesInAFullEpisode,
 } from "./scene-planner";
@@ -60,5 +61,47 @@ describe("what a full-length episode comes to", () => {
 
   it("however short the episode, there is at least one chapter", () => {
     expect(chaptersInAFullEpisode(10)).toBe(1);
+  });
+});
+
+describe("a new episode opens with ONE chapter", () => {
+  // The prompt says "return exactly ONE chapter". A model big enough to have its own
+  // opinion returns three, and every one of them used to be created — so a story that
+  // changed model quietly went back to planning whole episodes up front, which is the
+  // guesswork outlining a chapter at a time exists to remove.
+  const ch = (title: string, beats: string[]) => ({ title, beats });
+
+  it("keeps the first and drops the rest", () => {
+    const out = openingChapterOnly([
+      ch("Đêm mưa", ["Tài dừng xe."]),
+      ch("Bến Cũ", ["Ghế 12 trống."]),
+      ch("Sáng hôm sau", ["Tài không quay lại."]),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.title).toBe("Đêm mưa");
+  });
+
+  it("skips a chapter with no beats — it plans nothing", () => {
+    // Taking it as THE chapter leaves the episode empty while the real opening sits
+    // in the one after it.
+    const out = openingChapterOnly([ch("Mở đầu", []), ch("Đêm mưa", ["Tài dừng xe."])]);
+    expect(out[0]?.title).toBe("Đêm mưa");
+  });
+
+  it("one chapter in, one chapter out", () => {
+    expect(openingChapterOnly([ch("Đêm mưa", ["Tài dừng xe."])])).toHaveLength(1);
+  });
+
+  it("nothing usable gives nothing, rather than an empty chapter", () => {
+    expect(openingChapterOnly([ch("Mở đầu", [])])).toEqual([]);
+    expect(openingChapterOnly([])).toEqual([]);
+  });
+
+  it("the kept chapter still numbers and splits as usual", () => {
+    const [only] = planChapters(
+      openingChapterOnly([ch("Đêm mưa", ["Tài dừng xe.", "Ghế 12 trống."]), ch("Bến Cũ", ["x"])]),
+    );
+    expect(only!.order).toBe(1);
+    expect(only!.scenes.map((s) => s.order)).toEqual([1, 2]);
   });
 });

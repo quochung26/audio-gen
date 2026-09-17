@@ -24,6 +24,29 @@ export interface ChapterOutline {
 }
 
 /**
+ * The ONE chapter a new episode opens with.
+ *
+ * An episode is outlined a chapter at a time — chapter 2 is planned from what chapter 1
+ * ACTUALLY says once it is written, not from a guess made before a word of it existed.
+ * The first episode of a story gets this for free: its schema has no chapters at all.
+ * A later episode has to ask for one, and asking is not the same as getting: the
+ * prompt says "return exactly ONE chapter", and a model large enough to have its own
+ * opinion returns three. Nothing stopped them being created, so a story whose model
+ * changed started planning whole episodes again with no setting having moved.
+ *
+ * Dropping the extras rather than failing the job, the same rule as a cast the model
+ * added to: the run is expensive and nearly right, and dropping is what makes the
+ * instruction stick.
+ */
+export function openingChapterOnly(chapters: readonly ChapterOutline[]): ChapterOutline[] {
+  // A chapter with no beats plans nothing — `planChapters` drops it anyway, and
+  // taking it as THE chapter would leave the episode empty while the real opening
+  // sat in the one after it.
+  const usable = chapters.filter((c) => c.beats.length > 0);
+  return usable.slice(0, 1);
+}
+
+/**
  * Split an episode into chapters, and each chapter into scenes.
  *
  * Why not generate a whole episode at once: a 14B model's quality drops noticeably

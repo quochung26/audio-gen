@@ -1,6 +1,7 @@
 import {
   namesMentionedIn,
   nextEpisodePlanSchema,
+  openingChapterOnly,
   planChapters,
   renderEpisodeContext,
   suggestScenesPerChapter,
@@ -110,7 +111,15 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(80);
 
   const plan = result.data;
-  const chapters = planChapters(plan.chapters);
+  // ONE chapter, whatever the model returned — see openingChapterOnly.
+  const opening = openingChapterOnly(plan.chapters);
+  const chapters = planChapters(opening);
+  if (plan.chapters.length > opening.length) {
+    logger.warn(
+      `[next-episode] the model planned ${plan.chapters.length} chapters; kept the first. ` +
+        `Chapter 2 is outlined from chapter 1 once it is written.`,
+    );
+  }
 
   // Guess who is present in each scene — see outline.job. Empty makes the Bible load every
   // character in full, which is the old behaviour.
