@@ -240,6 +240,13 @@ function fakeString(base: string, desc: string, index: number): string {
     ][index % 7]!;
   }
   if (base === "text") return "Đêm xuống, con đường vắng chỉ còn tiếng gió lùa qua hàng cây.";
+  // Two different `description` fields: a character's personality and an episode's
+  // blurb. Told apart by the schema's own wording, the same trick as voiceHint.
+  if (base === "description" && desc.startsWith("personality")) {
+    return ["Lì, ít nói, nhưng không bỏ ai giữa đường.", "Chỉ muốn về đúng nhà mình, và không chịu tin là mình không còn nhà.", "Sợ mang tiếng, nên giấu chuyện cũ đến cùng."][
+      index % 3
+    ]!;
+  }
   if (base === "description") return "Mock description, for testing.";
   if (base === "coverPrompt") return "Chiếc xe khách cũ dưới ánh đèn đường vàng, sương mù.";
   if (base === "hashtags") return "#truyenma";

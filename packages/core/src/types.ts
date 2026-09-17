@@ -13,6 +13,11 @@ import { z } from "zod";
 export const characterSchema = z.object({
   name: z.string().min(1).describe("Character name"),
   role: z.string().describe("Role in the story, age, occupation — one short line"),
+  description: z
+    .string()
+    .describe(
+      "Personality: what drives their ACTIONS and choices. Not their looks — those go in appearance",
+    ),
   outfit: z
     .string()
     .describe(
@@ -94,24 +99,6 @@ export const outlineSchema = z.object({
   episodes: z.array(episodePlanSchema).min(1),
 });
 
-/**
- * ONE character, invented on demand by the CHARACTER step.
- *
- * `characterSchema` with a `description` added, rather than the same schema: the
- * outline returns a whole cast and asking it for a personality paragraph per person
- * on top of the plot costs tokens it spends better on the story. Invented one at a
- * time there is room, and personality is most of what the writer wanted the button
- * for.
- */
-export const characterDraftSchema = characterSchema.extend({
-  description: z
-    .string()
-    .describe(
-      "Personality: what drives their ACTIONS and choices. Not their looks — those go in appearance",
-    ),
-});
-
-export type CharacterDraft = z.infer<typeof characterDraftSchema>;
 export type CharacterPlan = z.infer<typeof characterSchema>;
 export type ChapterPlanned = z.infer<typeof chapterPlanSchema>;
 export type EpisodePlan = z.infer<typeof episodePlanSchema>;

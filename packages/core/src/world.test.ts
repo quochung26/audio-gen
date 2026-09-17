@@ -236,6 +236,7 @@ describe("buildBible — the Bible built the moment the outline lands", () => {
       {
         name: "Tài",
         role: "tài xế",
+        description: "lì, không bỏ ai giữa đường",
         outfit: "áo sơ mi bạc",
         appearance: "gầy",
         speech: "cộc lốc",
@@ -249,8 +250,8 @@ describe("buildBible — the Bible built the moment the outline lands", () => {
 
   it("carries the genre the WRITER chose, not the model's answer", () => {
     // `Series.genre` is the key into `Genre.name`. The model answers in its own
-    // words, and "horror" matches no seeded genre, so the description that makes
-    // "kinh dị" mean what the writer means never loads again.
+    // words, and a word that is not a seeded name matches nothing, so the
+    // description that makes the genre mean what the writer means never loads.
     const b = buildBible(outline, { genre: "kinh dị" });
     expect(b).toContain("Genre: kinh dị");
     expect(b).not.toContain("horror");

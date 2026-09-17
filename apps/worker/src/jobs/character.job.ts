@@ -1,5 +1,5 @@
 import {
-  characterDraftSchema,
+  characterSchema,
   fillBlanks,
   normalizeCast,
   parseTags,
@@ -79,7 +79,7 @@ export const characterJob: JobHandler = async ({ job, setProgress }) => {
     result = await getLlm().generateJson({
       model,
       system: withLanguage(language),
-      schema: characterDraftSchema,
+      schema: characterSchema,
       prompt: renderTemplate(prompt.content, {
         context,
         brief: renderCharacterBrief(typed),

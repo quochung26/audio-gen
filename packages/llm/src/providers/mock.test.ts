@@ -44,3 +44,25 @@ describe("the mock reads the episode count out of the outline prompt", () => {
     expect(await count("Số tập: 3")).toBe(3);
   });
 });
+
+describe("the mock tells the two `description` fields apart", () => {
+  // A character's personality and an episode's blurb are both called `description`,
+  // and the mock only has the schema's own wording to go on. Reword the field in
+  // types.ts and a mock outline silently hands every character "Mock description,
+  // for testing." as their personality — which still parses, still writes, and reads
+  // like a cast with nobody in it.
+  const one = async (schema: z.ZodType<{ description: string }>) =>
+    (await llm.generateJson({ model: "mock", prompt: "x", schema })).data.description;
+
+  it("gives a personality when the field asks for one", async () => {
+    const schema = z.object({
+      description: z.string().describe("Personality: what drives their ACTIONS and choices"),
+    });
+    expect(await one(schema)).not.toContain("Mock description");
+  });
+
+  it("leaves any other description alone", async () => {
+    const schema = z.object({ description: z.string() });
+    expect(await one(schema)).toBe("Mock description, for testing.");
+  });
+});

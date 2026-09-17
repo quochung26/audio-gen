@@ -130,6 +130,7 @@ export function mergeCast(
     return {
       ...c,
       role: c.role?.trim() || g.role,
+      description: c.description?.trim() || g.description,
       speech: c.speech?.trim() || g.speech,
       outfit: c.outfit?.trim() || g.outfit,
       appearance: c.appearance?.trim() || g.appearance,

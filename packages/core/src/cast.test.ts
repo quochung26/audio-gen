@@ -94,7 +94,13 @@ describe("renderCastForOutline", () => {
 
 describe("mergeCast", () => {
   const generated = [
-    { name: "Tài", role: "tài xế đường dài", voiceHint: "nam trung niên", isNarrator: true },
+    {
+      name: "Tài",
+      role: "tài xế đường dài",
+      description: "lì, không bỏ ai giữa đường",
+      voiceHint: "nam trung niên",
+      isNarrator: true,
+    },
     { name: "Cô gái áo trắng", role: "hành khách bí ẩn", voiceHint: "nữ trẻ" },
   ];
 
@@ -122,6 +128,20 @@ describe("mergeCast", () => {
     // Picking a card that only has a name still has to yield a usable character.
     const out = mergeCast([{ name: "Tài" }], generated);
     expect(out[0]).toMatchObject({ role: "tài xế đường dài", voiceHint: "nam trung niên" });
+  });
+
+  it("takes the model's personality for a character who has none", () => {
+    // The field the outline was not asked for until recently. Left out of the merge
+    // it stays empty for good: every scene then writes that character with a voice
+    // and a face and nothing driving them.
+    expect(mergeCast([{ name: "Tài" }], generated)[0]!.description).toBe(
+      "lì, không bỏ ai giữa đường",
+    );
+  });
+
+  it("does not overwrite a personality the writer typed", () => {
+    const out = mergeCast([{ name: "Tài", description: "nhát, hay chối" }], generated);
+    expect(out[0]!.description).toBe("nhát, hay chối");
   });
 
   it("preserves the cardId of the chosen card", () => {
