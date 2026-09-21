@@ -434,6 +434,13 @@ export interface StoryContext {
    * named in episode 7 that nobody feeds forward is a problem episode 8 repeats.
    */
   reviewLessons?: string[];
+  /**
+   * What a review found about THIS scene, when the scene is being written again.
+   *
+   * Empty for a scene written for the first time: there is no earlier version to have
+   * been criticised. See `sceneFindings`.
+   */
+  reviewFindings?: string[];
   /** What this scene must NOT do — part of the assignment, see `beatContract`. */
   forbidden?: string[];
   /** What to check this scene against before writing it. */

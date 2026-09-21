@@ -14,6 +14,7 @@ import {
 } from "@audio/core";
 import { buildSeriesBible, prisma, renderBibleFor } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
+import { findingsForScene } from "./review-findings";
 import { lessonsBefore } from "./review-lessons";
 import { styleWindowFor } from "./style-window";
 
@@ -46,6 +47,8 @@ export interface SceneContext {
   continuity: string[];
   /** What the previous episode's review found — see services/review-lessons.ts. */
   reviewLessons: string[];
+  /** What the latest review said about THIS scene. Empty unless it is being rewritten. */
+  reviewFindings: string[];
   targetWords: number;
 }
 
@@ -194,6 +197,18 @@ export async function buildSceneContext(
       : await lastSummaryBefore(series.id, episode.number)
     )?.trim() ?? "";
 
+  // Only for a scene that already has prose: one written for the first time has no
+  // earlier version for anybody to have criticised. `at + 1` is its place in the EPISODE,
+  // which is how the review was shown the scenes and so how it numbered them — counting
+  // within the chapter would attach chapter 2's findings to chapter 1's scenes.
+  const reviewFindings = scene.text
+    ? await findingsForScene({
+        episodeId: episode.id,
+        sceneNumber: at + 1,
+        sceneWrittenAt: scene.updatedAt,
+      })
+    : [];
+
   const sceneCount = ordered.length;
 
   // Three tiers of character instruction: Story Bible (whole story) → chapter → scene.
@@ -216,6 +231,7 @@ export async function buildSceneContext(
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
     sceneNote: sceneSetup.note,
     reviewLessons,
+    reviewFindings,
     forbidden: scene.forbidden,
     continuity: scene.continuity,
     // Fixed, not the episode's target shared out among its scenes. That division held

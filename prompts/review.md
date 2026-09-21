@@ -10,6 +10,10 @@ reading what you found.
 3. Report issues. **Every issue must carry a short quote from the draft, or the exact
    number, showing it.** An issue you cannot quote is an impression, and an impression
    costs the writer an hour of rereading to find nothing. Leave it out.
+   `what` is **one sentence of at most thirty words** — what is wrong, not an essay
+   arguing it. The findings are handed back to the write that replaces the scene, and a
+   paragraph of reasoning per finding is longer than the scene itself; read there, it
+   stops being direction and becomes noise.
 4. Say which scenes are worth rereading, and give a verdict.
 
 ## The seven dimensions

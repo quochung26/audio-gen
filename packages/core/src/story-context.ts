@@ -1,5 +1,5 @@
 import type { CastMember } from "./cast";
-import { renderReviewLessons } from "./review";
+import { renderReviewLessons, renderSceneFindings } from "./review";
 import { renderStyleStats } from "./style-stats";
 import type { OpenThread, Outline, StoryContext, StoryDirection } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
@@ -285,6 +285,10 @@ export function renderContext(ctx: StoryContext): string {
       ...ctx.continuity.map((f) => `- ${f}`),
     );
   }
+  // Last inside the assignment, so it is the final thing read before writing — and
+  // inside it rather than beside it, because it is about THIS scene and nothing else.
+  const findings = renderSceneFindings(ctx.reviewFindings ?? []);
+  if (findings) assignment.push(``, findings);
   parts.push(assignment.join("\n"));
 
   // Read TOGETHER with the beat, and winning where the two disagree.

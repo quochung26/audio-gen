@@ -62,7 +62,10 @@ export const reviewSchema = z.object({
         severity,
         /** Which scene it is in. 0 = the episode as a whole. */
         scene: z.number().int().min(0).describe("Scene number it is in, or 0 for the episode"),
-        what: z.string().min(1).describe("What is wrong, in one sentence"),
+        what: z
+          .string()
+          .min(1)
+          .describe("What is wrong, in ONE sentence of at most thirty words. Not an essay"),
         evidence: z
           .string()
           .min(1)
@@ -136,6 +139,69 @@ export function reviewLessons(review: Review | null, take = 3): string[] {
     lessons.push(`a scene did what its beat forbade: ${c.broke}`);
   }
   return lessons.slice(0, take);
+}
+
+/**
+ * What a review found about ONE scene, for the write that replaces it.
+ *
+ * A review names problems and then nothing acts on them: the lessons go forward to the
+ * NEXT episode, and the episode that was criticised is rewritten scene by scene with the
+ * criticism nowhere in the prompt. So the model writes the scene again from the same
+ * beat, knowing nothing about what was wrong with the last one, and can reproduce it
+ * exactly.
+ *
+ * ainovel-cli hit this and wrote the fix, with a comment naming the gap outright: its
+ * recall covers chapters N-1 to N-3, "which misses exactly this chapter itself, and the
+ * writer has no tool to read a review". This is the same hole and the same patch.
+ *
+ * Filtered to the scene, and capped. The whole review is a dozen findings about a dozen
+ * scenes, and handing all of them to one write buries the two that are about it — the
+ * first real review produced TEN for one scene, each a paragraph, which is more
+ * criticism than the scene is prose. A list of symptoms long enough to drown the
+ * assignment stops being direction, which is the failure ainovel-cli named
+ * `architect_directive_unclear` and called the worst thing in its rewrite queue.
+ *
+ * Ordered by how little argument there is about them: a broken contract first, because
+ * the beat said not to and the scene did, then by severity. Every line keeps its quote —
+ * that is what makes a finding something to act on rather than an opinion.
+ */
+export function sceneFindings(review: Review, sceneNumber: number, take = 4): string[] {
+  // Scene 0 is the review's way of saying "the episode as a whole", and an episode-wide
+  // finding belongs to no single rewrite — handed to one scene it reads as that scene's
+  // fault. Guarded here rather than left to callers: scene numbers are 1-based, so a 0
+  // arriving means something upstream miscounted, and answering it would hide that.
+  if (sceneNumber < 1) return [];
+
+  const out: string[] = [];
+  for (const b of review.contractBreaks) {
+    if (b.scene === sceneNumber) {
+      out.push(`went past what the beat forbade — ${b.broke}: "${b.evidence}"`);
+    }
+  }
+
+  const rank: Record<IssueSeverity, number> = { critical: 0, error: 1, warning: 2 };
+  const mine = review.issues
+    .filter((i) => i.scene === sceneNumber)
+    .sort((a, b) => rank[a.severity] - rank[b.severity]);
+  for (const i of mine) out.push(`${i.dimension}: ${i.what} — "${i.evidence}"`);
+
+  return out.slice(0, take);
+}
+
+/**
+ * The findings as they reach the write that replaces the scene.
+ *
+ * The last line matters as much as the list. Told only what was wrong, a model writes a
+ * scene ABOUT not being those things — it defends itself in the prose, and the defence is
+ * worse than the fault.
+ */
+export function renderSceneFindings(findings: string[]): string {
+  if (findings.length === 0) return "";
+  return (
+    `A reader read the version of this scene you are replacing, and found:\n` +
+    findings.map((f) => `- ${f}`).join("\n") +
+    `\nWrite a different scene from the same beat. Do not answer any of this in the prose.`
+  );
 }
 
 /** The lessons as they reach the writer. Empty when the last episode came back clean. */
