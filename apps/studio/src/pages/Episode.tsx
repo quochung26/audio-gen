@@ -46,6 +46,27 @@ interface ChapterSetup {
   characters: CharacterOverride[];
 }
 
+interface Violation {
+  rule: string;
+  target: string;
+  actual: string;
+  limit?: string;
+  severity: "error" | "warning";
+}
+
+/**
+ * What each rule found, in words. The rule names are the stored fact; these are for
+ * reading, and they name the DEFECT rather than the check — "copied from the scene
+ * before it" is something to go and look at, `copied_previous_scene` is a grep key.
+ */
+const LINT_LABEL: Record<string, string> = {
+  english_residue: "English left in the Vietnamese",
+  self_duplication: "a paragraph repeated inside the scene",
+  copied_previous_scene: "copied from the scene before it",
+  broken_word: "a word split across a paragraph break",
+  markdown_residue: "markdown left in the prose",
+};
+
 interface Scene {
   /** The scene in the other language, for reading. Replaces nothing — see READING_COPY. */
   reading: string | null;
@@ -61,6 +82,11 @@ interface Scene {
    * setups, the scene before it, or the WRITE_SCENE prompt. See Scene.inputDigest.
    */
   stale: boolean;
+  /**
+   * What the mechanical checks found in this scene — facts, not a verdict. Null means
+   * the scene predates the checks, which is not the same as clean.
+   */
+  lintViolations: Violation[] | null;
   /** The draft before the rewrite. Null means this scene has not been through it. */
   sourceText: string | null;
   /**
@@ -387,6 +413,24 @@ export function Episode() {
                         </div>
                       )}
                     </div>
+                    {/* Findings sit between the beat and the prose, because they are
+                        about the prose and the first thing to do about them is read it.
+                        Nothing here acts on its own — these are facts, and whether a
+                        scene needs rewriting is the writer's call. */}
+                    {(scene.lintViolations ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-neutral-900 px-4 py-2 text-xs">
+                        {(scene.lintViolations ?? []).map((v, i) => (
+                          <span
+                            key={`${v.rule}-${i}`}
+                            className={v.severity === "error" ? "text-red-300" : "text-amber-300"}
+                            title={v.target}
+                          >
+                            {LINT_LABEL[v.rule] ?? v.rule} — {v.actual}
+                            {v.limit ? ` (over ${v.limit})` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {/* An unwritten scene gets one thin line rather than the full
                         prose band. Three empty bands the height of a paragraph was
                         most of what a freshly outlined chapter showed. */}

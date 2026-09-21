@@ -4,6 +4,7 @@ import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveMo
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
+import { checkScene } from "../services/prose-check";
 import { openSceneStream } from "../services/stream";
 import { buildSeriesBible } from "../services/story-context";
 
@@ -103,11 +104,29 @@ export const translateJob: JobHandler = async ({ job, setProgress }) => {
 
     await recordRun(ctx, result);
 
+    const rewritten = result.text.trim();
+
+    // Checked again, in the OUTPUT language this time. This is the step that produces
+    // English residue — a model rewriting out of English leaves "not" and "the" behind in
+    // the Vietnamese — so the check after the rewrite is the one that matters most.
+    //
+    // No `previous`: a rewrite follows its own source, and whether it copied the scene
+    // before it was already answered when that source was written.
+    //
+    // Rewritten even when clean. The violations on the row describe the draft that has
+    // just been replaced, and leaving them would show findings against text that is no
+    // longer there.
+    const violations = checkScene({
+      label: String(scene.order),
+      text: rewritten,
+      language: plan.output,
+    });
+
     // Writes the original AND the new version together: a break between two writes would
     // lose the scene's original draft while still marking it rewritten, unrecoverably.
     await prisma.scene.update({
       where: { id: scene.id },
-      data: { text: result.text.trim(), sourceText: source },
+      data: { text: rewritten, sourceText: source, lintViolations: violations },
     });
 
     logger.info(

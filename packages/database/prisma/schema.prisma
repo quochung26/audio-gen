@@ -597,6 +597,16 @@ model Scene {
   /// raincoat" leaves the chapter's "hand bandaged" note intact.
   setup Json?
 
+  /// What the mechanical checks found in this scene's text — see packages/core/prose-lint.
+  ///
+  /// Facts, not a verdict, and nothing acts on them: they are read on the episode page by
+  /// a person. Rewritten on every write and rewrite, INCLUDING to an empty list, because
+  /// an empty list is how a scene says the defects are gone — left out, a fixed scene
+  /// would keep showing the violations of the version before it.
+  ///
+  /// Null = checked never, which is not the same as checked and clean.
+  lintViolations Json?
+
   /// A hash of everything this scene was written from — Bible, cast, beat, the two
   /// setups, the prose immediately before it, and the WRITE_SCENE prompt.
   ///

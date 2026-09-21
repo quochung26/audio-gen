@@ -24,6 +24,7 @@ import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { syncEpisodeDraft } from "../services/episode-draft";
 import { openThreads } from "../services/fact-store";
+import { checkScene } from "../services/prose-check";
 import { openSceneStream } from "../services/stream";
 import { buildSceneContext } from "../services/story-context";
 import { foldScene } from "../services/story-summary";
@@ -147,12 +148,24 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     // scene 3 is written from, and a map taken at the start would record scene 3 against
     // prose that no longer precedes it.
     const material = (await episodeSceneMaterial(scene.chapter.episodeId)).get(scene.id);
+
+    // Checked against the DRAFT language: a story that drafts in English and is rewritten
+    // afterwards has legitimate English here, and the rewrite gets checked again against
+    // the language listeners actually receive. See services/prose-check.ts.
+    const violations = checkScene({
+      label: `${scene.chapter.order}.${scene.order}`,
+      text,
+      language: planDraft(context.language, context.draftLanguage).draft,
+      previous: material?.previousText,
+    });
+
     await prisma.scene.update({
       where: { id: scene.id },
       data: {
         text,
         sourceText: null,
         inputDigest: material ? sceneInputDigest({ ...material, prompt: prompt.content }) : null,
+        lintViolations: violations,
       },
     });
     written.push(text);
