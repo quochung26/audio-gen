@@ -4,6 +4,7 @@ import {
   renderEpisodeContext,
   renderStyleStats,
   reviewSchema,
+  settleReview,
   toLanguage,
   withLanguage,
 } from "@audio/core";
@@ -141,15 +142,21 @@ export const reviewJob: JobHandler = async ({ job, setProgress }) => {
   await recordRun(ctx, result);
 
   const review = result.data;
+  // Settled against its own findings: which scenes need work is the list of scenes with a
+  // finding saying so, and a verdict that disagrees with them loses. See settleReview.
+  const settled = settleReview(review);
+  if (settled.correction) logger.warn(`[review] ${settled.correction}`);
+
   await prisma.episodeReview.create({
     data: {
       episodeId,
-      verdict: review.verdict,
+      verdict: settled.verdict,
       summary: review.summary,
       scores: review.scores,
       issues: review.issues,
       contractBreaks: review.contractBreaks,
-      scenes: review.scenes,
+      scenes: settled.scenes,
+      correction: settled.correction,
       // Which draft this judged. Rewrite a scene and the review describes prose that is
       // no longer there — the same question `Scene.inputDigest` answers one tier down.
       draftDigest: createHash("sha256").update(draft).digest("hex").slice(0, 16),
@@ -158,11 +165,17 @@ export const reviewJob: JobHandler = async ({ job, setProgress }) => {
 
   const breaks = review.contractBreaks.length;
   logger.info(
-    `[review] episode ${episode.number}: ${review.verdict} — ` +
+    `[review] episode ${episode.number}: ${settled.verdict} — ` +
       `${review.issues.length} issue${review.issues.length === 1 ? "" : "s"}` +
       `${breaks > 0 ? `, ${breaks} contract break${breaks === 1 ? "" : "s"}` : ""}`,
   );
 
   await setProgress(100);
-  return { episodeId, verdict: review.verdict, issues: review.issues.length, contractBreaks: breaks };
+  return {
+    episodeId,
+    verdict: settled.verdict,
+    scenes: settled.scenes,
+    issues: review.issues.length,
+    contractBreaks: breaks,
+  };
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   renderReviewLessons,
+  settleReview,
   renderSceneFindings,
   sceneFindings,
   REVIEW_DIMENSIONS,
@@ -13,14 +14,13 @@ import {
 const base: Review = {
   scores: { consistency: 80, character: 72, pacing: 45, continuity: 88, threads: 30, hook: 61, prose: 55 },
   issues: [
-    { dimension: "pacing", severity: "error", scene: 4, what: "Scene 4 is padded", evidence: "…" },
-    { dimension: "prose", severity: "warning", scene: 0, what: "Sentences run short", evidence: "…" },
-    { dimension: "threads", severity: "critical", scene: 0, what: "No debt moved", evidence: "…" },
+    { dimension: "pacing", severity: "error", scene: 4, what: "Scene 4 is padded", evidence: "…", requiresChange: true },
+    { dimension: "prose", severity: "warning", scene: 0, what: "Sentences run short", evidence: "…", requiresChange: false },
+    { dimension: "threads", severity: "critical", scene: 0, what: "No debt moved", evidence: "…", requiresChange: true },
   ],
   contractBreaks: [{ scene: 2, broke: "the argument does not get settled here", evidence: "…" }],
   verdict: "polish",
   summary: "Look at scene 4 first.",
-  scenes: [2, 4],
 };
 
 describe("the review schema", () => {
@@ -38,7 +38,7 @@ describe("the review schema", () => {
   });
 
   it("accepts a clean episode", () => {
-    const clean = { ...base, issues: [], contractBreaks: [], verdict: "accept" as const, scenes: [] };
+    const clean = { ...base, issues: [], contractBreaks: [], verdict: "accept" as const };
     expect(reviewSchema.safeParse(clean).success).toBe(true);
   });
 });
@@ -94,6 +94,7 @@ describe("sceneFindings", () => {
         scene: 3,
         what: `thing ${i}`,
         evidence: "…",
+        requiresChange: true,
       })),
     };
     expect(sceneFindings(many, 3)).toHaveLength(4);
@@ -105,9 +106,9 @@ describe("sceneFindings", () => {
       ...base,
       contractBreaks: [{ scene: 3, broke: "not yet", evidence: "…" }],
       issues: [
-        { dimension: "prose", severity: "warning", scene: 3, what: "W", evidence: "…" },
-        { dimension: "pacing", severity: "critical", scene: 3, what: "C", evidence: "…" },
-        { dimension: "hook", severity: "error", scene: 3, what: "E", evidence: "…" },
+        { dimension: "prose", severity: "warning", scene: 3, what: "W", evidence: "…", requiresChange: true },
+        { dimension: "pacing", severity: "critical", scene: 3, what: "C", evidence: "…", requiresChange: true },
+        { dimension: "hook", severity: "error", scene: 3, what: "E", evidence: "…", requiresChange: true },
       ],
     };
     const found = sceneFindings(mixed, 3);
@@ -149,5 +150,56 @@ describe("renderSceneFindings", () => {
 
   it("says nothing at all for a scene nobody criticised", () => {
     expect(renderSceneFindings([])).toBe("");
+  });
+});
+
+describe("settleReview", () => {
+  // The scenes that need work are the scenes with a finding saying so. Asked for
+  // separately, the answer can disagree with the findings underneath it.
+  it("derives the scenes from the findings, not from a list", () => {
+    expect(settleReview(base).scenes).toEqual([2, 4]);
+  });
+
+  it("counts every broken contract, with nothing to weigh", () => {
+    const only = { ...base, issues: [], verdict: "rewrite" as const };
+    expect(settleReview(only).scenes).toEqual([2]);
+  });
+
+  it("ignores a finding the review itself said was only worth knowing", () => {
+    const soft = {
+      ...base,
+      contractBreaks: [],
+      issues: [{ ...base.issues[0]!, requiresChange: false }],
+      verdict: "accept" as const,
+    };
+    expect(settleReview(soft)).toEqual({ verdict: "accept", scenes: [], correction: null });
+  });
+
+  // Episode-wide findings belong to no scene, so they cannot put one in the list.
+  it("leaves scene 0 out of the list", () => {
+    const wide = {
+      ...base,
+      contractBreaks: [],
+      issues: [{ ...base.issues[2]!, requiresChange: true }],
+    };
+    expect(settleReview(wide).scenes).toEqual([]);
+  });
+
+  describe("when the verdict argues with the findings", () => {
+    it("will not accept an episode it says needs changing", () => {
+      const settled = settleReview({ ...base, verdict: "accept" });
+      expect(settled.verdict).toBe("polish");
+      expect(settled.correction).toContain('said "accept"');
+    });
+
+    it("will not send back an episode it found nothing to change in", () => {
+      const settled = settleReview({ ...base, issues: [], contractBreaks: [], verdict: "rewrite" });
+      expect(settled.verdict).toBe("accept");
+      expect(settled.correction).toContain("no work here to do");
+    });
+
+    it("says nothing when the two agree", () => {
+      expect(settleReview(base).correction).toBeNull();
+    });
   });
 });

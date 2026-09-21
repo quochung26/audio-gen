@@ -120,6 +120,8 @@ interface ReviewIssue {
   scene: number;
   what: string;
   evidence: string;
+  /** Whether it has to be fixed before approving. Not everything reported is work. */
+  requiresChange: boolean;
 }
 interface EpisodeReview {
   id: string;
@@ -129,6 +131,8 @@ interface EpisodeReview {
   issues: ReviewIssue[];
   contractBreaks: Array<{ scene: number; broke: string; evidence: string }>;
   scenes: number[];
+  /** Set when the verdict disagreed with the findings and was settled against them. */
+  correction: string | null;
   createdAt: string;
 }
 interface Block {
@@ -1090,6 +1094,12 @@ function ReviewPanel({ ep, active }: { ep: Ep; active?: { type: string; progress
             </div>
           )}
 
+          {/* Said out loud. A corrected answer that says nothing about having been
+              corrected cannot be told from one that was right. */}
+          {review.correction && (
+            <p className="text-xs text-neutral-500">{review.correction}</p>
+          )}
+
           {review.issues.length > 0 ? (
             <ul className="space-y-2">
               {review.issues.map((issue, i) => (
@@ -1097,6 +1107,13 @@ function ReviewPanel({ ep, active }: { ep: Ep; active?: { type: string; progress
                   <span className={SEVERITY_TONE[issue.severity] ?? "text-neutral-400"}>
                     {issue.scene > 0 ? `Scene ${issue.scene}` : "Episode"} · {issue.dimension}
                   </span>{" "}
+                  {/* The ones that are work, told apart from the ones that are only
+                      worth knowing — otherwise the writer sorts them out again. */}
+                  {issue.requiresChange ? (
+                    <span className="rounded bg-neutral-800 px-1 text-neutral-300">needs a change</span>
+                  ) : (
+                    <span className="text-neutral-600">worth knowing</span>
+                  )}{" "}
                   <span className="text-neutral-300">{issue.what}</span>
                   {/* Every issue carries a quote. One that cannot be quoted is an
                       impression, and an impression costs an hour of rereading. */}

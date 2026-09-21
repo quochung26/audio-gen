@@ -70,6 +70,13 @@ export const reviewSchema = z.object({
           .string()
           .min(1)
           .describe("A SHORT quote from the draft, or the exact numbers, showing it"),
+        requiresChange: z
+          .boolean()
+          .describe(
+            "Whether this has to be fixed before the episode is approved. Not everything " +
+              "worth reporting is worth work: a thing the writer should know is not the " +
+              "same as a thing the writer must do",
+          ),
       }),
     )
     .max(12)
@@ -92,9 +99,12 @@ export const reviewSchema = z.object({
         "rewriting | rewrite: at least one scene should be written again",
     ),
   summary: z.string().min(1).describe("Two or three sentences: what to look at first"),
-  /** Which scenes to look at. Required when the verdict is not `accept`. */
-  scenes: z.array(z.number().int().min(1)).max(12).describe("Scene numbers worth rereading"),
 });
+
+// No `scenes` field. Which scenes need work is not a separate judgement to be asked for
+// and then trusted — it is the list of scenes with a finding that says it needs work, and
+// `settleReview` derives it. Asked for, it can disagree with the findings underneath it,
+// and then one of the two is wrong with nothing to say which.
 
 export type Review = z.infer<typeof reviewSchema>;
 
@@ -141,6 +151,62 @@ export function reviewLessons(review: Review | null, take = 3): string[] {
   return lessons.slice(0, take);
 }
 
+/** A review once its own findings have been taken at their word. */
+export interface SettledReview {
+  verdict: Review["verdict"];
+  /** The scenes with a finding that says they need work. Derived, never asked for. */
+  scenes: number[];
+  /**
+   * Set when the model's verdict disagreed with its own findings, saying what was done
+   * about it. Recorded rather than hidden: a corrected answer that says nothing about
+   * having been corrected is indistinguishable from one that was right.
+   */
+  correction: string | null;
+}
+
+/**
+ * Settle a review against itself.
+ *
+ * Two things a model says separately can contradict each other: a list of findings, each
+ * declaring whether it must be fixed, and a one-word verdict. ainovel-cli refuses the
+ * whole review when they disagree — `accept` carrying an issue marked
+ * `requires_change`, or `rewrite` carrying none — and makes the model answer again.
+ *
+ * That works there because the tool result goes straight back to a model mid-loop. Here
+ * a review is a single six-minute call, so refusing costs the answer entirely. The
+ * findings win instead: they are specific and carry quotes, while the verdict is one word
+ * about all of them, and between a claim with evidence and a label without, the evidence
+ * is the better bet.
+ */
+export function settleReview(review: Review): SettledReview {
+  const needed = new Set<number>();
+  for (const i of review.issues) if (i.requiresChange && i.scene > 0) needed.add(i.scene);
+  // A broken contract always counts. The beat said not to and the scene did — there is
+  // nothing to weigh.
+  for (const b of review.contractBreaks) needed.add(b.scene);
+  const scenes = [...needed].sort((a, b) => a - b);
+
+  if (scenes.length === 0 && review.verdict !== "accept") {
+    return {
+      verdict: "accept",
+      scenes,
+      correction:
+        `It said "${review.verdict}" while marking nothing as needing a change. Taken as ` +
+        `accept — there is no work here to do.`,
+    };
+  }
+  if (scenes.length > 0 && review.verdict === "accept") {
+    return {
+      verdict: "polish",
+      scenes,
+      correction:
+        `It said "accept" while marking ${scenes.length} scene` +
+        `${scenes.length === 1 ? "" : "s"} as needing a change. Taken as polish.`,
+    };
+  }
+  return { verdict: review.verdict, scenes, correction: null };
+}
+
 /**
  * What a review found about ONE scene, for the write that replaces it.
  *
@@ -182,7 +248,13 @@ export function sceneFindings(review: Review, sceneNumber: number, take = 4): st
   const rank: Record<IssueSeverity, number> = { critical: 0, error: 1, warning: 2 };
   const mine = review.issues
     .filter((i) => i.scene === sceneNumber)
-    .sort((a, b) => rank[a.severity] - rank[b.severity]);
+    // What must change before the rest: with only four places, a note the writer should
+    // know must not take one from a thing the writer has to do.
+    .sort(
+      (a, b) =>
+        Number(b.requiresChange) - Number(a.requiresChange) ||
+        rank[a.severity] - rank[b.severity],
+    );
   for (const i of mine) out.push(`${i.dimension}: ${i.what} — "${i.evidence}"`);
 
   return out.slice(0, take);

@@ -30,7 +30,6 @@ export async function lessonsBefore(seriesId: string, episodeNumber: number): Pr
       contractBreaks: row.contractBreaks,
       verdict: row.verdict,
       summary: row.summary,
-      scenes: row.scenes,
     });
     if (!parsed.success) return [];
     return reviewLessons(parsed.data);

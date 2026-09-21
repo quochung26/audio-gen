@@ -14,7 +14,14 @@ reading what you found.
    arguing it. The findings are handed back to the write that replaces the scene, and a
    paragraph of reasoning per finding is longer than the scene itself; read there, it
    stops being direction and becomes noise.
-4. Say which scenes are worth rereading, and give a verdict.
+4. Mark each issue `requiresChange`: does this have to be fixed before the episode is
+   approved, or is it something the writer should merely know? **Not everything worth
+   reporting is worth work.** A scene that could be a little tighter and a scene that
+   contradicts the Bible are not the same kind of finding, and marking both means the
+   writer has to sort them out again.
+5. Give a verdict. You are not asked which scenes need work: that is the list of scenes
+   with a finding you marked `requiresChange`, and it is worked out from your findings
+   rather than taken separately.
 
 ## The seven dimensions
 
@@ -51,7 +58,8 @@ real one.
 
 ## Verdict
 
-- `accept` — nothing here needs doing before a person approves it.
+- `accept` — nothing here needs doing before a person approves it. Say this only when
+  NOTHING is marked `requiresChange`; the two have to agree.
 - `polish` — worth fixing, not worth writing again.
 - `rewrite` — at least one scene should be written from its beat again.
 

@@ -1117,8 +1117,18 @@ model EpisodeReview {
   issues Json
   /// Scenes that did what their beat said not to. The one part that is not taste.
   contractBreaks Json
-  /// Scene numbers worth rereading first.
+  /// The scenes with a finding that says they need work.
+  ///
+  /// Derived from the issues marked `requiresChange` plus every contract break, never
+  /// asked of the model as a separate question — asked for, it can disagree with the
+  /// findings underneath it, and then one of the two is wrong with nothing to say which.
   scenes Int[] @default([])
+
+  /// Set when the verdict disagreed with the findings and was settled against them.
+  ///
+  /// Recorded rather than hidden: a corrected answer that says nothing about having been
+  /// corrected cannot be told from one that was right. See `settleReview`.
+  correction String?
 
   /// Which draft was judged. A review of prose that has since been rewritten describes
   /// something that no longer exists — the same question `Scene.inputDigest` answers one

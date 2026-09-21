@@ -38,7 +38,6 @@ export async function findingsForScene(input: {
       contractBreaks: row.contractBreaks,
       verdict: row.verdict,
       summary: row.summary,
-      scenes: row.scenes,
     });
     if (!parsed.success) return [];
 
