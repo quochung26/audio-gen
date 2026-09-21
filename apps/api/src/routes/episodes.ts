@@ -3,6 +3,7 @@ import { AudioTrackKind, EpisodeStatus, JobStatus, prisma, syncStoryStatus } fro
 import {
   assertTransition,
   chapterSetupSchema,
+  chapterClosed,
   countWords,
   estimateDurationMs,
   sceneSetupSchema,
@@ -250,6 +251,50 @@ episodes.put("/:id/chapters/:chapterId/setup", async (c) => {
  * of beats nobody has written yet is exactly the guesswork this replaces. `force=1` for
  * a writer who wants the shape laid out first anyway.
  */
+/**
+ * Say which scene a chapter ends on — or clear it and let the guess come back.
+ *
+ * The same shape as declaring a story's ending, and for the same reason: which scene
+ * closes a chapter is not readable off the data, because the next one is always a button
+ * away. Said or guessed, and when it is said the guess stops. See chapter-close.ts.
+ */
+episodes.put("/:id/chapters/:chapterId/ends", async (c) => {
+  const chapterId = c.req.param("chapterId");
+  const body = await c.req.parseBody();
+  const raw = field(body, "endsAtScene").trim();
+
+  const chapter = await prisma.chapter.findUniqueOrThrow({
+    where: { id: chapterId },
+    select: { order: true, _count: { select: { scenes: true } } },
+  });
+
+  let endsAtScene: number | null = null;
+  if (raw !== "") {
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) throw new UserError(`"${raw}" is not a scene number.`);
+    // Below what already exists it would close a chapter behind its own scenes: scene 4
+    // would be past the end and nothing would ever say what to do with it.
+    if (n < chapter._count.scenes) {
+      throw new UserError(
+        `This chapter already has ${chapter._count.scenes} scenes, so it cannot end on ` +
+          `scene ${n}. Delete the ones past it first.`,
+      );
+    }
+    endsAtScene = n;
+  }
+
+  await prisma.chapter.update({ where: { id: chapterId }, data: { endsAtScene } });
+
+  if (endsAtScene === null) {
+    return c.json({ ok: `Chapter ${chapter.order} is open again — length back to a guess.` });
+  }
+  return c.json({
+    ok: chapterClosed(chapter._count.scenes, endsAtScene)
+      ? `Chapter ${chapter.order} ends here. No more scenes can be outlined for it.`
+      : `Chapter ${chapter.order} ends on scene ${endsAtScene}.`,
+  });
+});
+
 episodes.post("/:id/chapters", async (c) => {
   const episodeId = c.req.param("id");
   const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
@@ -290,6 +335,20 @@ episodes.post("/:id/chapters", async (c) => {
 episodes.post("/:id/chapters/:chapterId/scenes", async (c) => {
   const chapterId = c.req.param("chapterId");
   const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+
+  const chapter = await prisma.chapter.findUniqueOrThrow({
+    where: { id: chapterId },
+    select: { order: true, endsAtScene: true, _count: { select: { scenes: true } } },
+  });
+
+  // A closed chapter has all the scenes it is going to have. No `force`: the writer
+  // said where it ends, and the way to change that is to say something else.
+  if (chapterClosed(chapter._count.scenes, chapter.endsAtScene)) {
+    throw new UserError(
+      `Chapter ${chapter.order} ends on scene ${chapter.endsAtScene}. Change where it ` +
+        `ends if you want another scene.`,
+    );
+  }
 
   const last = await prisma.scene.findFirst({
     where: { chapterId },

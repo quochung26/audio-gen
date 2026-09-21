@@ -1,8 +1,10 @@
 import {
+  chapterClosed,
   namesMentionedIn,
   parseChapterSetup,
   renderChapterSetup,
   sceneBeatSchema,
+  scenePosition,
   toLanguage,
   withLanguage,
 } from "@audio/core";
@@ -47,6 +49,16 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
 
   const { episode } = chapter;
   const sceneNumber = (chapter.scenes.at(-1)?.order ?? 0) + 1;
+
+  // A closed chapter has all the scenes it is going to have. Refused here as well as in
+  // the API, because a batch run or a retry reaches this job without going past a route.
+  if (chapterClosed(chapter.scenes.length, chapter.endsAtScene)) {
+    throw new Error(
+      `Chapter ${chapter.order} ends on scene ${chapter.endsAtScene} and already has ` +
+        `${chapter.scenes.length}. Reopen it by clearing where it ends, or outline the ` +
+        `next chapter.`,
+    );
+  }
 
   await setProgress(10);
 
@@ -99,7 +111,11 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
       sceneNumber,
       scenesPerChapter: SCENES_PER_CHAPTER,
       sceneWords: SCENE_TARGET_WORDS,
-      position: positionNote(sceneNumber),
+      position: scenePosition({
+        sceneNumber,
+        endsAtScene: chapter.endsAtScene,
+        scenesPerChapter: SCENES_PER_CHAPTER,
+      }),
     });
 
     const checked = await beatWithRetry("next-scene", async (extra) => {
@@ -160,35 +176,6 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
   await setProgress(100);
   return { episodeId: episode.id, chapterId, sceneId: created.id, order: sceneNumber, beat };
 };
-
-/**
- * What this scene's place in the chapter obliges it to do.
- *
- * Sequential outlining's one real failure mode: with only the past in front of it, a
- * model resolves everything and the chapter ends three times. SCENES_PER_CHAPTER is a
- * guide rather than a cap — a writer who wants a fourth scene gets one, and it is told
- * it is past the usual length rather than silently treated as the third again.
- */
-function positionNote(sceneNumber: number): string {
-  if (sceneNumber < SCENES_PER_CHAPTER) {
-    const left = SCENES_PER_CHAPTER - sceneNumber;
-    return (
-      `There ${left === 1 ? "is" : "are"} about ${left} more scene${left === 1 ? "" : "s"} ` +
-      `after this one. Do NOT resolve the chapter here: leave the characters somewhere ` +
-      `the next scene can pick up from.`
-    );
-  }
-  if (sceneNumber === SCENES_PER_CHAPTER) {
-    return (
-      `This is the chapter's LAST scene. Land it — whatever the chapter set up has to ` +
-      `pay off here, and the episode has to be able to move on from it.`
-    );
-  }
-  return (
-    `The chapter is already past its usual length, so this scene is an extension the ` +
-    `writer asked for. Close it out rather than opening anything new.`
-  );
-}
 
 /** The story's running summary as the most recently written scene left it. */
 async function lastRunningSummary(seriesId: string, throughEpisode: number): Promise<string> {

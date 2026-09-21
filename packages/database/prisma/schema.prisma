@@ -556,6 +556,19 @@ model Chapter {
   order Int
   title String?
 
+  /// The scene this chapter ends on. Null = nobody has said, which is most chapters.
+  ///
+  /// Scenes are outlined one at a time, each knowing only what came before it, so
+  /// something has to tell a scene whether it is closing the chapter or leaving room.
+  /// That was a guess from `SCENES_PER_CHAPTER`: scene three was told "this is the LAST
+  /// scene, land it" whether or not it was, and a chapter that needed five was told to
+  /// land three times and then to "close it out" at four, five and six.
+  ///
+  /// Which scene ends a chapter is the same kind of fact as which episode ends a story
+  /// — not readable off the data, because the next scene is always one button away. Said
+  /// or guessed; when it is said, the guess stops. See packages/core/src/chapter-close.ts.
+  endsAtScene Int?
+
   /// What this chapter drives at, its own voice, what must happen, what is forbidden,
   /// and character overrides (what they wear, injuries…). Overrides here beat the
   /// Story Bible, and `Scene.setup` beats these. See packages/core/src/chapter-setup.ts.

@@ -110,6 +110,8 @@ interface Chapter {
   order: number;
   title: string | null;
   setup: ChapterSetup | null;
+  /** The scene this chapter ends on. Null = nobody has said; the length is a guess. */
+  endsAtScene: number | null;
   scenes: Scene[];
 }
 interface ReviewIssue {
@@ -722,11 +724,24 @@ export function Episode() {
                   the plan did not. See the NEXT_SCENE step. */}
               {!active && (
                 <div className="mt-2 flex items-baseline gap-3">
-                  <ActionButton path={`/api/episodes/${ep.id}/chapters/${chapter.id}/scenes`}>
-                    + Outline scene {chapter.order}.{chapter.scenes.length + 1}
-                  </ActionButton>
+                  {/* A chapter the writer has closed takes no more scenes. Which scene
+                      ends it is not readable off the data — the next one is always a
+                      button away — so it is said, or it is guessed. */}
+                  {chapter.endsAtScene !== null &&
+                  chapter.scenes.length >= chapter.endsAtScene ? (
+                    <span className="text-xs text-neutral-500">
+                      Ends on scene {chapter.endsAtScene}.
+                    </span>
+                  ) : (
+                    <ActionButton path={`/api/episodes/${ep.id}/chapters/${chapter.id}/scenes`}>
+                      + Outline scene {chapter.order}.{chapter.scenes.length + 1}
+                    </ActionButton>
+                  )}
+                  <ChapterEnd episodeId={ep.id} chapter={chapter} />
                   <span className="flex-1 text-xs text-neutral-600">
-                    A chapter usually runs to about {SCENES_PER_CHAPTER} scenes.
+                    {chapter.endsAtScene === null
+                      ? `A chapter usually runs to about ${SCENES_PER_CHAPTER} scenes — until you say, the last scene is a guess.`
+                      : `Ending on scene ${chapter.endsAtScene}, so that scene is told to land it.`}
                   </span>
                   {/* Chapters arrive one at a time to be accepted or rejected, and until
                       now there was no reject — the only way out was deleting the episode.
@@ -1070,5 +1085,40 @@ function ReviewPanel({ ep }: { ep: Ep }) {
         </div>
       )}
     </Section>
+  );
+}
+
+/**
+ * Saying which scene ends a chapter.
+ *
+ * Until it is said, `scenePosition` guesses from the usual length and tells scene three
+ * to land the chapter whether or not it is the last — which closed chapters that had
+ * another movement left in them. Saying it replaces the guess with a fact.
+ */
+function ChapterEnd({ episodeId, chapter }: { episodeId: string; chapter: Chapter }) {
+  const closed = chapter.endsAtScene !== null && chapter.scenes.length >= chapter.endsAtScene;
+
+  if (chapter.endsAtScene !== null) {
+    return (
+      <Form
+        path={`/api/episodes/${episodeId}/chapters/${chapter.id}/ends`}
+        method="PUT"
+        submit={closed ? "reopen it" : "not ending there"}
+      >
+        <input type="hidden" name="endsAtScene" value="" />
+      </Form>
+    );
+  }
+
+  return (
+    <Form
+      path={`/api/episodes/${episodeId}/chapters/${chapter.id}/ends`}
+      method="PUT"
+      submit="end it here"
+    >
+      {/* The scene that exists now: "this chapter is done" is the common case, and
+          saying a later number is how you leave room for one or two more. */}
+      <input type="hidden" name="endsAtScene" value={String(chapter.scenes.length || 1)} />
+    </Form>
   );
 }

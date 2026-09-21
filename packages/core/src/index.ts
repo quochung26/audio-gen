@@ -8,6 +8,7 @@ export * from "./world";
 export * from "./password";
 export * from "./sync-state";
 export * from "./cast";
+export * from "./chapter-close";
 export * from "./chapter-setup";
 export * from "./language";
 export * from "./tags";
