@@ -28,6 +28,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
   { step: "REVIEW", file: "review.md" },
+  { step: "COURSE", file: "course.md" },
   { step: "METADATA", file: "metadata.md" },
 ];
 
@@ -121,6 +122,8 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   // temperature is exactly what buys a model room to produce a quote that is not there.
   // `numCtx` is the largest of any step: it reads a whole episode plus the Bible.
   REVIEW: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 32768, maxTokens: 3000 },
+  // Same reasoning, smaller input: it reads one line per episode rather than a draft.
+  COURSE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 1200 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
 };
 

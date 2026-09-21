@@ -40,6 +40,9 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // can be checked rather than judged. `styleStats` is there so the prose dimension has
   // numbers behind it instead of taste.
   REVIEW: ["bible", "context", "scenes", "contracts", "styleStats", "draft"],
+  // One question over the WHOLE story, so it gets the one-line gist of each episode
+  // rather than any summary: forty full summaries would bury the shape it is asking about.
+  COURSE: ["direction", "written", "threads"],
   // Compression on compression: `previous` is the paragraph the last scene left
   // behind, `text` is the scene just written, and the answer replaces `previous`.
   // Nothing else goes in — asked to summarise with the whole story in front of it, a
@@ -59,6 +62,7 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   NEXT_EPISODE: [
     "bible",
     "context",
+    "course",
     "episodeNumber",
     "recentHooks",
     "scenesPerChapter",

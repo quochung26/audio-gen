@@ -3,11 +3,13 @@ import {
   nextEpisodePlanSchema,
   episodeOpening,
   planChapters,
+  renderCourse,
   renderEpisodeContext,
   renderHookHistory,
   suggestScenesPerChapter,
   toLanguage,
   withLanguage,
+  type StoryBibleRecord,
 } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
@@ -76,7 +78,13 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
     openThreads: threads,
   });
 
-  const bible = ((series.storyBible ?? {}) as { bible?: string }).bible ?? "";
+  const stored = (series.storyBible ?? {}) as StoryBibleRecord;
+  const bible = stored.bible ?? "";
+  // Where the story has got to against its destination. This is the point of asking:
+  // a check nobody reads is a page nobody opens, and a check the PLANNER reads is the
+  // difference between an episode written because the story needs it and one written
+  // because the last episode ended.
+  const course = renderCourse(stored.course?.course ?? null, stored.course?.throughEpisode ?? 0);
   const prompt = await loadPrompt("NEXT_EPISODE", series.genre);
   const language = toLanguage(series.language);
   const ctx = { step: "NEXT_EPISODE" as const, promptId: prompt.id, params: prompt.params };
@@ -102,6 +110,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
         // Oldest first, however the query returned them: a run reads as a run in the
         // order it happened, and backwards it reads as a list.
         recentHooks: renderHookHistory([...recentHooks].reverse()),
+        course,
         scenesPerChapter: suggestScenesPerChapter(),
         sceneWords: SCENE_TARGET_WORDS,
       }),

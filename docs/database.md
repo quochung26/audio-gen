@@ -63,6 +63,7 @@ Cột `Series.storyBible` chứa bốn phần:
   raw:       Outline,        // dàn ý AI sinh — có thể sinh lại
   world:     WorldSetup,     // bối cảnh, luật thế giới, giọng văn, điều cấm, thuật ngữ
   direction: StoryDirection, // truyện đi về đâu — xem 2.2b
+  course:    { course, throughEpisode, checkedAt },  // đã đi tới đâu — xem 2.2c
   bible:     string,         // bản render sẵn (chỉ để xem; lúc chạy luôn dựng lại từ dữ liệu mới nhất)
 }
 ```
@@ -90,6 +91,31 @@ Nằm cạnh `world` chứ không nằm trong `raw`: dàn ý viết nó một l�
 `missingDirection()` chỉ kiểm **có mặt hay không**. "Kết ở đâu" có phải câu trả lời TỐT không thì code không phán được, và một cái cổng cho lọt văn vô nghĩa còn tệ hơn không có cổng.
 
 `bible` được lưu để hiển thị, nhưng `buildSceneContext()` **luôn dựng lại từ `world` + nhân vật hiện tại** thay vì đọc bản cache — nếu không, sửa luật thế giới xong mà cảnh viết ra vẫn theo bản cũ.
+
+### 2.2c. `course` — truyện đã đi tới đâu so với chỗ nó nói sẽ đi
+
+`direction` được viết một lần lúc outline rồi **không bao giờ nhúc nhích**. Đúng cho mười
+tập đầu và sai ở tập bốn mươi: hoặc truyện đã trôi khỏi đích, hoặc chính cái đích mới là
+thứ đã đổi mà không ai sửa lại đoạn văn. Cả hai đều ổn. **Không thấy được cả hai mới là
+vấn đề.**
+
+Không gì khác trả lời được câu này. Thẩm duyệt đọc một tập nên không thấy truyện bẻ cong
+qua mười hai tập; đoạn cuộn dồn kể chuyện gì đã xảy ra chứ không kể nó để làm gì; còn
+`NEXT_EPISODE` thì đọc `direction` mỗi lần mà chưa bao giờ được hỏi truyện có còn đi về
+đó không.
+
+Nó **chỉ báo cáo**. Chỗ nào truyện và đoạn văn bất đồng, nó nói ra mà **không phán ai
+sai** — người viết đi được mười hai tập thường đã tìm ra thứ hay hơn và chỉ là chưa quay
+lại sửa đoạn văn. Hai bên đều sửa được ngay trên trang Story Bible.
+
+Hai ngưỡng, cả hai đều từ lần chạy thật đầu tiên:
+
+- `COURSE_MIN_EPISODES = 3` — dưới ba tập, câu trả lời thật thà cho mọi câu hỏi là "mới
+  bắt đầu mà", và model **không** trả lời như vậy: hỏi sau đúng một tập, nó báo cả năm
+  phần của `direction` đều đã trôi. Đúng theo nghĩa chưa phần nào đạt được, và vô dụng,
+  vì đó chính là ý nghĩa của tập một.
+- `COURSE_CHECK_EVERY = 6` — truyện không bẻ cong trong hai tập, và hỏi mỗi tập là một
+  lời gọi model mỗi tập để báo rằng chưa có gì đổi.
 
 ### 2.3. Truyện dài: tóm tắt phân tầng + trạng thái nhân vật
 

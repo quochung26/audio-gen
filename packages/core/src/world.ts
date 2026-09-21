@@ -1,5 +1,6 @@
 import { renderTags } from "./tags";
 import { z } from "zod";
+import type { StoryCourse } from "./course";
 import type { Outline, StoryDirection } from "./types";
 
 /**
@@ -63,6 +64,11 @@ export interface StoryBibleRecord {
    * the field existed.
    */
   direction?: StoryDirection | null;
+  /**
+   * Where the story has got to against that direction, and after which episode it was
+   * asked. Absent until somebody asks — see prompts/course.md.
+   */
+  course?: { course: StoryCourse; throughEpisode: number; checkedAt: string } | null;
   /** Pre-rendered for the system prompt. Rebuilt whenever raw or world changes. */
   bible?: string;
 }

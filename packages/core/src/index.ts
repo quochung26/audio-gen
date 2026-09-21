@@ -13,6 +13,7 @@ export * from "./language";
 export * from "./tags";
 export * from "./beat";
 export * from "./passage";
+export * from "./course";
 export * from "./prose-lint";
 export * from "./review";
 export * from "./scene-digest";

@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router";
 import { useApi } from "@/lib/api";
-import { Section } from "@/components/ui";
-import { Form, Loading } from "@/components/Form";
+import { Badge, Section } from "@/components/ui";
+import { ActionButton, Form, Loading } from "@/components/Form";
 import { Field } from "@/components/Field";
 
 interface World {
@@ -21,6 +21,19 @@ interface Direction {
   midpointTurn: string;
 }
 
+interface Course {
+  course: {
+    onCourse: boolean;
+    where: string;
+    drifted: Array<{ field: string; how: string }>;
+    midpointReached: boolean;
+    remaining: string;
+    next: string;
+  };
+  throughEpisode: number;
+  checkedAt: string;
+}
+
 const EMPTY_DIRECTION: Direction = {
   endingDirection: "",
   centralQuestion: "",
@@ -35,6 +48,9 @@ export function Bible() {
     world: World;
     direction: Direction | null;
     missingDirection: string[];
+    course: Course | null;
+    episodesSinceCourse: number | null;
+    courseCheckEvery: number;
     bible: string;
     title: string;
   }>(`/api/series/${id}/world`);
@@ -61,6 +77,14 @@ export function Bible() {
       {/* Above the world setup, because it is a wider scope: the setting is where the
           story happens, this is what it is for. The Story Bible prints them in the same
           order, so the page reads the way the model does. */}
+      <CoursePanel
+        seriesId={id!}
+        course={data.course}
+        since={data.episodesSinceCourse}
+        every={data.courseCheckEvery}
+        hasDirection={missing.length < 5}
+      />
+
       <Section title="Where this story is going">
         {missing.length > 0 && (
           <p className="rounded border border-amber-900/60 bg-amber-950/20 p-3 text-xs text-amber-200">
@@ -173,5 +197,100 @@ export function Bible() {
         </Section>
       </div>
     </div>
+  );
+}
+
+const DRIFT_LABEL: Record<string, string> = {
+  endingDirection: "Where it ends up",
+  centralQuestion: "The question the ending answers",
+  corePromise: "What it promises every episode",
+  escalation: "How the pressure rises",
+  midpointTurn: "When it changes gear",
+};
+
+/**
+ * Where the story has actually got to, against the paragraph above it.
+ *
+ * Above the direction on the page for the same reason it is asked at all: the useful
+ * order is "here is where you are, here is where you said you were going", not the other
+ * way round.
+ *
+ * Reports and stops. Where the two disagree it does NOT say which is wrong — the story
+ * may be the one that is right, and a writer twelve episodes in often found something
+ * better and never went back to edit the paragraph. Both are editable right below.
+ */
+function CoursePanel({
+  seriesId,
+  course,
+  since,
+  every,
+  hasDirection,
+}: {
+  seriesId: string;
+  course: Course | null;
+  since: number | null;
+  every: number;
+  hasDirection: boolean;
+}) {
+  if (!hasDirection) return null;
+  const stale = since !== null && since >= every;
+
+  return (
+    <Section title="Where it has got to">
+      {!course ? (
+        <div className="flex items-center justify-between rounded border border-neutral-800 p-4">
+          <p className="text-sm text-neutral-400">
+            Nobody has checked whether the episodes written are still heading toward that
+            ending. Worth asking every {every} episodes or so.
+          </p>
+          <ActionButton path={`/api/series/${seriesId}/course`}>check the story</ActionButton>
+        </div>
+      ) : (
+        <div className="space-y-3 rounded border border-neutral-800 p-4 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge tone={course.course.onCourse ? "green" : "amber"}>
+              {course.course.onCourse ? "on course" : "drifted"}
+            </Badge>
+            <span className="text-xs text-neutral-500">
+              through episode {course.throughEpisode}
+              {stale ? ` — ${since} episodes ago` : ""}
+            </span>
+            <span className="flex-1" />
+            <ActionButton path={`/api/series/${seriesId}/course`}>check again</ActionButton>
+          </div>
+
+          <p className="text-neutral-300">{course.course.where}</p>
+
+          <p className="text-xs text-neutral-500">
+            Roughly how much is left: {course.course.remaining}. The mid-point turn{" "}
+            {course.course.midpointReached ? "has already happened" : "has not happened yet"}.
+          </p>
+
+          {course.course.drifted.length > 0 && (
+            <div className="rounded border border-amber-900/50 bg-amber-950/20 p-3">
+              <p className="text-xs text-amber-200">
+                Where the story and the paragraph below disagree. The story may be the one
+                that is right — change whichever is out of date.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {course.course.drifted.map((d, i) => (
+                  <li key={i} className="text-xs text-amber-200/90">
+                    <strong>{DRIFT_LABEL[d.field] ?? d.field}</strong> — {d.how}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="text-xs text-neutral-400">
+            What the next episodes should do: {course.course.next}
+          </p>
+          <p className="text-xs text-neutral-600">
+            This goes into the prompt that outlines the next episode.
+            {stale ? " It is worth asking again — the story has moved on since." : ""}
+          </p>
+        </div>
+      )}
+    </Section>
   );
 }

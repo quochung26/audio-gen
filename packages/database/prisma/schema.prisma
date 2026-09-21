@@ -80,6 +80,9 @@ enum JobType {
   /// Read a drafted episode and report what is wrong with it, before a person is asked
   /// to approve it. Reports only — it queues nothing and approves nothing.
   REVIEW
+  /// Ask where the whole story has got to against the destination it was given. Reports
+  /// only. See prompts/course.md.
+  COURSE
   /// Rewrite the draft into the output language. Only runs when Series.draftLanguage
   /// differs from Series.language — see packages/core/src/language.ts.
   TRANSLATE
@@ -175,6 +178,9 @@ enum PromptStep {
   METADATA
   /// Read a drafted episode and report what is wrong with it. See prompts/review.md.
   REVIEW
+  /// Ask where the whole story has got to against its stated direction. See
+  /// prompts/course.md.
+  COURSE
 }
 
 enum AudioTrackKind {

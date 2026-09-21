@@ -36,6 +36,8 @@ You are a screenwriter for audio drama. Build the outline for ONE next episode o
 
 {{recentHooks}}
 
+{{course}}
+
 This will be episode {{episodeNumber}}.
 
 Return JSON matching the schema.

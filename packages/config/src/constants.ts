@@ -170,6 +170,25 @@ export const FACT_MIN_SIMILARITY_OPENROUTER = 0.38;
  */
 export const OPENROUTER_EMBED_MODEL = "openai/text-embedding-3-large";
 
+/**
+ * How many episodes may go by before the story's course is worth checking again.
+ *
+ * Six: a story does not bend away from its destination in two episodes, and a check run
+ * every episode would be a model call per episode reporting that nothing has changed.
+ * Under six the answer is almost always the answer it gave last time.
+ */
+export const COURSE_CHECK_EVERY = 6;
+
+/**
+ * How many finished episodes before there is any point asking where the story has got to.
+ *
+ * Three. Below that the honest answer to every question is "it has only just started",
+ * and the first real run proved it: asked after one episode, the model reported all five
+ * parts of the direction as drifted — which is true in the sense that none had been
+ * reached, and useless, because that is what episode one IS.
+ */
+export const COURSE_MIN_EPISODES = 3;
+
 /** How many open threads load at most (always loaded, whatever the similarity). */
 export const OPEN_THREAD_LIMIT = 5;
 

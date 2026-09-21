@@ -18,7 +18,7 @@ import {
 import { rename, unlink } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { checkCover, ffprobe } from "@audio/audio";
-import { loadEnv } from "@audio/config";
+import { COURSE_CHECK_EVERY, loadEnv } from "@audio/config";
 import { getDefaultLanguage, getEmbedding, toVectorLiteral } from "@audio/llm";
 import { enqueue } from "../lib/queue";
 import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
@@ -200,6 +200,18 @@ series.put("/:id/tags", async (c) => {
  * Its own endpoint rather than part of the story page: it reads thirty scenes, and the
  * story page is polled while a run is going. Asked for only when someone opens it.
  */
+/**
+ * Ask where the story has got to against its direction.
+ *
+ * By hand as well as on a schedule, because the reason to want one is usually "I have
+ * just finished an episode that felt like a turn and want to know if it was".
+ */
+series.post("/:id/course", async (c) => {
+  const seriesId = c.req.param("id");
+  await enqueue({ type: "COURSE", payload: { seriesId } });
+  return c.json({ ok: "Reading the story so far…" });
+});
+
 series.get("/:id/style", async (c) => {
   const stats = computeStyleStats(await styleWindow(c.req.param("id")));
   return c.json({ stats, minScenes: MIN_SCENES_FOR_STATS });
@@ -209,9 +221,21 @@ series.get("/:id/world", async (c) => {
   const s = await prisma.series.findUniqueOrThrow({ where: { id: c.req.param("id") } });
   const stored = (s.storyBible ?? {}) as StoryBibleRecord;
   const direction = stored.direction ?? null;
+  const latest = await prisma.episode.findFirst({
+    where: { seriesId: s.id, gist: { not: null } },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
   return c.json({
     world: parseWorld(stored.world),
     direction,
+    course: stored.course ?? null,
+    // How many episodes have been finished since the check. The page uses it to say
+    // whether the answer still describes this story.
+    episodesSinceCourse: stored.course
+      ? Math.max(0, (latest?.number ?? 0) - stored.course.throughEpisode)
+      : null,
+    courseCheckEvery: COURSE_CHECK_EVERY,
     // What the story has not said about where it is going. Listed rather than counted:
     // "two missing" is not something anyone can act on.
     missingDirection: missingDirection(direction),
