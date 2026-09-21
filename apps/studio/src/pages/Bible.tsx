@@ -12,13 +12,36 @@ interface World {
   glossary: Array<{ term: string; meaning: string }>;
 }
 
+/** Where the story is going. Null for a story outlined before this existed. */
+interface Direction {
+  endingDirection: string;
+  centralQuestion: string;
+  corePromise: string;
+  escalation: string;
+  midpointTurn: string;
+}
+
+const EMPTY_DIRECTION: Direction = {
+  endingDirection: "",
+  centralQuestion: "",
+  corePromise: "",
+  escalation: "",
+  midpointTurn: "",
+};
+
 export function Bible() {
   const { id } = useParams();
-  const { data, isLoading, error } = useApi<{ world: World; bible: string; title: string }>(
-    `/api/series/${id}/world`,
-  );
+  const { data, isLoading, error } = useApi<{
+    world: World;
+    direction: Direction | null;
+    missingDirection: string[];
+    bible: string;
+    title: string;
+  }>(`/api/series/${id}/world`);
   if (isLoading || !data) return <Loading error={error} />;
   const { world } = data;
+  const direction = data.direction ?? EMPTY_DIRECTION;
+  const missing = data.missingDirection ?? [];
 
   return (
     <div className="space-y-8">
@@ -34,6 +57,66 @@ export function Bible() {
           <strong className="text-neutral-200">not</strong> lose this.
         </p>
       </div>
+
+      {/* Above the world setup, because it is a wider scope: the setting is where the
+          story happens, this is what it is for. The Story Bible prints them in the same
+          order, so the page reads the way the model does. */}
+      <Section title="Where this story is going">
+        {missing.length > 0 && (
+          <p className="rounded border border-amber-900/60 bg-amber-950/20 p-3 text-xs text-amber-200">
+            {missing.length === 5
+              ? "This story was outlined before it had a destination. Nothing tells the model where it ends, so every episode after this one is being planned without one."
+              : `Not said yet: ${missing.join(", ")}. A blank field is left out of the Story Bible entirely.`}
+          </p>
+        )}
+        <Form
+          path={`/api/series/${id}/direction`}
+          method="PUT"
+          submit="Save direction"
+          className="space-y-5"
+        >
+          <Field
+            name="endingDirection"
+            label="Where it ends up"
+            hint="In theme, not plot: what has changed by the end, and for whom. Not the last scene, and never a number of episodes."
+            placeholder="The driver stops running from the route and accepts that the last fare was always his own."
+            defaultValue={direction.endingDirection}
+            rows={2}
+          />
+          <Field
+            name="centralQuestion"
+            label="The question the ending answers"
+            hint="One question. Everything else is the story getting round to asking it properly."
+            placeholder="How long do the living owe the dead?"
+            defaultValue={direction.centralQuestion}
+            rows={2}
+          />
+          <Field
+            name="corePromise"
+            label="What it promises every episode"
+            hint="The reason to come back, not the reason to start."
+            placeholder="Every episode: one passenger, one old debt called in."
+            defaultValue={direction.corePromise}
+            rows={2}
+          />
+          <Field
+            name="escalation"
+            label="How the pressure rises"
+            hint="What the early episodes cost the characters, what the middle costs, what the end costs."
+            placeholder="Early: strangers. Middle: people he knew. Late: his own family."
+            defaultValue={direction.escalation}
+            rows={2}
+          />
+          <Field
+            name="midpointTurn"
+            label="When it changes gear"
+            hint="Where the way they have been coping stops working. Without one, episode 15 is episode 3 somewhere new."
+            placeholder="He stops refusing the fares and starts hunting for the depot himself."
+            defaultValue={direction.midpointTurn}
+            rows={2}
+          />
+        </Form>
+      </Section>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <Form path={`/api/series/${id}/world`} method="PUT" submit="Save setup" className="space-y-5">

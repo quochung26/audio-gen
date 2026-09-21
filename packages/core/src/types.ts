@@ -90,11 +90,77 @@ export const nextEpisodePlanSchema = z.object({
 
 export type NextEpisodePlan = z.infer<typeof nextEpisodePlanSchema>;
 
+/**
+ * Where the story is GOING.
+ *
+ * Everything else the outline produces is about episode one — a title, a setting, a cast,
+ * a hook. Nothing said where the story ends, so nothing in any later prompt could: the
+ * model outlining episode 30 read a Bible describing a world and a cast, and invented a
+ * direction of its own each time. That is what a story wandering looks like from the
+ * inside.
+ *
+ * Five fields, and each one earns its place by answering a question a later step asks:
+ *
+ *   - NEXT_EPISODE asks "what should this episode be for" — `endingDirection` and
+ *     `escalation` answer it.
+ *   - "why would anyone listen to twenty of these" — `corePromise`.
+ *   - "when does this stop being the same episode again" — `midpointTurn`.
+ *   - "what is it all for" — `centralQuestion`, which is what an ending has to answer
+ *     before a story can be called finished.
+ *
+ * Deliberately NOT a chapter count or an episode count. A destination is thematic; a
+ * number invites the model to pad toward it or to stop short of it, and this system
+ * already grows an episode at a time by design.
+ *
+ * Borrowed from ainovel-cli's premise template, where the equivalent sections are
+ * checked mechanically for presence before writing is allowed to start.
+ */
+export const storyDirectionSchema = z.object({
+  endingDirection: z
+    .string()
+    .min(1)
+    .describe(
+      "Where the story ends up, in theme rather than in plot: what has changed by the " +
+        "end, and for whom. NOT an episode count and NOT the final scene",
+    ),
+  centralQuestion: z
+    .string()
+    .min(1)
+    .describe(
+      "The one question the ending has to answer. Everything else is how the story gets " +
+        "round to asking it properly",
+    ),
+  corePromise: z
+    .string()
+    .min(1)
+    .describe(
+      "What this story delivers to the listener again and again, every episode — the " +
+        "reason to come back rather than the reason to start",
+    ),
+  escalation: z
+    .string()
+    .min(1)
+    .describe(
+      "How the pressure rises across the story: what the early episodes cost the " +
+        "characters, what the middle costs, what the end costs",
+    ),
+  midpointTurn: z
+    .string()
+    .min(1)
+    .describe(
+      "The point where the way the characters have been coping stops working and the " +
+        "story has to change gear. Without one, episode 15 is episode 3 in a new place",
+    ),
+});
+
+export type StoryDirection = z.infer<typeof storyDirectionSchema>;
+
 export const outlineSchema = z.object({
   title: z.string().min(1),
   logline: z.string().describe("One-sentence summary"),
   genre: z.string(),
   setting: z.string().describe("Setting: time, place, atmosphere"),
+  direction: storyDirectionSchema,
   characters: z.array(characterSchema).min(1),
   episodes: z.array(episodePlanSchema).min(1),
 });

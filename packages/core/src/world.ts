@@ -1,6 +1,6 @@
 import { renderTags } from "./tags";
 import { z } from "zod";
-import type { Outline } from "./types";
+import type { Outline, StoryDirection } from "./types";
 
 /**
  * World setup — what the WRITER lays down, not what the AI invents.
@@ -54,8 +54,45 @@ export interface StoryBibleRecord {
   raw?: Outline;
   /** The writer's world setup — NOT overwritten when the outline is regenerated. */
   world?: WorldSetup;
+  /**
+   * Where the story is going. Seeded from the outline, and the writer's from then on.
+   *
+   * Kept out here beside `world` rather than left inside `raw` for the same reason
+   * `world` is: the moment it has been edited it is the writer's intent, and `raw` is
+   * the part this record promises is regenerable. Absent for a story outlined before
+   * the field existed.
+   */
+  direction?: StoryDirection | null;
   /** Pre-rendered for the system prompt. Rebuilt whenever raw or world changes. */
   bible?: string;
+}
+
+/**
+ * The direction fields, in the order a person reads them and in the words they read.
+ *
+ * One list, used both to render the block into the Bible and to say what a story is
+ * missing. Written twice they would drift, and the drift would show up as a story
+ * reported complete while the Bible quietly left a field out.
+ */
+export const DIRECTION_FIELDS: Array<{ key: keyof StoryDirection; label: string }> = [
+  { key: "endingDirection", label: "Where it ends up" },
+  { key: "centralQuestion", label: "The question the ending answers" },
+  { key: "corePromise", label: "What it promises every episode" },
+  { key: "escalation", label: "How the pressure rises" },
+  { key: "midpointTurn", label: "When it changes gear" },
+];
+
+/**
+ * Which parts of a story's direction have not been written.
+ *
+ * Presence only — whether "where it ends up" is a good answer is not something code can
+ * judge, and pretending otherwise would be a quality gate that passes filler. A story
+ * outlined before this existed reports all five, which is accurate: it has no direction,
+ * and every episode after it is being written without one.
+ */
+export function missingDirection(d: StoryDirection | null | undefined): string[] {
+  if (!d) return DIRECTION_FIELDS.map((f) => f.label);
+  return DIRECTION_FIELDS.filter((f) => !String(d[f.key] ?? "").trim()).map((f) => f.label);
 }
 
 export function parseWorld(value: unknown): WorldSetup {
@@ -93,6 +130,11 @@ export function renderBible(input: {
    */
   genreNotes?: Array<{ name: string; promptName?: string; description: string }>;
   logline?: string;
+  /**
+   * Where the story is going. Omitted for a story outlined before it existed — the
+   * block is then left out rather than printed empty.
+   */
+  direction?: StoryDirection | null;
   world: WorldSetup;
   characters: Array<{
     name: string;
@@ -152,6 +194,22 @@ export function renderBible(input: {
       ``,
       `## What these genres mean here`,
       ...notes.map((g) => `- **${modelName(g.name)}**: ${g.description.trim()}`),
+    );
+  }
+
+  // Before the setting, and directly after what the genres mean: the model reads in
+  // sequence, and where the story is GOING is the widest scope there is. A destination
+  // read after a cast list is a destination read too late.
+  const direction = input.direction;
+  if (direction && missingDirection(direction).length < DIRECTION_FIELDS.length) {
+    parts.push(
+      ``,
+      `## Where this story is going`,
+      `The destination. Move toward it, and do not contradict it — but do not spell it ` +
+        `out to the listener either; it is what the story is for, not what it says.`,
+      ...DIRECTION_FIELDS.filter((f) => String(direction[f.key] ?? "").trim()).map(
+        (f) => `- **${f.label}**: ${String(direction[f.key]).trim()}`,
+      ),
     );
   }
 

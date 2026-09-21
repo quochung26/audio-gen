@@ -150,6 +150,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
       status: SeriesStatus.DRAFT,
       storyBible: {
         raw: outline,
+        // Lifted out of the outline and kept beside `world`: from here it is the
+        // writer's to change, and `raw` is the regenerable part. See StoryBibleRecord.
+        direction: outline.direction,
         // With no setting from the writer, the AI's becomes the starting point, so the
         // Story Bible page has something to edit.
         world: { ...world, setting: world.setting.trim() || outline.setting },

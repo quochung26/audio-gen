@@ -3,6 +3,7 @@ import { BatchStatus, JobStatus, prisma } from "@audio/database";
 import {
   checkTags,
   isLanguage,
+  missingDirection,
   parseTags,
   normalizeCast,
   parseWorld,
@@ -194,8 +195,13 @@ series.put("/:id/tags", async (c) => {
 series.get("/:id/world", async (c) => {
   const s = await prisma.series.findUniqueOrThrow({ where: { id: c.req.param("id") } });
   const stored = (s.storyBible ?? {}) as StoryBibleRecord;
+  const direction = stored.direction ?? null;
   return c.json({
     world: parseWorld(stored.world),
+    direction,
+    // What the story has not said about where it is going. Listed rather than counted:
+    // "two missing" is not something anyone can act on.
+    missingDirection: missingDirection(direction),
     bible: stored.bible ?? "",
     title: s.title,
     genre: s.genre,
@@ -254,6 +260,69 @@ series.put("/:id/draft-language", async (c) => {
   });
 });
 
+/**
+ * Save where the story is going.
+ *
+ * Mirrors the world setup: the outline writes it once, and after that it belongs to the
+ * writer. Editing it rebuilds the Bible, so the change reaches the next episode outlined
+ * and every scene written from then on — episodes already written stay as they are,
+ * because they were written under the old direction.
+ *
+ * Blank fields are allowed and are kept blank rather than rejected. A writer clearing
+ * "when it changes gear" because they have decided the story does not turn is saying
+ * something; refusing it would only teach them to type a full stop.
+ */
+series.put("/:id/direction", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.parseBody();
+  const s = await prisma.series.findUniqueOrThrow({ where: { id }, include: { characters: true } });
+  const stored = (s.storyBible ?? {}) as StoryBibleRecord;
+
+  const direction = {
+    endingDirection: field(body, "endingDirection"),
+    centralQuestion: field(body, "centralQuestion"),
+    corePromise: field(body, "corePromise"),
+    escalation: field(body, "escalation"),
+    midpointTurn: field(body, "midpointTurn"),
+  };
+
+  await prisma.series.update({
+    where: { id },
+    data: {
+      storyBible: {
+        ...stored,
+        direction,
+        bible: seriesBible({
+          title: s.title,
+          genre: s.genre,
+          tags: s.tags,
+          direction,
+          genreNotes: await prisma.genre.findMany({
+            where: { name: { in: [s.genre, ...s.tags] } },
+            select: { name: true, promptName: true, description: true },
+          }),
+          description: s.description,
+          world: parseWorld(stored.world),
+          characters: s.characters,
+          episodes: stored.raw?.episodes,
+        }),
+      },
+    },
+  });
+
+  const missing = missingDirection(direction);
+  return c.json({
+    ok:
+      missing.length === 0
+        ? "Saved. Every episode outlined from now on is written toward it."
+        : `Saved, with ${missing.length} still blank: ${missing.join(", ")}.`,
+    warnings:
+      missing.length > 0
+        ? ["A blank field is simply left out of the Story Bible — the model is told nothing about it."]
+        : [],
+  });
+});
+
 series.put("/:id/world", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.parseBody();
@@ -283,6 +352,9 @@ series.put("/:id/world", async (c) => {
           title: s.title,
           genre: s.genre,
           tags: s.tags,
+          // Carried through, or editing the world setup silently drops the destination
+          // out of the Bible every later episode is written from.
+          direction: stored.direction ?? null,
           genreNotes: await prisma.genre.findMany({
             where: { name: { in: [s.genre, ...s.tags] } },
             select: { name: true, promptName: true, description: true },

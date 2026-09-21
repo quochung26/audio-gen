@@ -1,5 +1,5 @@
 import type { CastMember } from "./cast";
-import type { OpenThread, Outline, StoryContext } from "./types";
+import type { OpenThread, Outline, StoryContext, StoryDirection } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
 
 /**
@@ -21,6 +21,15 @@ export interface SeriesBibleInput {
   genre: string;
   tags: string[];
   description?: string | null;
+  /**
+   * Where the story is going — see `storyDirectionSchema`.
+   *
+   * REQUIRED as a parameter even when null, for the same reason `genreNotes` is: made
+   * optional, a caller that forgets it builds a Bible with no destination in it, the
+   * prose drifts a few episodes later, and nothing reports it. That has already happened
+   * once here, with `tags`.
+   */
+  direction: StoryDirection | null;
   world: WorldSetup;
   /**
    * Descriptions of the genres this story uses (main and sub alike).
@@ -77,6 +86,7 @@ export function seriesBible(input: SeriesBibleInput): string {
     genre: input.genre,
     tags: input.tags,
     logline: input.description ?? undefined,
+    direction: input.direction,
     world: input.world,
     // The MAIN genre first. The query returns them in any order, and the model
     // reads in sequence — a sub-genre first inverts the priority.
@@ -145,6 +155,7 @@ export function buildBible(
     genre,
     tags,
     logline: outline.logline,
+    direction: outline.direction,
     world: merged,
     characters: cast ?? outline.characters,
     episodes: outline.episodes,

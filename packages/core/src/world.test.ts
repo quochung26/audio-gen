@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_WORLD, renderBible } from "./world";
+import { EMPTY_WORLD, missingDirection, renderBible } from "./world";
 import { buildBible, seriesBible } from "./story-context";
 
 const base = {
@@ -37,6 +37,7 @@ describe("seriesBible — building the Bible from a Series record", () => {
     tags: ["tình cảm", "slow burn"],
     description: "A story.",
     world: EMPTY_WORLD,
+    direction: null,
     genreNotes: [],
     characters: [{ name: "Hùng", isNarrator: true, description: "tài xế", state: null }],
   };
@@ -112,6 +113,7 @@ describe("genre descriptions in the Bible", () => {
     genre: "kinh dị",
     tags: ["tình cảm"],
     world: EMPTY_WORLD,
+    direction: null,
     genreNotes: [],
     characters: [{ name: "Hùng", isNarrator: true }],
   };
@@ -193,6 +195,7 @@ describe("spotlight — describe only who is present in the scene in full", () =
     tags: [],
     description: null,
     world: EMPTY_WORLD,
+    direction: null,
     genreNotes: [],
     characters: cast,
   };
@@ -232,6 +235,13 @@ describe("buildBible — the Bible built the moment the outline lands", () => {
     // What the MODEL called the genre. Never what gets stored.
     genre: "horror",
     setting: "Quốc lộ miền Trung, thập niên 1970.",
+    direction: {
+      endingDirection: "Tài chấp nhận chuyến cuối là của chính mình.",
+      centralQuestion: "Người ta nợ người chết đến bao giờ?",
+      corePromise: "Mỗi tập một hành khách, một món nợ cũ được đòi.",
+      escalation: "Đầu: khách lạ. Giữa: khách quen. Cuối: người nhà.",
+      midpointTurn: "Tài thôi bỏ chạy và bắt đầu đi tìm bến.",
+    },
     characters: [
       {
         name: "Tài",
@@ -275,5 +285,79 @@ describe("buildBible — the Bible built the moment the outline lands", () => {
     const mine = { ...EMPTY_WORLD, setting: "Hà Nội, 2005." };
     expect(buildBible(outline, { genre: "kinh dị", world: mine })).toContain("Hà Nội, 2005.");
     expect(buildBible(outline, { genre: "kinh dị" })).toContain("Quốc lộ miền Trung");
+  });
+});
+
+describe("where the story is going", () => {
+  const direction = {
+    endingDirection: "Tài chấp nhận chuyến cuối là của chính mình.",
+    centralQuestion: "Người ta nợ người chết đến bao giờ?",
+    corePromise: "Mỗi tập một hành khách, một món nợ cũ được đòi.",
+    escalation: "Đầu: khách lạ. Giữa: khách quen. Cuối: người nhà.",
+    midpointTurn: "Tài thôi bỏ chạy và bắt đầu đi tìm bến.",
+  };
+  const base = {
+    title: "Đường về",
+    genre: "kinh dị",
+    world: { ...EMPTY_WORLD, setting: "Quốc lộ miền Trung." },
+    characters: [{ name: "Hùng", isNarrator: true }],
+  };
+
+  it("carries every part of it", () => {
+    const b = renderBible({ ...base, direction });
+    for (const value of Object.values(direction)) expect(b).toContain(value);
+  });
+
+  // The model reads in sequence and this is the widest scope there is. Read after the
+  // setting and the cast, a destination is read too late to steer anything.
+  it("comes BEFORE the setting", () => {
+    const b = renderBible({ ...base, direction });
+    expect(b.indexOf("Where this story is going")).toBeLessThan(b.indexOf("## Setting"));
+  });
+
+  it("says not to spell the destination out to the listener", () => {
+    // A story that announces its own theme in dialogue is worse than one with no theme.
+    expect(renderBible({ ...base, direction })).toMatch(/do not spell it out/i);
+  });
+
+  // A story outlined before this existed. The Bible is what it always was.
+  it("leaves the block out entirely when there is no direction", () => {
+    expect(renderBible({ ...base, direction: null })).toBe(renderBible(base));
+    expect(renderBible(base)).not.toContain("Where this story is going");
+  });
+
+  it("prints only the parts that were filled in", () => {
+    const half = { ...direction, escalation: "", midpointTurn: "   " };
+    const b = renderBible({ ...base, direction: half });
+    expect(b).toContain("Where this story is going");
+    expect(b).not.toContain("How the pressure rises");
+    expect(b).toContain(direction.endingDirection);
+  });
+});
+
+describe("missingDirection", () => {
+  const full = {
+    endingDirection: "a",
+    centralQuestion: "b",
+    corePromise: "c",
+    escalation: "d",
+    midpointTurn: "e",
+  };
+
+  it("says nothing about a story that has all five", () => {
+    expect(missingDirection(full)).toEqual([]);
+  });
+
+  it("reports a blank field, not just an absent one", () => {
+    expect(missingDirection({ ...full, corePromise: "  " })).toEqual([
+      "What it promises every episode",
+    ]);
+  });
+
+  // Accurate rather than kind: it has no direction, and every episode after it is being
+  // written without one.
+  it("reports all five for a story outlined before this existed", () => {
+    expect(missingDirection(null)).toHaveLength(5);
+    expect(missingDirection(undefined)).toHaveLength(5);
   });
 });

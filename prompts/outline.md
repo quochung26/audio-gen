@@ -6,6 +6,16 @@ You are a screenwriter for audio drama. From a short idea, build a full series o
 - Follow ALL the sub-genres, not just the main genre.
 - `logline` states the central conflict in ONE sentence.
 - `setting` states time, place and atmosphere — this is what the listener pictures.
+- `direction` is where the whole story is going, and it is the only part of this outline
+  that is about anything beyond episode one. Answer all five in the story's language:
+  - `endingDirection` — where it ends up in THEME: what has changed by the end, and for
+    whom. Not the final scene, and never a number of episodes.
+  - `centralQuestion` — the one question the ending has to answer.
+  - `corePromise` — what every episode gives the listener, the reason to come back.
+  - `escalation` — what the early episodes cost the characters, what the middle costs,
+    what the end costs.
+  - `midpointTurn` — the point where the way they have been coping stops working and the
+    story changes gear. Without one, episode 15 is episode 3 somewhere new.
 - Every character needs a `description`: their PERSONALITY, both halves. What they are
   LIKE — temperament, how they carry themselves, what they do when something goes wrong
   — and what drives their choices, what they want and what they will not do. Wants

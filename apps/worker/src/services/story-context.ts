@@ -255,6 +255,9 @@ async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Pro
     tags: series.tags,
     genreNotes,
     description: series.description,
+    // From the outline the story was created with. Null for a story outlined before the
+    // direction existed — the Bible then reads as it always did.
+    direction: stored.direction ?? null,
     world: parseWorld(stored.world),
     characters: series.characters,
     episodes: stored.raw?.episodes,
