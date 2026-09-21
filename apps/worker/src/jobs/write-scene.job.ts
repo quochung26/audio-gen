@@ -4,6 +4,7 @@ import {
   planDraft,
   renderChapterSetup,
   renderContext,
+  renderOpenThread,
   sceneInputDigest,
   sceneNeedsSchema,
   toLanguage,
@@ -316,7 +317,7 @@ async function askWhatItNeeds(sceneId: string): Promise<SceneNeeds | null> {
         cast: series.characters.map((c) => `- ${c.name}${c.role ? ` — ${c.role}` : ""}`).join("\n"),
         threads:
           threads.length > 0
-            ? threads.map((t) => `- ${t.text}`).join("\n")
+            ? threads.map(renderOpenThread).join("\n")
             : "None — the story owes nothing yet.",
       }),
       ...(prompt.params as object),

@@ -63,7 +63,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
     storySoFar: (await latestStorySoFar(seriesId)) ?? undefined,
     episodeIndex: indexRows.map((e) => ({ number: e.number, title: e.title, gist: e.gist! })),
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
-    openThreads: threads.map((t) => ({ episodeNumber: t.episodeNumber, text: t.text })),
+    openThreads: threads,
   });
 
   const bible = ((series.storyBible ?? {}) as { bible?: string }).bible ?? "";

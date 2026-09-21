@@ -1,6 +1,20 @@
 import type { CastMember } from "./cast";
-import type { Outline, StoryContext } from "./types";
+import type { OpenThread, Outline, StoryContext } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
+
+/**
+ * One open thread, with its age.
+ *
+ * The age is stated, never acted on: "open for 14 episodes" is a fact the code can
+ * derive, and whether a debt that old should be paid now is a judgement it cannot. Five
+ * threads listed flat read as equally urgent, and the one the listener has been waiting
+ * longest on is the one most easily left for another episode.
+ */
+export function renderOpenThread(t: OpenThread): string {
+  const age =
+    t.openFor > 0 ? `, open for ${t.openFor} episode${t.openFor === 1 ? "" : "s"}` : "";
+  return `- [episode ${t.episodeNumber}${age}] ${t.text}`;
+}
 
 export interface SeriesBibleInput {
   title: string;
@@ -187,7 +201,7 @@ export function renderContext(ctx: StoryContext): string {
     parts.push(
       `## Open threads\n` +
         `No answer yet. Do not contradict them by accident — and you may use them to carry the line forward:\n` +
-        ctx.openThreads.map((t) => `- [episode ${t.episodeNumber}] ${t.text}`).join("\n"),
+        ctx.openThreads.map(renderOpenThread).join("\n"),
     );
   }
 
@@ -246,7 +260,7 @@ export interface EpisodeContext {
   storySoFar?: string;
   episodeIndex: Array<{ number: number; title: string; gist: string }>;
   previousSummaries: Array<{ number: number; summary: string }>;
-  openThreads: Array<{ episodeNumber: number; text: string }>;
+  openThreads: OpenThread[];
 }
 
 /**
@@ -284,7 +298,7 @@ export function renderEpisodeContext(ctx: EpisodeContext): string {
     parts.push(
       `## Open threads\n` +
         `No answer yet. The new episode should push forward or resolve at least one of these:\n` +
-        ctx.openThreads.map((t) => `- [episode ${t.episodeNumber}] ${t.text}`).join("\n"),
+        ctx.openThreads.map(renderOpenThread).join("\n"),
     );
   }
 

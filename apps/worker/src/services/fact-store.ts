@@ -128,11 +128,19 @@ export async function retrieveFacts(input: {
  * Why not leave it to vector search: these are debts the story owes. An open thread from
  * episode 3 still needs raising in episode 40 even when the current beat has nothing to do
  * with it thematically. Semantic similarity cannot catch that kind of relationship.
+ *
+ * Oldest first, because the cap bites: with more open threads than `OPEN_THREAD_LIMIT`,
+ * the ones that get dropped should be the ones the story only just took on.
+ *
+ * Each carries how long it has been open. Derived by code — this episode's number minus
+ * the one that opened it — and it only STATES the age; what to do about a debt fourteen
+ * episodes old is the model's judgement. Without it the model sees five sentences of
+ * equal weight and has no way to tell which one the listener has been waiting on.
  */
 export async function openThreads(input: {
   seriesId: string;
   beforeEpisode: number;
-}): Promise<Array<{ episodeNumber: number; text: string }>> {
+}): Promise<Array<{ episodeNumber: number; text: string; openFor: number }>> {
   const rows = await prisma.storyFact.findMany({
     where: {
       seriesId: input.seriesId,
@@ -144,7 +152,7 @@ export async function openThreads(input: {
     take: OPEN_THREAD_LIMIT,
     select: { episodeNumber: true, text: true },
   });
-  return rows;
+  return rows.map((r) => ({ ...r, openFor: input.beforeEpisode - r.episodeNumber }));
 }
 
 /** Facts the writer pinned — always loaded. */

@@ -7,6 +7,7 @@ import {
   renderChapterSetup,
   renderOverrides,
   seriesBible,
+  type OpenThread,
   type SceneNeeds,
   type StoryBibleRecord,
 } from "@audio/core";
@@ -24,8 +25,8 @@ export interface SceneContext {
   previousSummaries: Array<{ number: number; summary: string }>;
   /** Old facts retrieved by meaning for this particular beat. */
   facts: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
-  /** Open threads — always loaded, whatever the similarity. */
-  openThreads: Array<{ episodeNumber: number; text: string }>;
+  /** Open threads — always loaded, whatever the similarity, oldest debt first. */
+  openThreads: OpenThread[];
   /** The whole story up to the previous scene, in one paragraph — see Scene.storySoFar. */
   storySoFar: string;
   previousScene?: string;

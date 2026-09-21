@@ -267,6 +267,14 @@ export type EpisodeMetadata = z.infer<typeof metadataSchema>;
 
 // ── The context loaded into the write-scene prompt ─────────────
 
+/** A debt the story owes, with how long it has owed it. */
+export interface OpenThread {
+  episodeNumber: number;
+  text: string;
+  /** Episodes since the one that opened it. */
+  openFor: number;
+}
+
 export interface StoryContext {
   /** Outline + characters + world rules — fixed for the whole story */
   bible: string;
@@ -275,7 +283,7 @@ export interface StoryContext {
   /** Old facts retrieved by meaning for this particular scene */
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Unresolved open threads — always loaded, whatever the similarity */
-  openThreads?: Array<{ episodeNumber: number; text: string }>;
+  openThreads?: OpenThread[];
   /**
    * The whole story up to and including the previous scene, in one paragraph.
    *

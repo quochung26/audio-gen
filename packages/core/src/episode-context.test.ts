@@ -8,7 +8,7 @@ const full = {
     { number: 2, title: "Bến vắng", gist: "tìm ra tấm vé cũ" },
   ],
   previousSummaries: [{ number: 2, summary: "Tài xế quay lại bến cũ và thấy tên mình trên bia mộ." }],
-  openThreads: [{ episodeNumber: 1, text: "Ai đã đặt vé cho hành khách đó?" }],
+  openThreads: [{ episodeNumber: 1, text: "Ai đã đặt vé cho hành khách đó?", openFor: 2 }],
 };
 
 describe("renderEpisodeContext", () => {
@@ -31,6 +31,17 @@ describe("renderEpisodeContext", () => {
   it("says outright that open threads are what the new episode should handle", () => {
     // Outlining a new episode is exactly when you decide which debts get paid.
     expect(renderEpisodeContext(full)).toMatch(/push forward or resolve/);
+  });
+
+  it("says how long each thread has been open", () => {
+    // Listed flat, five threads read as equally urgent, and the one the listener has
+    // been waiting longest on is the easiest to leave for another episode.
+    expect(renderEpisodeContext(full)).toContain("[episode 1, open for 2 episodes]");
+  });
+
+  it("leaves the age off a thread opened in the episode just gone", () => {
+    const fresh = { ...full, openThreads: [{ ...full.openThreads[0]!, openFor: 0 }] };
+    expect(renderEpisodeContext(fresh)).toContain("[episode 1]");
   });
 
   it("drops an empty part rather than leaving a bare heading", () => {
