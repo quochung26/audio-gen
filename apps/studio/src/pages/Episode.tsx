@@ -56,6 +56,11 @@ interface Scene {
   characterIds: string[];
   setup: SceneSetup | null;
   text: string | null;
+  /**
+   * Written against material the story has since moved off — the Bible, the beat, the
+   * setups, the scene before it, or the WRITE_SCENE prompt. See Scene.inputDigest.
+   */
+  stale: boolean;
   /** The draft before the rewrite. Null means this scene has not been through it. */
   sourceText: string | null;
   /**
@@ -330,6 +335,22 @@ export function Episode() {
                           {/* The length, where the question about a written scene is
                               usually whether it came out near the target at all. */}
                           {scene.text && <span>{words(scene.text)} words</span>}
+                          {/* Says WHICH way it is out of date is not possible — the
+                              digest is one number over everything the scene was written
+                              from. What it can say is that rewriting is the fix, which
+                              is the button directly to the right. */}
+                          {scene.stale && (
+                            <span
+                              className="rounded bg-amber-900/60 px-1.5 py-0.5 text-amber-200"
+                              title={
+                                "The Bible, the beat, a setup, the scene before this one or the " +
+                                "WRITE_SCENE prompt has changed since this scene was written. " +
+                                "The prose is fine — it just no longer matches what the story says."
+                              }
+                            >
+                              written against an older version
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 text-xs leading-relaxed text-neutral-400">{scene.beat}</p>
                       </div>

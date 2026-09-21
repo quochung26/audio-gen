@@ -25,6 +25,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@audio/core": "workspace:*",
     "@prisma/client": "^6.1.0"
   },
   "devDependencies": {

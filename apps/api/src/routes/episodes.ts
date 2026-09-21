@@ -12,6 +12,7 @@ import {
 } from "@audio/core";
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
+import { staleScenes } from "../lib/scene-staleness";
 import { connection, enqueue } from "../lib/queue";
 import { field, splitLines, UserError } from "../lib/http";
 
@@ -58,7 +59,17 @@ episodes.get("/:id", async (c) => {
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
     },
   });
-  return c.json(ep);
+
+  // Marked per scene rather than returned as a list: the page shows it on the scene it
+  // belongs to, and a list would have to be matched back up there anyway.
+  const stale = await staleScenes(ep);
+  return c.json({
+    ...ep,
+    chapters: ep.chapters.map((ch) => ({
+      ...ch,
+      scenes: ch.scenes.map((s) => ({ ...s, stale: stale.has(s.id) })),
+    })),
+  });
 });
 
 /** Data for the audio page: blocks, exports, the music library. */

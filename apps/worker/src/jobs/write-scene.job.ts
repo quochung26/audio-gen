@@ -4,12 +4,13 @@ import {
   planDraft,
   renderChapterSetup,
   renderContext,
+  sceneInputDigest,
   sceneNeedsSchema,
   toLanguage,
   withLanguage,
   type SceneNeeds,
 } from "@audio/core";
-import { EpisodeStatus, prisma } from "@audio/database";
+import { episodeSceneMaterial, EpisodeStatus, prisma } from "@audio/database";
 import {
   getLlm,
   getSceneContextMode,
@@ -137,7 +138,23 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     // `sourceText` back to null: the scene has just been rewritten, so any earlier
     // rewrite no longer corresponds to anything, and null is also the marker telling the
     // TRANSLATE step this scene has to be done again.
-    await prisma.scene.update({ where: { id: scene.id }, data: { text, sourceText: null } });
+    //
+    // The digest records what this write was made FROM, prompt included, so that editing
+    // any of it later shows up as a scene written against an older version of the story.
+    // Read through the same query the API checks it with — see Scene.inputDigest.
+    //
+    // Gathered per scene rather than once for the run: writing scene 2 changes what
+    // scene 3 is written from, and a map taken at the start would record scene 3 against
+    // prose that no longer precedes it.
+    const material = (await episodeSceneMaterial(scene.chapter.episodeId)).get(scene.id);
+    await prisma.scene.update({
+      where: { id: scene.id },
+      data: {
+        text,
+        sourceText: null,
+        inputDigest: material ? sceneInputDigest({ ...material, prompt: prompt.content }) : null,
+      },
+    });
     written.push(text);
 
     // Fold the scene into the episode's running summary, for the scenes after it. Done

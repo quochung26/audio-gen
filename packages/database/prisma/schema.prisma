@@ -597,6 +597,20 @@ model Scene {
   /// raincoat" leaves the chapter's "hand bandaged" note intact.
   setup Json?
 
+  /// A hash of everything this scene was written from — Bible, cast, beat, the two
+  /// setups, the prose immediately before it, and the WRITE_SCENE prompt.
+  ///
+  /// Recomputed when the episode page loads; a mismatch means the scene was written
+  /// against material the story has since moved off. Without it nothing in the system
+  /// notices: editing the Bible, retyping a beat or rewriting scene 2 all leave scene 3
+  /// looking exactly as current as it did the minute it was written. See the note on
+  /// `storySoFar` about later scenes holding a paragraph that no longer matches — this
+  /// is what makes that visible rather than something to remember.
+  ///
+  /// Null = written before this existed. Reported as "unknown", never as stale: a
+  /// library of old scenes flagged on the day of the deploy says nothing.
+  inputDigest String?
+
   /// The numbers of earlier episodes this scene calls back to.
   /// Only the episodes listed here get their FULL summary loaded — instead of
   /// stuffing in every summary each time. The system suggests, the writer can edit.
