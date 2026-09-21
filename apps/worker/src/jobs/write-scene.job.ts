@@ -81,6 +81,25 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
   const mode = await getSceneContextMode();
 
   for (const [index, scene] of scenes.entries()) {
+    // Already written by an earlier ATTEMPT of this same job. A worker killed after the
+    // scene was saved but before the job ended leaves BullMQ to redeliver it, and a
+    // single-scene run selects by id alone — so the retry would pay for the scene twice
+    // and replace prose that was already finished.
+    //
+    // Judged on when it was written rather than on whether it has text: the rewrite
+    // button deliberately does NOT clear the prose first (see the comment on that route
+    // — clearing it destroyed scenes whose rewrite then failed), so "has text" cannot
+    // tell a retry from a rewrite. "Written since this job was queued" can.
+    if (job.attemptsMade > 0 && scene.text && scene.updatedAt.getTime() > job.timestamp) {
+      logger.warn(
+        `[write-scene] scene ${scene.chapter.order}.${scene.order} was already written by ` +
+          `attempt ${job.attemptsMade} of this job — not writing it again`,
+      );
+      written.push(scene.text);
+      await setProgress(Math.round(((index + 1) / scenes.length) * 90));
+      continue;
+    }
+
     const context = await buildSceneContext(scene.id, mode === "asked" ? await askWhatItNeeds(scene.id) : null);
     const prompt = await loadPrompt("WRITE_SCENE", context.genre);
     const ctx = {

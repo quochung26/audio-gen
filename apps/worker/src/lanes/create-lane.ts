@@ -79,12 +79,23 @@ export function createLane(lane: Lane, handlers: Record<string, JobHandler>): Wo
     // BullMQ fires "failed" after EVERY attempt, not only the last. Only the last is a
     // real failure — reporting early would kill a batch run while the job still has
     // retries left.
-    const maxAttempts = job.opts.attempts ?? 1;
-    const isFinal = job.attemptsMade >= maxAttempts;
+    //
+    // Asked of the QUEUE rather than worked out from the attempt count, because the two
+    // disagree on the case that matters. A job whose worker vanished is marked stalled,
+    // and once it passes `maxStalledCount` BullMQ fails it FOR GOOD — however many of
+    // its `attempts` are unused. Counting attempts read that as "will retry", returned
+    // here, and left the RenderJob row saying RUNNING for ever.
+    //
+    // Which is what a `tsx watch` restart does to whatever the worker is holding, so it
+    // happened all day during development: the queue knew the job was dead, the table
+    // did not, and Studio hides every button on an episode with a live job.
+    const state = await job.getState().catch(() => "unknown");
+    const isFinal = state === "failed" || state === "unknown";
 
     if (!isFinal) {
       logger.warn(
-        `[${lane}] ⟳ ${job.name} attempt ${job.attemptsMade}/${maxAttempts} failed, will retry — ${err.message}`,
+        `[${lane}] ⟳ ${job.name} attempt ${job.attemptsMade}/${job.opts.attempts ?? 1} ` +
+          `failed, will retry — ${err.message}`,
       );
       return;
     }

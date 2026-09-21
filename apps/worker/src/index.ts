@@ -6,6 +6,7 @@ import { startLanes } from "./lanes/index";
 import { logger } from "./lib/logger";
 import { vramGuard } from "./services/vram-guard";
 import { assertNotifyEvents } from "./services/notify";
+import { reconcileOrphanedJobs } from "./services/reconcile";
 import { shutdownQueueClient } from "./services/queue";
 
 async function main() {
@@ -36,6 +37,10 @@ async function main() {
   logger.info(
     `ffmpeg       : ${ff.ok ? "has every filter needed" : "MISSING " + ff.missing.join(", ")}`,
   );
+
+  // Before any lane opens: the last worker may have been killed mid-job, and a row left
+  // at RUNNING locks its episode in Studio for ever. See services/reconcile.ts.
+  await reconcileOrphanedJobs();
 
   const workers = startLanes();
 
