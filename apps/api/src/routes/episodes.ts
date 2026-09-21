@@ -972,6 +972,21 @@ episodes.post("/:id/review", async (c) => {
   if (!ep.draftText?.trim()) {
     throw new UserError("There is no draft to review yet — write the scenes first.");
   }
+
+  // One at a time. The button is hidden while a job runs, but a stale page, a second tab
+  // or a double click all reach here anyway — and a second review of the same draft costs
+  // a model call to produce an answer the first one is already producing.
+  const already = await prisma.renderJob.count({
+    where: {
+      episodeId,
+      type: "REVIEW",
+      status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
+    },
+  });
+  if (already > 0) {
+    throw new UserError("This draft is already being read. Wait for that one to finish.");
+  }
+
   await enqueue({ type: "REVIEW", episodeId, payload: { episodeId } });
   return c.json({ ok: "Reading the draft…" });
 });

@@ -826,7 +826,7 @@ export function Episode() {
 
       {/* Above the gate, because it exists to be read before the decision is made.
           It decides nothing: no status moves, nothing is queued off the back of it. */}
-      {allWritten && untranslated === 0 && <ReviewPanel ep={ep} />}
+      {allWritten && untranslated === 0 && <ReviewPanel ep={ep} active={active} />}
 
       {/* The gate that stops a raw draft going any further. */}
       {allWritten && untranslated === 0 && (
@@ -1017,8 +1017,19 @@ const VERDICT_TONE: Record<string, string> = {
  * judges the prose and acts on the judgement has quietly removed the only gate this
  * pipeline has.
  */
-function ReviewPanel({ ep }: { ep: Ep }) {
+function ReviewPanel({ ep, active }: { ep: Ep; active?: { type: string; progress: number } }) {
   const review = ep.reviews?.[0];
+
+  // Every other action on this page is hidden while a job runs, and this one was not:
+  // the button stayed live through its own review and queued a second read of the same
+  // draft — a model call to produce the answer the first one was already producing.
+  const busy = active ? (
+    <span className="text-xs text-neutral-500">
+      {active.type === "REVIEW"
+        ? `Reading the draft… ${active.progress}%`
+        : `${active.type} is running — nothing can be read until it finishes.`}
+    </span>
+  ) : null;
 
   return (
     <Section title="What a reader found">
@@ -1033,7 +1044,9 @@ function ReviewPanel({ ep }: { ep: Ep }) {
               the scene several steps before it assembles the draft, and the page counts
               that scene as written. Offering the button through that window gave an error
               where an explanation belonged. */}
-          {ep.draftText?.trim() ? (
+          {busy ? (
+            busy
+          ) : ep.draftText?.trim() ? (
             <ActionButton path={`/api/episodes/${ep.id}/review`}>read the draft</ActionButton>
           ) : (
             <p className="text-xs text-amber-300">
@@ -1048,7 +1061,9 @@ function ReviewPanel({ ep }: { ep: Ep }) {
           <div className="flex flex-wrap items-start gap-3">
             <Badge tone={VERDICT_TONE[review.verdict] ?? "neutral"}>{review.verdict}</Badge>
             <p className="min-w-48 flex-1 text-sm text-neutral-300">{review.summary}</p>
-            <ActionButton path={`/api/episodes/${ep.id}/review`}>read it again</ActionButton>
+            {busy ?? (
+              <ActionButton path={`/api/episodes/${ep.id}/review`}>read it again</ActionButton>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
