@@ -32,6 +32,10 @@ capitals, same spelling — including a spelling the draft got wrong.
 - Do NOT add the speaker's name in front of a line of dialogue. If the draft says
   `"Ta không đi."`, the quote is `"Ta không đi."` and not `Lan: "Ta không đi."`.
 - Do NOT change `"` to `“`, `'` to `’`, or `--` to `—`, and do not tidy spacing.
+- Do NOT wrap the quote in quote marks of your own. The field is already a quote. If
+  the passage is narration, it starts with its first word: `Diễn hít vào.`, never
+  `“Diễn hít vào.”`. Only dialogue carries quote marks, and only the ones the draft
+  itself put there.
 - Do NOT join two fragments from different places with `...`. Pick one of them.
 - Do NOT translate, summarise or shorten. Six exact words beat a whole paraphrased
   sentence.
