@@ -56,17 +56,38 @@ Studio tự tạo Series khi bạn làm truyện ngắn — người dùng khôn
 
 ### 2.2. `storyBible` tách `world` (người viết) khỏi `raw` (AI sinh)
 
-Cột `Series.storyBible` chứa ba phần:
+Cột `Series.storyBible` chứa bốn phần:
 
 ```ts
 {
-  raw:   Outline,      // dàn ý AI sinh — có thể sinh lại
-  world: WorldSetup,   // bối cảnh, luật thế giới, giọng văn, điều cấm, thuật ngữ
-  bible: string,       // bản render sẵn (chỉ để xem; lúc chạy luôn dựng lại từ dữ liệu mới nhất)
+  raw:       Outline,        // dàn ý AI sinh — có thể sinh lại
+  world:     WorldSetup,     // bối cảnh, luật thế giới, giọng văn, điều cấm, thuật ngữ
+  direction: StoryDirection, // truyện đi về đâu — xem 2.2b
+  bible:     string,         // bản render sẵn (chỉ để xem; lúc chạy luôn dựng lại từ dữ liệu mới nhất)
 }
 ```
 
 **Vì sao tách:** dàn ý là thứ AI sinh và bạn có thể cho sinh lại bất cứ lúc nào; thiết lập thế giới là thứ bạn quyết định và phải giữ nguyên suốt bộ truyện. Trộn chung thì mỗi lần sinh lại dàn ý sẽ xoá mất luật thế giới bạn đã viết.
+
+### 2.2b. `direction` — truyện đi về đâu
+
+Mọi thứ còn lại dàn ý sinh ra đều nói về **tập một**: tên truyện, bối cảnh, dàn nhân vật, một cái móc câu. Không chỗ nào nói truyện **kết** ở đâu, nên không prompt nào về sau nói được — model outline tập 30 đọc một cuốn Bible mô tả thế giới và dàn người, rồi mỗi lần tự bịa ra một hướng đi khác. Nhìn từ bên trong, đó chính là cái ta thấy là "truyện lan man".
+
+Năm trường, mỗi trường trả lời một câu hỏi mà bước sau vốn đã hỏi:
+
+| Trường | Trả lời câu hỏi |
+|---|---|
+| `endingDirection` | Kết ở đâu, theo chủ đề — cái gì đã đổi, và đổi với ai |
+| `centralQuestion` | Câu hỏi mà đoạn kết buộc phải trả lời |
+| `corePromise` | Mỗi tập cho người nghe cái gì — lý do quay lại, không phải lý do bắt đầu |
+| `escalation` | Áp lực dâng ra sao: đầu truyện trả giá gì, giữa truyện, cuối truyện |
+| `midpointTurn` | Lúc cách xoay xở cũ hết tác dụng và truyện sang số |
+
+**Cố ý không phải số tập, số chương.** Đích đến là chuyện chủ đề; một con số chỉ dụ model nhồi cho tới đó hoặc dừng non, mà hệ này vốn mọc từng tập một.
+
+Nằm cạnh `world` chứ không nằm trong `raw`: dàn ý viết nó một lần, từ đó trở đi nó là của người viết — mà `raw` mới là phần bản ghi này hứa có thể sinh lại.
+
+`missingDirection()` chỉ kiểm **có mặt hay không**. "Kết ở đâu" có phải câu trả lời TỐT không thì code không phán được, và một cái cổng cho lọt văn vô nghĩa còn tệ hơn không có cổng.
 
 `bible` được lưu để hiển thị, nhưng `buildSceneContext()` **luôn dựng lại từ `world` + nhân vật hiện tại** thay vì đọc bản cache — nếu không, sửa luật thế giới xong mà cảnh viết ra vẫn theo bản cũ.
 
@@ -328,6 +349,16 @@ model Episode {
   slug   String @unique
 
   outline Json?
+
+  /// Tập này đóng lại bằng LOẠI bước ngoặt nào — xem HOOK_TYPES trong @audio/core.
+  ///
+  /// Là cột chứ không phải trường trong `outline`, vì câu hỏi đặt ra cho nó là "sáu tập
+  /// gần nhất kết kiểu gì", mà đó là một truy vấn. `hook` là một câu về tập này; đây là
+  /// thứ duy nhất của nó so sánh được với các tập khác.
+  ///
+  /// Null = outline trước khi có nhãn. Bị bỏ khỏi lịch sử chứ không hiện là "chưa rõ":
+  /// một danh sách nửa là chỗ trống đọc như dữ liệu bị thiếu.
+  hookType String?
 
   draftText  String?
   scriptText String?
