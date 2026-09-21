@@ -449,12 +449,29 @@ series.post("/:id/batch", async (c) => {
       seriesId,
       autoApprove: body.autoApprove === "on" || body.autoApprove === "true",
       withAudio: body.withAudio === "on" || body.withAudio === "true",
+      budgetUsd: parseBudget(field(body, "budgetUsd")),
       status: BatchStatus.RUNNING,
     },
   });
   await enqueue({ type: "BATCH", payload: { runId: run.id } });
   return c.json({ runId: run.id });
 });
+
+/**
+ * The spending ceiling for one run, in USD. Blank means no ceiling, which is the default.
+ *
+ * Rejected rather than ignored when it is not a number: a run started with "5 dollars" in
+ * the box and no ceiling on it is the exact opposite of what was asked for, and it would
+ * only be noticed on the bill.
+ */
+function parseBudget(raw: string): number | null {
+  if (raw.trim() === "") return null;
+  const usd = Number(raw);
+  if (!Number.isFinite(usd) || usd <= 0) {
+    throw new UserError(`"${raw}" is not an amount in dollars. Leave it blank for no ceiling.`);
+  }
+  return usd;
+}
 
 /**
  * Stop a run. The job currently RUNNING finishes — cutting it off midway leaves

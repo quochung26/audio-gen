@@ -3,6 +3,7 @@ import { BatchStatus, JobStatus, prisma, type JobType } from "@audio/database";
 import { logger } from "../lib/logger";
 import { enqueue } from "./queue";
 import { isEpisodeComplete, nextStep, type BatchOptions, type EpisodeProgress } from "./batch-plan";
+import { judgeSpend, spendSince } from "./batch-budget";
 
 /**
  * Advance a batch run to its next step.
@@ -69,6 +70,12 @@ export async function step(
     return;
   }
 
+  // The ceiling is checked HERE, between steps, and nowhere else. A job already talking
+  // to a model has been paid for whether or not it finishes, so killing it mid-call buys
+  // nothing and loses a scene. The run can therefore end a little over the ceiling —
+  // it is where the run stops, not a limit on what the gateway will bill.
+  if (await stoppedOnBudget(run)) return;
+
   const episodes = await loadProgress(seriesId);
   const pending = episodes.find((e) => !isEpisodeComplete(e.progress, opts));
 
@@ -131,6 +138,45 @@ export async function step(
     await enqueue({ type: next.type, episodeId: pending.id, payload: { episodeId: pending.id } });
     logger.info(`[batch] ${runId}: episode ${pending.number} → ${next.type}`);
   }
+}
+
+/**
+ * Check what the run has spent, record it, and stop the run if it is at its ceiling.
+ *
+ * Stopping is not a failure: the ceiling was signed by the writer when they started the
+ * run, and crossing it is that instruction being carried out — the same thing as them
+ * pressing cancel at that moment, which is the status it gets. Starting another run picks
+ * the story up where this one left off.
+ *
+ * Costs nothing when no ceiling was set, which is the default: the query only runs for a
+ * run that asked to be watched.
+ */
+async function stoppedOnBudget(run: {
+  id: string;
+  seriesId: string;
+  startedAt: Date;
+  budgetUsd: number | null;
+  blindWarned: boolean;
+}): Promise<boolean> {
+  if (run.budgetUsd === null) return false;
+
+  const spend = await spendSince(run.seriesId, run.startedAt);
+  const { stop, warn } = judgeSpend({
+    budgetUsd: run.budgetUsd,
+    spend,
+    blindWarned: run.blindWarned,
+  });
+
+  await prisma.batchRun.update({
+    where: { id: run.id },
+    data: { spentUsd: spend.usd, ...(warn ? { blindWarned: true } : {}) },
+  });
+
+  if (warn) logger.warn(`[batch] ${run.id}: ${warn}`);
+  if (!stop) return false;
+
+  await finish(run.id, BatchStatus.CANCELLED, stop);
+  return true;
 }
 
 interface EpisodeRow {
@@ -206,5 +252,11 @@ async function finish(runId: string, status: BatchStatus, error: string | null):
     where: { id: runId },
     data: { status, error, finishedAt: new Date(), currentEpisodeId: null },
   });
-  if (error) logger.error(`[batch] ${runId}: ${error}`);
+  // CANCELLED carries a reason without anything having gone wrong — a run stopped at its
+  // spending ceiling did what it was told. Logging that at error level teaches the reader
+  // to distrust the level.
+  if (error) {
+    const say = status === BatchStatus.CANCELLED ? logger.info : logger.error;
+    say(`[batch] ${runId}: ${error}`);
+  }
 }

@@ -46,6 +46,15 @@ export interface ChatDelta {
   content: string;
   inputTokens: number;
   outputTokens: number;
+  /**
+   * What this call cost, in USD, as the gateway itself reports it.
+   *
+   * Null unless asked for and answered. Taken from the provider rather than worked out
+   * from a price list: the list has to be fetched, cached and kept in step with a
+   * catalogue that changes weekly, and it would be wrong for exactly the models whose
+   * price is unusual.
+   */
+  costUsd: number | null;
   /** The stop reason — `length` means it was cut off at the token ceiling. */
   finishReason: string | null;
 }
@@ -56,13 +65,16 @@ export function readChatChunk(data: Record<string, unknown>): ChatDelta {
     | Array<{ delta?: { content?: string }; finish_reason?: string | null }>
     | undefined;
   const usage = data.usage as
-    | { prompt_tokens?: number; completion_tokens?: number }
+    | { prompt_tokens?: number; completion_tokens?: number; cost?: number }
     | undefined;
 
   return {
     content: choices?.[0]?.delta?.content ?? "",
     inputTokens: usage?.prompt_tokens ?? 0,
     outputTokens: usage?.completion_tokens ?? 0,
+    // Zero is a real answer — a free model costs nothing — so only a missing or
+    // non-numeric field counts as "not reported". `?? null` on a 0 would throw that away.
+    costUsd: typeof usage?.cost === "number" ? usage.cost : null,
     finishReason: choices?.[0]?.finish_reason ?? null,
   };
 }

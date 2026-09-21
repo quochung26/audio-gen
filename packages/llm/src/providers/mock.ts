@@ -60,6 +60,7 @@ export class MockProvider implements LlmProvider {
       model: "mock",
       inputTokens: Math.ceil((opts.prompt.length + (opts.system?.length ?? 0)) / 3),
       outputTokens,
+      costUsd: null,
       durationMs,
       tokensPerSec: durationMs > 0 ? outputTokens / (durationMs / 1000) : this.tokensPerSec,
     };

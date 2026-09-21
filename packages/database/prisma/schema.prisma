@@ -912,8 +912,12 @@ model Prompt {
   @@index([step, active])
 }
 
-/// Telemetry for every LLM call. Records time and speed, not money — with a local
-/// model, machine time is the scarce resource.
+/// Telemetry for every LLM call: time, speed, and — when a gateway charges for it and
+/// says so — money.
+///
+/// It recorded only time and speed while every model ran locally, where machine time is
+/// the scarce resource. OpenRouter made that assumption false, and a batch run left going
+/// overnight spends real money with nothing counting it.
 model LlmRun {
   id String @id @default(cuid())
 
@@ -932,6 +936,14 @@ model LlmRun {
   outputTokens Int
   durationMs   Int
   tokensPerSec Float
+
+  /// USD, as the provider reported it — never worked out from a price list here.
+  ///
+  /// Null means nobody said: a local model, or a gateway that answered without a cost.
+  /// NOT zero. A free model costs 0 and is being watched correctly; a run of nulls means
+  /// the budget is watching nothing, and `batch-budget.ts` says so rather than reading
+  /// the silence as thrift.
+  costUsd Float?
 
   /// Your own score after reading — to learn which prompt and parameters write well.
   qualityRating Int?
@@ -977,6 +989,20 @@ model BatchRun {
 
   /// The episode being processed — also the one awaiting approval when status = WAITING_REVIEW.
   currentEpisodeId String?
+
+  /// Stop the run once this much has been spent on the story, in USD. Null = no ceiling.
+  ///
+  /// Checked at the boundary between steps, never mid-job: a job already talking to a
+  /// model is paid for either way, and killing it wastes what it cost. So the real spend
+  /// can end slightly over — the ceiling is where the run STOPS, not a hard limit on what
+  /// the gateway will bill.
+  budgetUsd Float?
+  /// What has been spent since the run started, recomputed at each boundary. Kept on the
+  /// row so the page and the finished record can show it without summing every call.
+  spentUsd  Float   @default(0)
+  /// Whether the "these calls report no cost" warning has already been given for this
+  /// run. Once is a warning; every boundary is noise.
+  blindWarned Boolean @default(false)
 
   error String?
 

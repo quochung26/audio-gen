@@ -151,6 +151,10 @@ export class OllamaProvider implements LlmProvider {
           ? outputTokens / (durationMs / 1000)
           : 0;
 
-    return { text, model, inputTokens, outputTokens, durationMs, tokensPerSec };
+    // No cost: a local model is paid for in electricity and machine time, which is what
+    // `tokensPerSec` above is for. Null rather than 0 — "nothing to charge" and "nobody
+    // said" have to stay apart, or a budget watching a gateway that stopped reporting
+    // would read it as free. See GenerateResult.costUsd.
+    return { text, model, inputTokens, outputTokens, costUsd: null, durationMs, tokensPerSec };
   }
 }

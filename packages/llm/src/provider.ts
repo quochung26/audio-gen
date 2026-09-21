@@ -36,6 +36,14 @@ export interface GenerateResult {
   outputTokens: number;
   durationMs: number;
   tokensPerSec: number;
+  /**
+   * What the call cost, in USD, as the provider reports it.
+   *
+   * Null means nobody said — a local model, where the cost is electricity, or a gateway
+   * that did not answer. Null is NOT zero, and the two have to stay apart: a run of nulls
+   * is how the budget finds out it is watching nothing. See services/batch-budget.ts.
+   */
+  costUsd: number | null;
 }
 
 export interface LlmProvider {

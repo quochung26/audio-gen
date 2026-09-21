@@ -12,9 +12,9 @@ export interface TelemetryContext {
 /**
  * Record every LLM call.
  *
- * Records time and speed rather than money: with a local model, machine time is the
- * scarce resource. This table is the only way to later answer "which model and which
- * parameters give the best prose" instead of guessing.
+ * The only way to later answer "which model and which parameters give the best prose"
+ * instead of guessing — and, since the calls started going to a gateway that charges,
+ * the only record of what a story cost to write.
  */
 export async function recordRun(
   ctx: TelemetryContext,
@@ -31,6 +31,7 @@ export async function recordRun(
         params: ctx.params as object,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
+        costUsd: result.costUsd,
         durationMs: result.durationMs,
         tokensPerSec: Number(result.tokensPerSec.toFixed(2)),
       },

@@ -97,6 +97,10 @@ export class OpenRouterProvider implements LlmProvider {
           // Without this the last chunk carries no usage, losing the token counts
           // entirely — and tokens are real money here.
           stream_options: { include_usage: true },
+          // And this asks OpenRouter to put what it charged in that same usage object.
+          // Cheaper and more honest than a local price list: the catalogue moves weekly,
+          // and a stale list is wrong for exactly the models whose price is unusual.
+          usage: { include: true },
           temperature: opts.temperature ?? 0.9,
           top_p: opts.topP ?? 0.92,
           min_p: opts.minP ?? 0,
@@ -122,6 +126,7 @@ export class OpenRouterProvider implements LlmProvider {
     let buffer = "";
     let inputTokens = 0;
     let outputTokens = 0;
+    let costUsd: number | null = null;
     let finishReason: string | null = null;
 
     while (true) {
@@ -149,6 +154,7 @@ export class OpenRouterProvider implements LlmProvider {
         }
         if (chunk.inputTokens) inputTokens = chunk.inputTokens;
         if (chunk.outputTokens) outputTokens = chunk.outputTokens;
+        if (chunk.costUsd !== null) costUsd = chunk.costUsd;
         if (chunk.finishReason) finishReason = chunk.finishReason;
       }
     }
@@ -166,6 +172,7 @@ export class OpenRouterProvider implements LlmProvider {
       model,
       inputTokens,
       outputTokens,
+      costUsd,
       durationMs,
       tokensPerSec: durationMs > 0 ? outputTokens / (durationMs / 1000) : 0,
     };

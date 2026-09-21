@@ -38,6 +38,10 @@ interface Batch {
   id: string;
   status: string;
   currentEpisodeId: string | null;
+  /** The ceiling this run was started with, in USD. Null = it was started without one. */
+  budgetUsd: number | null;
+  /** What the gateway has charged since the run started, as far as it reported. */
+  spentUsd: number;
   error: string | null;
 }
 interface Data {
@@ -236,6 +240,13 @@ export function Series() {
               <span className="text-neutral-300">
                 {written}/{s.episodes.length} episodes written · {scripted} scripted · {exported} with MP3
               </span>
+              {/* Only for a run that asked to be watched. Without a ceiling the figure
+                  would be a number nobody set and nobody can act on. */}
+              {active.budgetUsd !== null && (
+                <span className="text-neutral-400">
+                  ${active.spentUsd.toFixed(2)} of ${active.budgetUsd.toFixed(2)}
+                </span>
+              )}
             </div>
 
             {active.status === "WAITING_REVIEW" && waiting ? (
@@ -283,6 +294,24 @@ export function Series() {
               </span>
             </label>
 
+            <label className="block text-sm">
+              <span className="mb-1 block text-neutral-400">
+                Stop after spending <span className="text-neutral-600">— optional, USD</span>
+              </span>
+              <input
+                type="text"
+                name="budgetUsd"
+                inputMode="decimal"
+                placeholder="blank = no ceiling"
+                className="w-48 rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-600">
+                Checked between steps, so a run can end a little over: a call already made is
+                paid for either way. Only counts what the gateway reports — a local model
+                reports nothing, and the run will say so rather than look thrifty.
+              </span>
+            </label>
+
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="autoApprove" className="mt-1" />
               <span>
@@ -298,6 +327,13 @@ export function Series() {
         {run && !active && run.status === "FAILED" && (
           <p className="mt-3 rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
             The previous run failed: {run.error}
+          </p>
+        )}
+        {/* A run stopped at its ceiling is CANCELLED with a reason, not FAILED — nothing
+            went wrong, it did what it was told. Shown in amber for the same reason. */}
+        {run && !active && run.status === "CANCELLED" && run.error && (
+          <p className="mt-3 rounded border border-amber-900 bg-amber-950/30 p-3 text-sm text-amber-200">
+            {run.error}
           </p>
         )}
       </Section>

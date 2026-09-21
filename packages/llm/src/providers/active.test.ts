@@ -22,6 +22,7 @@ function fake(name: string) {
     model: name,
     inputTokens: 1,
     outputTokens: 1,
+    costUsd: null,
     durationMs: 1,
     tokensPerSec: 1,
   };
