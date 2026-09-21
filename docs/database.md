@@ -413,6 +413,23 @@ model Scene {
   beat  String
   text  String?
 
+  /// Băm của mọi thứ cảnh này được viết RA TỪ — Bible, dàn nhân vật, beat, hai
+  /// lớp setup, đoạn văn ngay trước nó, và prompt WRITE_SCENE.
+  ///
+  /// Tính lại khi mở trang tập; lệch nghĩa là cảnh được viết dựa trên tư liệu mà
+  /// truyện đã đi khỏi. Không có nó thì không gì nhận ra: sửa Bible, gõ lại beat
+  /// hay viết lại cảnh 2 đều để cảnh 3 trông mới y như ngày nó ra đời.
+  ///
+  /// Null = viết trước khi có cột này. Báo là "chưa rõ", không bao giờ báo là cũ.
+  inputDigest String?
+
+  /// Các lỗi cơ học tìm thấy trong chính văn — xem packages/core/prose-lint.
+  ///
+  /// Là sự thật, không phải phán quyết: không gì hành động theo nó, người đọc trên
+  /// trang tập mới quyết. Ghi đè ở MỌI lần viết và viết lại, KỂ CẢ bằng danh sách
+  /// rỗng — rỗng là cách một cảnh nói rằng lỗi đã hết.
+  lintViolations Json?
+
   /// Số hiệu các tập cũ mà cảnh này gọi lại.
   /// Chỉ những tập được liệt kê ở đây mới được nạp tóm tắt ĐẦY ĐỦ — thay vì
   /// nhồi mọi tóm tắt vào mỗi lần gọi. Hệ thống gợi ý, người viết sửa được.
@@ -689,6 +706,13 @@ model LlmRun {
   durationMs   Int
   tokensPerSec Float
 
+  /// USD, theo đúng con số nhà cung cấp báo về — không tự nhân từ bảng giá ở đây.
+  ///
+  /// Null = không ai nói: model chạy local, hoặc gateway trả lời mà không kèm giá.
+  /// KHÔNG phải 0. Model miễn phí tốn 0 và đang được đếm đúng; một chuỗi null nghĩa
+  /// là hạn mức đang canh một chỗ trống, và batch-budget.ts nói ra điều đó.
+  costUsd Float?
+
   /// Điểm bạn tự chấm sau khi đọc — để biết prompt/tham số nào cho văn hay.
   qualityRating Int?
   qualityNote   String?
@@ -724,7 +748,21 @@ model BatchRun {
   withAudio   Boolean @default(true)   // chạy tiếp TTS + MP3, hay dừng sau kịch bản
 
   currentEpisodeId String?
-  error            String?
+
+  /// Tiêu tới ngần này USD cho truyện thì dừng. Null = không trần.
+  ///
+  /// Kiểm ở ranh giới giữa hai bước, không bao giờ giữa chừng: một lệnh gọi đã phát
+  /// đi thì tiền đã mất dù job có xong hay không, cắt ngang chỉ mất thêm một cảnh.
+  /// Nên số tiêu thật có thể vượt trần một chút — trần là chỗ RUN DỪNG, không phải
+  /// giới hạn cứng lên hoá đơn.
+  budgetUsd Float?
+  /// Đã tiêu bao nhiêu từ lúc run bắt đầu, tính lại ở mỗi ranh giới.
+  spentUsd  Float   @default(0)
+  /// Đã cảnh báo "mấy lệnh gọi này không báo giá" cho run này chưa. Một lần là cảnh
+  /// báo; mỗi ranh giới một lần là tiếng ồn.
+  blindWarned Boolean @default(false)
+
+  error String?
 
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
