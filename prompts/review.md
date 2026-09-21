@@ -23,6 +23,22 @@ reading what you found.
    with a finding you marked `requiresChange`, and it is worked out from your findings
    rather than taken separately.
 
+## Quoting
+
+A quote is **copied, not retyped**. Character for character what the draft says, from the
+first word of the fragment to the last: same punctuation, same quote marks, same
+capitals, same spelling — including a spelling the draft got wrong.
+
+- Do NOT add the speaker's name in front of a line of dialogue. If the draft says
+  `"Ta không đi."`, the quote is `"Ta không đi."` and not `Lan: "Ta không đi."`.
+- Do NOT change `"` to `“`, `'` to `’`, or `--` to `—`, and do not tidy spacing.
+- Do NOT join two fragments from different places with `...`. Pick one of them.
+- Do NOT translate, summarise or shorten. Six exact words beat a whole paraphrased
+  sentence.
+
+Anything the writer cannot find in the draft by searching for your quote is a quote that
+failed at the only job it had.
+
 ## The seven dimensions
 
 - **consistency** — does anything contradict the Story Bible, the world rules, or a fact
@@ -47,7 +63,7 @@ reading what you found.
 Some scenes were given, along with their beat, a list of what must NOT happen in them —
 shown as "Told NOT to" under the scene. Report any scene that went past one, in
 `contractBreaks`: `broke` is the forbidden line it went past, quoted from that list, and
-`evidence` is the passage in the draft that went past it.
+`evidence` is the passage in the draft that went past it, quoted under the rule above.
 
 A scene with no "Told NOT to" line has no contract and cannot break one. If NO scene has
 one, `contractBreaks` is an empty array — an empty array is the right answer far more
