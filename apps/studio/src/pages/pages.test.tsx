@@ -135,6 +135,12 @@ const FIXTURES: Record<string, unknown> = {
       },
     ],
     batchRuns: [],
+    finaleFrom: null,
+    ending: {
+      verdict: { kind: "open" },
+      wouldBlock: [],
+      facts: { episodes: 1, unapproved: 0, unwritten: 0, openThreads: 0 },
+    },
   },
   "/api/series/s1/world": {
     world: { setting: "bối cảnh", tone: "", rules: ["luật 1"], constraints: [], glossary: [] },

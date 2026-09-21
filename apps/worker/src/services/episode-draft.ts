@@ -1,5 +1,5 @@
 import { countWords, estimateDurationMs } from "@audio/core";
-import { EpisodeStatus, prisma } from "@audio/database";
+import { EpisodeStatus, prisma, syncStoryStatus } from "@audio/database";
 
 export interface DraftSync {
   /** Every scene has content. */
@@ -28,7 +28,7 @@ export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
   const draftText = scenes.map((s) => s.text ?? "").join("\n\n");
   const words = countWords(draftText);
 
-  await prisma.episode.update({
+  const episode = await prisma.episode.update({
     where: { id: episodeId },
     data: {
       draftText,
@@ -38,7 +38,13 @@ export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
       // DRAFTING so Studio knows the work is unfinished.
       status: complete ? EpisodeStatus.DRAFTED : EpisodeStatus.DRAFTING,
     },
+    select: { seriesId: true },
   });
+
+  // A story with a drafted episode is ONGOING, whatever it was before. Called here
+  // rather than only where a run finishes, so the column stays true on the paths a
+  // person takes by hand as well.
+  await syncStoryStatus(episode.seriesId);
 
   return { complete, words };
 }

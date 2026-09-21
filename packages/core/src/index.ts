@@ -14,6 +14,7 @@ export * from "./tags";
 export * from "./beat";
 export * from "./passage";
 export * from "./course";
+export * from "./ending";
 export * from "./prose-lint";
 export * from "./review";
 export * from "./scene-digest";

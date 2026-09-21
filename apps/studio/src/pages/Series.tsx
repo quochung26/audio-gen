@@ -46,6 +46,16 @@ interface Batch {
   spentUsd: number;
   error: string | null;
 }
+interface EndingState {
+  verdict:
+    | { kind: "empty" }
+    | { kind: "open" }
+    | { kind: "closing"; blocking: string[] }
+    | { kind: "finished"; warnings: string[] };
+  wouldBlock: string[];
+  facts: { episodes: number; unapproved: number; unwritten: number; openThreads: number };
+}
+
 interface Data {
   id: string;
   title: string;
@@ -59,6 +69,10 @@ interface Data {
   characters: Char[];
   episodes: Ep[];
   batchRuns: Batch[];
+  /** The episode this story starts closing from. Null = nobody has said it is closing. */
+  finaleFrom: number | null;
+  /** Whether it can be finished, and what is in the way. */
+  ending?: EndingState;
 }
 
 function formatDuration(ms: number): string {
@@ -218,6 +232,8 @@ export function Series() {
           ))}
         </div>
       </Section>
+
+      <EndingPanel series={s} />
 
       <StylePanel seriesId={s.id} />
 
@@ -507,6 +523,97 @@ function StylePanel({ seriesId }: { seriesId: string }) {
           </p>
         </div>
       )}
+    </Section>
+  );
+}
+
+/**
+ * Declaring that a story is closing.
+ *
+ * The only part of finishing a story a machine cannot do, and the reason `COMPLETED`
+ * never got set: the next episode is always one button away, so "there will be no more"
+ * is a decision rather than a fact anything can read off the data.
+ *
+ * Withdrawing opens the story again. There is no separate reopen — the state is derived
+ * from the declaration plus the episodes, which is what keeps the two in step.
+ */
+function EndingPanel({ series }: { series: Data }) {
+  // Absent while an older API is still answering. One section must not take the page
+  // down — the same rule every advisory panel here follows.
+  if (!series.ending) return null;
+  const { verdict, wouldBlock, facts } = series.ending;
+  if (verdict.kind === "empty") return null;
+
+  return (
+    <Section title="Ending">
+      <div className="space-y-3 rounded border border-neutral-800 p-4 text-sm">
+        {verdict.kind === "open" ? (
+          <>
+            <p className="text-neutral-400">
+              Nobody has said this story is closing, so it is not finished — and it cannot be.
+              The next episode is always one button away, so “there will be no more” is
+              something only you can say.
+            </p>
+            {wouldBlock.length > 0 && (
+              <p className="text-xs text-amber-300">
+                If you declared it today it would not finish yet: {wouldBlock.join("; ")}.
+              </p>
+            )}
+            <Form
+              path={`/api/series/${series.id}/finale`}
+              method="PUT"
+              submit="This story is closing"
+              className="flex items-end gap-3"
+            >
+              <label className="text-xs text-neutral-500">
+                <span className="mb-1 block">From episode</span>
+                <input
+                  type="text"
+                  name="finaleFrom"
+                  inputMode="numeric"
+                  defaultValue={String(facts.episodes)}
+                  className="w-24 rounded border border-neutral-700 bg-neutral-900 p-2 text-sm"
+                />
+              </label>
+            </Form>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge tone={verdict.kind === "finished" ? "green" : "amber"}>
+                {verdict.kind === "finished" ? "finished" : "closing"}
+              </Badge>
+              <span className="text-neutral-300">
+                Closing from episode {series.finaleFrom}.
+              </span>
+            </div>
+
+            {verdict.kind === "closing" && (
+              <p className="text-xs text-amber-300">
+                Still in the way: {verdict.blocking.join("; ")}.
+              </p>
+            )}
+
+            {/* Warned about, never blocking. A person ending a story knows what they are
+                leaving open, and a gate that argues with them is a gate that locks a
+                finished story out of being finished. */}
+            {verdict.kind === "finished" && verdict.warnings.length > 0 && (
+              <p className="text-xs text-amber-300">
+                {verdict.warnings.join("; ")} — ending anyway, as declared.
+              </p>
+            )}
+
+            <Form
+              path={`/api/series/${series.id}/finale`}
+              method="PUT"
+              submit="Not closing after all"
+              className="pt-1"
+            >
+              <input type="hidden" name="finaleFrom" value="" />
+            </Form>
+          </>
+        )}
+      </div>
     </Section>
   );
 }

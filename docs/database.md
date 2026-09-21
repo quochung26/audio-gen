@@ -117,6 +117,37 @@ Hai ngưỡng, cả hai đều từ lần chạy thật đầu tiên:
 - `COURSE_CHECK_EVERY = 6` — truyện không bẻ cong trong hai tập, và hỏi mỗi tập là một
   lời gọi model mỗi tập để báo rằng chưa có gì đổi.
 
+### 2.2d. `finaleFrom` — vì sao truyện chưa bao giờ kết thúc được
+
+`SeriesStatus.COMPLETED` có trong schema từ đầu và **không dòng code nào từng gán nó** —
+mọi truyện trong DB nằm ở `DRAFT` kể từ ngày được tạo. Đó không phải chuyện ai quên sửa.
+
+Trong hệ này **không tồn tại khái niệm "xong"**: tập tiếp theo lúc nào cũng chỉ cách một
+cú bấm, nên *"sẽ không còn tập nào nữa"* không phải một sự thật mà code đọc ra được từ dữ
+liệu. **Nó phải được nói ra.**
+
+Truyện đóng lại bằng hai nước đi — đúng hình dạng ainovel-cli dùng cho cùng bài toán:
+
+1. **Người tuyên bố** truyện đang khép lại, kể từ tập nào. Đây là phần duy nhất máy không
+   làm được, và là toàn bộ lý do cột trạng thái không bao giờ nhúc nhích.
+2. **Code kiểm các sự thật cơ học** rồi chuyển trạng thái khi chúng khớp. Không phán
+   đoán, không gọi model, không có gì để sai.
+
+Gỡ ra cũng theo đúng lối đó: xoá tuyên bố thì truyện mở lại. **Không có thao tác "reopen"
+riêng** — trạng thái luôn suy ra được từ tuyên bố cộng với các tập, và chính điều đó giữ
+hai thứ không trôi khỏi nhau.
+
+**Ngưỡng "xong" là mọi tập đã được người duyệt** — audio cố tình không nằm trong đó.
+Truyện là sản phẩm chữ, MP3 là khâu sản xuất. Một truyện mà mọi tập đã viết, đã đọc, đã
+duyệt là truyện đã xong, dù chưa ai đọc thành tiếng.
+
+**Tình tiết bỏ ngỏ chưa giải CHẶN** một truyện chưa tuyên bố, và chỉ **CẢNH BÁO** với
+truyện đã tuyên bố. Lấy từ ainovel-cli, nơi bài học này rất đắt: một cuốn đã tuyên bố thu
+quân mà sót đúng một phục bút bị khoá vĩnh viễn ngoài trạng thái kết, và lần chạy đó đốt
+hết một trăm bốn mươi chương để cố thoả mãn một cái cổng nó không còn với tới được nữa.
+Tuyên bố kết truyện là người viết nói rằng họ biết còn gì đang bỏ ngỏ và vẫn kết — hệ
+thống không có tư cách cãi lại.
+
 ### 2.3. Truyện dài: tóm tắt phân tầng + trạng thái nhân vật
 
 Tóm tắt từng tập tích luỹ **tuyến tính**. Đo trên dữ liệu thật (tiếng Việt ~1,8 token/từ):

@@ -11,6 +11,17 @@ datasource db {
 
 // ══════════════════════════ ENUM ══════════════════════════
 
+/// Where a story is in its life.
+///
+/// Nothing set any of these until `Series.finaleFrom` existed, and every story in the
+/// database sat at DRAFT from the day it was made. Not an oversight: in this system the
+/// next episode is always one button away, so "no more are coming" is not a fact any code
+/// can read off the data. It has to be said — see `finaleFrom`.
+///
+/// DRAFT     — outlined, nothing written yet.
+/// ONGOING   — at least one episode has a draft.
+/// COMPLETED — the ending was declared and every episode is written and approved.
+/// ARCHIVED  — set by hand; nothing here moves a story into or out of it.
 enum SeriesStatus {
   DRAFT
   ONGOING
@@ -260,6 +271,21 @@ model Series {
   model String @default("")
 
   /// World rules, setting, prose voice. Characters do NOT live here — see the Character model.
+  /// The episode this story starts closing from. Null = nobody has said it is closing.
+  ///
+  /// The one part of finishing a story that a machine cannot do. Everything else about an
+  /// ending is mechanical — are the episodes written, has a person approved them — but
+  /// "there will be no more" is a decision, and until somebody makes it a story with ten
+  /// finished episodes is indistinguishable from one about to get an eleventh.
+  ///
+  /// Declaring it also changes what unresolved open threads MEAN: a warning rather than a
+  /// blocker. A person ending a story knows what they are leaving open. See
+  /// packages/core/src/ending.ts.
+  ///
+  /// Clearing it opens the story again. There is no separate reopen — the state is always
+  /// derivable from this plus the episodes, which is what stops the two drifting apart.
+  finaleFrom Int?
+
   storyBible Json?
 
   aiDisclosure Boolean @default(true)

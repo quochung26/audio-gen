@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { BatchStatus, JobStatus, prisma, styleWindow } from "@audio/database";
+import { BatchStatus, JobStatus, prisma, storyState, styleWindow, syncStoryStatus } from "@audio/database";
 import {
   checkTags,
   computeStyleStats,
@@ -68,7 +68,13 @@ series.get("/:id", async (c) => {
       batchRuns: { orderBy: { startedAt: "desc" }, take: 1 },
     },
   });
-  return c.json({ ...s, world: parseWorld((s.storyBible as StoryBibleRecord | null)?.world) });
+  return c.json({
+    ...s,
+    world: parseWorld((s.storyBible as StoryBibleRecord | null)?.world),
+    // Whether this story can be finished, and what is in the way. Computed rather than
+    // stored: it is a question about episodes, and they move.
+    ending: await storyState(s.id),
+  });
 });
 
 /**
@@ -206,6 +212,67 @@ series.put("/:id/tags", async (c) => {
  * By hand as well as on a schedule, because the reason to want one is usually "I have
  * just finished an episode that felt like a turn and want to know if it was".
  */
+/**
+ * Declare — or withdraw — that this story is closing.
+ *
+ * The one part of finishing a story that a machine cannot do. Everything else about an
+ * ending is mechanical; "there will be no more episodes" is a decision, and until
+ * somebody makes it a story with ten finished episodes is indistinguishable from one
+ * about to get an eleventh. That is why the status never moved off DRAFT.
+ *
+ * Withdrawing opens the story again, and there is no separate reopen: the state is
+ * derived from this plus the episodes.
+ */
+series.put("/:id/finale", async (c) => {
+  const seriesId = c.req.param("id");
+  const body = await c.req.parseBody();
+  const raw = field(body, "finaleFrom").trim();
+
+  let finaleFrom: number | null = null;
+  if (raw !== "") {
+    const n = Number(raw);
+    const highest = await prisma.episode.findFirst({
+      where: { seriesId },
+      orderBy: { number: "desc" },
+      select: { number: true },
+    });
+    if (!Number.isInteger(n) || n < 1) {
+      throw new UserError(`"${raw}" is not an episode number.`);
+    }
+    // Declaring from an episode that does not exist is almost always a typo, and the one
+    // case it is not — "it ends at 12 and I have written 9" — is a plan rather than a
+    // declaration. Nothing here can act on a plan.
+    if (n > (highest?.number ?? 0)) {
+      throw new UserError(
+        `Episode ${n} does not exist yet. Say which EXISTING episode the ending starts from; ` +
+          `write the rest first.`,
+      );
+    }
+    finaleFrom = n;
+  }
+
+  await prisma.series.update({ where: { id: seriesId }, data: { finaleFrom } });
+  const state = await storyState(seriesId);
+  await syncStoryStatus(seriesId);
+
+  if (finaleFrom === null) {
+    return c.json({ ok: "The story is open again. Add episodes as before." });
+  }
+  if (state.verdict.kind === "closing") {
+    return c.json({
+      ok: `Closing from episode ${finaleFrom}.`,
+      warnings: [`Not finished yet: ${state.verdict.blocking.join("; ")}.`],
+    });
+  }
+  return c.json({
+    ok: `Closing from episode ${finaleFrom}. The story is finished.`,
+    warnings:
+      state.verdict.kind === "finished" && state.verdict.warnings.length > 0
+        ? state.verdict.warnings.map((w) => `${w} — ending anyway, as declared.`)
+        : [],
+  });
+});
+
 series.post("/:id/course", async (c) => {
   const seriesId = c.req.param("id");
   await enqueue({ type: "COURSE", payload: { seriesId } });

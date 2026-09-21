@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { AudioTrackKind, EpisodeStatus, JobStatus, prisma } from "@audio/database";
+import { AudioTrackKind, EpisodeStatus, JobStatus, prisma, syncStoryStatus } from "@audio/database";
 import {
   assertTransition,
   chapterSetupSchema,
@@ -840,6 +840,10 @@ episodes.post("/:id/approve", async (c) => {
     data: { humanReviewed: true, reviewedAt: new Date(), reviewedBy: "studio" },
   });
 
+  // Approving the last outstanding draft of a story that has declared its ending is what
+  // finishes it. Nothing else would notice.
+  await syncStoryStatus(ep.seriesId);
+
   // Unblocks a batch run waiting on this exact episode. Studio does NOT decide
   // the next step — it only queues a BATCH job; the worker owns the chain.
   const run = await prisma.batchRun.findFirst({
@@ -852,10 +856,13 @@ episodes.post("/:id/approve", async (c) => {
 });
 
 episodes.post("/:id/unapprove", async (c) => {
-  await prisma.episode.update({
+  const ep = await prisma.episode.update({
     where: { id: c.req.param("id") },
     data: { humanReviewed: false, reviewedAt: null, reviewedBy: null },
   });
+  // And revoking an approval takes a finished story back out of COMPLETED, for the same
+  // reason: the status follows the facts, in both directions.
+  await syncStoryStatus(ep.seriesId);
   return c.json({ ok: true });
 });
 
