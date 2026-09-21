@@ -14,8 +14,14 @@ export type PublicTable = (typeof PUBLIC_TABLES)[number];
 
 /** Columns that NEVER leave the machine, published episode or not. */
 export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
-  Series: ["storyBible"],
-  Episode: ["draftText", "outline", "reviewedBy", "reviewedAt", "syncedAt"],
+  // `finaleFrom` is the writer deciding the story is closing and from which episode.
+  // That is a decision about the work, taken at the desk — and on the hosted side it
+  // would quietly tell a listener the story is ending before the story does.
+  Series: ["storyBible", "finaleFrom"],
+  // `hookType` is craft metadata: which KIND of turn the episode closes on, kept so a
+  // run of five crises is visible when the next one is outlined. Nothing on the Player
+  // reads it, and labelling an ending for a listener is close to spoiling it.
+  Episode: ["draftText", "outline", "reviewedBy", "reviewedAt", "syncedAt", "hookType"],
   Character: ["description"],
   // `text` DOES go: it is the approved line, exactly what the MP3 says — publishing
   // it alongside the audio is normal and makes it readable for deaf listeners.
@@ -34,6 +40,10 @@ export const PRIVATE_COLUMNS: Record<PublicTable, string[]> = {
 export const LOCAL_ONLY_TABLES = [
   "Setting",
   "Scene",
+  // The tiers between an episode and its scenes, and the scenes' own history. The
+  // Player receives `Block`, which is the story as it is spoken.
+  "Chapter",
+  "SceneRevision",
   "LlmRun",
   "Prompt",
   // A genre description is an instruction to the model at writing time — the Player
@@ -42,6 +52,19 @@ export const LOCAL_ONLY_TABLES = [
   "RenderJob",
   "AudioAsset",
   "PronunciationEntry",
+  // The cast library a story is built FROM, and the facts a story is written from. Both
+  // are the workings rather than the work.
+  "CharacterCard",
+  "StoryFact",
+  // The casting catalogue and the music library. `Block` carries a snapshot of which
+  // voice read a line, so these two never have to travel — see DANGLING_FK_COLUMNS.
+  "Voice",
+  "AudioTrack",
+  "BatchRun",
+  // A review QUOTES the draft, and `Episode.draftText` is on the list that never leaves
+  // this machine. Letting the criticism out while the prose stays would be the leak the
+  // draft rule exists to prevent, taken one step sideways.
+  "EpisodeReview",
 ] as const;
 
 /** Tables that exist only on the Player side (created by listeners). */

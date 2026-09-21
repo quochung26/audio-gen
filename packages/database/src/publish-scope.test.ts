@@ -3,6 +3,7 @@ import {
   DANGLING_FK_COLUMNS,
   forPublish,
   LOCAL_ONLY_TABLES,
+  PLAYER_ONLY_TABLES,
   PRIVATE_COLUMNS,
   PUBLIC_TABLES,
   stripPrivate,
@@ -208,5 +209,74 @@ describe("only columns the hosted DB tolerates missing may be dropped", () => {
         ).toBe(true);
       }
     }
+  });
+});
+
+describe("every table in the schema is classified", () => {
+  /**
+   * The check the comment on "no table falls through the gap" describes and does not
+   * make. That one asserts every PUBLIC table is written by the sync job; it says
+   * nothing about a table in NO list, which is the case it was named after.
+   *
+   * Undeclared is not the same as safe. `PUBLISH` only writes `PUBLIC_TABLES`, so a new
+   * table does not leak by default — but this file's first line promises it "declares
+   * explicitly what is ALLOWED to leave the machine", and a promise with eight
+   * exceptions is a comment rather than a gate. Eight is what it had: Chapter,
+   * SceneRevision, CharacterCard, StoryFact, Voice, AudioTrack, BatchRun, and
+   * EpisodeReview, which quotes the draft.
+   *
+   * Exhaustive on purpose, with no allowlist to grandfather anything: the next table
+   * somebody adds fails here and is classified in the same commit, which is the only
+   * moment anyone knows what it holds.
+   */
+  const classified = new Set<string>([
+    ...PUBLIC_TABLES,
+    ...LOCAL_ONLY_TABLES,
+    ...PLAYER_ONLY_TABLES,
+  ]);
+
+  async function schemaModels(): Promise<string[]> {
+    const { readFile } = await import("node:fs/promises");
+    const schema = await readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
+    return [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]!);
+  }
+
+  it("no model is left out of all three lists", async () => {
+    const missing = (await schemaModels()).filter((m) => !classified.has(m));
+    expect(
+      missing,
+      `Add these to PUBLIC_TABLES, LOCAL_ONLY_TABLES or PLAYER_ONLY_TABLES: ${missing.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("no list names a model the schema does not have", async () => {
+    const models = new Set(await schemaModels());
+    expect([...classified].filter((t) => !models.has(t))).toEqual([]);
+  });
+
+  it("no model is in two lists at once", () => {
+    const seen = new Set<string>();
+    const twice: string[] = [];
+    for (const t of [...PUBLIC_TABLES, ...LOCAL_ONLY_TABLES, ...PLAYER_ONLY_TABLES]) {
+      if (seen.has(t)) twice.push(t);
+      seen.add(t);
+    }
+    expect(twice).toEqual([]);
+  });
+});
+
+describe("the columns added for the writer stay with the writer", () => {
+  // Both went onto PUBLIC tables, so without an entry here `forPublish` would carry
+  // them to the hosted DB — the default is to travel, and that is the trap.
+  it("the ending declaration does not travel", () => {
+    const out = forPublish("Series", { id: "s1", title: "T", finaleFrom: 9 });
+    expect(out.finaleFrom).toBeUndefined();
+    expect(out.title).toBe("T");
+  });
+
+  it("the kind of turn an episode ends on does not travel", () => {
+    const out = forPublish("Episode", { id: "e1", number: 1, hookType: "crisis" });
+    expect(out.hookType).toBeUndefined();
+    expect(out.number).toBe(1);
   });
 });
