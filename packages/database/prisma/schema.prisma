@@ -77,6 +77,9 @@ enum JobType {
   /// the outline gave it.
   SCENE_BEAT
   WRITE_SCENE
+  /// Read a drafted episode and report what is wrong with it, before a person is asked
+  /// to approve it. Reports only — it queues nothing and approves nothing.
+  REVIEW
   /// Rewrite the draft into the output language. Only runs when Series.draftLanguage
   /// differs from Series.language — see packages/core/src/language.ts.
   TRANSLATE
@@ -170,6 +173,8 @@ enum PromptStep {
   AUDIO_EDIT
   SUMMARIZE
   METADATA
+  /// Read a drafted episode and report what is wrong with it. See prompts/review.md.
+  REVIEW
 }
 
 enum AudioTrackKind {
@@ -307,6 +312,8 @@ model Episode {
   status     EpisodeStatus @default(IDEA)
   durationMs Int?
   wordCount  Int?
+
+  reviews EpisodeReview[]
 
   bgmTrackId   String?
   bgmTrack     AudioTrack? @relation("EpisodeBgm", fields: [bgmTrackId], references: [id])
@@ -1039,6 +1046,43 @@ model BatchRun {
   finishedAt DateTime?
 
   @@index([seriesId, status])
+}
+
+/// What a review found in one drafted episode — see prompts/review.md.
+///
+/// A table rather than a column on `Episode` because a review is worth keeping after the
+/// episode it judged has been rewritten: "it said rewrite, now it says accept" is the
+/// only evidence that the rewriting worked. The page shows the latest.
+///
+/// It decides nothing. Nothing reads `verdict` to queue work, change a status or approve
+/// anything — a person reads it and presses the buttons that were already there.
+model EpisodeReview {
+  id        String  @id @default(cuid())
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  /// accept | polish | rewrite. Advice to the person, never acted on by the system.
+  verdict String
+  summary String
+
+  /// One 0-100 score per dimension, keyed by name. See REVIEW_DIMENSIONS in @audio/core.
+  scores Json
+  /// Every issue carries a quote from the draft — an issue nobody can check is an
+  /// impression, and an impression costs an hour of rereading to find nothing.
+  issues Json
+  /// Scenes that did what their beat said not to. The one part that is not taste.
+  contractBreaks Json
+  /// Scene numbers worth rereading first.
+  scenes Int[] @default([])
+
+  /// Which draft was judged. A review of prose that has since been rewritten describes
+  /// something that no longer exists — the same question `Scene.inputDigest` answers one
+  /// tier down.
+  draftDigest String?
+
+  createdAt DateTime @default(now())
+
+  @@index([episodeId, createdAt])
 }
 
 model RenderJob {

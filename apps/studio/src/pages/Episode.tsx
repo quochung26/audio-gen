@@ -112,6 +112,23 @@ interface Chapter {
   setup: ChapterSetup | null;
   scenes: Scene[];
 }
+interface ReviewIssue {
+  dimension: string;
+  severity: "critical" | "error" | "warning";
+  scene: number;
+  what: string;
+  evidence: string;
+}
+interface EpisodeReview {
+  id: string;
+  verdict: string;
+  summary: string;
+  scores: Record<string, number>;
+  issues: ReviewIssue[];
+  contractBreaks: Array<{ scene: number; broke: string; evidence: string }>;
+  scenes: number[];
+  createdAt: string;
+}
 interface Block {
   id: string;
   order: number;
@@ -141,6 +158,8 @@ interface Ep {
     characters: Array<{ id: string; name: string; isNarrator: boolean }>;
   };
   chapters: Chapter[];
+  /** The latest review of this draft, if one has been asked for. */
+  reviews: EpisodeReview[];
   blocks: Block[];
   renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
 }
@@ -788,6 +807,10 @@ export function Episode() {
         </Section>
       )}
 
+      {/* Above the gate, because it exists to be read before the decision is made.
+          It decides nothing: no status moves, nothing is queued off the back of it. */}
+      {allWritten && untranslated === 0 && <ReviewPanel ep={ep} />}
+
       {/* The gate that stops a raw draft going any further. */}
       {allWritten && untranslated === 0 && (
         <Section title="Approve the draft">
@@ -955,4 +978,97 @@ export function Episode() {
 /** Word count for a written scene — the target is SCENE_TARGET_WORDS. */
 function words(text: string): number {
   return text.trim().split(/\s+/).length;
+}
+
+const SEVERITY_TONE: Record<string, string> = {
+  critical: "text-red-300",
+  error: "text-red-300/80",
+  warning: "text-amber-300/80",
+};
+
+const VERDICT_TONE: Record<string, string> = {
+  accept: "green",
+  polish: "amber",
+  rewrite: "red",
+};
+
+/**
+ * What a reader found, shown before the person is asked to approve.
+ *
+ * Advice, and it is labelled as advice. Nothing here moves a status or queues work: the
+ * rewrite button is next to each scene and always has been, and a machine that both
+ * judges the prose and acts on the judgement has quietly removed the only gate this
+ * pipeline has.
+ */
+function ReviewPanel({ ep }: { ep: Ep }) {
+  const review = ep.reviews?.[0];
+
+  return (
+    <Section title="What a reader found">
+      {!review ? (
+        <div className="flex items-center justify-between rounded border border-neutral-800 p-4">
+          <p className="text-sm text-neutral-400">
+            Nobody has read this draft yet. A review reports what is wrong with it and
+            decides nothing — you still approve it, or send a scene back.
+          </p>
+          <ActionButton path={`/api/episodes/${ep.id}/review`}>read the draft</ActionButton>
+        </div>
+      ) : (
+        <div className="space-y-4 rounded border border-neutral-800 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge tone={VERDICT_TONE[review.verdict] ?? "neutral"}>{review.verdict}</Badge>
+            <p className="flex-1 text-sm text-neutral-300">{review.summary}</p>
+            <ActionButton path={`/api/episodes/${ep.id}/review`}>read it again</ActionButton>
+          </div>
+
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+            {Object.entries(review.scores).map(([name, score]) => (
+              <span key={name} className={score < 60 ? "text-amber-300" : "text-neutral-500"}>
+                {name} <span className="tabular-nums">{score}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* The one part of the review that is not a matter of taste: the beat said
+              not to, and the scene did. */}
+          {review.contractBreaks.length > 0 && (
+            <div className="rounded border border-red-900/60 bg-red-950/20 p-3">
+              <p className="text-xs text-red-200">Scenes that did what their beat said not to</p>
+              <ul className="mt-2 space-y-2">
+                {review.contractBreaks.map((b, i) => (
+                  <li key={i} className="text-xs text-red-200/90">
+                    <strong>Scene {b.scene}</strong> — {b.broke}
+                    <span className="mt-0.5 block text-neutral-500">“{b.evidence}”</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {review.issues.length > 0 ? (
+            <ul className="space-y-2">
+              {review.issues.map((issue, i) => (
+                <li key={i} className="text-xs">
+                  <span className={SEVERITY_TONE[issue.severity] ?? "text-neutral-400"}>
+                    {issue.scene > 0 ? `Scene ${issue.scene}` : "Episode"} · {issue.dimension}
+                  </span>{" "}
+                  <span className="text-neutral-300">{issue.what}</span>
+                  {/* Every issue carries a quote. One that cannot be quoted is an
+                      impression, and an impression costs an hour of rereading. */}
+                  <span className="mt-0.5 block text-neutral-500">“{issue.evidence}”</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-neutral-500">Nothing found worth reporting.</p>
+          )}
+
+          <p className="text-xs text-neutral-600">
+            Read {new Date(review.createdAt).toLocaleString("en-GB")}. Advice only — nothing
+            here changed anything. Rewrite a scene from the button next to it.
+          </p>
+        </div>
+      )}
+    </Section>
+  );
 }

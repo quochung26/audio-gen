@@ -27,6 +27,7 @@ const PROMPT_FILES: Array<{ step: PromptStep; file: string; model?: string }> = 
   { step: "TRANSLATE", file: "translate.md" },
   { step: "AUDIO_EDIT", file: "audio-edit.md" },
   { step: "SUMMARIZE", file: "summarize.md" },
+  { step: "REVIEW", file: "review.md" },
   { step: "METADATA", file: "metadata.md" },
 ];
 
@@ -115,6 +116,11 @@ const PARAMS: Partial<Record<PromptStep, Record<string, number>>> = {
   TRANSLATE: { temperature: 0.7, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 6000 },
   AUDIO_EDIT: { temperature: 0.4, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 12000 },
   SUMMARIZE: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 16384, maxTokens: 2500 },
+  // The same reasoning as the summarising steps, and more so: a review invents nothing.
+  // It reads a draft and reports what is in it, and every issue has to carry a quote —
+  // temperature is exactly what buys a model room to produce a quote that is not there.
+  // `numCtx` is the largest of any step: it reads a whole episode plus the Bible.
+  REVIEW: { temperature: 0.2, repeatPenalty: 1.05, numCtx: 32768, maxTokens: 3000 },
   METADATA: { temperature: 0.8, repeatPenalty: 1.1, numCtx: 8192, maxTokens: 600 },
 };
 

@@ -35,6 +35,11 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // No `scenesPerChapter` or `sceneWords`: this step no longer plans anything inside
   // an episode, so it has no beats to size.
   OUTLINE: ["idea", "genre", "tags", "episodeCount", "world", "cast"],
+  // Reading a finished draft, so it gets the draft whole rather than a summary of it.
+  // `scenes` is each beat WITH what that beat forbade — the one thing in the review that
+  // can be checked rather than judged. `styleStats` is there so the prose dimension has
+  // numbers behind it instead of taste.
+  REVIEW: ["bible", "context", "scenes", "contracts", "styleStats", "draft"],
   // Compression on compression: `previous` is the paragraph the last scene left
   // behind, `text` is the scene just written, and the answer replaces `previous`.
   // Nothing else goes in — asked to summarise with the whole story in front of it, a

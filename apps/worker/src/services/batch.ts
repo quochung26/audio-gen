@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { planDraft } from "@audio/core";
 import { BatchStatus, JobStatus, prisma, type JobType } from "@audio/database";
 import { logger } from "../lib/logger";
@@ -219,6 +220,8 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
         number: true,
         humanReviewed: true,
         summary: true,
+        draftText: true,
+        reviews: { orderBy: { createdAt: "desc" }, take: 1, select: { draftDigest: true } },
         _count: { select: { blocks: true } },
         blocks: { where: { audioAssetId: { not: null } }, select: { id: true } },
         exports: { where: { type: "AUDIO_MP3" }, select: { id: true } },
@@ -250,6 +253,9 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
     number: e.number,
     progress: {
       humanReviewed: e.humanReviewed,
+      // Of the CURRENT draft. A review of prose that has since been rewritten describes
+      // something that is no longer there, and the run should ask for a fresh one.
+      hasReview: reviewMatchesDraft(e.reviews[0]?.draftDigest ?? null, e.draftText),
       // Tests `draftText` and NOT the Scene count: the OUTLINE job creates empty Scenes
       // for each beat, so counting Scenes would read a freshly outlined episode as
       // written. `draftText` is also exactly what AUDIO_EDIT needs.
@@ -261,6 +267,12 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
       hasMp3: e.exports.length > 0,
     },
   }));
+}
+
+/** Whether the newest review judged the draft that is there now. */
+function reviewMatchesDraft(digest: string | null, draft: string | null): boolean {
+  if (!digest || !draft) return false;
+  return digest === createHash("sha256").update(draft).digest("hex").slice(0, 16);
 }
 
 async function finish(runId: string, status: BatchStatus, error: string | null): Promise<void> {

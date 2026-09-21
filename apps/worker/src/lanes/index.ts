@@ -13,6 +13,7 @@ import { characterJob } from "../jobs/character.job";
 import { writeSceneJob } from "../jobs/write-scene.job";
 import { translateJob } from "../jobs/translate.job";
 import { audioEditJob } from "../jobs/audio-edit.job";
+import { reviewJob } from "../jobs/review.job";
 import { summarizeJob } from "../jobs/summarize.job";
 import { ttsJob } from "../jobs/tts.job";
 import { mixJob } from "../jobs/mix.job";
@@ -42,6 +43,7 @@ export function startLanes() {
       [JobType.TRANSLATE]: translateJob,
       [JobType.AUDIO_EDIT]: audioEditJob,
       [JobType.SUMMARIZE]: summarizeJob,
+      [JobType.REVIEW]: reviewJob,
       [JobType.MOCK]: mockJob,
       // Only reads the DB and queues work, declares 0 VRAM — never competes with the LLM.
       [JobType.BATCH]: batchJob,

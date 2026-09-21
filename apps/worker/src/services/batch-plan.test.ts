@@ -5,6 +5,7 @@ const fresh: EpisodeProgress = {
   humanReviewed: false,
   hasDraft: false,
   needsTranslate: false,
+  hasReview: false,
   blocksTotal: 0,
   blocksWithAudio: 0,
   hasSummary: false,
@@ -31,6 +32,7 @@ describe("the full step chain", () => {
       if (s.kind === "approve") e = { ...e, humanReviewed: true };
       else if (s.kind === "wait-review") throw new Error("autoApprove is on but it still asked for manual approval");
       else if (s.type === "WRITE_SCENE") e = { ...e, hasDraft: true };
+      else if (s.type === "REVIEW") e = { ...e, hasReview: true };
       else if (s.type === "TRANSLATE") e = { ...e, needsTranslate: false };
       else if (s.type === "AUDIO_EDIT") e = { ...e, blocksTotal: 12 };
       else if (s.type === "SUMMARIZE") e = { ...e, hasSummary: true };
@@ -52,13 +54,17 @@ describe("the full step chain", () => {
 
 describe("the draft approval gate", () => {
   it("stops and waits for a reader when autoApprove is off", () => {
-    expect(nextStep(ep({ hasDraft: true }), manual)).toEqual({ kind: "wait-review" });
+    // `hasReview` because the review now runs just before this, and it is that step's
+    // own tests that cover it — this one is about the gate.
+    expect(nextStep(ep({ hasDraft: true, hasReview: true }), manual)).toEqual({
+      kind: "wait-review",
+    });
   });
 
   it("NEVER skips the approval step while autoApprove is off", () => {
     // Even with everything else ready, unapproved means stop. This is the only gate
     // standing between a raw draft and audio.
-    const e = ep({ hasDraft: true, blocksTotal: 5, hasSummary: true });
+    const e = ep({ hasDraft: true, hasReview: true, blocksTotal: 5, hasSummary: true });
     expect(nextStep(e, manual)).toEqual({ kind: "wait-review" });
   });
 
@@ -96,9 +102,9 @@ describe("the rewrite step", () => {
   });
 
   it("approval comes only after the rewrite", () => {
-    expect(nextStep(ep({ hasDraft: true, needsTranslate: false }), manual)).toEqual({
-      kind: "wait-review",
-    });
+    expect(nextStep(ep({ hasDraft: true, hasReview: true, needsTranslate: false }), manual)).toEqual(
+      { kind: "wait-review" },
+    );
   });
 
   it("a story that writes directly never has this step in the chain", () => {
@@ -200,5 +206,46 @@ describe("judged on data, not on status", () => {
     // two numbers would read an episode with no blocks yet as fully read.
     const e = ep({ hasDraft: true, humanReviewed: true, hasSummary: true });
     expect(nextStep(e, auto)).toEqual({ kind: "job", type: "AUDIO_EDIT" });
+  });
+});
+
+describe("the review before the gate", () => {
+  it("reviews a finished draft before asking a person to read it", () => {
+    expect(nextStep(ep({ hasDraft: true }), manual)).toEqual({ kind: "job", type: "REVIEW" });
+  });
+
+  it("then waits for the person, with the review already in hand", () => {
+    expect(nextStep(ep({ hasDraft: true, hasReview: true }), manual)).toEqual({
+      kind: "wait-review",
+    });
+  });
+
+  // The rewrite step comes first for the reason it always did: reviewing a draft in a
+  // language that never reaches the speakers judges text nobody hears.
+  it("comes after the rewrite, not before it", () => {
+    expect(nextStep(ep({ hasDraft: true, needsTranslate: true }), manual)).toEqual({
+      kind: "job",
+      type: "TRANSLATE",
+    });
+  });
+
+  // Nobody is going to read it, and a review nobody reads is an LLM call for a table row.
+  it("is skipped entirely when drafts are auto-approved", () => {
+    expect(nextStep(ep({ hasDraft: true }), auto)).toEqual({ kind: "approve" });
+  });
+
+  // It reports; it does not decide. A `rewrite` verdict changes nothing here — the
+  // person reads it and presses the button, or does not.
+  it("does not hold the run back whatever it found", () => {
+    expect(nextStep(ep({ hasDraft: true, hasReview: true, humanReviewed: true }), manual)).toEqual({
+      kind: "job",
+      type: "AUDIO_EDIT",
+    });
+  });
+
+  // An approved episode is past the gate the review exists to inform.
+  it("is not asked for after approval", () => {
+    const step = nextStep(ep({ hasDraft: true, humanReviewed: true }), manual);
+    expect(step).not.toEqual({ kind: "job", type: "REVIEW" });
   });
 });

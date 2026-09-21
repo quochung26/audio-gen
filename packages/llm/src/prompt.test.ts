@@ -67,6 +67,7 @@ describe("the default prompts in the repo", () => {
     ["AUDIO_EDIT", "audio-edit.md"],
     ["SUMMARIZE", "summarize.md"],
     ["METADATA", "metadata.md"],
+    ["REVIEW", "review.md"],
   ];
 
   it.each(FILES)("%s uses only the variables that step passes in", async (step, file) => {
@@ -76,7 +77,7 @@ describe("the default prompts in the repo", () => {
     expect(checkPromptVariables(step, content).unknown).toEqual([]);
   });
 
-  it("declares all 14 steps", () => {
+  it("declares all 15 steps", () => {
     expect(Object.keys(PROMPT_VARIABLES).sort()).toEqual(FILES.map(([s]) => s).sort());
   });
 });

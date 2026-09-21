@@ -14,6 +14,7 @@ import {
 } from "@audio/core";
 import { Prisma, prisma } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
+import { lessonsBefore } from "./review-lessons";
 import { styleWindowFor } from "./style-window";
 
 export interface SceneContext {
@@ -43,6 +44,8 @@ export interface SceneContext {
   forbidden: string[];
   /** What to check the scene against before writing it. */
   continuity: string[];
+  /** What the previous episode's review found — see services/review-lessons.ts. */
+  reviewLessons: string[];
   targetWords: number;
 }
 
@@ -145,7 +148,10 @@ export async function buildSceneContext(
 
   // Measured over the story rather than the episode, and after the queries above rather
   // than alongside them: it is the one piece of context the scene can be written without.
-  const styleStats = await styleWindowFor(scene.id);
+  const [styleStats, reviewLessons] = await Promise.all([
+    styleWindowFor(scene.id),
+    lessonsBefore(series.id, episode.number),
+  ]);
 
   const seen = new Set<string>();
   const retrieved = retrievedPerQuery.flat().filter((f) => {
@@ -209,6 +215,7 @@ export async function buildSceneContext(
     chapter: renderChapterSetup(chapterSetup),
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
     sceneNote: sceneSetup.note,
+    reviewLessons,
     forbidden: scene.forbidden,
     continuity: scene.continuity,
     // Fixed, not the episode's target shared out among its scenes. That division held

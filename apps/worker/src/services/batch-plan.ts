@@ -17,6 +17,8 @@ export interface EpisodeProgress {
   hasDraft: boolean;
   /** The story has a rewrite step AND this episode still has scenes not rewritten. */
   needsTranslate: boolean;
+  /** Whether a review of the CURRENT draft exists. */
+  hasReview: boolean;
   /** Whether the audio script has been split into blocks. */
   blocksTotal: number;
   /** How many blocks already have an audio file. */
@@ -47,6 +49,17 @@ export function nextStep(ep: EpisodeProgress, opts: BatchOptions): BatchStep {
   // reaches the speakers makes the gate meaningless: what the reader nodded at and what the
   // listener receives are two different texts.
   if (ep.needsTranslate) return { kind: "job", type: "TRANSLATE" };
+
+  // Reviewed BEFORE the person is asked, so that when the run stops and says "a draft is
+  // waiting", what is waiting is a draft plus a note on where to look. Reading four
+  // thousand words cold and reading them knowing the pacing sags in scene 4 are different
+  // jobs.
+  //
+  // It is skipped under `autoApprove`: nobody is going to read it, and a review nobody
+  // reads is an LLM call for a row in a table.
+  if (!ep.humanReviewed && !ep.hasReview && !opts.autoApprove) {
+    return { kind: "job", type: "REVIEW" };
+  }
 
   // The gate: a raw draft must not go further without a person reading it.
   // A batch run is NOT allowed to slip past this — `autoApprove` is the user's deliberate

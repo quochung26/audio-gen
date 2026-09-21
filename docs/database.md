@@ -819,6 +819,15 @@ model BatchRun {
   @@index([seriesId, status])
 }
 
+/// Một lượt thẩm duyệt tìm thấy gì trong bản nháp một tập — xem prompts/review.md.
+///
+/// Là bảng chứ không phải cột trên `Episode` vì bản thẩm duyệt vẫn đáng giữ sau khi tập
+/// bị nó chê đã được viết lại: "trước nói rewrite, giờ nói accept" là bằng chứng duy nhất
+/// cho thấy việc viết lại có tác dụng. Trang hiển thị bản mới nhất.
+///
+/// **Nó không quyết định gì.** Không chỗ nào đọc `verdict` để xếp việc, đổi trạng thái hay
+/// duyệt bản nháp — người đọc rồi bấm những nút vốn đã có sẵn. Máy vừa phán chất lượng vừa
+/// tự xếp việc viết lại là đã âm thầm gỡ mất cái cổng duy nhất của cả dây chuyền.
 model RenderJob {
   id        String   @id @default(cuid())
   episodeId String?

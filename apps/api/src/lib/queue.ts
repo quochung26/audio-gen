@@ -39,6 +39,7 @@ const LANE_OF: Record<string, JobLane> = {
   TRANSLATE: JobLane.LLM,
   AUDIO_EDIT: JobLane.LLM,
   SUMMARIZE: JobLane.LLM,
+  REVIEW: JobLane.LLM,
   METADATA: JobLane.LLM,
   TTS: JobLane.TTS_CPU,
   MIX: JobLane.FFMPEG,

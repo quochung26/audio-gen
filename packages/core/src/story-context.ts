@@ -1,4 +1,5 @@
 import type { CastMember } from "./cast";
+import { renderReviewLessons } from "./review";
 import { renderStyleStats } from "./style-stats";
 import type { OpenThread, Outline, StoryContext, StoryDirection } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
@@ -247,6 +248,12 @@ export function renderContext(ctx: StoryContext): string {
         ctx.openThreads.map(renderOpenThread).join("\n"),
     );
   }
+
+  // Beside the chapter instructions and for the same reason: both constrain what is
+  // about to be written. A problem a reader found in the last episode is not history —
+  // it is the one thing this scene has been asked not to do again.
+  const lessons = renderReviewLessons(ctx.reviewLessons ?? []);
+  if (lessons) parts.push(lessons);
 
   // Chapter instructions go AFTER the history, BEFORE the scene: they constrain
   // what is about to be written, they are not background to read and forget.

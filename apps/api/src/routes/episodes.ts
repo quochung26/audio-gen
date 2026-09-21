@@ -57,6 +57,9 @@ episodes.get("/:id", async (c) => {
       },
       blocks: { orderBy: { order: "asc" } },
       renderJobs: { orderBy: { queuedAt: "desc" }, take: 1 },
+      // The latest only. The rest are kept so that "it said rewrite, now it says accept"
+      // can be checked, which is a question for a page nobody has asked for yet.
+      reviews: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
@@ -895,6 +898,25 @@ episodes.post("/:id/render", async (c) => {
   const force = c.req.query("force") === "1";
   await enqueue({ type: "TTS", episodeId, payload: { episodeId, force } });
   return c.json({ ok: true });
+});
+
+/**
+ * Ask for a review of this episode's draft.
+ *
+ * Queued by hand as well as by a batch run, because the reason to want one is usually
+ * "I have just rewritten a scene and want to know if that fixed it".
+ */
+episodes.post("/:id/review", async (c) => {
+  const episodeId = c.req.param("id");
+  const ep = await prisma.episode.findUniqueOrThrow({
+    where: { id: episodeId },
+    select: { draftText: true },
+  });
+  if (!ep.draftText?.trim()) {
+    throw new UserError("There is no draft to review yet — write the scenes first.");
+  }
+  await enqueue({ type: "REVIEW", episodeId, payload: { episodeId } });
+  return c.json({ ok: "Reading the draft…" });
 });
 
 episodes.post("/:id/blocks/:blockId/rerender", async (c) => {

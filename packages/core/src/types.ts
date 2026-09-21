@@ -427,6 +427,13 @@ export interface StoryContext {
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: OpenThread[];
+  /**
+   * What the last review found — at most three, and only the serious ones.
+   *
+   * The one part of a review that reaches the model rather than the person: a problem
+   * named in episode 7 that nobody feeds forward is a problem episode 8 repeats.
+   */
+  reviewLessons?: string[];
   /** What this scene must NOT do — part of the assignment, see `beatContract`. */
   forbidden?: string[];
   /** What to check this scene against before writing it. */
