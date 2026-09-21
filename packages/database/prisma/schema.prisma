@@ -1037,6 +1037,9 @@ model LlmRun {
   @@index([step, createdAt])
   @@index([model, qualityRating])
   @@index([episodeId])
+  /// "when was this scene's prose last replaced" — asked before every rewrite, to decide
+  /// whether the last review still describes what is there. Xem review-findings.ts.
+  @@index([sceneId, step, createdAt])
 }
 
 /// The status of a batch run.

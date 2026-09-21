@@ -204,8 +204,8 @@ export async function buildSceneContext(
   const reviewFindings = scene.text
     ? await findingsForScene({
         episodeId: episode.id,
+        sceneId: scene.id,
         sceneNumber: at + 1,
-        sceneWrittenAt: scene.updatedAt,
       })
     : [];
 

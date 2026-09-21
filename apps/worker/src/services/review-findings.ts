@@ -3,6 +3,29 @@ import { prisma } from "@audio/database";
 import { logger } from "../lib/logger";
 
 /**
+ * When the prose of a scene was last REPLACED — not when its row last changed.
+ *
+ * `scene.updatedAt` answers a different question than it looks like it answers. Six
+ * places move it without touching a word of the prose: renumbering the scenes after one
+ * is deleted, the `storySoFar` recap, a refold of that recap, a new beat, the reading
+ * copy, and the API's general-purpose scene PATCH. Any of them, run after a review,
+ * silently killed every finding the review had made — worst of all REFOLD_SUMMARY, which
+ * sweeps a whole story and would have wiped the lot in one pass.
+ *
+ * A successful WRITE_SCENE run is the one event that means "the prose you criticised is
+ * gone". Failed runs are skipped deliberately: a write that threw left the old prose
+ * exactly where it was, so the criticism of it still stands.
+ */
+async function lastWrittenAt(sceneId: string): Promise<Date | null> {
+  const run = await prisma.llmRun.findFirst({
+    where: { sceneId, step: "WRITE_SCENE", error: null },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return run?.createdAt ?? null;
+}
+
+/**
  * What the latest review said about ONE scene, for the write that replaces it.
  *
  * Only when the review still describes the prose that is there. A review made before the
@@ -20,15 +43,21 @@ import { logger } from "../lib/logger";
  */
 export async function findingsForScene(input: {
   episodeId: string;
+  sceneId: string;
   sceneNumber: number;
-  sceneWrittenAt: Date;
 }): Promise<string[]> {
   try {
     const row = await prisma.episodeReview.findFirst({
       where: { episodeId: input.episodeId },
       orderBy: { createdAt: "desc" },
     });
-    if (!row || row.createdAt < input.sceneWrittenAt) return [];
+    if (!row) return [];
+
+    // No recorded write at all means the prose predates this telemetry, and there is no
+    // way to tell whether the review is about it. Kept rather than dropped: a stale
+    // finding costs a line of context, a dropped one costs the whole point of reviewing.
+    const writtenAt = await lastWrittenAt(input.sceneId);
+    if (writtenAt && row.createdAt < writtenAt) return [];
 
     // Parsed rather than trusted as stored JSON: the row came out of a model call, and a
     // review saved before a schema change is a shape nothing here still understands.
