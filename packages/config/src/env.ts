@@ -78,6 +78,24 @@ const schema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().default(""),
   R2_BUCKET: z.string().default("audio-truyen"),
   R2_PUBLIC_URL: z.string().default(""),
+
+  /**
+   * Where to shout when a run needs a person, or has stopped.
+   *
+   * A batch run waits for a draft to be approved and can sit there all night; until
+   * now the only way to find out was to open Studio. Any endpoint that accepts a JSON
+   * POST works — ntfy, a Discord or Slack webhook, something homemade. Blank = say
+   * nothing, which is the default.
+   */
+  NOTIFY_WEBHOOK_URL: z.string().url().or(z.literal("")).default(""),
+  /**
+   * Which events to send, comma-separated. Blank = all of them.
+   *
+   * The names are in services/notify.ts, which is the only place they are defined. An
+   * unknown name here is rejected at startup rather than silently matching nothing —
+   * a filter that quietly blocks everything is indistinguishable from a broken webhook.
+   */
+  NOTIFY_EVENTS: z.string().default(""),
 });
 
 export type Env = z.infer<typeof schema>;

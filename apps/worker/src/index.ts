@@ -5,14 +5,22 @@ import { getActiveProvider } from "@audio/llm";
 import { startLanes } from "./lanes/index";
 import { logger } from "./lib/logger";
 import { vramGuard } from "./services/vram-guard";
+import { assertNotifyEvents } from "./services/notify";
 import { shutdownQueueClient } from "./services/queue";
 
 async function main() {
   const env = loadEnv();
   const vram = getVramBudget();
 
+  // Before anything else: a typo in the filter blocks every notification, and the
+  // symptom is silence, which is also what a dead webhook and a quiet night look like.
+  assertNotifyEvents(env.NOTIFY_EVENTS);
+
   logger.info("── worker starting ──");
   logger.info(`TTS provider : ${env.TTS_PROVIDER}`);
+  logger.info(
+    `notify       : ${env.NOTIFY_WEBHOOK_URL ? new URL(env.NOTIFY_WEBHOOK_URL).host : "off"}`,
+  );
   logger.info(`VRAM         : ${vram.usableMb}MB usable / ${vram.totalMb}MB total`);
 
   await prisma.$queryRaw`SELECT 1`;

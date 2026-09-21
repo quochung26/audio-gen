@@ -4,6 +4,7 @@ import { logger } from "../lib/logger";
 import { enqueue } from "./queue";
 import { isEpisodeComplete, nextStep, type BatchOptions, type EpisodeProgress } from "./batch-plan";
 import { judgeSpend, spendSince } from "./batch-budget";
+import { notify } from "./notify";
 
 /**
  * Advance a batch run to its next step.
@@ -88,11 +89,26 @@ export async function step(
   const next = nextStep(pending.progress, opts);
 
   if (next.kind === "wait-review") {
+    const already = run.status === BatchStatus.WAITING_REVIEW;
     await prisma.batchRun.update({
       where: { id: runId },
       data: { status: BatchStatus.WAITING_REVIEW, currentEpisodeId: pending.id },
     });
     logger.info(`[batch] ${runId}: waiting for approval of episode ${pending.number}'s draft`);
+
+    // Only on the way IN to waiting. `step` is reached again whenever anything else the
+    // writer does finishes a job on this story, and a run parked overnight would send the
+    // same message each time.
+    if (!already) {
+      notify({
+        kind: "run_waiting_review",
+        level: "info",
+        title: "A draft is waiting to be read",
+        body:
+          `"${await seriesTitle(seriesId)}" episode ${pending.number} has been written and needs ` +
+          "approving before it goes to audio. The run carries on by itself once it is approved.",
+      });
+    }
     return;
   }
 
@@ -248,7 +264,7 @@ async function loadProgress(seriesId: string): Promise<EpisodeRow[]> {
 }
 
 async function finish(runId: string, status: BatchStatus, error: string | null): Promise<void> {
-  await prisma.batchRun.update({
+  const run = await prisma.batchRun.update({
     where: { id: runId },
     data: { status, error, finishedAt: new Date(), currentEpisodeId: null },
   });
@@ -259,4 +275,40 @@ async function finish(runId: string, status: BatchStatus, error: string | null):
     const say = status === BatchStatus.CANCELLED ? logger.info : logger.error;
     say(`[batch] ${runId}: ${error}`);
   }
+
+  // Every way a run can END goes through here, which is why the shout lives here rather
+  // than at each of the three call sites.
+  const title = await seriesTitle(run.seriesId);
+  if (status === BatchStatus.DONE) {
+    notify({
+      kind: "run_done",
+      level: "info",
+      title: "The run is finished",
+      body: `"${title}" — every episode has been through the whole chain.`,
+    });
+  } else if (status === BatchStatus.FAILED) {
+    notify({
+      kind: "run_failed",
+      level: "error",
+      title: "The run stopped on an error",
+      body: `"${title}" — ${error ?? "no reason given"}`,
+    });
+  } else if (status === BatchStatus.CANCELLED && error) {
+    // CANCELLED without a reason is the writer pressing stop, and they know they did.
+    notify({
+      kind: "run_stopped",
+      level: "warn",
+      title: "The run stopped",
+      body: `"${title}" — ${error}`,
+    });
+  }
+}
+
+/** The story's name, for a message that has to make sense away from the screen. */
+async function seriesTitle(seriesId: string): Promise<string> {
+  const series = await prisma.series.findUnique({
+    where: { id: seriesId },
+    select: { title: true },
+  });
+  return series?.title ?? "a story";
 }
