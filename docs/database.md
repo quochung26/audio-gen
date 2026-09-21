@@ -64,7 +64,6 @@ Cột `Series.storyBible` chứa bốn phần:
   world:     WorldSetup,     // bối cảnh, luật thế giới, giọng văn, điều cấm, thuật ngữ
   direction: StoryDirection, // truyện đi về đâu — xem 2.2b
   course:    { course, throughEpisode, checkedAt },  // đã đi tới đâu — xem 2.2c
-  bible:     string,         // bản render sẵn (chỉ để xem; lúc chạy luôn dựng lại từ dữ liệu mới nhất)
 }
 ```
 
@@ -90,7 +89,13 @@ Nằm cạnh `world` chứ không nằm trong `raw`: dàn ý viết nó một l�
 
 `missingDirection()` chỉ kiểm **có mặt hay không**. "Kết ở đâu" có phải câu trả lời TỐT không thì code không phán được, và một cái cổng cho lọt văn vô nghĩa còn tệ hơn không có cổng.
 
-`bible` được lưu để hiển thị, nhưng `buildSceneContext()` **luôn dựng lại từ `world` + nhân vật hiện tại** thay vì đọc bản cache — nếu không, sửa luật thế giới xong mà cảnh viết ra vẫn theo bản cũ.
+**Không còn `bible` render sẵn.** Từng có, và đúng ba việc làm nó mới lại: tạo truyện, lưu World setup, lưu Direction. Sửa nhân vật, thêm nhân vật, đổi genre hay sub-genre, và `SUMMARIZE` cập nhật `state` sau mỗi tập — **không cái nào**.
+
+Đo trên cả ba truyện trong DB dev: **cả ba đều đã trôi khỏi bản cache**. Một cuốn cache 3.954 ký tự trong khi dựng sống ra 6.296 — thiếu dòng sub-genres và trọn khối *"What these genres mean here"*, tức là mấy đoạn mô tả khiến "horror" mang nghĩa người viết muốn. Nó **chưa bao giờ** có mấy thứ đó: `buildBible` lúc tạo truyện không được truyền `genreNotes`.
+
+Và nó không chỉ để hiển thị: `next-episode.job.ts` đọc đúng bản cache đó, nên **bước lên đại cương cho mọi tập mới** đọc bản cũ trong khi `WRITE_SCENE` đọc bản sống. Một cuốn Bible mỏng không gây lỗi — nó chỉ lên một đại cương tệ hơn, nên không ai nhận ra.
+
+Giờ mọi thứ dựng sống qua `buildSeriesBible` trong `@audio/database`. Dòng nào ghi trước đây vẫn còn khoá `bible` cũ trong JSON; không gì đọc nó.
 
 ### 2.2c. `course` — truyện đã đi tới đâu so với chỗ nó nói sẽ đi
 

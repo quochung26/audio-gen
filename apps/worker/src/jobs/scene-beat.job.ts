@@ -1,8 +1,8 @@
 import { namesMentionedIn, renderChapterSetup, parseChapterSetup, sceneBeatSchema, toLanguage, withLanguage } from "@audio/core";
-import { prisma } from "@audio/database";
+import { prisma, buildSeriesBible } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
-import { buildSeriesBible } from "../services/story-context";
+
 import { beatWithRetry } from "../services/beat";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";

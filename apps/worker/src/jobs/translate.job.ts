@@ -1,12 +1,10 @@
 import { planDraft, withLanguage } from "@audio/core";
-import { prisma } from "@audio/database";
+import { prisma, syncEpisodeDraft, buildSeriesBible } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
-import { syncEpisodeDraft } from "../services/episode-draft";
 import { checkScene } from "../services/prose-check";
 import { openSceneStream } from "../services/stream";
-import { buildSeriesBible } from "../services/story-context";
 
 /**
  * Rewrite the draft into the story's output language.

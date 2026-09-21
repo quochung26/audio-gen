@@ -1,5 +1,12 @@
 import { Hono } from "hono";
-import { AudioTrackKind, EpisodeStatus, JobStatus, prisma, syncStoryStatus } from "@audio/database";
+import {
+  AudioTrackKind,
+  EpisodeStatus,
+  JobStatus,
+  prisma,
+  syncEpisodeDraft,
+  syncStoryStatus,
+} from "@audio/database";
 import {
   assertTransition,
   chapterSetupSchema,
@@ -611,6 +618,11 @@ episodes.delete("/:id/scenes/:sceneId", async (c) => {
     ),
   ]);
 
+  // The draft is the scenes joined together, so removing one changes it — along with the
+  // word count and the estimated runtime that go with it. Without this the episode kept
+  // the deleted scene's words in its length forever.
+  await syncEpisodeDraft(episodeId);
+
   const repairing = await repairSummaryFrom({ episodeId, seriesId, fromSceneId: nextSceneId });
 
   return c.json({
@@ -774,31 +786,10 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     });
   }
 
-  // The draft is the scenes joined in READING order: chapter first, then scene
-  // within it. Update now so the next step does not have to reassemble.
-  //
-  // The word count and the duration go with it. This used to set only `draftText` and
-  // `status`, which is the exact failure the comment on `syncEpisodeDraft` in the
-  // worker warns about: the episode carries the previous draft's length and estimated
-  // runtime while its text is new, and nothing says so. That helper is the other copy
-  // of this; the two live in different apps and have to be changed together.
-  const scenes = await prisma.scene.findMany({
-    where: { chapter: { episodeId } },
-    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
-    select: { text: true },
-  });
-  const draftText = scenes.map((s) => s.text ?? "").join("\n\n");
-  const words = countWords(draftText);
-
-  await prisma.episode.update({
-    where: { id: episodeId },
-    data: {
-      draftText,
-      wordCount: words,
-      durationMs: estimateDurationMs(words),
-      status: scenes.every((s) => s.text) ? EpisodeStatus.DRAFTED : EpisodeStatus.DRAFTING,
-    },
-  });
+  // One assembler, in @audio/database, shared with the worker's write and rewrite steps.
+  // There used to be a copy here whose own comment admitted it — "the two live in
+  // different apps and have to be changed together".
+  const { words } = await syncEpisodeDraft(episodeId);
   return c.json({ ok: `Saved. The episode is ${words} words now.` });
 });
 

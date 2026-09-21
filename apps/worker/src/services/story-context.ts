@@ -12,7 +12,7 @@ import {
   type SceneNeeds,
   type StoryBibleRecord,
 } from "@audio/core";
-import { Prisma, prisma } from "@audio/database";
+import { buildSeriesBible, prisma, renderBibleFor } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
 import { lessonsBefore } from "./review-lessons";
 import { styleWindowFor } from "./style-window";
@@ -253,55 +253,3 @@ async function lastSummaryBefore(seriesId: string, episodeNumber: number) {
   return scene?.storySoFar ?? null;
 }
 
-type SeriesForBible = Prisma.SeriesGetPayload<{ include: { characters: true } }>;
-
-/**
- * Build the Story Bible from the story's LATEST data, never from a pre-rendered copy.
- *
- * The writer may have just edited a world rule or added a character in Studio; using a
- * stale cache writes scenes that contradict what was just changed.
- */
-async function renderBibleFor(series: SeriesForBible, spotlight?: string[]): Promise<string> {
-  const stored = (series.storyBible ?? {}) as StoryBibleRecord;
-
-  // Descriptions for exactly the genres this story uses. One query, in exchange for the
-  // model reading "horror" the way the writer means it.
-  const genreNotes = await prisma.genre.findMany({
-    where: { name: { in: [series.genre, ...series.tags] } },
-    select: { name: true, promptName: true, description: true },
-  });
-
-  return seriesBible({
-    title: series.title,
-    genre: series.genre,
-    tags: series.tags,
-    genreNotes,
-    description: series.description,
-    // From the outline the story was created with. Null for a story outlined before the
-    // direction existed — the Bible then reads as it always did.
-    direction: stored.direction ?? null,
-    world: parseWorld(stored.world),
-    characters: series.characters,
-    episodes: stored.raw?.episodes,
-    spotlight,
-  });
-}
-
-/**
- * A story's Story Bible, for a step that needs the Bible without the scene context.
- *
- * The rewrite step is the use case: it needs proper nouns, terminology and forms of
- * address, but must NOT see summaries or old facts — giving it story context invites it
- * to retell the story better, when its job is to preserve every detail.
- */
-export async function buildSeriesBible(seriesId: string, spotlight?: string[]): Promise<string> {
-  const series = await prisma.series.findUniqueOrThrow({
-    where: { id: seriesId },
-    include: { characters: { orderBy: [{ isNarrator: "desc" }, { name: "asc" }] } },
-  });
-  // `spotlight` describes those people in full and reduces everyone else to name and
-  // role — the same narrowing a scene write gets. Without it every step sees the whole
-  // cast at equal weight, and a character with a vivid `state` keeps being written into
-  // scenes she has no business in.
-  return renderBibleFor(series, spotlight?.length ? spotlight : undefined);
-}

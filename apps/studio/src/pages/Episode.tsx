@@ -151,6 +151,8 @@ interface Ep {
   summary: string | null;
   humanReviewed: boolean;
   reviewedAt: string | null;
+  /** The scenes joined together. Empty while it has not been assembled from them. */
+  draftText: string | null;
   series: {
     id: string;
     title: string;
@@ -1021,18 +1023,31 @@ function ReviewPanel({ ep }: { ep: Ep }) {
   return (
     <Section title="What a reader found">
       {!review ? (
-        <div className="flex items-center justify-between rounded border border-neutral-800 p-4">
+        <div className="space-y-3 rounded border border-neutral-800 p-4">
           <p className="text-sm text-neutral-400">
             Nobody has read this draft yet. A review reports what is wrong with it and
             decides nothing — you still approve it, or send a scene back.
           </p>
-          <ActionButton path={`/api/episodes/${ep.id}/review`}>read the draft</ActionButton>
+          {/* The draft is the scenes joined together, and it is what a review reads. It
+              can be missing while every scene already has prose — a write in flight saves
+              the scene several steps before it assembles the draft, and the page counts
+              that scene as written. Offering the button through that window gave an error
+              where an explanation belonged. */}
+          {ep.draftText?.trim() ? (
+            <ActionButton path={`/api/episodes/${ep.id}/review`}>read the draft</ActionButton>
+          ) : (
+            <p className="text-xs text-amber-300">
+              {ep.renderJobs.some((j) => j.status === "QUEUED" || j.status === "RUNNING")
+                ? "The scenes are still being written — the draft is assembled at the end of that. Nothing to read yet."
+                : "The draft has not been assembled from the scenes yet, so there is nothing to read. Writing the episode puts it together: on one whose scenes are all written it does nothing else."}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-4 rounded border border-neutral-800 p-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <Badge tone={VERDICT_TONE[review.verdict] ?? "neutral"}>{review.verdict}</Badge>
-            <p className="flex-1 text-sm text-neutral-300">{review.summary}</p>
+            <p className="min-w-48 flex-1 text-sm text-neutral-300">{review.summary}</p>
             <ActionButton path={`/api/episodes/${ep.id}/review`}>read it again</ActionButton>
           </div>
 

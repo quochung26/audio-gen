@@ -69,8 +69,13 @@ export interface StoryBibleRecord {
    * asked. Absent until somebody asks — see prompts/course.md.
    */
   course?: { course: StoryCourse; throughEpisode: number; checkedAt: string } | null;
-  /** Pre-rendered for the system prompt. Rebuilt whenever raw or world changes. */
-  bible?: string;
+  // No pre-rendered `bible` any more. There was one, and three things refreshed it —
+  // creating the story, saving the world setup, saving the direction — while editing a
+  // character, changing a sub-genre and SUMMARIZE advancing somebody's state refreshed
+  // nothing. Every story in the development database had drifted from it, and the step
+  // that read it was NEXT_EPISODE, which does not fail on a thin Bible: it just plans a
+  // worse episode. Built live now, by `buildSeriesBible`. Rows written before this keep
+  // the old key; nothing reads it.
 }
 
 /**

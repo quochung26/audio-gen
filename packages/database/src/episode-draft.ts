@@ -1,5 +1,7 @@
 import { countWords, estimateDurationMs } from "@audio/core";
-import { EpisodeStatus, prisma, syncStoryStatus } from "@audio/database";
+import { EpisodeStatus } from "@prisma/client";
+import { prisma } from "./client";
+import { syncStoryStatus } from "./story-status";
 
 export interface DraftSync {
   /** Every scene has content. */
@@ -10,10 +12,18 @@ export interface DraftSync {
 /**
  * Join the scenes into the episode draft, then update the word count and estimated duration.
  *
- * TWO steps write `Scene.text` — writing scenes and rewriting — and both have to rebuild
- * `Episode.draftText`. Left to each step, the later one forgetting to update the word count
- * leaves the episode carrying the old draft's duration with nothing to say so: `draftText`
- * still has content, just the previous version's.
+ * FOUR paths write `Scene.text` — writing, rewriting, revising a passage and editing one
+ * by hand — and a fifth deletes a scene. All of them have to rebuild `Episode.draftText`.
+ * Left to each, the one that forgets leaves the episode carrying the old draft's duration
+ * with nothing to say so: `draftText` still has content, just the previous version's.
+ *
+ * It lived in the worker, and the API had a hand-written copy whose own comment said so —
+ * "that helper is the other copy of this; the two live in different apps and have to be
+ * changed together". They were changed together until they were not. Here, both call it.
+ *
+ * Idempotent and cheap, which makes it the repair as well as the step: an episode whose
+ * draft went missing — a WRITE_SCENE killed between saving the scene and this line, which
+ * a worker restart does — is put right by calling it again.
  */
 export async function syncEpisodeDraft(episodeId: string): Promise<DraftSync> {
   // An episode's READING order is chapter first, then scene within it. Sorted by scene

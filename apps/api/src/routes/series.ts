@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { BatchStatus, JobStatus, prisma, storyState, styleWindow, syncStoryStatus } from "@audio/database";
+import { BatchStatus, JobStatus, prisma, storyState, styleWindow, syncStoryStatus, buildSeriesBible } from "@audio/database";
 import {
   checkTags,
   computeStyleStats,
@@ -11,7 +11,6 @@ import {
   parseWorld,
   planDraft,
   type CastMember,
-  seriesBible,
   worldSetupSchema,
   type StoryBibleRecord,
 } from "@audio/core";
@@ -306,7 +305,10 @@ series.get("/:id/world", async (c) => {
     // What the story has not said about where it is going. Listed rather than counted:
     // "two missing" is not something anyone can act on.
     missingDirection: missingDirection(direction),
-    bible: stored.bible ?? "",
+    // Built live rather than read back, so the heading above it — "this is what the AI
+    // actually reads" — is true. It used to show a copy refreshed by three routes out of
+    // everything that changes a Bible.
+    bible: await buildSeriesBible(s.id),
     title: s.title,
     genre: s.genre,
   });
@@ -396,20 +398,6 @@ series.put("/:id/direction", async (c) => {
       storyBible: {
         ...stored,
         direction,
-        bible: seriesBible({
-          title: s.title,
-          genre: s.genre,
-          tags: s.tags,
-          direction,
-          genreNotes: await prisma.genre.findMany({
-            where: { name: { in: [s.genre, ...s.tags] } },
-            select: { name: true, promptName: true, description: true },
-          }),
-          description: s.description,
-          world: parseWorld(stored.world),
-          characters: s.characters,
-          episodes: stored.raw?.episodes,
-        }),
       },
     },
   });
@@ -452,22 +440,6 @@ series.put("/:id/world", async (c) => {
       storyBible: {
         ...stored,
         world,
-        bible: seriesBible({
-          title: s.title,
-          genre: s.genre,
-          tags: s.tags,
-          // Carried through, or editing the world setup silently drops the destination
-          // out of the Bible every later episode is written from.
-          direction: stored.direction ?? null,
-          genreNotes: await prisma.genre.findMany({
-            where: { name: { in: [s.genre, ...s.tags] } },
-            select: { name: true, promptName: true, description: true },
-          }),
-          description: s.description,
-          world,
-          characters: s.characters,
-          episodes: stored.raw?.episodes,
-        }),
       } as object,
     },
   });

@@ -11,7 +11,7 @@ import {
   withLanguage,
   type SceneNeeds,
 } from "@audio/core";
-import { episodeSceneMaterial, EpisodeStatus, prisma } from "@audio/database";
+import { episodeSceneMaterial, EpisodeStatus, prisma, syncEpisodeDraft } from "@audio/database";
 import {
   getLlm,
   getSceneContextMode,
@@ -23,7 +23,6 @@ import {
 } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
-import { syncEpisodeDraft } from "../services/episode-draft";
 import { openThreads } from "../services/fact-store";
 import { checkScene } from "../services/prose-check";
 import { openSceneStream } from "../services/stream";
@@ -55,7 +54,19 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
     include: { chapter: { select: { episodeId: true, order: true } } },
   });
 
-  if (scenes.length === 0) throw new Error("No scenes found that need writing");
+  if (scenes.length === 0) {
+    // Asked for a whole episode whose scenes are all written. There is nothing to write,
+    // but the draft may be out of step with them — a run killed between saving a scene
+    // and assembling the draft leaves `draftText` empty while every scene has prose, and
+    // then this job is the only way back and it used to refuse. Reassemble and say so.
+    if (episodeId && !sceneId) {
+      const { complete, words } = await syncEpisodeDraft(episodeId);
+      logger.info(`[write-scene] every scene was already written — draft reassembled, ${words} words`);
+      await setProgress(100);
+      return { episodeId, scenesWritten: 0, totalWords: words, complete, reassembled: true };
+    }
+    throw new Error("No scenes found that need writing");
+  }
 
   const targetEpisodeId = scenes[0]!.chapter.episodeId;
   await prisma.episode.update({

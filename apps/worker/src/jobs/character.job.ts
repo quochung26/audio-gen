@@ -11,7 +11,7 @@ import {
   withLanguage,
   type CastMember,
 } from "@audio/core";
-import { prisma } from "@audio/database";
+import { prisma, buildSeriesBible } from "@audio/database";
 import {
   getDefaultLanguage,
   getLlm,
@@ -21,7 +21,7 @@ import {
   renderTemplate,
   resolveModel,
 } from "@audio/llm";
-import { buildSeriesBible } from "../services/story-context";
+
 import type { JobHandler } from "../lanes/create-lane";
 import { logger } from "../lib/logger";
 import { streamProgress } from "../lib/progress";

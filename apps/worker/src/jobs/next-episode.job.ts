@@ -11,7 +11,7 @@ import {
   withLanguage,
   type StoryBibleRecord,
 } from "@audio/core";
-import { EpisodeStatus, prisma } from "@audio/database";
+import { EpisodeStatus, prisma, buildSeriesBible } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import { RECENT_HOOK_COUNT, SCENE_TARGET_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
@@ -79,7 +79,11 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
   });
 
   const stored = (series.storyBible ?? {}) as StoryBibleRecord;
-  const bible = stored.bible ?? "";
+  // Built live, like every other step. This read a pre-rendered copy that three things
+  // refreshed — creating the story, saving the world setup, saving the direction — so
+  // editing a character, changing a sub-genre or SUMMARIZE advancing somebody's state
+  // reached the scene writer and never reached the episode planner.
+  const bible = await buildSeriesBible(series.id);
   // Where the story has got to against its destination. This is the point of asking:
   // a check nobody reads is a page nobody opens, and a check the PLANNER reads is the
   // difference between an episode written because the story needs it and one written

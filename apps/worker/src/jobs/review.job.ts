@@ -7,7 +7,7 @@ import {
   toLanguage,
   withLanguage,
 } from "@audio/core";
-import { prisma, styleWindow } from "@audio/database";
+import { prisma, styleWindow, buildSeriesBible } from "@audio/database";
 import {
   getLlm,
   loadPrompt,
@@ -20,7 +20,6 @@ import type { JobHandler } from "../lanes/create-lane";
 import { openThreads } from "../services/fact-store";
 import { logger } from "../lib/logger";
 import { streamProgress } from "../lib/progress";
-import { buildSeriesBible } from "../services/story-context";
 
 /**
  * Read a drafted episode and report what is wrong with it.

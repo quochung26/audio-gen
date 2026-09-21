@@ -156,7 +156,6 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         // With no setting from the writer, the AI's becomes the starting point, so the
         // Story Bible page has something to edit.
         world: { ...world, setting: world.setting.trim() || outline.setting },
-        bible: buildBible(outline, { genre, world, tags, cast: people }),
       },
       characters: {
         // The writer's cast beats the model's, and with a cast chosen the model's

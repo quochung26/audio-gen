@@ -1,9 +1,8 @@
 import { findPassage, splicePassage, toLanguage, withLanguage } from "@audio/core";
-import { EpisodeStatus, prisma } from "@audio/database";
+import { EpisodeStatus, prisma, syncEpisodeDraft, buildSeriesBible } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
 import type { JobHandler } from "../lanes/create-lane";
-import { buildSeriesBible } from "../services/story-context";
-import { syncEpisodeDraft } from "../services/episode-draft";
+
 import { enqueue } from "../services/queue";
 import { streamProgress } from "../lib/progress";
 import { logger } from "../lib/logger";
