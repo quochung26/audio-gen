@@ -47,7 +47,18 @@ export const PROMPT_VARIABLES: Record<PromptStep, readonly string[]> = {
   // Continuing needs no original idea — it needs to know what has happened. No
   // `chapterCount`: an episode opens with ONE chapter and grows a chapter at a time,
   // the same way the story grows an episode at a time.
-  NEXT_EPISODE: ["bible", "context", "episodeNumber", "scenesPerChapter", "sceneWords"],
+  // `recentHooks` is the SHAPE of the recent episodes rather than their content — which
+  // kind of turn each one closed on, and how often each kind has come up. The hooks
+  // themselves are already in `context`; what could not be read out of them is whether
+  // five in a row ended the same way.
+  NEXT_EPISODE: [
+    "bible",
+    "context",
+    "episodeNumber",
+    "recentHooks",
+    "scenesPerChapter",
+    "sceneWords",
+  ],
   // Choosing what to load before a scene is written. Gets the beat and a MENU — the
   // cast by name, and the open threads — never the content behind them, because the
   // point is to avoid loading that content until something asks for it.

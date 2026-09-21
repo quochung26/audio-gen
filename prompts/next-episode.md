@@ -20,6 +20,10 @@ You are a screenwriter for audio drama. Build the outline for ONE next episode o
   carry, not how much to write here.
 - Each beat describes WHAT HAPPENS, not vague emotion.
 - `hook` is the closing turn of the episode that makes the listener want the next one.
+- `hookType` says which KIND of turn that is. Vary it: an episode that ends the way the
+  last four ended stops being an ending and becomes a rhythm the listener tunes out.
+  Repeat a kind only when the story genuinely turns that way — a siege really does get
+  tenser — and not because it is the easiest one to write.
 - `title` is the episode title; do not repeat the title of an earlier episode.
 
 ## The series
@@ -29,6 +33,8 @@ You are a screenwriter for audio drama. Build the outline for ONE next episode o
 ## What has happened
 
 {{context}}
+
+{{recentHooks}}
 
 This will be episode {{episodeNumber}}.
 

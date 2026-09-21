@@ -190,6 +190,9 @@ export const outlineJob: JobHandler = async ({ job, setProgress }) => {
         slug: await freeSlug(`${outline.title} tap ${plan.number}`),
         status: EpisodeStatus.OUTLINED,
         outline: plan,
+        // Lifted out of the outline into a column: the question asked of it later is
+        // "how did the last six episodes end", which is a query. See Episode.hookType.
+        hookType: plan.hookType,
         // No chapters. The episode is a title and a hook; "Outline chapter 1" on the
         // episode page fills it in, and every chapter after that is planned knowing
         // how the last one actually turned out rather than guessed from the idea.

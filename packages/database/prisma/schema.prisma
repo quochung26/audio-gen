@@ -282,6 +282,16 @@ model Episode {
 
   outline Json?
 
+  /// Which kind of turn this episode closes on — see HOOK_TYPES in @audio/core.
+  ///
+  /// A column rather than a field inside `outline` because the question asked of it is
+  /// "how did the last six episodes end", and that is a query. `hook` is a sentence about
+  /// this episode; this is the one thing about it that can be compared with the others.
+  ///
+  /// Null = outlined before the label existed. Left out of the history rather than shown
+  /// as unknown: a list half full of blanks reads as missing data.
+  hookType String?
+
   draftText  String?
   scriptText String?
   summary    String?

@@ -16,6 +16,37 @@ export function renderOpenThread(t: OpenThread): string {
   return `- [episode ${t.episodeNumber}${age}] ${t.text}`;
 }
 
+/**
+ * How the last few episodes ended, as labels.
+ *
+ * States the counts and stops there. Whether a fourth crisis in a row is wrong depends
+ * on where the story is — a siege gets tenser, and three quiet endings in a war would be
+ * the defect instead. Code can count; only the model can judge, so it is handed the count
+ * and left to it.
+ *
+ * Episodes outlined before the label existed are skipped rather than shown as unknown: a
+ * list half full of "—" reads as missing data and invites the model to ignore all of it.
+ */
+export function renderHookHistory(
+  recent: Array<{ number: number; hookType: string | null }>,
+): string {
+  const known = recent.filter((e) => e.hookType);
+  if (known.length === 0) return "";
+
+  const counts = new Map<string, number>();
+  for (const e of known) counts.set(e.hookType!, (counts.get(e.hookType!) ?? 0) + 1);
+  const tally = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([kind, n]) => `${kind} ×${n}`)
+    .join(", ");
+
+  return (
+    `## How the last episodes ended\n` +
+    known.map((e) => `- Episode ${e.number}: ${e.hookType}`).join("\n") +
+    `\nCounted: ${tally}.`
+  );
+}
+
 export interface SeriesBibleInput {
   title: string;
   genre: string;

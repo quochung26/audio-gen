@@ -16,6 +16,8 @@ interface Ep {
   id: string;
   number: number;
   title: string;
+  /** Which kind of turn it closes on. Null = outlined before the label existed. */
+  hookType: string | null;
   status: string;
   wordCount: number | null;
   durationMs: number | null;
@@ -396,6 +398,10 @@ export function Series() {
                 <span className="ml-3 text-sm">{ep.title}</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-neutral-500">
+                {/* Listed down the page, a run of the same kind is visible as a run.
+                    That is the whole reason the label exists — five hooks written as
+                    five sentences cannot be compared without reading all five. */}
+                {ep.hookType ? <span className="text-neutral-600">ends on {ep.hookType}</span> : null}
                 {ep.wordCount ? <span>{ep.wordCount} words</span> : null}
                 {ep.durationMs ? <span>~{formatDuration(ep.durationMs)}</span> : null}
                 <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>

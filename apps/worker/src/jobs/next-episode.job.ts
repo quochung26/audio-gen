@@ -4,13 +4,14 @@ import {
   episodeOpening,
   planChapters,
   renderEpisodeContext,
+  renderHookHistory,
   suggestScenesPerChapter,
   toLanguage,
   withLanguage,
 } from "@audio/core";
 import { EpisodeStatus, prisma } from "@audio/database";
 import { getLlm, loadPrompt, recordFailure, recordRun, renderTemplate, resolveModel } from "@audio/llm";
-import { SCENE_TARGET_WORDS } from "@audio/config";
+import { RECENT_HOOK_COUNT, SCENE_TARGET_WORDS } from "@audio/config";
 import type { JobHandler } from "../lanes/create-lane";
 import { openThreads } from "../services/fact-store";
 import { freeSlug } from "../services/slug";
@@ -43,7 +44,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
 
   await setProgress(10);
 
-  const [indexRows, previous, threads] = await Promise.all([
+  const [indexRows, previous, threads, recentHooks] = await Promise.all([
     prisma.episode.findMany({
       where: { seriesId, number: { lt: episodeNumber }, gist: { not: null } },
       orderBy: { number: "asc" },
@@ -54,6 +55,15 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
       select: { number: true, summary: true },
     }),
     openThreads({ seriesId, beforeEpisode: episodeNumber }),
+    // How the last few ended. Not part of `context` because it is not history the
+    // episode has to follow — it is a fact about the SHAPE of what came before, and it
+    // belongs next to the instruction about this episode's own ending.
+    prisma.episode.findMany({
+      where: { seriesId, number: { lt: episodeNumber } },
+      orderBy: { number: "desc" },
+      take: RECENT_HOOK_COUNT,
+      select: { number: true, hookType: true },
+    }),
   ]);
 
   const context = renderEpisodeContext({
@@ -89,6 +99,9 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
         bible,
         context,
         episodeNumber,
+        // Oldest first, however the query returned them: a run reads as a run in the
+        // order it happened, and backwards it reads as a list.
+        recentHooks: renderHookHistory([...recentHooks].reverse()),
         scenesPerChapter: suggestScenesPerChapter(),
         sceneWords: SCENE_TARGET_WORDS,
       }),
@@ -141,6 +154,7 @@ export const nextEpisodeJob: JobHandler = async ({ job, setProgress }) => {
       status: EpisodeStatus.OUTLINED,
       // Recorded with the episode number the server settled on, so the episode page shows the right outline.
       outline: { ...plan, number: episodeNumber },
+      hookType: plan.hookType,
       chapters: {
         create: chapters.map((ch) => ({
           order: ch.order,

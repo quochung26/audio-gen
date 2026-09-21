@@ -61,6 +61,37 @@ export const chapterPlanSchema = z.object({
 });
 
 /**
+ * The kinds of turn an episode can close on.
+ *
+ * A small closed set, on purpose. `hook` is already a sentence describing THIS episode's
+ * ending; what it could not answer is "have the last five all ended the same way", because
+ * comparing five sentences means reading them. A label can be counted.
+ *
+ * Five, taken from ainovel-cli's chapter taxonomy, and they carve up the space of reasons
+ * a listener presses play again:
+ *
+ *   crisis   — something is about to go wrong and nobody has stopped it
+ *   mystery  — something has been revealed that does not fit what we knew
+ *   desire   — someone wants something and has just been shown a way to get it
+ *   emotion  — a relationship has moved, for better or worse
+ *   choice   — someone has to decide, and both ways cost
+ *
+ * Not a judgement of quality: a crisis ending is not better than an emotional one. The
+ * label exists so that five crises in a row is VISIBLE, which is the actual defect.
+ */
+export const HOOK_TYPES = ["crisis", "mystery", "desire", "emotion", "choice"] as const;
+
+export type HookType = (typeof HOOK_TYPES)[number];
+
+const hookTypeSchema = z
+  .enum(HOOK_TYPES)
+  .describe(
+    "Which kind of turn the episode closes on: crisis (something is about to go wrong) | " +
+      "mystery (something revealed that does not fit) | desire (someone shown a way to get " +
+      "what they want) | emotion (a relationship moves) | choice (a decision where both ways cost)",
+  );
+
+/**
  * An episode as the FIRST outline describes it: a title and a closing hook, nothing
  * inside it.
  *
@@ -74,6 +105,7 @@ export const episodePlanSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1),
   hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
+  hookType: hookTypeSchema,
 });
 
 /**
@@ -86,6 +118,7 @@ export const nextEpisodePlanSchema = z.object({
   title: z.string().min(1),
   chapters: z.array(chapterPlanSchema).min(1),
   hook: z.string().describe("The closing line or turn that keeps the listener coming back"),
+  hookType: hookTypeSchema,
 });
 
 export type NextEpisodePlan = z.infer<typeof nextEpisodePlanSchema>;

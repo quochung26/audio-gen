@@ -173,6 +173,15 @@ export const OPENROUTER_EMBED_MODEL = "openai/text-embedding-3-large";
 /** How many open threads load at most (always loaded, whatever the similarity). */
 export const OPEN_THREAD_LIMIT = 5;
 
+/**
+ * How many recent episodes' closing turns are shown when outlining the next one.
+ *
+ * Six: enough that a run of the same kind is visible as a run rather than a coincidence,
+ * short enough that it stays a few words in the prompt. It is a list of labels, not of
+ * hooks — the hooks themselves are in the episode summaries already.
+ */
+export const RECENT_HOOK_COUNT = 6;
+
 /** Estimated tokens per word for Vietnamese with the Qwen tokenizer. */
 export const TOKENS_PER_WORD_VI = 1.8;
 

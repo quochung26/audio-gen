@@ -254,7 +254,13 @@ describe("buildBible — the Bible built the moment the outline lands", () => {
       },
     ],
     episodes: [
-      { number: 1, title: "Bến Cũ", chapters: [{ title: "Đêm mưa", beats: ["Tài dừng xe."] }], hook: "Ghế 12 trống." },
+      {
+        number: 1,
+        title: "Bến Cũ",
+        chapters: [{ title: "Đêm mưa", beats: ["Tài dừng xe."] }],
+        hook: "Ghế 12 trống.",
+        hookType: "mystery" as const,
+      },
     ],
   };
 
