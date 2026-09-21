@@ -174,6 +174,16 @@ export const OPENROUTER_EMBED_MODEL = "openai/text-embedding-3-large";
 export const OPEN_THREAD_LIMIT = 5;
 
 /**
+ * How many written scenes the prose statistics are taken from.
+ *
+ * Thirty, about five episodes: long enough that a habit shows as a habit rather than as
+ * a coincidence, short enough that it describes what the story is doing NOW. Measured
+ * over the whole story it would keep reporting a tic the writer fixed twenty episodes
+ * ago, and every scene write pays for the read.
+ */
+export const STYLE_WINDOW_SCENES = 30;
+
+/**
  * How many recent episodes' closing turns are shown when outlining the next one.
  *
  * Six: enough that a run of the same kind is visible as a run rather than a coincidence,

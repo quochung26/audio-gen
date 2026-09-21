@@ -15,3 +15,4 @@ export * from "./beat";
 export * from "./passage";
 export * from "./prose-lint";
 export * from "./scene-digest";
+export * from "./style-stats";

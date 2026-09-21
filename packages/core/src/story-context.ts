@@ -1,4 +1,5 @@
 import type { CastMember } from "./cast";
+import { renderStyleStats } from "./style-stats";
 import type { OpenThread, Outline, StoryContext, StoryDirection } from "./types";
 import { EMPTY_WORLD, renderBible, type WorldSetup } from "./world";
 
@@ -283,6 +284,13 @@ export function renderContext(ctx: StoryContext): string {
         ctx.sceneNote,
     );
   }
+
+  // Last, next to the target length, because the two are the same KIND of thing: not
+  // what to write but how much and in what shape. Numbers about the prose read as
+  // background when they sit above the history, and as an instruction when they sit
+  // beside the assignment — see the note on where the direction goes in the Bible.
+  const style = renderStyleStats(ctx.styleStats ?? null);
+  if (style) parts.push(style);
 
   parts.push(`Target length: about ${ctx.targetWords} words.`);
 

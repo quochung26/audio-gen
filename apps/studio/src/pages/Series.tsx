@@ -219,6 +219,8 @@ export function Series() {
         </div>
       </Section>
 
+      <StylePanel seriesId={s.id} />
+
       <Section
         title="Story facts"
         action={
@@ -430,5 +432,81 @@ export function Series() {
         </div>
       </Section>
     </div>
+  );
+}
+
+interface StyleStats {
+  scenes: number;
+  sentences: { median: number; mean: number; shortRatio: number; longRatio: number };
+  phrases: Array<{ text: string; count: number; scenes: number }>;
+  repeated: Array<{ text: string; count: number; scenes: number }>;
+  opening: { word: string; scenes: number } | null;
+  ending: { medianWords: number; shortRatio: number };
+}
+
+/**
+ * What the prose has been doing, as numbers.
+ *
+ * The same window the model is handed before it writes, shown so the person deciding
+ * whether to change the prompt is looking at the same evidence. No verdicts here either:
+ * whether "couldn't help but" seventeen times is a tic or a voice is the writer's call.
+ */
+function StylePanel({ seriesId }: { seriesId: string }) {
+  const { data } = useApi<{ stats: StyleStats | null; minScenes: number }>(
+    `/api/series/${seriesId}/style`,
+  );
+  if (!data) return null;
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+  return (
+    <Section title="What the prose has been doing">
+      {!data.stats ? (
+        <p className="rounded border border-neutral-800 p-4 text-xs text-neutral-500">
+          Under {data.minScenes} written scenes there is nothing to count: a phrase appearing
+          twice is a coincidence, and a median sentence length describes one scene.
+        </p>
+      ) : (
+        <div className="space-y-3 rounded border border-neutral-800 p-4 text-xs text-neutral-400">
+          <p>
+            Across the last <strong className="text-neutral-200">{data.stats.scenes}</strong>{" "}
+            scenes: sentences run {data.stats.sentences.median} words in the middle,{" "}
+            {pct(data.stats.sentences.shortRatio)} under 8 and {pct(data.stats.sentences.longRatio)}{" "}
+            over 25. Scenes end on {data.stats.ending.medianWords} words,{" "}
+            {pct(data.stats.ending.shortRatio)} of them short.
+            {data.stats.opening
+              ? ` ${data.stats.opening.scenes} of them open on “${data.stats.opening.word}”.`
+              : ""}
+          </p>
+          {data.stats.phrases.length > 0 && (
+            <div>
+              <span className="text-neutral-500">Phrases it keeps reaching for</span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {data.stats.phrases.map((p) => (
+                  <span key={p.text} className="rounded bg-neutral-800 px-2 py-0.5">
+                    {p.text} <span className="text-neutral-500">×{p.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.stats.repeated.length > 0 && (
+            <div>
+              <span className="text-neutral-500">Whole sentences reused across scenes</span>
+              <ul className="mt-1 space-y-1">
+                {data.stats.repeated.map((r) => (
+                  <li key={r.text} className="text-amber-300/80">
+                    “{r.text.slice(0, 90)}
+                    {r.text.length > 90 ? "…" : ""}” ×{r.count}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-neutral-600">
+            The same numbers go into the prompt before each scene is written.
+          </p>
+        </div>
+      )}
+    </Section>
   );
 }

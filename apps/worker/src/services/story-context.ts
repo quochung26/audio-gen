@@ -8,11 +8,13 @@ import {
   renderOverrides,
   seriesBible,
   type OpenThread,
+  type StyleStats,
   type SceneNeeds,
   type StoryBibleRecord,
 } from "@audio/core";
 import { Prisma, prisma } from "@audio/database";
 import { openThreads, pinnedFacts, retrieveFacts } from "./fact-store";
+import { styleWindowFor } from "./style-window";
 
 export interface SceneContext {
   genre: string;
@@ -27,6 +29,8 @@ export interface SceneContext {
   facts: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Open threads — always loaded, whatever the similarity, oldest debt first. */
   openThreads: OpenThread[];
+  /** What the story's prose has been doing lately. Null until enough of it exists. */
+  styleStats: StyleStats | null;
   /** The whole story up to the previous scene, in one paragraph — see Scene.storySoFar. */
   storySoFar: string;
   previousScene?: string;
@@ -135,6 +139,10 @@ export async function buildSceneContext(
     pinnedFacts(series.id, episode.number),
   ]);
 
+  // Measured over the story rather than the episode, and after the queries above rather
+  // than alongside them: it is the one piece of context the scene can be written without.
+  const styleStats = await styleWindowFor(scene.id);
+
   const seen = new Set<string>();
   const retrieved = retrievedPerQuery.flat().filter((f) => {
     if (seen.has(f.text)) return false;
@@ -191,6 +199,7 @@ export async function buildSceneContext(
     previousSummaries: previous ? [{ number: previous.number, summary: previous.summary! }] : [],
     facts,
     openThreads: threads,
+    styleStats,
     storySoFar,
     previousScene: previousScene?.text ?? undefined,
     chapter: renderChapterSetup(chapterSetup),

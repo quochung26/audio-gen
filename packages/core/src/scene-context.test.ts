@@ -105,3 +105,36 @@ describe("the writer's note for one scene", () => {
     expect(renderContext(base)).not.toContain("What this scene must do");
   });
 });
+
+describe("what the prose has been doing", () => {
+  const stats = {
+    scenes: 30,
+    sentences: { median: 12, mean: 13, shortRatio: 0.25, longRatio: 0.06 },
+    phrases: [{ text: "couldn't help but", count: 17, scenes: 12 }],
+    repeated: [],
+    opening: { word: "chiếc", scenes: 15 },
+    ending: { medianWords: 16, shortRatio: 0.25 },
+  };
+
+  // Not what to write but how much and in what shape — the same kind of thing as the
+  // target length, and read as background anywhere above the history.
+  it("sits at the bottom, beside the target length", () => {
+    const t = renderContext({ ...base, styleStats: stats });
+    expect(t.indexOf("What this story's prose has been doing")).toBeGreaterThan(
+      t.indexOf("## The scene to write"),
+    );
+    expect(t.indexOf("What this story's prose has been doing")).toBeLessThan(
+      t.indexOf("Target length"),
+    );
+  });
+
+  it("carries the counts through", () => {
+    expect(renderContext({ ...base, styleStats: stats })).toContain(`"couldn't help but" ×17`);
+  });
+
+  // Most of a story, until about episode two.
+  it("leaves the block out entirely before there is enough prose to count", () => {
+    expect(renderContext({ ...base, styleStats: null })).toBe(renderContext(base));
+    expect(renderContext(base)).not.toContain("prose has been doing");
+  });
+});

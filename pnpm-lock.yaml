@@ -276,6 +276,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@audio/config':
+        specifier: workspace:*
+        version: link:../config
       '@audio/core':
         specifier: workspace:*
         version: link:../core

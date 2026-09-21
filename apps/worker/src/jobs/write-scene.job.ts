@@ -113,6 +113,7 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
             previousSummaries: context.previousSummaries,
             facts: context.facts,
             openThreads: context.openThreads,
+            styleStats: context.styleStats,
             previousScene: context.previousScene ?? "",
             chapter: context.chapter,
             overrides: context.overrides,

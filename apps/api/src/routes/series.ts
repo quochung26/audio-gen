@@ -1,8 +1,10 @@
 import { Hono } from "hono";
-import { BatchStatus, JobStatus, prisma } from "@audio/database";
+import { BatchStatus, JobStatus, prisma, styleWindow } from "@audio/database";
 import {
   checkTags,
+  computeStyleStats,
   isLanguage,
+  MIN_SCENES_FOR_STATS,
   missingDirection,
   parseTags,
   normalizeCast,
@@ -190,6 +192,17 @@ series.put("/:id/tags", async (c) => {
         ? ["Applies to episodes written from now on. Finished ones keep the old direction."]
         : [],
   });
+});
+
+/**
+ * What this story's prose has been doing — the same numbers the model is handed.
+ *
+ * Its own endpoint rather than part of the story page: it reads thirty scenes, and the
+ * story page is polled while a run is going. Asked for only when someone opens it.
+ */
+series.get("/:id/style", async (c) => {
+  const stats = computeStyleStats(await styleWindow(c.req.param("id")));
+  return c.json({ stats, minScenes: MIN_SCENES_FOR_STATS });
 });
 
 series.get("/:id/world", async (c) => {

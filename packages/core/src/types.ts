@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StyleStats } from "./style-stats";
 
 /**
  * The domain types — which double as the schema the LLM has to return.
@@ -383,6 +384,13 @@ export interface StoryContext {
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: OpenThread[];
+  /**
+   * What the story's prose has actually been doing — see `computeStyleStats`.
+   *
+   * Null for a story with too few scenes written to count, which is most of one until
+   * about episode two. The block is then left out entirely.
+   */
+  styleStats?: StyleStats | null;
   /**
    * The whole story up to and including the previous scene, in one paragraph.
    *
