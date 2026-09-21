@@ -252,6 +252,47 @@ export type StorySoFar = z.infer<typeof storySoFarSchema>;
  * is written straight into `Scene.beat`, where it becomes the instruction the scene is
  * written from.
  */
+/**
+ * The two halves of a beat that are not the beat.
+ *
+ * A beat says what happens. It has never said what must NOT — and the scene written from
+ * it is twenty to thirty times longer, so almost everything in the finished scene is
+ * something the beat did not ask for. That freedom is deliberate (`write-scene.md` says
+ * so outright) and it is also where the model runs ahead: resolving an argument the story
+ * needed to keep, ending a chapter two scenes early, letting someone learn a thing they
+ * were not supposed to learn yet.
+ *
+ * Patching that in the prompt has been tried three times in this repo — an episode
+ * opening with one chapter, a chapter opening with one scene, a character's personality
+ * asked for in both halves. Each fixed one symptom. A contract states the boundary for
+ * THIS scene, which is where the boundary actually differs.
+ *
+ * `forbidden` carries the weight. `continuity` overlaps what the Bible, the running
+ * summary, the previous scene and the retrieved facts already say — its value is that it
+ * names the one or two that matter HERE, out of everything else the model is holding.
+ *
+ * Both may be empty, and usually one of them is. A planner made to fill five slots
+ * invents four.
+ */
+const beatContract = {
+  forbidden: z
+    .array(z.string())
+    .max(4)
+    .describe(
+      "What must NOT happen in this scene, though the story might invite it: what stays " +
+        "unresolved, who does not find out yet, what the scene must not reach. Empty is a " +
+        "real answer",
+    ),
+  continuity: z
+    .array(z.string())
+    .max(4)
+    .describe(
+      "What to check this scene against before writing it: a state somebody is still in, " +
+        "something they still do not know, an object still where it was left. Only what " +
+        "THIS scene could get wrong. Empty is a real answer",
+    ),
+};
+
 export const sceneBeatSchema = z.object({
   beat: z
     .string()
@@ -259,6 +300,7 @@ export const sceneBeatSchema = z.object({
     .describe(
       "What happens in the scene, in one or two sentences. Events, not atmosphere and not prose",
     ),
+  ...beatContract,
 });
 
 export type SceneBeat = z.infer<typeof sceneBeatSchema>;
@@ -280,6 +322,7 @@ export const chapterOpeningSchema = z.object({
       "The chapter's FIRST beat: what happens in its opening scene, in one or two " +
         "sentences. Events, not atmosphere and not prose",
     ),
+  ...beatContract,
 });
 
 export type ChapterOpening = z.infer<typeof chapterOpeningSchema>;
@@ -384,6 +427,10 @@ export interface StoryContext {
   facts?: Array<{ episodeNumber: number; kind: string; text: string; similarity: number }>;
   /** Unresolved open threads — always loaded, whatever the similarity */
   openThreads?: OpenThread[];
+  /** What this scene must NOT do — part of the assignment, see `beatContract`. */
+  forbidden?: string[];
+  /** What to check this scene against before writing it. */
+  continuity?: string[];
   /**
    * What the story's prose has actually been doing — see `computeStyleStats`.
    *

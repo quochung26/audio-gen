@@ -260,7 +260,25 @@ export function renderContext(ctx: StoryContext): string {
   // deliberately, and the model follows whatever it read nearest the work.
   if (ctx.overrides) parts.push(ctx.overrides);
 
-  parts.push(`## The scene to write\n${ctx.beat}`);
+  // The contract is part of the beat, printed under it and never separated from it. Put
+  // anywhere else it reads as background — and the whole point of it is that it binds
+  // THIS scene, where a rule that holds for the whole story would be in the Bible.
+  const assignment = [`## The scene to write`, ctx.beat];
+  if (ctx.forbidden && ctx.forbidden.length > 0) {
+    assignment.push(
+      ``,
+      `Not in this scene — the story may invite these, and they belong later:`,
+      ...ctx.forbidden.map((f) => `- ${f}`),
+    );
+  }
+  if (ctx.continuity && ctx.continuity.length > 0) {
+    assignment.push(
+      ``,
+      `Still true when this scene opens. Check the scene against them before you finish:`,
+      ...ctx.continuity.map((f) => `- ${f}`),
+    );
+  }
+  parts.push(assignment.join("\n"));
 
   // Read TOGETHER with the beat, and winning where the two disagree.
   //

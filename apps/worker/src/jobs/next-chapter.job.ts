@@ -70,6 +70,7 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
   const ctx = { step: "NEXT_CHAPTER" as const, episodeId, promptId: prompt.id, params: prompt.params };
 
   let beat: string;
+  let contract = { forbidden: [] as string[], continuity: [] as string[] };
   let title: string;
   let tokensPerSec = 0;
   try {
@@ -109,6 +110,10 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
     });
 
     beat = checked.beat;
+    contract = {
+      forbidden: checked.result.data.forbidden,
+      continuity: checked.result.data.continuity,
+    };
     title = checked.result.data.title.trim();
     tokensPerSec = checked.result.tokensPerSec;
   } catch (err) {
@@ -140,6 +145,8 @@ export const nextChapterJob: JobHandler = async ({ job, setProgress }) => {
           {
             order: 1,
             beat,
+            forbidden: contract.forbidden,
+            continuity: contract.continuity,
             characterIds: namesMentionedIn(beat, roster.map((c) => c.name))
               .map((n) => idOfName.get(n))
               .filter((id): id is string => Boolean(id)),

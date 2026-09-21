@@ -538,6 +538,25 @@ model Scene {
 
   order Int
   beat  String
+
+  /// What this scene must NOT do, though the story might invite it.
+  ///
+  /// The beat says what happens; the scene written from it is twenty to thirty times
+  /// longer, so nearly everything in the finished scene is something the beat did not
+  /// ask for. That freedom is deliberate and it is also where the model runs ahead —
+  /// resolving what had to stay open, ending a chapter early, letting someone learn a
+  /// thing too soon. This is the boundary for THIS scene; a rule holding for the whole
+  /// story belongs in `WorldSetup.constraints`.
+  forbidden String[] @default([])
+
+  /// What to check this scene against before writing it — a state somebody is still in,
+  /// something they still do not know.
+  ///
+  /// Overlaps the Bible, the running summary and the retrieved facts on purpose. Its
+  /// value is naming the one or two that matter HERE, out of everything else the model
+  /// is holding at once.
+  continuity String[] @default([])
+
   /// The version actually used — always in the story's output language.
   text  String?
 

@@ -81,6 +81,7 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
   };
 
   let beat: string;
+  let contract = { forbidden: [] as string[], continuity: [] as string[] };
   try {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -101,7 +102,7 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
       position: positionNote(sceneNumber),
     });
 
-    ({ beat } = await beatWithRetry("next-scene", async (extra) => {
+    const checked = await beatWithRetry("next-scene", async (extra) => {
       const result = await getLlm().generateJson({
         model,
         system: withLanguage(toLanguage(episode.series.language)),
@@ -117,7 +118,15 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
       });
       await recordRun(ctx, result);
       return { beat: result.data.beat.trim(), result };
-    }));
+    });
+
+    beat = checked.beat;
+    // From the attempt that was ACCEPTED, not the first: a beat rewritten after the
+    // retry may forbid something different from the one that was thrown away.
+    contract = {
+      forbidden: checked.result.data.forbidden,
+      continuity: checked.result.data.continuity,
+    };
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
@@ -136,6 +145,8 @@ export const nextSceneJob: JobHandler = async ({ job, setProgress }) => {
       chapterId,
       order: sceneNumber,
       beat,
+      forbidden: contract.forbidden,
+      continuity: contract.continuity,
       // Who is in the scene follows the beat that named them — the same rule the
       // outline and SCENE_BEAT use, so the Story Bible spotlights the right people.
       characterIds: namesMentionedIn(beat, roster.map((c) => c.name))

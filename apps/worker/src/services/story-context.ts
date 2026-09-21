@@ -39,6 +39,10 @@ export interface SceneContext {
   /** Character overrides for this exact scene — chapter merged with scene, scene winning. */
   overrides: string;
   sceneNote: string;
+  /** What this scene must NOT do — part of the assignment, see Scene.forbidden. */
+  forbidden: string[];
+  /** What to check the scene against before writing it. */
+  continuity: string[];
   targetWords: number;
 }
 
@@ -205,6 +209,8 @@ export async function buildSceneContext(
     chapter: renderChapterSetup(chapterSetup),
     overrides: renderOverrides(mergeOverrides(chapterSetup.characters, sceneSetup.characters)),
     sceneNote: sceneSetup.note,
+    forbidden: scene.forbidden,
+    continuity: scene.continuity,
     // Fixed, not the episode's target shared out among its scenes. That division held
     // while an episode was outlined whole; chapters arrive one at a time now, so it
     // moved with every chapter added — the first scenes of an episode were asked for

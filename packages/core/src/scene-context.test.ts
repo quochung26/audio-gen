@@ -138,3 +138,38 @@ describe("what the prose has been doing", () => {
     expect(renderContext(base)).not.toContain("prose has been doing");
   });
 });
+
+describe("the beat's contract", () => {
+  const contract = {
+    forbidden: ["Tài must not learn who bought the ticket"],
+    continuity: ["Her left hand is still bandaged"],
+  };
+
+  // It binds THIS scene. Printed anywhere else it reads as background, and a rule that
+  // held for the whole story would be in the Bible instead.
+  it("prints under the beat, in the same block", () => {
+    const t = renderContext({ ...base, ...contract });
+    const assignment = t.slice(t.indexOf("## The scene to write"));
+    const nextBlock = assignment.indexOf("\n\n##");
+    const block = nextBlock < 0 ? assignment : assignment.slice(0, nextBlock);
+    expect(block).toContain(contract.forbidden[0]);
+    expect(block).toContain(contract.continuity[0]);
+  });
+
+  it("says the forbidden things belong later rather than never", () => {
+    // "Never" is the world setup's job. This is about ordering.
+    expect(renderContext({ ...base, ...contract })).toMatch(/belong later/);
+  });
+
+  // Usually one of the two is empty, and a heading with nothing under it reads as
+  // truncated context.
+  it("leaves out whichever half is empty", () => {
+    const t = renderContext({ ...base, forbidden: contract.forbidden, continuity: [] });
+    expect(t).toContain("Not in this scene");
+    expect(t).not.toContain("Still true when this scene opens");
+  });
+
+  it("changes nothing at all when both are empty", () => {
+    expect(renderContext({ ...base, forbidden: [], continuity: [] })).toBe(renderContext(base));
+  });
+});

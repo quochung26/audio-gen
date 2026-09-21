@@ -28,6 +28,9 @@ export interface SceneInputs {
     appearance?: string | null;
   }>;
   beat: string;
+  /** The beat's contract — as much part of the assignment as the beat itself. */
+  forbidden: string[];
+  continuity: string[];
   chapterSetup: unknown;
   sceneSetup: unknown;
   /** The scene immediately before this one in reading order, in full. */
@@ -72,6 +75,8 @@ export function sceneInputDigest(inputs: SceneInputs): string {
     bible: inputs.bible ?? null,
     cast,
     beat: inputs.beat.trim(),
+    forbidden: inputs.forbidden.map((f) => f.trim()).filter(Boolean),
+    continuity: inputs.continuity.map((f) => f.trim()).filter(Boolean),
     chapterSetup: inputs.chapterSetup ?? null,
     sceneSetup: inputs.sceneSetup ?? null,
     previousText: (inputs.previousText ?? "").trim(),

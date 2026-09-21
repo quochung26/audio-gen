@@ -82,6 +82,10 @@ interface Scene {
    * setups, the scene before it, or the WRITE_SCENE prompt. See Scene.inputDigest.
    */
   stale: boolean;
+  /** What this scene must NOT do — written by the planner, editable. */
+  forbidden: string[];
+  /** What to check the scene against before writing it. */
+  continuity: string[];
   /**
    * What the mechanical checks found in this scene — facts, not a verdict. Null means
    * the scene predates the checks, which is not the same as clean.
@@ -644,6 +648,27 @@ export function Episode() {
                             label="Beat — what happens in the scene"
                             rows={2}
                             defaultValue={scene.beat}
+                          />
+                          {/* Under the beat, because they are part of the assignment
+                              rather than notes about it — the prompt prints them in the
+                              same place, directly beneath it. */}
+                          <Field
+                            key={`forbidden-${scene.beat}`}
+                            name="forbidden"
+                            label="Not in this scene"
+                            hint="One per line. What the story might invite that belongs later: what stays unresolved, who does not find out yet. Written by the planner; yours replaces it."
+                            placeholder={"Tài must not learn who bought the ticket\nThe argument does not get settled here"}
+                            rows={2}
+                            defaultValue={(scene.forbidden ?? []).join("\n")}
+                          />
+                          <Field
+                            key={`continuity-${scene.beat}`}
+                            name="continuity"
+                            label="Still true when this scene opens"
+                            hint="One per line. Only what THIS scene could get wrong — a state somebody is still in, something they still do not know."
+                            placeholder={"Her left hand is still bandaged\nThe bus has not been repaired"}
+                            rows={2}
+                            defaultValue={(scene.continuity ?? []).join("\n")}
                           />
                           <ScenePeoplePicker
                             characters={ep.series.characters}

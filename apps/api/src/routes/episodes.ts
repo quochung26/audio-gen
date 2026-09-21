@@ -675,6 +675,10 @@ episodes.put("/:id/scenes/:sceneId", async (c) => {
     await keepRevision(c.req.param("sceneId"), data.text as string);
   }
   if ("beat" in body) data.beat = field(body, "beat");
+  // The beat's contract — see Scene.forbidden. Sent by the same form as the beat, and
+  // written only when that form was the one submitted.
+  if ("forbidden" in body) data.forbidden = splitLines(body.forbidden);
+  if ("continuity" in body) data.continuity = splitLines(body.continuity);
   // The running summary this scene left behind. Editable because it is the single
   // thing every LATER scene reads about the story, and a model that folded it wrong
   // — dropped a death, invented a reconciliation — poisons every scene after this

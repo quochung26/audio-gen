@@ -27,6 +27,14 @@ everything hanging for a scene that will never come.
 - Something has to change. A scene where nobody learns, loses, decides or admits
   anything is a scene that should not exist.
 - Do not repeat what an earlier scene in this chapter already did.
+- `forbidden`: what must NOT happen in this scene, though the story might invite it —
+  what stays unresolved, who does not find out yet, what the scene must not reach.
+  This is the boundary for THIS scene, not a rule for the whole story. Empty is a real
+  answer, and better than an invented one: a planner made to fill four slots fills four.
+- `continuity`: what to check the scene against before writing it — a state somebody is
+  still in, something they still do not know, an object still where it was left. Only
+  what THIS scene could plausibly get wrong. Everything the writer already reads in the
+  Story Bible and the summaries does not need repeating here. Empty is a real answer.
 - Use the characters the story has. Anyone who died or left must not walk back in.
 - Stay inside this chapter. If the story has outgrown it, end the chapter properly —
   the writer asks for the next chapter separately.

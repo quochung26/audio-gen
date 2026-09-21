@@ -442,6 +442,24 @@ model Scene {
 
   order Int
   beat  String
+
+  /// Cảnh này KHÔNG được làm gì, dù mạch truyện có mời gọi.
+  ///
+  /// Beat nói chuyện gì xảy ra; cảnh viết ra từ nó dài gấp hai ba chục lần, nên gần như
+  /// mọi thứ trong cảnh hoàn chỉnh đều là thứ beat không yêu cầu. Tự do đó là cố ý, và
+  /// cũng chính là chỗ model chạy quá đà — giải quyết nốt cái đáng lẽ phải để ngỏ, kết
+  /// chương sớm hai cảnh, cho ai đó biết một điều chưa đến lúc biết. Đây là ranh giới
+  /// của RIÊNG cảnh này; luật đúng cho cả truyện thì nằm ở `WorldSetup.constraints`.
+  forbidden String[] @default([])
+
+  /// Cần đối chiếu cảnh này với những gì trước khi viết — trạng thái ai đó còn đang mang,
+  /// điều họ vẫn chưa biết.
+  ///
+  /// Có chồng lấn với Bible, đoạn cuộn dồn và các fact truy hồi, một cách cố ý. Giá trị
+  /// của nó là chỉ ra một hai điều đáng kể Ở ĐÂY, giữa tất cả những thứ khác model đang
+  /// giữ cùng lúc.
+  continuity String[] @default([])
+
   text  String?
 
   /// Băm của mọi thứ cảnh này được viết RA TỪ — Bible, dàn nhân vật, beat, hai

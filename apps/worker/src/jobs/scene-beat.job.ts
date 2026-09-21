@@ -80,6 +80,7 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
   };
 
   let beat: string;
+  let contract = { forbidden: [] as string[], continuity: [] as string[] };
   try {
     const model = await resolveModel({
       requested: typeof job.data.model === "string" ? job.data.model : null,
@@ -99,7 +100,7 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
     });
 
     // Each attempt records its own run: a rejected beat costs tokens like any other.
-    ({ beat } = await beatWithRetry("scene-beat", async (extra) => {
+    const checked = await beatWithRetry("scene-beat", async (extra) => {
       const result = await getLlm().generateJson({
         model,
         system: withLanguage(toLanguage(episode.series.language)),
@@ -115,7 +116,13 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
       });
       await recordRun(ctx, result);
       return { beat: result.data.beat.trim(), result };
-    }));
+    });
+
+    beat = checked.beat;
+    contract = {
+      forbidden: checked.result.data.forbidden,
+      continuity: checked.result.data.continuity,
+    };
   } catch (err) {
     await recordFailure(ctx, (err as Error).message);
     throw err;
@@ -131,6 +138,10 @@ export const sceneBeatJob: JobHandler = async ({ job, setProgress }) => {
     where: { id: sceneId },
     data: {
       beat,
+      // Replaced wholesale with the beat. A boundary written for the beat that was
+      // turned down does not apply to the one replacing it.
+      forbidden: contract.forbidden,
+      continuity: contract.continuity,
       characterIds: namesMentionedIn(beat, roster.map((c) => c.name))
         .map((n) => idOfName.get(n))
         .filter((id): id is string => Boolean(id)),

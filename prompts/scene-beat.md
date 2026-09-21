@@ -30,6 +30,14 @@ Bad:    Thiện lao tới. "Em đã làm gì?" anh hét lên, mặt trắng bệ
   them somewhere, but the scene is these people's.
 - Use the characters the story has. Anyone who died or left must not walk back in.
 - Do not repeat what another beat in this chapter already does.
+- `forbidden`: what must NOT happen in this scene, though the story might invite it —
+  what stays unresolved, who does not find out yet, what the scene must not reach.
+  This is the boundary for THIS scene, not a rule for the whole story. Empty is a real
+  answer, and better than an invented one: a planner made to fill four slots fills four.
+- `continuity`: what to check the scene against before writing it — a state somebody is
+  still in, something they still do not know, an object still where it was left. Only
+  what THIS scene could plausibly get wrong. Everything the writer already reads in the
+  Story Bible and the summaries does not need repeating here. Empty is a real answer.
 
 ## The series
 

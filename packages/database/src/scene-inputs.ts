@@ -47,6 +47,8 @@ export async function episodeSceneMaterial(episodeId: string): Promise<Map<strin
     select: {
       id: true,
       beat: true,
+      forbidden: true,
+      continuity: true,
       setup: true,
       text: true,
       storySoFar: true,
@@ -77,6 +79,8 @@ export async function episodeSceneMaterial(episodeId: string): Promise<Map<strin
       bible: episode.series.storyBible,
       cast: episode.series.characters,
       beat: scene.beat,
+      forbidden: scene.forbidden,
+      continuity: scene.continuity,
       chapterSetup: scene.chapter.setup,
       sceneSetup: scene.setup,
       previousText: previous?.text ?? null,

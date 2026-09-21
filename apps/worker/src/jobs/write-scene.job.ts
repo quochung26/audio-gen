@@ -118,6 +118,8 @@ export const writeSceneJob: JobHandler = async ({ job, setProgress }) => {
             chapter: context.chapter,
             overrides: context.overrides,
             sceneNote: context.sceneNote,
+            forbidden: context.forbidden,
+            continuity: context.continuity,
             beat: scene.beat,
             targetWords: context.targetWords,
           }),
