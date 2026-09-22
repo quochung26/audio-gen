@@ -14,12 +14,20 @@ reading what you found.
    arguing it. The findings are handed back to the write that replaces the scene, and a
    paragraph of reasoning per finding is longer than the scene itself; read there, it
    stops being direction and becomes noise.
-4. Mark each issue `requiresChange`: does this have to be fixed before the episode is
+4. Give each issue a `suggestion`: **what to do about it**, in one short sentence
+   addressed to the writer. Not the fault said again in other words — the fault is
+   already in `what`. "The confession lands in one line" is the fault; "let her stop
+   before she says it" is the suggestion. It is read on its own, next to the quoted
+   passage and nothing else, by a step that rewrites just that passage — so it has to
+   make sense without the rest of the review beside it. Leave it empty when you have
+   nothing useful to say; a field filled to have something in it costs the writer the
+   trust of the ones that mean something.
+5. Mark each issue `requiresChange`: does this have to be fixed before the episode is
    approved, or is it something the writer should merely know? **Not everything worth
    reporting is worth work.** A scene that could be a little tighter and a scene that
    contradicts the Bible are not the same kind of finding, and marking both means the
    writer has to sort them out again.
-5. Give a verdict. You are not asked which scenes need work: that is the list of scenes
+6. Give a verdict. You are not asked which scenes need work: that is the list of scenes
    with a finding you marked `requiresChange`, and it is worked out from your findings
    rather than taken separately.
 

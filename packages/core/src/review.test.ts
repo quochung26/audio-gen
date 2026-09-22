@@ -14,9 +14,9 @@ import {
 const base: Review = {
   scores: { consistency: 80, character: 72, pacing: 45, continuity: 88, threads: 30, hook: 61, prose: 55 },
   issues: [
-    { dimension: "pacing", severity: "error", scene: 4, what: "Scene 4 is padded", evidence: "…", requiresChange: true },
-    { dimension: "prose", severity: "warning", scene: 0, what: "Sentences run short", evidence: "…", requiresChange: false },
-    { dimension: "threads", severity: "critical", scene: 0, what: "No debt moved", evidence: "…", requiresChange: true },
+    { dimension: "pacing", severity: "error", scene: 4, what: "Scene 4 is padded", evidence: "…", suggestion: "", requiresChange: true },
+    { dimension: "prose", severity: "warning", scene: 0, what: "Sentences run short", evidence: "…", suggestion: "", requiresChange: false },
+    { dimension: "threads", severity: "critical", scene: 0, what: "No debt moved", evidence: "…", suggestion: "", requiresChange: true },
   ],
   contractBreaks: [{ scene: 2, broke: "the argument does not get settled here", evidence: "…" }],
   verdict: "polish",
@@ -94,6 +94,7 @@ describe("sceneFindings", () => {
         scene: 3,
         what: `thing ${i}`,
         evidence: "…",
+        suggestion: "",
         requiresChange: true,
       })),
     };
@@ -106,9 +107,9 @@ describe("sceneFindings", () => {
       ...base,
       contractBreaks: [{ scene: 3, broke: "not yet", evidence: "…" }],
       issues: [
-        { dimension: "prose", severity: "warning", scene: 3, what: "W", evidence: "…", requiresChange: true },
-        { dimension: "pacing", severity: "critical", scene: 3, what: "C", evidence: "…", requiresChange: true },
-        { dimension: "hook", severity: "error", scene: 3, what: "E", evidence: "…", requiresChange: true },
+        { dimension: "prose", severity: "warning", scene: 3, what: "W", evidence: "…", suggestion: "", requiresChange: true },
+        { dimension: "pacing", severity: "critical", scene: 3, what: "C", evidence: "…", suggestion: "", requiresChange: true },
+        { dimension: "hook", severity: "error", scene: 3, what: "E", evidence: "…", suggestion: "", requiresChange: true },
       ],
     };
     const found = sceneFindings(mixed, 3);
@@ -116,6 +117,34 @@ describe("sceneFindings", () => {
     expect(found[1]).toContain("pacing: C");
     expect(found[2]).toContain("hook: E");
     expect(found[3]).toContain("prose: W");
+  });
+
+  it("carries the suggestion, which is the only part that says what to DO", () => {
+    // `what` and `evidence` between them say where the fault is; neither says what a
+    // fix looks like. Revising one passage is given a fragment and an instruction, and
+    // this is the instruction.
+    const withFix: Review = {
+      ...base,
+      contractBreaks: [],
+      issues: [
+        {
+          dimension: "pacing",
+          severity: "error",
+          scene: 3,
+          what: "The confession lands in one line",
+          evidence: "…",
+          suggestion: "Let her stop before she says it",
+          requiresChange: true,
+        },
+      ],
+    };
+    expect(sceneFindings(withFix, 3)[0]).toContain("Let her stop before she says it");
+  });
+
+  it("leaves the dash out when there is no suggestion", () => {
+    // Empty is a real answer — a review made to fill the field fills it.
+    const found = sceneFindings(base, 4)[0]!;
+    expect(found).toBe('pacing: Scene 4 is padded — "…"');
   });
 
   it("carries a broken contract, which is the one finding that was not taste", () => {

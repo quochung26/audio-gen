@@ -70,6 +70,22 @@ export const reviewSchema = z.object({
           .string()
           .min(1)
           .describe("A SHORT quote from the draft, or the exact numbers, showing it"),
+        /**
+         * What to do about it — ainovel-cli's `Suggestion`, and the field this review
+         * was missing.
+         *
+         * `what` and `evidence` between them say where the fault is; neither says what
+         * a fix would look like. A rewrite of the whole scene can work that out, having
+         * the beat and the Bible in front of it. Revising ONE PASSAGE cannot: that step
+         * is given a fragment and an instruction, and without this the instruction had
+         * to be typed by hand every time.
+         */
+        suggestion: z
+          .string()
+          .describe(
+            "What to do about it, in one short sentence addressed to the writer. Not a " +
+              "restatement of the fault. Empty when there is nothing useful to say",
+          ),
         requiresChange: z
           .boolean()
           .describe(
@@ -255,7 +271,15 @@ export function sceneFindings(review: Review, sceneNumber: number, take = 4): st
         Number(b.requiresChange) - Number(a.requiresChange) ||
         rank[a.severity] - rank[b.severity],
     );
-  for (const i of mine) out.push(`${i.dimension}: ${i.what} — "${i.evidence}"`);
+  // The suggestion goes with it where there is one. ainovel-cli hands its writer the
+  // description and the suggestion and drops the quote entirely, which is coherent for
+  // it — the writer has the whole chapter in front of it, so a quote locates nothing it
+  // cannot already see. The same is true here, and the quote is kept anyway because it
+  // is the one part of a finding that can be checked against the draft.
+  for (const i of mine) {
+    const fix = i.suggestion.trim();
+    out.push(`${i.dimension}: ${i.what}${fix ? ` — ${fix}` : ""} — "${i.evidence}"`);
+  }
 
   return out.slice(0, take);
 }
