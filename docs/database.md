@@ -890,6 +890,46 @@ model BatchRun {
 /// **Nó không quyết định gì.** Không chỗ nào đọc `verdict` để xếp việc, đổi trạng thái hay
 /// duyệt bản nháp — người đọc rồi bấm những nút vốn đã có sẵn. Máy vừa phán chất lượng vừa
 /// tự xếp việc viết lại là đã âm thầm gỡ mất cái cổng duy nhất của cả dây chuyền.
+model EpisodeReview {
+  id        String  @id @default(cuid())
+  episodeId String
+  episode   Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  /// accept | polish | rewrite. Lời khuyên cho người đọc, hệ thống không hành động theo.
+  verdict String
+  summary String
+
+  /// Mỗi chiều một điểm 0-100, khoá theo tên. Xem REVIEW_DIMENSIONS trong @audio/core.
+  scores Json
+  /// Mỗi lỗi đều phải kèm câu trích nguyên văn từ bản thảo, và `suggestion` nói nên làm
+  /// gì với nó. Lỗi không ai kiểm chứng được chỉ là cảm giác, mà cảm giác bắt người viết
+  /// đọc lại cả tiếng đồng hồ để rồi không thấy gì. Trích đúng nguyên văn thì tìm được
+  /// trong bản thảo — đó là điều kiện để nút "sửa đoạn này" hoạt động.
+  issues Json
+  /// Những cảnh làm đúng cái mà beat đã cấm. Phần duy nhất không phải chuyện gu.
+  contractBreaks Json
+  /// Các cảnh có lỗi nói rằng chúng cần sửa.
+  ///
+  /// Suy ra từ các lỗi đánh dấu `requiresChange` cộng mọi contract break, không bao giờ
+  /// hỏi model như một câu hỏi riêng — hỏi riêng thì nó có thể mâu thuẫn với chính đống
+  /// lỗi bên dưới, và lúc đó một trong hai sai mà không có gì nói được là cái nào.
+  scenes Int[] @default([])
+
+  /// Đặt khi verdict mâu thuẫn với chính các lỗi của nó và đã bị phân xử theo chúng.
+  ///
+  /// Ghi lại chứ không giấu: một câu trả lời đã được sửa mà không nói gì về việc bị sửa
+  /// thì không phân biệt được với câu vốn đã đúng. Xem `settleReview`.
+  correction String?
+
+  /// Đã thẩm duyệt bản nháp nào. Bản thẩm duyệt văn đã bị viết lại thì đang mô tả một
+  /// thứ không còn tồn tại — cùng câu hỏi mà `Scene.inputDigest` trả lời ở tầng dưới.
+  draftDigest String?
+
+  createdAt DateTime @default(now())
+
+  @@index([episodeId, createdAt])
+}
+
 model RenderJob {
   id        String   @id @default(cuid())
   episodeId String?
