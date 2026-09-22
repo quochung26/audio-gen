@@ -120,6 +120,14 @@ interface ReviewIssue {
   scene: number;
   what: string;
   evidence: string;
+  /**
+   * What to do about it. Empty is a real answer — see reviewSchema.
+   *
+   * Optional on the wire, not because a review may omit it but because the reviews
+   * already stored were made before it existed. The API hands the row over as it is,
+   * so the page has to survive one.
+   */
+  suggestion?: string;
   /** Whether it has to be fixed before approving. Not everything reported is work. */
   requiresChange: boolean;
 }
@@ -490,7 +498,11 @@ export function Episode() {
                     )}
                     {/* Then what a reader found, directly above the prose it is about.
                         Longest of the three bands, so it sits closest to it. */}
-                    <SceneFindings list={found.byScene.get(scene.id) ?? []} />
+                    <SceneFindings
+                      list={found.byScene.get(scene.id) ?? []}
+                      text={scene.text}
+                      revisePath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
+                    />
                     {/* An unwritten scene gets one thin line rather than the full
                         prose band. Three empty bands the height of a paragraph was
                         most of what a freshly outlined chapter showed. */}
@@ -1025,6 +1037,53 @@ export function Episode() {
   );
 }
 
+/**
+ * Where a finding's quote is in the scene, if it is there at all.
+ *
+ * Verbatim first. Failing that, once more with a pair of outer quote marks removed:
+ * `prompts/review.md` forbids adding them and the model mostly obeys now, but a passage
+ * of narration that ENDS on a line of dialogue still comes back wrapped. Measured on the
+ * last read, that is the only way a quote misses any more — 2 of 11, the same passage
+ * twice, its interior matching the draft character for character.
+ *
+ * Stripping is tried ONLY when the raw string was not found, and the result is used only
+ * when the stripped one is: a quote that already matched is never touched, and a quote
+ * that is simply wrong does not get mangled into a near-miss.
+ */
+function locate(text: string, evidence: string): { passage: string; at: number } | null {
+  const raw = evidence.trim();
+  const at = text.indexOf(raw);
+  if (at >= 0) return { passage: raw, at };
+
+  const inner = raw.replace(/^["“”']\s*/, "").replace(/\s*["“”']$/, "");
+  if (inner === raw) return null;
+  const innerAt = text.indexOf(inner);
+  return innerAt >= 0 ? { passage: inner, at: innerAt } : null;
+}
+
+/**
+ * The instruction sent with a passage, built from the findings against it.
+ *
+ * A broken contract always goes in, whatever else is there: it is the one finding that
+ * is not a matter of taste, and a rewrite that fixes the pacing while going past the
+ * same forbidden line has not fixed the passage.
+ *
+ * For the rest, the suggestions where there are any, since those already say what to
+ * do. Where there are none it falls back to the faults, which at least say what is
+ * wrong — worse direction than a suggestion, and better than an empty box.
+ */
+function reviseNote(items: Finding[]): string {
+  const parts = items
+    .filter((f) => f.kind === "break")
+    .map((f) => (f.kind === "break" ? `Do not go past what the beat forbade: ${f.broke}.` : ""));
+
+  const issues = items.filter((f) => f.kind === "issue");
+  const fixes = issues.map((f) => (f.kind === "issue" ? (f.suggestion ?? "").trim() : "")).filter(Boolean);
+  parts.push(...(fixes.length > 0 ? fixes : issues.map((f) => (f.kind === "issue" ? f.what : ""))));
+
+  return parts.filter(Boolean).join(" ");
+}
+
 /** How many of a scene's findings are work rather than something to know. */
 function toFix(list: Finding[] | undefined): number {
   return (list ?? []).filter((f) => f.kind === "break" || f.requiresChange).length;
@@ -1039,7 +1098,7 @@ function words(text: string): number {
  * One thing the review said about one scene — a contract break or an issue, flattened
  * so that the two can be shown in a single ordered list.
  */
-type Finding =
+type Finding = (
   | { kind: "break"; broke: string; evidence: string }
   | {
       kind: "issue";
@@ -1048,7 +1107,12 @@ type Finding =
       requiresChange: boolean;
       what: string;
       evidence: string;
-    };
+      suggestion?: string;
+    }
+) & {
+  /** Set when the review named a scene its own quote is not in. See `findingsByScene`. */
+  movedFrom?: number;
+};
 
 /**
  * The review's findings, filed under the scene each one is about.
@@ -1072,19 +1136,43 @@ function findingsByScene(
   if (!review) return { byScene, episode, orphans };
 
   const inOrder = chapters.flatMap((ch) => ch.scenes);
+
+  /**
+   * The scene a finding is really about, when the number it was given is wrong.
+   *
+   * The quote decides. A finding whose passage is not in the scene it names, but is in
+   * exactly one other, belongs to that one — the same reasoning as `settleReview`, where
+   * the findings outrank the verdict: between a claim that can be checked against the
+   * draft and a number that cannot, the checkable one wins.
+   *
+   * Not a hypothetical. The review that prompted this named scene 1 for five of its
+   * seven findings while every passage they quoted was in scene 2, because the draft the
+   * review reads had no scene boundaries in it at all — fixed in review.job.ts, which
+   * stops it happening again but does nothing for the reviews already stored.
+   *
+   * Only when EXACTLY one scene contains it. Two scenes with the same sentence is a
+   * different fault, and picking one of them would be a guess dressed as a correction.
+   */
+  function whereItReallyIs(stated: Scene | undefined, evidence: string): Scene | undefined {
+    if (stated?.text && locate(stated.text, evidence)) return stated;
+    const found = inOrder.filter((sc) => sc.text && locate(sc.text, evidence));
+    return found.length === 1 ? found[0] : stated;
+  }
+
   function file(n: number, f: Finding) {
     // Zero is the review's way of saying "the episode, not a scene in it".
     if (n === 0 && f.kind === "issue") {
       episode.push(f);
       return;
     }
-    const scene = inOrder[n - 1];
+    const stated = inOrder[n - 1];
+    const scene = whereItReallyIs(stated, f.evidence);
     if (!scene) {
       orphans.push(f);
       return;
     }
     const list = byScene.get(scene.id) ?? [];
-    list.push(f);
+    list.push(scene === stated ? f : { ...f, movedFrom: n });
     byScene.set(scene.id, list);
   }
 
@@ -1122,11 +1210,21 @@ const VERDICT_TONE: Record<string, string> = {
  * scrolled, expanded, counted scenes, and by then had lost the wording of the finding
  * they went looking for.
  */
-function SceneFindings({ list }: { list: Finding[] }) {
+function SceneFindings({
+  list,
+  text,
+  revisePath,
+}: {
+  list: Finding[];
+  /** The scene as stored, so a quote can be located in it. */
+  text: string | null;
+  /** POST target for revising one passage of this scene. */
+  revisePath: string;
+}) {
   if (list.length === 0) return null;
   return (
     <div className="border-b border-neutral-900 bg-neutral-950/40 px-4 py-2.5">
-      <FindingList list={list} />
+      <FindingList list={list} text={text} revisePath={revisePath} />
     </div>
   );
 }
@@ -1139,7 +1237,15 @@ function SceneFindings({ list }: { list: Finding[] }) {
  * draft's own marks and narration arrives with none, which is right both times — so the
  * rule is that the border separates the quote and nothing is added to the text.
  */
-function FindingList({ list }: { list: Finding[] }) {
+function FindingList({
+  list,
+  text,
+  revisePath,
+}: {
+  list: Finding[];
+  text?: string | null;
+  revisePath?: string;
+}) {
   // Findings that quote the same passage are shown together, under one copy of it.
   //
   // Not a saving of space so much as the truth about the draft: one passage usually
@@ -1182,9 +1288,47 @@ function FindingList({ list }: { list: Finding[] }) {
                   <span className="text-neutral-300">{f.what}</span>
                 </>
               )}
+              {/* Said, not done quietly. A finding moved without a word looks like one
+                  the review filed correctly, and nobody reading the two together could
+                  tell which of them had been wrong. */}
+              {f.movedFrom !== undefined && (
+                <span className="text-neutral-600"> (the review said scene {f.movedFrom})</span>
+              )}
             </p>
           ))}
-          <p className="mt-1 border-l-2 border-neutral-800 pl-2 text-neutral-500">{g.evidence}</p>
+          {/* What to do about it, told apart from what is wrong with it. ainovel-cli
+              prints this the same way, one line under the finding behind an arrow. */}
+          {g.items.some((f) => f.kind === "issue" && (f.suggestion ?? "").trim()) && (
+            <p className="text-blue-300/80">
+              {g.items
+                .map((f) => (f.kind === "issue" ? (f.suggestion ?? "").trim() : ""))
+                .filter(Boolean)
+                .join(" ")}
+            </p>
+          )}
+          {/* The located passage where it was found, so what is shown is what would be
+              sent — and so a quote the model wrapped is shown as the draft has it. */}
+          <p className="mt-1 border-l-2 border-neutral-800 pl-2 text-neutral-500">
+            {(text ? locate(text, g.evidence) : null)?.passage ?? g.evidence}
+          </p>
+          {/* The whole reason the review is made to quote verbatim: a quote that is in
+              the draft can be handed straight to the step that rewrites one passage,
+              with the suggestions as its instruction. Offered only when the quote is
+              actually there — a paraphrase would send the job looking for nothing. */}
+          {(() => {
+            const found = text && revisePath ? locate(text, g.evidence) : null;
+            if (!found) return null;
+            const note = reviseNote(g.items);
+            return (
+              <ActionButton
+                path={revisePath!}
+                body={{ passage: found.passage, at: String(found.at), note }}
+                confirmText={`Rewrite just this passage?\n\n${found.passage}\n\nInstruction:\n${note}`}
+              >
+                fix this passage
+              </ActionButton>
+            );
+          })()}
         </li>
       ))}
     </ul>

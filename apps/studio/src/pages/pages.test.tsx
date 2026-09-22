@@ -1129,6 +1129,7 @@ describe("a review's findings are shown against the scene they are about", () =>
     scene,
     what,
     evidence: `quote for ${scene}`,
+    suggestion: "",
     requiresChange: true,
   });
 
@@ -1169,6 +1170,107 @@ describe("a review's findings are shown against the scene they are about", () =>
     // And the one copy sits under BOTH of them, not between them.
     expect(text.indexOf("lỗi một")).toBeLessThan(text.indexOf("lỗi hai"));
     expect(text.indexOf("lỗi hai")).toBeLessThan(text.indexOf("quote for 1"));
+  });
+
+  it("offers to fix the passage only when the quote is REALLY in the scene", async () => {
+    // The point of making the review quote verbatim. A quote that is in the draft can
+    // be handed to the step that rewrites one passage; a paraphrased one would send
+    // that job looking for text nobody wrote.
+    const body = episodeWithReview([
+      { ...issue(1, "hỏng chỗ này"), evidence: "một" },
+      { ...issue(2, "hỏng chỗ kia"), evidence: "không có trong văn" },
+    ]);
+    const { container } = renderEpisode(body);
+    await waitFor(() => expect(screen.getByText(/hỏng chỗ kia/)).toBeDefined());
+
+    // Scene 1.1's text IS "một".
+    expect(card(container, "Scene 1.1").textContent).toContain("fix this passage");
+    // Scene 1.2's text is "hai", and the quote is nowhere in it.
+    expect(card(container, "Scene 1.2").textContent).not.toContain("fix this passage");
+  });
+
+  it("a broken contract goes into the instruction even when a suggestion exists", async () => {
+    // The one finding that is not a matter of taste. A rewrite that fixes the pacing
+    // while going past the same forbidden line has not fixed the passage.
+    const { container } = renderEpisode(
+      episodeWithReview(
+        [{ ...issue(1, "nhịp gấp"), evidence: "một", suggestion: "Chậm lại" }],
+        [{ scene: 1, broke: "không được lộ danh tính", evidence: "một" }],
+      ),
+    );
+    await waitFor(() => expect(screen.getByText(/nhịp gấp/)).toBeDefined());
+
+    const confirms: string[] = [];
+    vi.stubGlobal("confirm", vi.fn((msg: string) => (confirms.push(msg), false)));
+    const button = [...card(container, "Scene 1.1").querySelectorAll("button")].find(
+      (b) => b.textContent === "fix this passage",
+    )!;
+    fireEvent.click(button);
+
+    expect(confirms[0]).toContain("Chậm lại");
+    expect(confirms[0]).toContain("không được lộ danh tính");
+  });
+
+  it("finds a quote the model wrapped in quote marks of its own", async () => {
+    // The last measured failure: narration that ends on a line of dialogue comes back
+    // with a pair of marks round the whole thing, its interior matching the draft
+    // character for character. Refusing it would lose a finding over punctuation.
+    const { container } = renderEpisode(
+      episodeWithReview([{ ...issue(1, "thừa ngoặc"), evidence: "\u201cmột\u201d" }]),
+    );
+    await waitFor(() => expect(screen.getByText(/thừa ngoặc/)).toBeDefined());
+    expect(card(container, "Scene 1.1").textContent).toContain("fix this passage");
+  });
+
+  it("does NOT strip a quote that already matched, nor rescue one that is simply wrong", async () => {
+    const { container } = renderEpisode(
+      episodeWithReview([
+        { ...issue(1, "đúng sẵn"), evidence: "một" },
+        { ...issue(2, "bịa ra"), evidence: "\u201ckhông hề có\u201d" },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByText(/bịa ra/)).toBeDefined());
+    expect(card(container, "Scene 1.1").textContent).toContain("fix this passage");
+    expect(card(container, "Scene 1.2").textContent).not.toContain("fix this passage");
+  });
+
+  it("a finding follows its own quote when the review names the wrong scene", async () => {
+    // Measured, not imagined: one read named scene 1 for five of seven findings while
+    // every passage they quoted was in scene 2. Between a claim that can be checked
+    // against the draft and a number that cannot, the checkable one wins.
+    const { container } = renderEpisode(
+      episodeWithReview([{ ...issue(1, "thật ra ở cảnh sau"), evidence: "hai" }]),
+    );
+    await waitFor(() => expect(screen.getByText(/thật ra ở cảnh sau/)).toBeDefined());
+
+    expect(card(container, "Scene 1.2").textContent).toContain("thật ra ở cảnh sau");
+    expect(card(container, "Scene 1.1").textContent).not.toContain("thật ra ở cảnh sau");
+    // And it says so, rather than moving it quietly.
+    expect(card(container, "Scene 1.2").textContent).toContain("the review said scene 1");
+  });
+
+  it("leaves a finding where the review put it when the quote is in two scenes", async () => {
+    // Picking one of them would be a guess dressed up as a correction.
+    const body = episodeWithReview([{ ...issue(1, "mơ hồ"), evidence: "chung" }]);
+    for (const ch of (body as { chapters: { scenes: { text: string }[] }[] }).chapters) {
+      for (const sc of ch.scenes) sc.text = "chung";
+    }
+    const { container } = renderEpisode(body);
+    await waitFor(() => expect(screen.getByText(/mơ hồ/)).toBeDefined());
+    expect(card(container, "Scene 1.1").textContent).toContain("mơ hồ");
+    expect(card(container, "Scene 1.1").textContent).not.toContain("the review said");
+  });
+
+  it("shows what to DO about it, not only what is wrong", async () => {
+    const { container } = renderEpisode(
+      episodeWithReview([
+        { ...issue(1, "lời thú nhận gọn quá"), suggestion: "Để nàng dừng lại trước khi nói" },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByText(/lời thú nhận gọn quá/)).toBeDefined());
+    expect(card(container, "Scene 1.1").textContent).toContain(
+      "Để nàng dừng lại trước khi nói",
+    );
   });
 
   it("a scene number the episode does not have is SAID, not dropped", async () => {
