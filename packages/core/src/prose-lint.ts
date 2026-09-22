@@ -20,7 +20,8 @@ export type ViolationRule =
   | "self_duplication"
   | "copied_previous_scene"
   | "broken_word"
-  | "markdown_residue";
+  | "markdown_residue"
+  | "invisible_characters";
 
 /**
  * A type alias rather than an interface, deliberately: an interface has no implicit index
@@ -49,11 +50,53 @@ export function lintProse(
   opts: { language: string; previous?: string | null },
 ): Violation[] {
   return [
+    ...invisibleCharacters(text),
     ...markdownResidue(text),
     ...brokenWords(text),
     ...selfDuplication(text),
     ...copiedFromPrevious(text, opts.previous ?? null),
     ...englishResidue(text, opts.language),
+  ];
+}
+
+/**
+ * Characters that are in the text without being on the page.
+ *
+ * Zero-width spaces and joiners, the byte-order mark, and the directional marks. None of
+ * them belong in prose in any language this writes, and a scene carrying them looks
+ * perfectly clean in Studio while being a different string from what it appears to be:
+ * a search for a phrase containing one fails, the pronunciation dictionary misses the
+ * word it splits, and TTS reads around it or chokes on it.
+ *
+ * Found by a real episode, whose every scene came back with a pair of them in it — and
+ * the way it was found is the argument for the rule. A review quoted a sentence
+ * verbatim, and the quote could not be located in the scene it came from, because the
+ * two strings differed by characters nobody could see in either.
+ *
+ * `error`, not `warning`: unlike a habitual tense or a repeated phrase, there is no
+ * reading of this on which it is fine.
+ */
+function invisibleCharacters(text: string): Violation[] {
+  const matches = text.match(/[\u200b-\u200f\u2028\u2029\u202a-\u202e\ufeff]/g);
+  if (!matches) return [];
+
+  // Named rather than printed: printing them prints nothing, and "found 4 of" followed
+  // by a blank is a worse report than no report.
+  const NAMES: Record<string, string> = {
+    "\u200b": "zero-width space",
+    "\u200c": "zero-width non-joiner",
+    "\u200d": "zero-width joiner",
+    "\ufeff": "byte-order mark",
+  };
+  const kinds = [...new Set(matches.map((c) => NAMES[c] ?? `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`))];
+
+  return [
+    {
+      rule: "invisible_characters",
+      target: kinds.join(", "),
+      actual: String(matches.length),
+      severity: "error",
+    },
   ];
 }
 

@@ -102,3 +102,34 @@ describe("lintProse", () => {
     });
   });
 });
+
+describe("invisible characters", () => {
+  it("catches a zero-width space, and names it", () => {
+    // Found by a real episode: a review quoted a sentence verbatim and the quote could
+    // not be located in the scene it came from, the two strings differing by characters
+    // nobody could see in either.
+    const [v] = lintProse("Ông đi ra bi\u200bển, không mang theo gì cả.", { language: "vi" });
+    expect(v).toMatchObject({
+      rule: "invisible_characters",
+      target: "zero-width space",
+      actual: "1",
+      severity: "error",
+    });
+  });
+
+  it("counts them all and lists each KIND once", () => {
+    const [v] = lintProse("a\u200bb\u200bc\ufeffd", { language: "vi" });
+    expect(v?.actual).toBe("3");
+    expect(v?.target).toBe("zero-width space, byte-order mark");
+  });
+
+  it("stays silent on prose that has none", () => {
+    const found = lintProse("Ông đi ra biển, không mang theo gì cả.", { language: "vi" });
+    expect(found.filter((f) => f.rule === "invisible_characters")).toEqual([]);
+  });
+
+  it("does not mistake an ordinary space or a newline for one", () => {
+    const found = lintProse("Một dòng.\n\nDòng nữa.\tVà tab.", { language: "vi" });
+    expect(found.filter((f) => f.rule === "invisible_characters")).toEqual([]);
+  });
+});

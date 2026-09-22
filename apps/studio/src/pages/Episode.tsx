@@ -65,6 +65,7 @@ const LINT_LABEL: Record<string, string> = {
   copied_previous_scene: "copied from the scene before it",
   broken_word: "a word split across a paragraph break",
   markdown_residue: "markdown left in the prose",
+  invisible_characters: "characters in the text that are not on the page",
 };
 
 interface Scene {
