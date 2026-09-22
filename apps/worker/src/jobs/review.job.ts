@@ -49,8 +49,7 @@ export const reviewJob: JobHandler = async ({ job, setProgress }) => {
     },
   });
 
-  const draft = episode.draftText;
-  if (!draft?.trim()) throw new Error("This episode has no draft to review");
+  if (!episode.draftText?.trim()) throw new Error("This episode has no draft to review");
 
   const { series } = episode;
 
@@ -70,6 +69,28 @@ export const reviewJob: JobHandler = async ({ job, setProgress }) => {
   // that can be checked rather than judged, so it goes in as a list the model can work
   // down rather than buried in prose.
   const ordered = episode.chapters.flatMap((ch) => ch.scenes.map((sc) => ({ ch, sc })));
+
+  /**
+   * The draft WITH its scene boundaries marked.
+   *
+   * `Episode.draftText` is the scenes concatenated and nothing else — it is built for
+   * the audio script, where the seams are the point of not being there. Handed to the
+   * review it asked the model to answer "which scene is this in" about a text that never
+   * says where one scene ends. It guessed, and guessed wrong: on the read that caught
+   * this, five of seven findings named scene 1 while the passage each of them quoted was
+   * in scene 2, checked by searching for the quote in each scene's own prose.
+   *
+   * Numbered through the EPISODE, matching the list of beats above and so the `scene`
+   * field the review is asked for. The chapter and scene are given too, because that is
+   * what the page calls them and a person reading this later should not have to count.
+   */
+  const draft = ordered
+    .map(
+      ({ ch, sc }, i) =>
+        `### Scene ${i + 1} (chapter ${ch.order}, scene ${sc.order})\n\n${sc.text ?? ""}`,
+    )
+    .join("\n\n");
+
   const scenes = ordered
     .map(({ ch, sc }, i) => {
       const lines = [`### Scene ${i + 1} (chapter ${ch.order}, scene ${sc.order})`, sc.beat];
@@ -159,7 +180,11 @@ export const reviewJob: JobHandler = async ({ job, setProgress }) => {
       correction: settled.correction,
       // Which draft this judged. Rewrite a scene and the review describes prose that is
       // no longer there — the same question `Scene.inputDigest` answers one tier down.
-      draftDigest: createHash("sha256").update(draft).digest("hex").slice(0, 16),
+      // Hashed from `draftText`, NOT from the marked-up copy above: `reviewMatchesDraft`
+      // in batch.ts asks the same question of the episode's own draftText, and a digest
+      // taken over anything else never matches it — every review would read as stale and
+      // a batch run would re-read every episode for ever.
+      draftDigest: createHash("sha256").update(episode.draftText).digest("hex").slice(0, 16),
     },
   });
 
