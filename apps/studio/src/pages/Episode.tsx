@@ -215,13 +215,22 @@ export function Episode() {
    * sets it once and the toggle belongs to the reader after that.
    */
   const openedOnce = useRef(new Map<string, boolean>());
-  function startsOpen(chapter: { id: string; scenes: Array<{ text: string | null }> }): boolean {
+  function startsOpen(
+    chapter: { id: string; scenes: Array<{ text: string | null }> },
+    /** Whether the review found anything in this chapter. */
+    reviewed: boolean,
+  ): boolean {
     const decided = openedOnce.current.get(chapter.id);
     if (decided !== undefined) return decided;
     // Open the chapters there is still work in: one with an unwritten scene, and a
     // brand-new empty one. A chapter with nothing left to write is finished, and on a
     // long episode it is mostly scrollbar.
-    const open = chapter.scenes.length === 0 || chapter.scenes.some((sc) => !sc.text);
+    //
+    // A chapter a reader found fault with also has work in it, and used to be the one
+    // case this shut. Every scene written is exactly the state a review arrives in, so
+    // the page closed the findings at the moment they appeared.
+    const open =
+      chapter.scenes.length === 0 || chapter.scenes.some((sc) => !sc.text) || reviewed;
     openedOnce.current.set(chapter.id, open);
     return open;
   }
@@ -233,6 +242,9 @@ export function Episode() {
   // both work at that level.
   const scenes = ep.chapters.flatMap((ch) => ch.scenes);
   const written = scenes.filter((s) => s.text).length;
+  // Findings go to the scenes they name; what is left is about the episode, and stays
+  // in the panel next to the verdict.
+  const found = findingsByScene(ep.reviews?.[0], ep.chapters);
   const allWritten = written === scenes.length && scenes.length > 0;
   // When the story is written directly, `draftLanguage` is empty and the whole
   // rewrite block disappears.
@@ -286,7 +298,13 @@ export function Episode() {
 
         <div className="space-y-6">
           {ep.chapters.map((chapter) => (
-            <details key={chapter.id} open={startsOpen(chapter)}>
+            <details
+              key={chapter.id}
+              open={startsOpen(
+                chapter,
+                chapter.scenes.some((sc) => (found.byScene.get(sc.id) ?? []).length > 0),
+              )}
+            >
               <summary className="mb-2 flex cursor-pointer flex-wrap items-baseline gap-2">
                 <h2 className="text-sm font-medium text-neutral-200">
                   Chapter {chapter.order}
@@ -408,6 +426,13 @@ export function Episode() {
                               written against an older version
                             </span>
                           )}
+                          {/* So a scene with work in it can be found by scanning the
+                              headings rather than by reading every band under them. */}
+                          {toFix(found.byScene.get(scene.id)) > 0 && (
+                            <span className="rounded bg-red-950/60 px-1.5 py-0.5 text-red-200">
+                              {toFix(found.byScene.get(scene.id))} to fix
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 text-xs leading-relaxed text-neutral-400">{scene.beat}</p>
                       </div>
@@ -433,6 +458,7 @@ export function Episode() {
                           <ActionButton
                             path={`/api/episodes/${ep.id}/scenes/${scene.id}`}
                             method="DELETE"
+                            variant="danger"
                             confirmText={
                               scene.text
                                 ? `Delete scene ${chapter.order}.${scene.order} and its ${words(scene.text)} written words? This cannot be undone.`
@@ -462,6 +488,9 @@ export function Episode() {
                         ))}
                       </div>
                     )}
+                    {/* Then what a reader found, directly above the prose it is about.
+                        Longest of the three bands, so it sits closest to it. */}
+                    <SceneFindings list={found.byScene.get(scene.id) ?? []} />
                     {/* An unwritten scene gets one thin line rather than the full
                         prose band. Three empty bands the height of a paragraph was
                         most of what a freshly outlined chapter showed. */}
@@ -830,7 +859,7 @@ export function Episode() {
 
       {/* Above the gate, because it exists to be read before the decision is made.
           It decides nothing: no status moves, nothing is queued off the back of it. */}
-      {allWritten && untranslated === 0 && <ReviewPanel ep={ep} active={active} />}
+      {allWritten && untranslated === 0 && <ReviewPanel ep={ep} active={active} found={found} />}
 
       {/* The gate that stops a raw draft going any further. */}
       {allWritten && untranslated === 0 && (
@@ -996,9 +1025,79 @@ export function Episode() {
   );
 }
 
+/** How many of a scene's findings are work rather than something to know. */
+function toFix(list: Finding[] | undefined): number {
+  return (list ?? []).filter((f) => f.kind === "break" || f.requiresChange).length;
+}
+
 /** Word count for a written scene — the target is SCENE_TARGET_WORDS. */
 function words(text: string): number {
   return text.trim().split(/\s+/).length;
+}
+
+/**
+ * One thing the review said about one scene — a contract break or an issue, flattened
+ * so that the two can be shown in a single ordered list.
+ */
+type Finding =
+  | { kind: "break"; broke: string; evidence: string }
+  | {
+      kind: "issue";
+      dimension: string;
+      severity: string;
+      requiresChange: boolean;
+      what: string;
+      evidence: string;
+    };
+
+/**
+ * The review's findings, filed under the scene each one is about.
+ *
+ * A review numbers scenes by their place in the EPISODE, because that is the order it
+ * was shown them in. This page numbers them `chapter.scene`. Nothing reconciled the two,
+ * so the panel said "Scene 4" while the heading above the prose said "Scene 2.1", and
+ * the writer did the arithmetic every time.
+ *
+ * Findings whose number lands outside the episode are NOT filed — they come back
+ * separately so the panel can say so. A model that invents scene 9 of a two-scene
+ * episode has still said something, and dropping it looks exactly like it never did.
+ */
+function findingsByScene(
+  review: EpisodeReview | undefined,
+  chapters: Chapter[],
+): { byScene: Map<string, Finding[]>; episode: Finding[]; orphans: Finding[] } {
+  const byScene = new Map<string, Finding[]>();
+  const episode: Finding[] = [];
+  const orphans: Finding[] = [];
+  if (!review) return { byScene, episode, orphans };
+
+  const inOrder = chapters.flatMap((ch) => ch.scenes);
+  function file(n: number, f: Finding) {
+    // Zero is the review's way of saying "the episode, not a scene in it".
+    if (n === 0 && f.kind === "issue") {
+      episode.push(f);
+      return;
+    }
+    const scene = inOrder[n - 1];
+    if (!scene) {
+      orphans.push(f);
+      return;
+    }
+    const list = byScene.get(scene.id) ?? [];
+    list.push(f);
+    byScene.set(scene.id, list);
+  }
+
+  for (const b of review.contractBreaks) file(b.scene, { kind: "break", ...b });
+  for (const i of review.issues) file(i.scene, { kind: "issue", ...i });
+
+  // The order the rewrite gets them in — see sceneFindings in @audio/core. A break is
+  // the one finding that is not a matter of taste, and a thing the writer has to do
+  // outranks a thing the writer should merely know.
+  const rank = (f: Finding) => (f.kind === "break" ? 0 : f.requiresChange ? 1 : 2);
+  for (const list of byScene.values()) list.sort((a, b) => rank(a) - rank(b));
+
+  return { byScene, episode, orphans };
 }
 
 const SEVERITY_TONE: Record<string, string> = {
@@ -1014,6 +1113,85 @@ const VERDICT_TONE: Record<string, string> = {
 };
 
 /**
+ * What the review said about THIS scene, shown against it.
+ *
+ * It used to live in one list at the bottom of the page, every line of it opening with a
+ * scene number, under a closing note reading "Rewrite a scene from the button next to
+ * it". The button next to it was three sections up, inside a chapter that had collapsed
+ * itself because every scene in it was written. So the writer read a finding here,
+ * scrolled, expanded, counted scenes, and by then had lost the wording of the finding
+ * they went looking for.
+ */
+function SceneFindings({ list }: { list: Finding[] }) {
+  if (list.length === 0) return null;
+  return (
+    <div className="border-b border-neutral-900 bg-neutral-950/40 px-4 py-2.5">
+      <FindingList list={list} />
+    </div>
+  );
+}
+
+/**
+ * The findings themselves. The panel shows the episode-level ones the same way.
+ *
+ * Quotes are NOT given quote marks. The panel used to add a pair, the model had often
+ * added its own, and together they rendered ““like this””. Dialogue arrives carrying the
+ * draft's own marks and narration arrives with none, which is right both times — so the
+ * rule is that the border separates the quote and nothing is added to the text.
+ */
+function FindingList({ list }: { list: Finding[] }) {
+  // Findings that quote the same passage are shown together, under one copy of it.
+  //
+  // Not a saving of space so much as the truth about the draft: one passage usually
+  // breaks several things at once, and a real scene had four findings against the same
+  // two sentences. Printed apart, each with its own copy, it read as four separate
+  // faults to go and find. Eleven findings on one scene came to five passages.
+  //
+  // Order is kept by whichever of them ranked highest, since that one arrived first.
+  const groups: Array<{ evidence: string; items: Finding[] }> = [];
+  for (const f of list) {
+    const evidence = f.evidence.trim();
+    const existing = groups.find((g) => g.evidence === evidence);
+    if (existing) existing.items.push(f);
+    else groups.push({ evidence, items: [f] });
+  }
+
+  return (
+    <ul className="space-y-2">
+      {groups.map((g, i) => (
+        <li key={i} className="text-xs">
+          {g.items.map((f, j) => (
+            <p key={j}>
+              {f.kind === "break" ? (
+                <>
+                  <span className="text-red-300">went past its beat</span>{" "}
+                  <span className="text-neutral-300">{f.broke}</span>
+                </>
+              ) : (
+                <>
+                  <span className={SEVERITY_TONE[f.severity] ?? "text-neutral-400"}>
+                    {f.dimension}
+                  </span>{" "}
+                  {f.requiresChange ? (
+                    <span className="rounded bg-neutral-800 px-1 text-neutral-300">
+                      needs a change
+                    </span>
+                  ) : (
+                    <span className="text-neutral-600">worth knowing</span>
+                  )}{" "}
+                  <span className="text-neutral-300">{f.what}</span>
+                </>
+              )}
+            </p>
+          ))}
+          <p className="mt-1 border-l-2 border-neutral-800 pl-2 text-neutral-500">{g.evidence}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
  * What a reader found, shown before the person is asked to approve.
  *
  * Advice, and it is labelled as advice. Nothing here moves a status or queues work: the
@@ -1021,7 +1199,15 @@ const VERDICT_TONE: Record<string, string> = {
  * judges the prose and acts on the judgement has quietly removed the only gate this
  * pipeline has.
  */
-function ReviewPanel({ ep, active }: { ep: Ep; active?: { type: string; progress: number } }) {
+function ReviewPanel({
+  ep,
+  active,
+  found,
+}: {
+  ep: Ep;
+  active?: { type: string; progress: number };
+  found: ReturnType<typeof findingsByScene>;
+}) {
   const review = ep.reviews?.[0];
 
   // Every other action on this page is hidden while a job runs, and this one was not:
@@ -1078,56 +1264,39 @@ function ReviewPanel({ ep, active }: { ep: Ep; active?: { type: string; progress
             ))}
           </div>
 
-          {/* The one part of the review that is not a matter of taste: the beat said
-              not to, and the scene did. */}
-          {review.contractBreaks.length > 0 && (
-            <div className="rounded border border-red-900/60 bg-red-950/20 p-3">
-              <p className="text-xs text-red-200">Scenes that did what their beat said not to</p>
-              <ul className="mt-2 space-y-2">
-                {review.contractBreaks.map((b, i) => (
-                  <li key={i} className="text-xs text-red-200/90">
-                    <strong>Scene {b.scene}</strong> — {b.broke}
-                    <span className="mt-0.5 block text-neutral-500">“{b.evidence}”</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* Said out loud. A corrected answer that says nothing about having been
               corrected cannot be told from one that was right. */}
-          {review.correction && (
-            <p className="text-xs text-neutral-500">{review.correction}</p>
+          {review.correction && <p className="text-xs text-neutral-500">{review.correction}</p>}
+
+          {/* Where the rest of it went. The scene-by-scene findings are shown against
+              their own scenes, beside the button that acts on them. */}
+          {found.byScene.size > 0 && (
+            <p className="text-xs text-neutral-500">
+              {[...found.byScene.values()].flat().length} findings against {found.byScene.size}{" "}
+              scene{found.byScene.size === 1 ? "" : "s"} — each one is above, with the scene
+              it is about.
+            </p>
           )}
 
-          {review.issues.length > 0 ? (
-            <ul className="space-y-2">
-              {review.issues.map((issue, i) => (
-                <li key={i} className="text-xs">
-                  <span className={SEVERITY_TONE[issue.severity] ?? "text-neutral-400"}>
-                    {issue.scene > 0 ? `Scene ${issue.scene}` : "Episode"} · {issue.dimension}
-                  </span>{" "}
-                  {/* The ones that are work, told apart from the ones that are only
-                      worth knowing — otherwise the writer sorts them out again. */}
-                  {issue.requiresChange ? (
-                    <span className="rounded bg-neutral-800 px-1 text-neutral-300">needs a change</span>
-                  ) : (
-                    <span className="text-neutral-600">worth knowing</span>
-                  )}{" "}
-                  <span className="text-neutral-300">{issue.what}</span>
-                  {/* Every issue carries a quote. One that cannot be quoted is an
-                      impression, and an impression costs an hour of rereading. */}
-                  <span className="mt-0.5 block text-neutral-500">“{issue.evidence}”</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-neutral-500">Nothing found worth reporting.</p>
+          {/* What is left is about the episode rather than any one scene in it. */}
+          {found.episode.length > 0 && <FindingList list={found.episode} />}
+
+          {/* Filed against a scene this episode does not have. Shown rather than
+              dropped: a number nobody can place is still a reader saying something,
+              and silence would look like it said nothing. */}
+          {found.orphans.length > 0 && (
+            <div className="rounded border border-amber-900/60 bg-amber-950/20 p-3">
+              <p className="mb-2 text-xs text-amber-200">
+                Filed against a scene number this episode does not have. Read them against
+                the whole thing, or read it again.
+              </p>
+              <FindingList list={found.orphans} />
+            </div>
           )}
 
           <p className="text-xs text-neutral-600">
             Read {new Date(review.createdAt).toLocaleString("en-GB")}. Advice only — nothing
-            here changed anything. Rewrite a scene from the button next to it.
+            here changed anything.
           </p>
         </div>
       )}

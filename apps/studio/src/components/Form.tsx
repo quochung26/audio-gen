@@ -92,7 +92,7 @@ export function ActionButton({
   method?: "POST" | "PUT" | "DELETE";
   body?: Record<string, string>;
   children: ReactNode;
-  variant?: "default" | "primary" | "ghost";
+  variant?: "default" | "primary" | "ghost" | "danger";
   confirmText?: string;
   onDone?: (result: unknown) => void;
 }) {

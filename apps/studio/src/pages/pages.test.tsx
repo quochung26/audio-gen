@@ -1045,3 +1045,156 @@ describe("the model box says which model is actually about to run", () => {
     }
   });
 });
+
+describe("a review's findings are shown against the scene they are about", () => {
+  /** Two chapters of two scenes, so an episode-wide scene number is not a chapter one. */
+  function episodeWithReview(issues: unknown[], contractBreaks: unknown[] = []) {
+    const scene = (id: string, order: number, text: string) => ({
+      id,
+      order,
+      beat: `beat ${id}`,
+      text,
+      sourceText: null,
+      storySoFar: "",
+      revisions: [],
+      characterIds: [],
+      setup: null,
+    });
+    return {
+      ...(FIXTURES["/api/episodes/e1"] as Record<string, unknown>),
+      chapters: [
+        {
+          id: "ch1",
+          order: 1,
+          title: null,
+          setup: null,
+          scenes: [scene("sc1", 1, "một"), scene("sc2", 2, "hai")],
+        },
+        {
+          id: "ch2",
+          order: 2,
+          title: null,
+          setup: null,
+          scenes: [scene("sc3", 1, "ba"), scene("sc4", 2, "bốn")],
+        },
+      ],
+      reviews: [
+        {
+          id: "r1",
+          verdict: "polish",
+          summary: "Đọc được.",
+          scores: { prose: 70 },
+          issues,
+          contractBreaks,
+          scenes: [],
+          correction: null,
+          createdAt: "2026-09-21T11:00:00Z",
+        },
+      ],
+    };
+  }
+
+  function renderEpisode(body: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string) => {
+        const path = String(input).split("?")[0]!;
+        const fixture = path === "/api/episodes/e1" ? body : FIXTURES[path];
+        return Promise.resolve(
+          new Response(JSON.stringify(fixture ?? { error: "missing" }), {
+            status: fixture === undefined ? 404 : 200,
+          }),
+        );
+      }),
+    );
+    return renderAt("/episode/e1", "/episode/:id", <Episode />);
+  }
+
+  /**
+   * The card for one scene, so a finding can be shown to be INSIDE it.
+   *
+   * By the heading's own span rather than by text: the reading modal repeats the same
+   * "Scene 2.2" further down the card, and getByText will not choose between them.
+   */
+  function card(container: HTMLElement, label: string): HTMLElement {
+    const heading = [...container.querySelectorAll("span.tabular-nums")].find(
+      (el) => el.textContent === label,
+    );
+    return heading!.closest("div.rounded") as HTMLElement;
+  }
+
+  const issue = (scene: number, what: string) => ({
+    dimension: "consistency",
+    severity: "error",
+    scene,
+    what,
+    evidence: `quote for ${scene}`,
+    requiresChange: true,
+  });
+
+  it("episode-wide scene 4 lands on scene 2.2, not on 2.1 and not on chapter 1", async () => {
+    // The whole reason this mapping exists. The review counts scenes straight through
+    // the episode, the page numbers them within their chapter, and reading "Scene 4"
+    // as chapter 4 — or as the fourth scene of chapter 1 — both put the finding under
+    // prose it says nothing about.
+    const { container } = renderEpisode(episodeWithReview([issue(4, "sai ở cảnh cuối")]));
+    await waitFor(() => expect(screen.getByText(/sai ở cảnh cuối/)).toBeDefined());
+
+    expect(card(container, "Scene 2.2").textContent).toContain("sai ở cảnh cuối");
+    expect(card(container, "Scene 2.1").textContent).not.toContain("sai ở cảnh cuối");
+    expect(card(container, "Scene 1.1").textContent).not.toContain("sai ở cảnh cuối");
+  });
+
+  it("counts the work in the scene's own heading", async () => {
+    const { container } = renderEpisode(
+      episodeWithReview([
+        issue(1, "một lỗi"),
+        { ...issue(1, "chỉ để biết"), requiresChange: false },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByText(/một lỗi/)).toBeDefined());
+    // Two findings, one of them work.
+    expect(card(container, "Scene 1.1").textContent).toContain("1 to fix");
+  });
+
+  it("findings that quote the same passage are shown together, under one copy of it", async () => {
+    // One passage usually breaks several things at once. A copy of it under each
+    // finding read as several separate faults to go and look for.
+    const { container } = renderEpisode(
+      episodeWithReview([issue(1, "lỗi một"), issue(1, "lỗi hai")]),
+    );
+    await waitFor(() => expect(screen.getByText(/lỗi hai/)).toBeDefined());
+    const text = card(container, "Scene 1.1").textContent!;
+    expect(text.split("quote for 1")).toHaveLength(2);
+    // And the one copy sits under BOTH of them, not between them.
+    expect(text.indexOf("lỗi một")).toBeLessThan(text.indexOf("lỗi hai"));
+    expect(text.indexOf("lỗi hai")).toBeLessThan(text.indexOf("quote for 1"));
+  });
+
+  it("a scene number the episode does not have is SAID, not dropped", async () => {
+    // The finding is still a reader saying something. Filing it nowhere looks exactly
+    // like a review that never made it.
+    renderEpisode(episodeWithReview([issue(9, "cảnh không tồn tại")]));
+    await waitFor(() => expect(screen.getByText(/cảnh không tồn tại/)).toBeDefined());
+    expect(screen.getByText(/scene number this episode does not have/)).toBeDefined();
+  });
+
+  it("an episode-level finding stays in the panel", async () => {
+    const { container } = renderEpisode(episodeWithReview([issue(0, "cả tập đều nhạt")]));
+    await waitFor(() => expect(screen.getByText(/cả tập đều nhạt/)).toBeDefined());
+    for (const label of ["Scene 1.1", "Scene 1.2", "Scene 2.1", "Scene 2.2"]) {
+      expect(card(container, label).textContent).not.toContain("cả tập đều nhạt");
+    }
+  });
+
+  it("a contract break outranks the issues on the same scene", async () => {
+    const { container } = renderEpisode(
+      episodeWithReview([issue(1, "lỗi thường")], [
+        { scene: 1, broke: "không được lộ danh tính", evidence: "quote for break" },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByText(/không được lộ danh tính/)).toBeDefined());
+    const text = card(container, "Scene 1.1").textContent!;
+    expect(text.indexOf("không được lộ danh tính")).toBeLessThan(text.indexOf("lỗi thường"));
+  });
+});

@@ -35,11 +35,15 @@ export function Button({
   children,
   variant = "default",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "primary" | "ghost" }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "primary" | "ghost" | "danger" }) {
   const styles = {
     default: "border border-neutral-700 hover:bg-neutral-800",
     primary: "bg-neutral-100 text-neutral-900 hover:bg-white font-medium",
     ghost: "text-neutral-400 hover:text-neutral-100",
+    // Its own colour because "delete" sat in the same row as "rewrite", in the same grey,
+    // one word away. Both confirm first, so nothing was ever one slip from gone — but
+    // telling them apart meant reading, every time, on every scene.
+    danger: "text-red-400/80 hover:bg-red-950/50 hover:text-red-300",
   };
   return (
     <button
