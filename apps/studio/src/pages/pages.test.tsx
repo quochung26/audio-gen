@@ -128,9 +128,12 @@ const FIXTURES: Record<string, unknown> = {
         number: 1,
         title: "Tập 1",
         status: "READY",
+        humanReviewed: true,
         wordCount: 2500,
         durationMs: 1200000,
-        _count: { scenes: 4, blocks: 12 },
+        // `chapters`, not `scenes`: what /api/series/:id actually counts. The fixture
+        // said `scenes` and nothing noticed, because nothing read it until now.
+        _count: { chapters: 2, blocks: 12 },
         exports: [{ id: "x1" }],
       },
     ],
@@ -1298,5 +1301,55 @@ describe("a review's findings are shown against the scene they are about", () =>
     await waitFor(() => expect(screen.getByText(/không được lộ danh tính/)).toBeDefined());
     const text = card(container, "Scene 1.1").textContent!;
     expect(text.indexOf("không được lộ danh tính")).toBeLessThan(text.indexOf("lỗi thường"));
+  });
+});
+
+describe("the story page says which episode is waiting on a person", () => {
+  type Eps = { episodes: Array<Record<string, unknown>> };
+
+  function withEpisode(patch: Record<string, unknown>) {
+    const s1 = FIXTURES["/api/series/s1"] as Eps;
+    const saved = s1.episodes[0]!;
+    s1.episodes = [{ ...saved, ...patch }];
+    return () => {
+      s1.episodes = [saved];
+    };
+  }
+
+  it("an approved episode is marked neither way", async () => {
+    const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+    await waitFor(() => expect(screen.getByText("Tập 1")).toBeDefined());
+    expect(container.textContent).not.toContain("waiting on your read");
+    expect(container.textContent).not.toContain("no chapters yet");
+  });
+
+  it("a drafted episode nobody has read says so", async () => {
+    // The one place the pipeline stops ON A PERSON. The row listed what an episode had
+    // and never what it was waiting for, so finding that episode meant opening each one.
+    const restore = withEpisode({ status: "DRAFTED", humanReviewed: false });
+    try {
+      const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+      await waitFor(() => expect(screen.getByText("Tập 1")).toBeDefined());
+      expect(container.textContent).toContain("waiting on your read");
+    } finally {
+      restore();
+    }
+  });
+
+  it("an episode with no chapter yet says that instead", async () => {
+    // It cannot be waiting on a read: there is nothing written to read.
+    const restore = withEpisode({
+      status: "DRAFTED",
+      humanReviewed: false,
+      _count: { chapters: 0, blocks: 0 },
+    });
+    try {
+      const { container } = renderAt("/series/s1", "/series/:id", <Series />);
+      await waitFor(() => expect(screen.getByText("Tập 1")).toBeDefined());
+      expect(container.textContent).toContain("no chapters yet");
+      expect(container.textContent).not.toContain("waiting on your read");
+    } finally {
+      restore();
+    }
   });
 });

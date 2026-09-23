@@ -19,6 +19,8 @@ interface Ep {
   /** Which kind of turn it closes on. Null = outlined before the label existed. */
   hookType: string | null;
   status: string;
+  /** Whether a person has read the draft and approved it. The one gate the machine cannot pass. */
+  humanReviewed: boolean;
   wordCount: number | null;
   durationMs: number | null;
   _count: { chapters: number; blocks: number };
@@ -121,133 +123,64 @@ export function Series() {
         {s.description && <p className="mt-2 text-sm text-neutral-400">{s.description}</p>}
       </div>
 
-      <Section title="Cover art">
-        <div className="flex flex-wrap items-start gap-4 rounded border border-neutral-800 p-4">
-          {s.coverUrl ? (
-            <img
-              src={mediaUrl(s.coverUrl)}
-              alt=""
-              className="size-32 shrink-0 rounded object-cover"
-            />
-          ) : (
-            <div className="flex size-32 shrink-0 items-center justify-center rounded border border-dashed border-neutral-700 text-xs text-neutral-600">
-              none
-            </div>
-          )}
-
-          <div className="min-w-60 flex-1 space-y-3">
-            <p className="text-xs text-neutral-500">
-              Shown on the player and in the podcast feed. Apple Podcasts requires{" "}
-              <strong className="text-neutral-400">square JPEG/PNG, at least 1400×1400</strong> —
-              anything smaller still uploads, but the feed gets rejected.
-            </p>
-            <Form path={`/api/series/${s.id}/cover`} method="PUT" submit="Upload">
-              <input
-                type="file"
-                name="file"
-                accept="image/*"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-2 file:py-1 file:text-neutral-200"
-              />
-            </Form>
-            {s.coverUrl && (
-              <ActionButton path={`/api/series/${s.id}/cover`} method="DELETE">
-                remove cover
-              </ActionButton>
-            )}
-          </div>
-        </div>
-      </Section>
-
+      {/* Ordered by how often a person opens this page for it, not by what a story
+          has. The episode list is the only way in to the work and used to sit ninth
+          of eleven, under the cover-art upload and a wall of sub-genre chips — so
+          opening the episode you are writing meant scrolling past every setting you
+          set once, on every visit. Settings keep their place, at the end. */}
       <Section
-        title="World setup"
+        title={`Episodes (${s.episodes.length})`}
         action={
-          <Link to={`/series/${s.id}/bible`} className="text-xs text-neutral-400 underline">
-            edit
-          </Link>
+          <ActionButton
+            path={`/api/series/${s.id}/episodes`}
+            variant="default"
+            onDone={(r) => {
+              const jobId = (r as { jobId?: string }).jobId;
+              if (jobId) nav(`/job/${jobId}`);
+            }}
+          >
+            New episode
+          </ActionButton>
         }
       >
-        <div className="space-y-2 rounded border border-neutral-800 p-4 text-sm">
-          <p className="text-neutral-400">{s.world.setting || "no setting yet"}</p>
-          <p className="text-xs text-neutral-600">
-            {s.world.rules.length} world rules · {s.world.constraints.length} forbidden ·{" "}
-            {s.world.glossary.length} glossary terms
-          </p>
-          {/* No longer gated on the story being "long": every story is written episode by
-              episode, so any of them can drift. It was gated on a flag that was always
-              SHORT, so the warning never appeared at all. */}
-          {worldThin && (
-            <p className="text-xs text-amber-600">
-              No world rules or tone — later episodes drift away from the first.
-            </p>
-          )}
-        </div>
-      </Section>
-
-      <Section
-        title={`Characters (${s.characters.length})`}
-        action={
-          <Link to={`/series/${s.id}/characters`} className="text-xs text-neutral-400 underline">
-            edit
-          </Link>
-        }
-      >
-        <div className="grid gap-2 sm:grid-cols-2">
-          {s.characters.map((c) => (
-            <div key={c.id} className="rounded border border-neutral-800 p-3">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{c.name}</span>
-                {c.isNarrator && <Badge tone="blue">narrator</Badge>}
+        <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
+          {s.episodes.map((ep) => (
+            <Link
+              key={ep.id}
+              to={`/episode/${ep.id}`}
+              className="flex items-center justify-between px-4 py-3 hover:bg-neutral-900"
+            >
+              <div>
+                <span className="text-sm text-neutral-500">Episode {ep.number}</span>
+                <span className="ml-3 text-sm">{ep.title}</span>
               </div>
-              <p className="mt-1 text-xs text-neutral-500">{c.role}</p>
-              {c.description && (
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{c.description}</p>
-              )}
-
-              {/* Where they are NOW, as opposed to who they are. Written by SUMMARIZE
-                  after every episode and read back into the Story Bible on every scene
-                  write, so it is the field most likely to be quietly wrong — and it was
-                  only visible on the Characters page, two clicks from the cast list
-                  anyone actually looks at. */}
-              {c.state && (
-                <div className="mt-2 rounded border border-neutral-800/80 bg-neutral-900/50 p-2">
-                  <span className="text-xs text-neutral-500">
-                    Current state
-                    {c.stateThroughEpisode ? ` — through episode ${c.stateThroughEpisode}` : ""}
+              <div className="flex items-center gap-3 text-xs text-neutral-500">
+                {/* Listed down the page, a run of the same kind is visible as a run.
+                    That is the whole reason the label exists — five hooks written as
+                    five sentences cannot be compared without reading all five. */}
+                {/* Where the pipeline is STOPPED, when it is stopped on a person.
+                    The row said what an episode had — words, a length, a status — and
+                    never what it was waiting for, so "which one needs me" meant opening
+                    them one at a time. Only the two states that are facts here: a
+                    machine step in flight says so on its own page, and how many scenes
+                    are left is not in anything this row is given. */}
+                {ep._count.chapters === 0 ? (
+                  <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">
+                    no chapters yet
                   </span>
-                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-400">{c.state}</p>
-                </div>
-              )}
-              <p className="mt-2 text-xs text-neutral-600">
-                voice hint: {c.voiceHint ?? "—"}
-                <br />
-                cast: {c.voice?.name ?? <span className="text-amber-500">not yet</span>}
-                {!c.description && (
-                  <>
-                    <br />
-                    <span className="text-amber-600">no personality described</span>
-                  </>
-                )}
-              </p>
-            </div>
+                ) : ep.status === "DRAFTED" && !ep.humanReviewed ? (
+                  <span className="rounded bg-amber-900/60 px-1.5 py-0.5 text-amber-200">
+                    waiting on your read
+                  </span>
+                ) : null}
+                {ep.hookType ? <span className="text-neutral-600">ends on {ep.hookType}</span> : null}
+                {ep.wordCount ? <span>{ep.wordCount} words</span> : null}
+                {ep.durationMs ? <span>~{formatDuration(ep.durationMs)}</span> : null}
+                <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>
+              </div>
+            </Link>
           ))}
         </div>
-      </Section>
-
-      <EndingPanel series={s} />
-
-      <StylePanel seriesId={s.id} />
-
-      <Section
-        title="Story facts"
-        action={
-          <Link to={`/series/${s.id}/facts`} className="text-xs text-neutral-400 underline">
-            xem
-          </Link>
-        }
-      >
-        <p className="rounded border border-neutral-800 p-4 text-xs text-neutral-500">
-          Facts carry their own vectors and are retrieved per scene beat.
-        </p>
       </Section>
 
       <Section title="Batch run">
@@ -358,6 +291,135 @@ export function Series() {
         )}
       </Section>
 
+      <Section
+        title="World setup"
+        action={
+          <Link to={`/series/${s.id}/bible`} className="text-xs text-neutral-400 underline">
+            edit
+          </Link>
+        }
+      >
+        <div className="space-y-2 rounded border border-neutral-800 p-4 text-sm">
+          <p className="text-neutral-400">{s.world.setting || "no setting yet"}</p>
+          <p className="text-xs text-neutral-600">
+            {s.world.rules.length} world rules · {s.world.constraints.length} forbidden ·{" "}
+            {s.world.glossary.length} glossary terms
+          </p>
+          {/* No longer gated on the story being "long": every story is written episode by
+              episode, so any of them can drift. It was gated on a flag that was always
+              SHORT, so the warning never appeared at all. */}
+          {worldThin && (
+            <p className="text-xs text-amber-600">
+              No world rules or tone — later episodes drift away from the first.
+            </p>
+          )}
+        </div>
+      </Section>
+
+      <Section
+        title={`Characters (${s.characters.length})`}
+        action={
+          <Link to={`/series/${s.id}/characters`} className="text-xs text-neutral-400 underline">
+            edit
+          </Link>
+        }
+      >
+        <div className="grid gap-2 sm:grid-cols-2">
+          {s.characters.map((c) => (
+            <div key={c.id} className="rounded border border-neutral-800 p-3">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{c.name}</span>
+                {c.isNarrator && <Badge tone="blue">narrator</Badge>}
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">{c.role}</p>
+              {c.description && (
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">{c.description}</p>
+              )}
+
+              {/* Where they are NOW, as opposed to who they are. Written by SUMMARIZE
+                  after every episode and read back into the Story Bible on every scene
+                  write, so it is the field most likely to be quietly wrong — and it was
+                  only visible on the Characters page, two clicks from the cast list
+                  anyone actually looks at. */}
+              {c.state && (
+                <div className="mt-2 rounded border border-neutral-800/80 bg-neutral-900/50 p-2">
+                  <span className="text-xs text-neutral-500">
+                    Current state
+                    {c.stateThroughEpisode ? ` — through episode ${c.stateThroughEpisode}` : ""}
+                  </span>
+                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-400">{c.state}</p>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-neutral-600">
+                voice hint: {c.voiceHint ?? "—"}
+                <br />
+                cast: {c.voice?.name ?? <span className="text-amber-500">not yet</span>}
+                {!c.description && (
+                  <>
+                    <br />
+                    <span className="text-amber-600">no personality described</span>
+                  </>
+                )}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <EndingPanel series={s} />
+
+      <StylePanel seriesId={s.id} />
+
+      <Section
+        title="Story facts"
+        action={
+          <Link to={`/series/${s.id}/facts`} className="text-xs text-neutral-400 underline">
+            xem
+          </Link>
+        }
+      >
+        <p className="rounded border border-neutral-800 p-4 text-xs text-neutral-500">
+          Facts carry their own vectors and are retrieved per scene beat.
+        </p>
+      </Section>
+
+      <Section title="Cover art">
+        <div className="flex flex-wrap items-start gap-4 rounded border border-neutral-800 p-4">
+          {s.coverUrl ? (
+            <img
+              src={mediaUrl(s.coverUrl)}
+              alt=""
+              className="size-32 shrink-0 rounded object-cover"
+            />
+          ) : (
+            <div className="flex size-32 shrink-0 items-center justify-center rounded border border-dashed border-neutral-700 text-xs text-neutral-600">
+              none
+            </div>
+          )}
+
+          <div className="min-w-60 flex-1 space-y-3">
+            <p className="text-xs text-neutral-500">
+              Shown on the player and in the podcast feed. Apple Podcasts requires{" "}
+              <strong className="text-neutral-400">square JPEG/PNG, at least 1400×1400</strong> —
+              anything smaller still uploads, but the feed gets rejected.
+            </p>
+            <Form path={`/api/series/${s.id}/cover`} method="PUT" submit="Upload">
+              <input
+                type="file"
+                name="file"
+                accept="image/*"
+                className="w-full rounded border border-neutral-700 bg-neutral-900 p-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-2 file:py-1 file:text-neutral-200"
+              />
+            </Form>
+            {s.coverUrl && (
+              <ActionButton path={`/api/series/${s.id}/cover`} method="DELETE">
+                remove cover
+              </ActionButton>
+            )}
+          </div>
+        </div>
+      </Section>
+
       <Section title="Model">
         <Form
           path={`/api/series/${s.id}/model`}
@@ -389,45 +451,6 @@ export function Series() {
         </Form>
       </Section>
 
-      <Section
-        title={`Episodes (${s.episodes.length})`}
-        action={
-          <ActionButton
-            path={`/api/series/${s.id}/episodes`}
-            variant="default"
-            onDone={(r) => {
-              const jobId = (r as { jobId?: string }).jobId;
-              if (jobId) nav(`/job/${jobId}`);
-            }}
-          >
-            New episode
-          </ActionButton>
-        }
-      >
-        <div className="divide-y divide-neutral-900 rounded border border-neutral-800">
-          {s.episodes.map((ep) => (
-            <Link
-              key={ep.id}
-              to={`/episode/${ep.id}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-neutral-900"
-            >
-              <div>
-                <span className="text-sm text-neutral-500">Episode {ep.number}</span>
-                <span className="ml-3 text-sm">{ep.title}</span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-neutral-500">
-                {/* Listed down the page, a run of the same kind is visible as a run.
-                    That is the whole reason the label exists — five hooks written as
-                    five sentences cannot be compared without reading all five. */}
-                {ep.hookType ? <span className="text-neutral-600">ends on {ep.hookType}</span> : null}
-                {ep.wordCount ? <span>{ep.wordCount} words</span> : null}
-                {ep.durationMs ? <span>~{formatDuration(ep.durationMs)}</span> : null}
-                <Badge tone={STATUS_TONE[ep.status]}>{ep.status}</Badge>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </Section>
 
       {/* At the bottom, away from the run buttons: deleting a whole story is rare
           and cannot be undone, so putting it near daily buttons invites mistakes. */}
