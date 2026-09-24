@@ -1279,8 +1279,12 @@ function SceneFindings({
       {/* Only once there is more than one. With a single passage this is the button
           below it, under another name. */}
       {!busy && allPath && fixable > 1 && (
-        <div className="mb-2">
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-2">
+          {/* Bordered where the per-passage ones are ghosts: it does what all of them
+              do, and read in the same grey at the same size it looked like the first
+              item of the list rather than the action over it. */}
           <ActionButton
+            variant="default"
             path={allPath}
             confirmText={
               `Revise every passage this review pinned to the scene — ${fixable} of them, ` +
@@ -1290,6 +1294,9 @@ function SceneFindings({
           >
             fix every passage below
           </ActionButton>
+          <span className="text-xs text-neutral-600">
+            one at a time, each on its own — the prose between them is untouched
+          </span>
         </div>
       )}
       {/* Every other button on a scene disappears while a job runs. This one did not,
