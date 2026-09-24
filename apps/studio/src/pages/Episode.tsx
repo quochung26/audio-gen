@@ -468,9 +468,9 @@ export function Episode() {
                           )}
                           {/* So a scene with work in it can be found by scanning the
                               headings rather than by reading every band under them. */}
-                          {toFix(found.byScene.get(scene.id)) > 0 && (
+                          {toFix(found.byScene.get(scene.id), scene.text) > 0 && (
                             <span className="rounded bg-red-950/60 px-1.5 py-0.5 text-red-200">
-                              {toFix(found.byScene.get(scene.id))} to fix
+                              {toFix(found.byScene.get(scene.id), scene.text)} to fix
                             </span>
                           )}
                         </div>
@@ -1121,8 +1121,14 @@ function reviseNote(items: Finding[]): string {
 }
 
 /** How many of a scene's findings are work rather than something to know. */
-function toFix(list: Finding[] | undefined): number {
-  return (list ?? []).filter((f) => f.kind === "break" || f.requiresChange).length;
+function toFix(list: Finding[] | undefined, text?: string | null): number {
+  return (list ?? []).filter((f) => {
+    if (f.kind !== "break" && !f.requiresChange) return false;
+    // A passage that is no longer in the prose has been rewritten, so it is not work
+    // still waiting — the heading said "9 to fix" over a band where four of them had
+    // already been dealt with.
+    return !text || Boolean(locate(text, f.evidence));
+  }).length;
 }
 
 /** Word count for a written scene — the target is SCENE_TARGET_WORDS. */
@@ -1354,8 +1360,22 @@ function FindingList({
 
   return (
     <ul className="space-y-2">
-      {groups.map((g, i) => (
-        <li key={i} className="text-xs">
+      {groups.map((g, i) => {
+        /**
+         * Whether the prose this quoted is still there.
+         *
+         * A review is a snapshot of the draft it read, and nothing rewrites it when a
+         * passage is revised — so after fixing four passages the page went on listing
+         * four findings that looked exactly like untouched ones, and the obvious reading
+         * was that the button had done nothing.
+         *
+         * What CAN be known is that the quoted text is gone, which means that passage
+         * has been rewritten. Whether the fault went with it is a question only another
+         * read answers, so the line says what happened and not that it is fixed.
+         */
+        const gone = Boolean(text) && !locate(text!, g.evidence);
+        return (
+        <li key={i} className={`text-xs ${gone ? "opacity-45" : ""}`}>
           {g.items.map((f, j) => (
             <p key={j}>
               {f.kind === "break" ? (
@@ -1401,6 +1421,12 @@ function FindingList({
           <p className="mt-1 border-l-2 border-neutral-800 pl-2 text-neutral-500">
             {(text ? locate(text, g.evidence) : null)?.passage ?? g.evidence}
           </p>
+          {gone && (
+            <p className="mt-0.5 text-neutral-500 italic">
+              This passage is no longer in the scene — it has been rewritten since the
+              read. Whether that fixed it is what reading again would say.
+            </p>
+          )}
           {/* The whole reason the review is made to quote verbatim: a quote that is in
               the draft can be handed straight to the step that rewrites one passage,
               with the suggestions as its instruction. Offered only when the quote is
@@ -1420,7 +1446,8 @@ function FindingList({
             );
           })()}
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

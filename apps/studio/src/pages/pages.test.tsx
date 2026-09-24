@@ -1153,13 +1153,29 @@ describe("a review's findings are shown against the scene they are about", () =>
   it("counts the work in the scene's own heading", async () => {
     const { container } = renderEpisode(
       episodeWithReview([
-        issue(1, "một lỗi"),
-        { ...issue(1, "chỉ để biết"), requiresChange: false },
+        { ...issue(1, "một lỗi"), evidence: "một" },
+        { ...issue(1, "chỉ để biết"), evidence: "một", requiresChange: false },
       ]),
     );
     await waitFor(() => expect(screen.getByText(/một lỗi/)).toBeDefined());
     // Two findings, one of them work.
     expect(card(container, "Scene 1.1").textContent).toContain("1 to fix");
+  });
+
+  it("stops counting a passage that is no longer in the prose", async () => {
+    // A review is a snapshot of the draft it read, and revising a passage does not
+    // rewrite it. After four passages were fixed the heading still said all four were
+    // waiting, and the findings under it looked exactly like untouched ones — so the
+    // obvious reading was that the button had done nothing.
+    const { container } = renderEpisode(
+      episodeWithReview([{ ...issue(1, "đã sửa rồi"), evidence: "câu này không còn" }]),
+    );
+    await waitFor(() => expect(screen.getByText(/đã sửa rồi/)).toBeDefined());
+    const text = card(container, "Scene 1.1").textContent!;
+    expect(text).not.toContain("to fix");
+    expect(text).toContain("no longer in the scene");
+    // And it says what it knows, not that the fault is gone.
+    expect(text).toContain("reading again would say");
   });
 
   it("findings that quote the same passage are shown together, under one copy of it", async () => {
