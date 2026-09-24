@@ -534,6 +534,7 @@ export function Episode() {
                       list={found.byScene.get(scene.id) ?? []}
                       text={scene.text}
                       revisePath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
+                      allPath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise-all`}
                       busy={Boolean(active)}
                     />
                     {/* An unwritten scene gets one thin line rather than the full
@@ -1249,6 +1250,7 @@ function SceneFindings({
   list,
   text,
   revisePath,
+  allPath,
   busy,
 }: {
   list: Finding[];
@@ -1256,12 +1258,40 @@ function SceneFindings({
   text: string | null;
   /** POST target for revising one passage of this scene. */
   revisePath: string;
+  /** POST target for revising all of them, which the route works out for itself. */
+  allPath: string;
   /** A job is already running on this episode. */
   busy: boolean;
 }) {
   if (list.length === 0) return null;
+
+  // How many passages could actually be handed to a revision. Counted here only to
+  // decide whether offering "all of them" means anything — the route derives its own
+  // list from the prose as it stands and says how many it queued, which is the number
+  // that is true. Saying a number here as well would be a promise made by the page
+  // about work the server had not agreed to yet.
+  const fixable = text
+    ? groupByEvidence(list).filter((g) => locate(text, g.evidence)).length
+    : 0;
+
   return (
     <div className="border-b border-neutral-900 bg-neutral-950/40 px-4 py-2.5">
+      {/* Only once there is more than one. With a single passage this is the button
+          below it, under another name. */}
+      {!busy && allPath && fixable > 1 && (
+        <div className="mb-2">
+          <ActionButton
+            path={allPath}
+            confirmText={
+              `Revise every passage this review pinned to the scene — ${fixable} of them, ` +
+              `one after another.\n\nEach is replaced on its own and everything between ` +
+              `them is left exactly as it is. Nothing here rewrites the whole scene.`
+            }
+          >
+            fix every passage below
+          </ActionButton>
+        </div>
+      )}
       {/* Every other button on a scene disappears while a job runs. This one did not,
           because it lives in here rather than in the row above, so it stayed pressable
           through its own job and queued a second one against the same passage. */}
@@ -1278,6 +1308,24 @@ function SceneFindings({
  * draft's own marks and narration arrives with none, which is right both times — so the
  * rule is that the border separates the quote and nothing is added to the text.
  */
+/**
+ * Findings that quote the same passage, kept together and in the order they arrived.
+ *
+ * Lifted out because the band's header counts passages and the list renders them, and
+ * two different ideas of what a passage is would put a number above a list that
+ * disagreed with it.
+ */
+function groupByEvidence(list: Finding[]): Array<{ evidence: string; items: Finding[] }> {
+  const groups: Array<{ evidence: string; items: Finding[] }> = [];
+  for (const f of list) {
+    const evidence = f.evidence.trim();
+    const existing = groups.find((g) => g.evidence === evidence);
+    if (existing) existing.items.push(f);
+    else groups.push({ evidence, items: [f] });
+  }
+  return groups;
+}
+
 function FindingList({
   list,
   text,
@@ -1295,13 +1343,7 @@ function FindingList({
   // faults to go and find. Eleven findings on one scene came to five passages.
   //
   // Order is kept by whichever of them ranked highest, since that one arrived first.
-  const groups: Array<{ evidence: string; items: Finding[] }> = [];
-  for (const f of list) {
-    const evidence = f.evidence.trim();
-    const existing = groups.find((g) => g.evidence === evidence);
-    if (existing) existing.items.push(f);
-    else groups.push({ evidence, items: [f] });
-  }
+  const groups = groupByEvidence(list);
 
   return (
     <ul className="space-y-2">

@@ -1265,6 +1265,41 @@ describe("a review's findings are shown against the scene they are about", () =>
     expect(card(container, "Scene 1.1").textContent).not.toContain("the review said");
   });
 
+  it("offers to fix them all only once there is more than one passage", async () => {
+    // With a single passage it is the button below it under another name.
+    const one = renderEpisode(
+      episodeWithReview([{ ...issue(1, "một lỗi"), evidence: "một" }]),
+    );
+    await waitFor(() => expect(screen.getByText(/một lỗi/)).toBeDefined());
+    expect(one.container.textContent).toContain("fix this passage");
+    expect(one.container.textContent).not.toContain("fix every passage below");
+    cleanup();
+
+    // Two quotes that both live in scene 1.1, and nowhere else — otherwise each
+    // finding follows its own evidence to a different scene and neither scene has two.
+    const body = episodeWithReview([
+      { ...issue(1, "lỗi A"), evidence: "sương mù" },
+      { ...issue(1, "lỗi B"), evidence: "ngọn đèn" },
+    ]) as { chapters: Array<{ scenes: Array<{ text: string }> }> };
+    body.chapters[0]!.scenes[0]!.text = "sương mù dày. rồi ngọn đèn tắt.";
+    const many = renderEpisode(body);
+    await waitFor(() => expect(screen.getByText(/lỗi B/)).toBeDefined());
+    expect(many.container.textContent).toContain("fix every passage below");
+  });
+
+  it("does not count a quote that is not in the scene towards the offer", async () => {
+    // Two findings, one quote that is really there. Offering "all of them" for one
+    // passage promises more than the route would do.
+    const { container } = renderEpisode(
+      episodeWithReview([
+        { ...issue(1, "thật"), evidence: "một" },
+        { ...issue(1, "bịa"), evidence: "không hề có" },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByText(/bịa/)).toBeDefined());
+    expect(container.textContent).not.toContain("fix every passage below");
+  });
+
   it("shows what to DO about it, not only what is wrong", async () => {
     const { container } = renderEpisode(
       episodeWithReview([

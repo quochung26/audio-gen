@@ -13,6 +13,8 @@ import {
   chapterClosed,
   countWords,
   estimateDurationMs,
+  passageFixes,
+  reviewSchema,
   sceneSetupSchema,
   syncState,
   parseOverrideLines,
@@ -718,6 +720,82 @@ episodes.post("/:id/scenes/:sceneId/revise", async (c) => {
     },
   });
   return c.json({ ok: "Rewriting that passage…" });
+});
+
+/**
+ * Queue a revision for EVERY passage of a scene the latest review gave a reason to
+ * change.
+ *
+ * The same work as pressing "fix this passage" down the list, minus the reason it was
+ * not worth doing that way: each press is a separate decision about a passage nobody
+ * has re-read, and the fourth one is pressed the same way as the first.
+ *
+ * Derived here rather than sent from the page, so what gets queued is measured against
+ * the prose as it is NOW. A page open for ten minutes has offsets and quotes from ten
+ * minutes ago, and this is the one route that acts on all of them at once.
+ *
+ * Refuses rather than doing half the work silently when a passage cannot be found or
+ * overlaps one already taken — `passageFixes` drops those, and the count it returns is
+ * reported so the difference is visible.
+ */
+episodes.post("/:id/scenes/:sceneId/revise-all", async (c) => {
+  const episodeId = c.req.param("id");
+  const sceneId = c.req.param("sceneId");
+
+  const scene = await prisma.scene.findUniqueOrThrow({
+    where: { id: sceneId },
+    select: { text: true, order: true, chapter: { select: { order: true, episodeId: true } } },
+  });
+  if (scene.chapter.episodeId !== episodeId) throw new UserError("That scene is not in this episode.");
+  if (!scene.text?.trim()) throw new UserError("That scene has no prose to revise.");
+
+  const row = await prisma.episodeReview.findFirst({
+    where: { episodeId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!row) throw new UserError("Nobody has read this draft yet, so there is nothing to fix.");
+
+  const parsed = reviewSchema.safeParse({
+    scores: row.scores,
+    issues: row.issues,
+    contractBreaks: row.contractBreaks,
+    verdict: row.verdict,
+    summary: row.summary,
+  });
+  if (!parsed.success) {
+    throw new UserError("That review was saved in a shape this no longer reads. Read it again.");
+  }
+
+  // The scene's place in the EPISODE, which is how the review numbers them.
+  const ordered = await prisma.scene.findMany({
+    where: { chapter: { episodeId } },
+    orderBy: [{ chapter: { order: "asc" } }, { order: "asc" }],
+    select: { id: true },
+  });
+  const sceneNumber = ordered.findIndex((s) => s.id === sceneId) + 1;
+
+  const fixes = passageFixes(parsed.data, sceneNumber, scene.text);
+  if (fixes.length === 0) {
+    throw new UserError(
+      "Nothing in that review can be pinned to a passage of this scene — the quotes are " +
+        "not in the prose any more, or the scene has been rewritten since.",
+    );
+  }
+
+  for (const fix of fixes) {
+    await enqueue({
+      type: "REVISE_PASSAGE",
+      episodeId,
+      payload: { sceneId, passage: fix.passage, note: fix.note, at: fix.at },
+    });
+  }
+
+  return c.json({
+    ok:
+      `Revising ${fixes.length} passage${fixes.length === 1 ? "" : "s"} of scene ` +
+      `${scene.chapter.order}.${scene.order}, one after another. Everything between them ` +
+      `is left exactly as it is.`,
+  });
 });
 
 episodes.put("/:id/summary", async (c) => {

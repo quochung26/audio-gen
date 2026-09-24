@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { findPassage } from "./passage";
+
 /**
  * Reviewing a drafted episode before a person is asked to approve it.
  *
@@ -123,6 +125,9 @@ export const reviewSchema = z.object({
 // and then one of the two is wrong with nothing to say which.
 
 export type Review = z.infer<typeof reviewSchema>;
+
+/** One thing a review found wrong, as stored. */
+export type ReviewIssue = Review["issues"][number];
 
 /**
  * Every issue carries an `evidence` string, and the requirement is the point.
@@ -308,4 +313,87 @@ export function renderReviewLessons(lessons: string[]): string {
     `Problems a reader found in the episode before this one. Do not repeat them here:\n` +
     lessons.map((l) => `- ${l}`).join("\n")
   );
+}
+
+/** One passage of a scene, with the instruction the review gave for it. */
+export interface PassageFix {
+  /** The text to replace, exactly as it appears in the scene. */
+  passage: string;
+  /** Where it starts, to tell two identical passages apart. */
+  at: number;
+  /** What to do about it, built from the findings against this passage. */
+  note: string;
+  /** The findings this passage answers, for saying what is about to happen. */
+  dimensions: string[];
+}
+
+/**
+ * Every passage of one scene that the review gave a reason to change, ready to queue.
+ *
+ * Findings are grouped by the passage they quote before anything else, because one
+ * passage usually breaks several things at once and each of them is not a separate
+ * repair. A group's instruction is its suggestions where it has any, and its faults
+ * where it has none — worse direction, and better than an empty note.
+ *
+ * Two kinds are dropped, and both matter:
+ *
+ *   - A quote that is not in the scene. It cannot be located, so the job would refuse
+ *     it anyway; better not to spend the call finding that out.
+ *   - A quote that OVERLAPS one already taken. Splicing the first changes the text the
+ *     second was measured against, and while the job refuses rather than guessing, a
+ *     run that queues work it knows will fail is a run that reports failures it caused.
+ *
+ * Offsets go stale as earlier passages are spliced, and that is fine: `findPassage`
+ * ignores the hint entirely when the passage occurs once, which is the ordinary case.
+ * The hint only decides between two identical passages, and two identical passages in
+ * one scene is the case this drops as overlapping anyway.
+ */
+export function passageFixes(review: Review, sceneNumber: number, sceneText: string): PassageFix[] {
+  if (sceneNumber < 1 || !sceneText.trim()) return [];
+
+  const groups = new Map<string, { items: ReviewIssue[]; breaks: string[] }>();
+  const add = (evidence: string, issue?: ReviewIssue, broke?: string) => {
+    const key = evidence.trim();
+    if (!key) return;
+    const g = groups.get(key) ?? { items: [], breaks: [] };
+    if (issue) g.items.push(issue);
+    if (broke) g.breaks.push(broke);
+    groups.set(key, g);
+  };
+  for (const b of review.contractBreaks) {
+    if (b.scene === sceneNumber) add(b.evidence, undefined, b.broke);
+  }
+  for (const i of review.issues) {
+    if (i.scene === sceneNumber) add(i.evidence, i);
+  }
+
+  const out: PassageFix[] = [];
+  const taken: Array<{ start: number; end: number }> = [];
+
+  for (const [evidence, g] of groups) {
+    const range = findPassage(sceneText, evidence);
+    if (!range) continue;
+    if (taken.some((t) => range.start < t.end && t.start < range.end)) continue;
+
+    const fixes = g.items.map((i) => i.suggestion.trim()).filter(Boolean);
+    const note = [
+      ...g.breaks.map((b) => `Do not go past what the beat forbade: ${b}.`),
+      ...(fixes.length > 0 ? fixes : g.items.map((i) => i.what)),
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (!note) continue;
+
+    taken.push(range);
+    out.push({
+      passage: sceneText.slice(range.start, range.end),
+      at: range.start,
+      note,
+      dimensions: [...g.breaks.map(() => "contract"), ...g.items.map((i) => i.dimension)],
+    });
+  }
+
+  // In the order they appear in the scene, so a person reading the confirmation reads
+  // down the prose rather than down the review.
+  return out.sort((a, b) => a.at - b.at);
 }

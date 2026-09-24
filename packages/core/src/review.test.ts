@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  renderReviewLessons,
-  settleReview,
-  renderSceneFindings,
-  sceneFindings,
-  REVIEW_DIMENSIONS,
-  reviewLessons,
-  reviewSchema,
-  weakestDimensions,
-  type Review,
-} from "./review";
+import { REVIEW_DIMENSIONS, passageFixes, renderReviewLessons, renderSceneFindings, reviewLessons, reviewSchema, sceneFindings, settleReview, type Review, type ReviewIssue, weakestDimensions } from "./review";
 
 const base: Review = {
   scores: { consistency: 80, character: 72, pacing: 45, continuity: 88, threads: 30, hook: 61, prose: 55 },
@@ -230,5 +220,107 @@ describe("settleReview", () => {
     it("says nothing when the two agree", () => {
       expect(settleReview(base).correction).toBeNull();
     });
+  });
+});
+
+describe("passageFixes", () => {
+  const scene =
+    "Diana bước ra. Trời tối.\n\n" +
+    "Chloe nói: “Tôi đã chọn anh.”\n\n" +
+    "Nàng quay đi, không ngoảnh lại.";
+
+  const issue = (over: Partial<ReviewIssue> = {}): ReviewIssue => ({
+    dimension: "prose",
+    severity: "warning",
+    scene: 1,
+    what: "cụt",
+    evidence: "Trời tối.",
+    suggestion: "Cho nó thở ra một nhịp",
+    requiresChange: true,
+    ...over,
+  });
+
+  const withIssues = (issues: ReviewIssue[], breaks: Review["contractBreaks"] = []): Review => ({
+    ...base,
+    issues,
+    contractBreaks: breaks,
+  });
+
+  it("locates the passage and carries the suggestion as the instruction", () => {
+    const [fix] = passageFixes(withIssues([issue()]), 1, scene);
+    expect(fix).toMatchObject({ passage: "Trời tối.", note: "Cho nó thở ra một nhịp" });
+    expect(scene.slice(fix!.at, fix!.at + fix!.passage.length)).toBe("Trời tối.");
+  });
+
+  it("one passage, one repair — findings that quote it together share an instruction", () => {
+    const fixes = passageFixes(
+      withIssues([
+        issue({ dimension: "prose", suggestion: "Chậm lại" }),
+        issue({ dimension: "pacing", suggestion: "Bỏ câu sau" }),
+      ]),
+      1,
+      scene,
+    );
+    expect(fixes).toHaveLength(1);
+    expect(fixes[0]!.note).toBe("Chậm lại Bỏ câu sau");
+    expect(fixes[0]!.dimensions).toEqual(["prose", "pacing"]);
+  });
+
+  it("falls back to the fault when no suggestion was given", () => {
+    const [fix] = passageFixes(withIssues([issue({ suggestion: "" })]), 1, scene);
+    expect(fix!.note).toBe("cụt");
+  });
+
+  it("a broken contract goes in whatever else is there", () => {
+    const fixes = passageFixes(
+      withIssues([issue({ suggestion: "Chậm lại" })], [
+        { scene: 1, broke: "không được lộ danh tính", evidence: "Trời tối." },
+      ]),
+      1,
+      scene,
+    );
+    expect(fixes[0]!.note).toContain("không được lộ danh tính");
+    expect(fixes[0]!.note).toContain("Chậm lại");
+  });
+
+  it("drops a quote that is not in the scene rather than queueing a call to find out", () => {
+    expect(passageFixes(withIssues([issue({ evidence: "không hề có câu này" })]), 1, scene)).toEqual(
+      [],
+    );
+  });
+
+  it("drops the second of two OVERLAPPING passages", () => {
+    // Splicing the first changes the text the second was measured against. The job
+    // refuses rather than guessing, so queueing it only manufactures a failure.
+    const fixes = passageFixes(
+      withIssues([
+        issue({ evidence: "Diana bước ra. Trời tối." }),
+        issue({ evidence: "Trời tối.", suggestion: "khác" }),
+      ]),
+      1,
+      scene,
+    );
+    expect(fixes).toHaveLength(1);
+    expect(fixes[0]!.passage).toBe("Diana bước ra. Trời tối.");
+  });
+
+  it("returns them in the order they appear in the PROSE, not in the review", () => {
+    const fixes = passageFixes(
+      withIssues([
+        issue({ evidence: "Nàng quay đi, không ngoảnh lại." }),
+        issue({ evidence: "Trời tối.", suggestion: "x" }),
+      ]),
+      1,
+      scene,
+    );
+    expect(fixes.map((f) => f.passage)).toEqual([
+      "Trời tối.",
+      "Nàng quay đi, không ngoảnh lại.",
+    ]);
+  });
+
+  it("says nothing about a scene number that is not one", () => {
+    expect(passageFixes(withIssues([issue()]), 0, scene)).toEqual([]);
+    expect(passageFixes(withIssues([issue()]), 1, "")).toEqual([]);
   });
 });
