@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { findPassage } from "./passage";
+import { passageOccurrences } from "./passage";
 
 /**
  * Reviewing a drafted episode before a person is asked to approve it.
@@ -371,9 +371,15 @@ export function passageFixes(review: Review, sceneNumber: number, sceneText: str
   const taken: Array<{ start: number; end: number }> = [];
 
   for (const [evidence, g] of groups) {
-    const range = findPassage(sceneText, evidence);
+    // The first occurrence nothing else has claimed. `findPassage` refuses a passage
+    // that occurs twice unless it is told which one was meant, which is right for a
+    // selection made with a mouse and wrong here: working down a list, nobody meant
+    // either of them, and dropping the finding left the page offering a button — it
+    // locates by `indexOf` and takes the first — for work this would never queue.
+    const range = passageOccurrences(sceneText, evidence).find(
+      (r) => !taken.some((t) => r.start < t.end && t.start < r.end),
+    );
     if (!range) continue;
-    if (taken.some((t) => range.start < t.end && t.start < range.end)) continue;
 
     const fixes = g.items.map((i) => i.suggestion.trim()).filter(Boolean);
     const note = [

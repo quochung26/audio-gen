@@ -89,3 +89,32 @@ function pick(starts: number[], length: number, hint?: number): PassageRange | n
 export function splicePassage(text: string, at: PassageRange, replacement: string): string {
   return normalise(text).slice(0, at.start) + replacement + normalise(text).slice(at.end);
 }
+
+/**
+ * Every place a passage occurs, in order.
+ *
+ * `findPassage` answers "which one did the reader mean", and refuses when it cannot
+ * tell — right for a selection made in a browser, where guessing lands the replacement
+ * in the wrong paragraph. But a caller working down a list has no reader to have meant
+ * anything: it wants the occurrences themselves, so it can take the first one nothing
+ * else has claimed.
+ *
+ * Same two-pass matching as `findPassage` — exact first, then treating runs of
+ * whitespace as interchangeable — so the two agree about what counts as an occurrence.
+ */
+export function passageOccurrences(text: string, passage: string): PassageRange[] {
+  const t = normalise(text);
+  const p = normalise(passage).trim();
+  if (!p) return [];
+
+  const exact = allIndexes(t, p).map((start) => ({ start, end: start + p.length }));
+  if (exact.length > 0) return exact;
+
+  const loose = new RegExp(p.split(/\s+/).map(escapeRegExp).join("\\s+"), "g");
+  const found: PassageRange[] = [];
+  for (const m of t.matchAll(loose)) {
+    found.push({ start: m.index, end: m.index + m[0].length });
+    if (found.length > 8) return []; // too common to be a passage
+  }
+  return found;
+}

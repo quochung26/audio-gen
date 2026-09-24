@@ -324,3 +324,54 @@ describe("passageFixes", () => {
     expect(passageFixes(withIssues([issue()]), 1, "")).toEqual([]);
   });
 });
+
+describe("passageFixes and a passage that occurs more than once", () => {
+  // The bug this came from: the page offers a button for every quote it can find with
+  // `indexOf`, which takes the first occurrence. `findPassage` REFUSES an ambiguous
+  // passage unless told which was meant — right for a mouse selection, wrong for a list
+  // — so "fix every passage" quietly skipped findings whose button was right there.
+  const scene = "Diana không trả lời.\n\nChloe chờ.\n\nDiana không trả lời.";
+
+  const twice = (what: string): Review => ({
+    ...base,
+    contractBreaks: [],
+    issues: [
+      {
+        dimension: "character",
+        severity: "error",
+        scene: 1,
+        what,
+        evidence: "Diana không trả lời.",
+        suggestion: "Cho cô ấy nói gì đó",
+        requiresChange: true,
+      },
+    ],
+  });
+
+  it("takes the first occurrence instead of refusing", () => {
+    const [fix] = passageFixes(twice("im lặng hai lần"), 1, scene);
+    expect(fix).toBeDefined();
+    expect(fix!.at).toBe(0);
+    expect(scene.slice(fix!.at, fix!.at + fix!.passage.length)).toBe("Diana không trả lời.");
+  });
+
+  it("two findings quoting the same repeated line take DIFFERENT occurrences", () => {
+    const review = twice("a");
+    const fixes = passageFixes(
+      {
+        ...review,
+        issues: [
+          review.issues[0]!,
+          { ...review.issues[0]!, what: "b", evidence: "Chloe chờ." },
+        ],
+      },
+      1,
+      scene,
+    );
+    expect(fixes.map((f) => f.passage)).toEqual(["Diana không trả lời.", "Chloe chờ."]);
+  });
+
+  it("still refuses a passage that is not there at all", () => {
+    expect(passageFixes(twice("x"), 1, "không có câu nào như thế")).toEqual([]);
+  });
+});
