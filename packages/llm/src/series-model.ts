@@ -7,16 +7,31 @@ import { JobType, prisma } from "@audio/database";
  * story's big model on it pays story prices for a paragraph of bookkeeping. Not TTS,
  * MIX or the rest of the FFMPEG lane either — no LLM in sight. Those keep the default
  * from the Models page, which is what `kind: "utility"` already means in the worker.
+ *
+ * Not TRANSLATE or READING_COPY either, and that one IS deliberate: both have a default
+ * of their own on the Models page, chosen for translating rather than for writing, and a
+ * story's model would quietly override a setting made on purpose.
  */
 const SERIES_MODEL_APPLIES = new Set<JobType>([
   JobType.OUTLINE,
   JobType.CHARACTER,
   JobType.NEXT_EPISODE,
   JobType.NEXT_CHAPTER,
+  JobType.NEXT_SCENE,
   JobType.SCENE_BEAT,
   JobType.WRITE_SCENE,
+  // Prose the listener hears, in the story's own voice — the same claim WRITE_SCENE
+  // has. Left out of this list when it was written, and nothing said so: a story on
+  // qwen3-235b had its scenes written by it and its passages revised by whatever the
+  // Models page happened to default to, which on this machine could not write Vietnamese
+  // at all. Measured on one episode: NEXT_CHAPTER, SCENE_BEAT and WRITE_SCENE on the
+  // story's model, NEXT_SCENE and REVISE_PASSAGE on the default.
+  JobType.REVISE_PASSAGE,
   JobType.AUDIO_EDIT,
 ]);
+
+/** The same list, for a test that checks every name in it is a real job type. */
+export const SERIES_MODEL_TYPES: readonly JobType[] = [...SERIES_MODEL_APPLIES];
 
 /**
  * The story a job belongs to, from whichever id the caller happened to have.
