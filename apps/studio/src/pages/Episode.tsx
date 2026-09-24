@@ -178,7 +178,19 @@ interface Ep {
   /** The latest review of this draft, if one has been asked for. */
   reviews: EpisodeReview[];
   blocks: Block[];
-  renderJobs: Array<{ id: string; type: string; status: string; progress: number }>;
+  /**
+   * The latest job only — the API takes one. `error` and `payload` ride along because
+   * the route includes the row whole, and the page needs them to say why the last thing
+   * you pressed came to nothing.
+   */
+  renderJobs: Array<{
+    id: string;
+    type: string;
+    status: string;
+    progress: number;
+    error: string | null;
+    payload: { sceneId?: string } | null;
+  }>;
 }
 
 /** Render character overrides back into the one-per-line form they were typed in. */
@@ -199,6 +211,10 @@ export function Episode() {
   const { data: ep, isLoading, error } = useApi<Ep>(`/api/episodes/${id}`, { refetchMs: 3000 });
 
   const active = ep?.renderJobs.find((j) => j.status === "QUEUED" || j.status === "RUNNING");
+  // The last job, when it failed. A job fails in the worker minutes after the request
+  // that queued it returned 200, so the button that started it is long done and has
+  // nothing left to report — the page is the only thing still watching.
+  const failed = ep?.renderJobs.find((j) => j.status === "FAILED") ?? null;
 
   // Every hook must sit BEFORE the early return below, including ones only used
   // once data exists — React compares hook order between renders, and skipping
@@ -286,6 +302,21 @@ export function Episode() {
           className="block rounded border border-blue-900 bg-blue-950/40 p-3 text-sm text-blue-200"
         >
           {active.type} running — {active.progress}%. Click for progress.
+        </Link>
+      )}
+
+      {/* The same place, for the opposite news. Pressing a button queued work and said
+          so, and then the work failed in the worker with nothing on this page changed —
+          which reads exactly like a button that did nothing. Both of the last two
+          REVISE_PASSAGE runs died on an OpenRouter 429 and the page stayed silent, so
+          the second was pressed because the first appeared not to have worked. */}
+      {!active && failed && (
+        <Link
+          to={`/job/${failed.id}`}
+          className="block rounded border border-red-900 bg-red-950/30 p-3 text-sm text-red-200"
+        >
+          {failed.type} failed{failed.error ? ` — ${failed.error}` : ""} Nothing was
+          changed. Click for the whole job.
         </Link>
       )}
 
@@ -503,6 +534,7 @@ export function Episode() {
                       list={found.byScene.get(scene.id) ?? []}
                       text={scene.text}
                       revisePath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
+                      busy={Boolean(active)}
                     />
                     {/* An unwritten scene gets one thin line rather than the full
                         prose band. Three empty bands the height of a paragraph was
@@ -1217,17 +1249,23 @@ function SceneFindings({
   list,
   text,
   revisePath,
+  busy,
 }: {
   list: Finding[];
   /** The scene as stored, so a quote can be located in it. */
   text: string | null;
   /** POST target for revising one passage of this scene. */
   revisePath: string;
+  /** A job is already running on this episode. */
+  busy: boolean;
 }) {
   if (list.length === 0) return null;
   return (
     <div className="border-b border-neutral-900 bg-neutral-950/40 px-4 py-2.5">
-      <FindingList list={list} text={text} revisePath={revisePath} />
+      {/* Every other button on a scene disappears while a job runs. This one did not,
+          because it lives in here rather than in the row above, so it stayed pressable
+          through its own job and queued a second one against the same passage. */}
+      <FindingList list={list} text={text} revisePath={busy ? undefined : revisePath} />
     </div>
   );
 }

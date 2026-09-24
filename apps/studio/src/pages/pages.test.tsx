@@ -1421,3 +1421,106 @@ describe("saying how long a chapter is", () => {
     }
   });
 });
+
+describe("a one-click action says what it did, and what went wrong later", () => {
+  it("shows the route's own answer instead of going quiet", async () => {
+    // Every ActionButton in Studio was silent: the button dimmed and came back looking
+    // the same whether the work had been queued or not. Pressing "fix this passage" and
+    // seeing nothing is why it got pressed twice, and the second job died like the first.
+    const episode = {
+      ...(FIXTURES["/api/episodes/e1"] as Record<string, unknown>),
+      reviews: [
+        {
+          id: "r1",
+          verdict: "polish",
+          summary: "Đọc được.",
+          scores: { prose: 70 },
+          issues: [
+            {
+              dimension: "prose",
+              severity: "warning",
+              scene: 1,
+              what: "câu này cụt",
+              evidence: "Trời tối.",
+              suggestion: "Cho nó thở ra một nhịp",
+              requiresChange: true,
+            },
+          ],
+          contractBreaks: [],
+          scenes: [],
+          correction: null,
+          createdAt: "2026-09-24T07:00:00Z",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string) => {
+        const path = String(input).split("?")[0]!;
+        if (path === "/api/episodes/e1") {
+          return Promise.resolve(new Response(JSON.stringify(episode), { status: 200 }));
+        }
+        if (path.endsWith("/revise")) {
+          // What the route really answers — see episodes.ts.
+          return Promise.resolve(
+            new Response(JSON.stringify({ ok: "Rewriting that passage…" }), { status: 200 }),
+          );
+        }
+        const body = FIXTURES[path];
+        return Promise.resolve(
+          new Response(JSON.stringify(body ?? { error: "missing" }), {
+            status: body === undefined ? 404 : 200,
+          }),
+        );
+      }),
+    );
+
+    const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+    await waitFor(() => expect(screen.getByText("fix this passage")).toBeDefined());
+
+    fireEvent.click(screen.getByText("fix this passage"));
+    await waitFor(() => expect(screen.getByRole("status")).toBeDefined());
+    expect(container.textContent).toContain("Rewriting that passage…");
+  });
+
+  it("a job that failed in the worker is reported on the page", async () => {
+    // It fails minutes after the request that queued it returned 200, so the button is
+    // long done and the page is the only thing still watching.
+    const ep = FIXTURES["/api/episodes/e1"] as { renderJobs: unknown[] };
+    ep.renderJobs = [
+      {
+        id: "j9",
+        type: "REVISE_PASSAGE",
+        status: "FAILED",
+        progress: 10,
+        error: "OpenRouter is rate-limiting (429). Wait and try again.",
+        payload: { sceneId: "sc1" },
+      },
+    ];
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+      expect(container.textContent).toContain("REVISE_PASSAGE failed");
+      expect(container.textContent).toContain("rate-limiting (429)");
+      expect(container.textContent).toContain("Nothing was changed");
+    } finally {
+      ep.renderJobs = [];
+    }
+  });
+
+  it("a running job hides the failure, and the scene's fix button with it", async () => {
+    const ep = FIXTURES["/api/episodes/e1"] as { renderJobs: unknown[] };
+    ep.renderJobs = [
+      { id: "j8", type: "WRITE_SCENE", status: "RUNNING", progress: 40, error: null, payload: null },
+    ];
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+      expect(container.textContent).toContain("WRITE_SCENE running");
+      expect(container.textContent).not.toContain("failed");
+      expect(container.textContent).not.toContain("fix this passage");
+    } finally {
+      ep.renderJobs = [];
+    }
+  });
+});

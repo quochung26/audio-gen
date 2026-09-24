@@ -97,6 +97,18 @@ export function ActionButton({
   onDone?: (result: unknown) => void;
 }) {
   const action = useAction(method);
+  // What the route said back. `Form` has always shown this and this has never shown it,
+  // so every one-click action in Studio was silent: the button dimmed for a moment and
+  // went back to how it looked, whether the work had been queued or not. A person who
+  // pressed "fix this passage" and saw nothing pressed it again, and the second job
+  // failed the same way the first had.
+  //
+  // It says the work STARTED, which is all a queued job can honestly claim. The job
+  // itself fails later, in the worker, long after this request returned 200.
+  const ok = typeof (action.data as { ok?: unknown } | undefined)?.ok === "string"
+    ? String((action.data as { ok: string }).ok)
+    : null;
+
   return (
     <span className="inline-flex flex-col">
       <Button
@@ -109,6 +121,11 @@ export function ActionButton({
       >
         {action.isPending ? "…" : children}
       </Button>
+      {ok && (
+        <span role="status" className="mt-1 text-xs text-emerald-300">
+          {ok}
+        </span>
+      )}
       <ErrorNote error={action.error} />
     </span>
   );
