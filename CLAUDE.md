@@ -70,6 +70,39 @@ otherwise assume was an oversight — a route left unrenamed, a string left untr
 
 History before this file is Vietnamese and mostly unprefixed. Leave it as it is.
 
+## Looking at the UI
+
+**Use Playwright, not the Claude-in-Chrome tools.** The extension cannot open Studio at
+all: `localhost:3000` and `127.0.0.1:3000` both come back as an error page while `curl`
+on the same URL returns 200, and reaching it over the machine's LAN address is the only
+thing that works. It also drops its connection mid-session and loses its tab group
+between calls, so a page you were halfway through inspecting has to be reopened.
+
+Playwright opens `localhost` directly, survives a whole session, and can drive a form and
+then read what changed — which is the part that actually verifies something. It is not a
+dependency of this repo; run it from the scratchpad:
+
+```bash
+# once; ~200MB lands in ~/Library/Caches/ms-playwright
+npx --yes playwright@1.63.0 install chromium --only-shell
+cd "$SCRATCHPAD" && npm install playwright@1.63.0 --no-save
+node shot.mjs
+```
+
+Drive the real thing rather than screenshotting it. The page tests run under jsdom with
+`fetch` stubbed, so they never touch the API — that is how a fixture counting
+`_count.scenes` where the route returns `_count.chapters` survived until something read
+it. A Playwright run catches that class, and the failing-request log catches the rest:
+listen for `response` with `status() >= 400` across the pages you touched.
+
+Two things to get right, both learned by getting them wrong:
+
+- **Wait for the state you expect, not for a duration.** `waitForFunction` on the text
+  that should appear. A fixed `waitForTimeout` after a submit reported a button missing
+  that was there, and the bug was in the check.
+- **Put back what you changed.** Driving a form writes to the real database. Undo it in
+  the same script and assert the undo landed.
+
 ## Working agreement
 
 A change is done when it is committed, pushed, and green — not when it compiles.
