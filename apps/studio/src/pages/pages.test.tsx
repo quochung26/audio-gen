@@ -210,6 +210,7 @@ const FIXTURES: Record<string, unknown> = {
         order: 1,
         title: "Đêm đầu tiên",
         setup: null,
+        endsAtScene: null,
         scenes: [
           {
             id: "sc1",
@@ -1348,6 +1349,73 @@ describe("the story page says which episode is waiting on a person", () => {
       await waitFor(() => expect(screen.getByText("Tập 1")).toBeDefined());
       expect(container.textContent).toContain("no chapters yet");
       expect(container.textContent).not.toContain("waiting on your read");
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe("saying how long a chapter is", () => {
+  type Ch = { chapters: Array<Record<string, unknown>> };
+
+  function withChapter(patch: Record<string, unknown>) {
+    const ep = FIXTURES["/api/episodes/e1"] as Ch;
+    const saved = ep.chapters[0]!;
+    ep.chapters = [{ ...saved, ...patch }];
+    return () => {
+      ep.chapters = [saved];
+    };
+  }
+
+  it("is a field you can type into, not a fixed value", async () => {
+    // The whole reason Chapter.endsAtScene exists is to say the length BEFORE the
+    // scenes are written, so the ones before the last are told not to resolve. The
+    // control was a hidden input pinned to the scene count, which could only ever say
+    // "stop now" — the one case that needs no planning.
+    const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+    await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+
+    const input = container.querySelector<HTMLInputElement>('input[name="endsAtScene"]')!;
+    expect(input.type).toBe("number");
+    // One scene exists, so that is the default and also the floor: ending a chapter
+    // behind its own scenes would strand the ones past the end.
+    expect(input.defaultValue).toBe("1");
+    expect(input.min).toBe("1");
+  });
+
+  it("counts down the scenes still owed when the end is ahead of them", async () => {
+    const restore = withChapter({ endsAtScene: 4 });
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+      expect(container.textContent).toContain("3 still to come");
+      expect(container.textContent).toContain("NOT to resolve the chapter");
+    } finally {
+      restore();
+    }
+  });
+
+  it("says the last scene is told to land it once the end is reached", async () => {
+    const restore = withChapter({ endsAtScene: 1 });
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+      expect(container.textContent).toContain("told to land it");
+      expect(container.textContent).not.toContain("still to come");
+    } finally {
+      restore();
+    }
+  });
+
+  it("a chapter served without the field is OPEN, not declared", async () => {
+    // `!== null` read undefined as "the writer has said", and offered to undo a
+    // declaration nobody had made.
+    const restore = withChapter({ endsAtScene: undefined });
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Approve the draft/)).toBeDefined());
+      expect(container.querySelector('input[name="endsAtScene"]')).toBeTruthy();
+      expect(container.textContent).not.toContain("reopen it");
     } finally {
       restore();
     }

@@ -788,8 +788,10 @@ export function Episode() {
                   <ChapterEnd episodeId={ep.id} chapter={chapter} />
                   <span className="flex-1 text-xs text-neutral-600">
                     {chapter.endsAtScene === null
-                      ? `A chapter usually runs to about ${SCENES_PER_CHAPTER} scenes — until you say, the last scene is a guess.`
-                      : `Ending on scene ${chapter.endsAtScene}, so that scene is told to land it.`}
+                      ? `A chapter usually runs to about ${SCENES_PER_CHAPTER} scenes — until you say, the last scene is a guess. Say a higher number to leave room for more.`
+                      : chapter.endsAtScene > chapter.scenes.length
+                        ? `Ending on scene ${chapter.endsAtScene}: ${chapter.endsAtScene - chapter.scenes.length} still to come, and each one before the last is told NOT to resolve the chapter.`
+                        : `Ending on scene ${chapter.endsAtScene}, so that scene is told to land it.`}
                   </span>
                   {/* Chapters arrive one at a time to be accepted or rejected, and until
                       now there was no reject — the only way out was deleting the episode.
@@ -1457,9 +1459,12 @@ function ReviewPanel({
  * another movement left in them. Saying it replaces the guess with a fact.
  */
 function ChapterEnd({ episodeId, chapter }: { episodeId: string; chapter: Chapter }) {
-  const closed = chapter.endsAtScene !== null && chapter.scenes.length >= chapter.endsAtScene;
+  // `!= null`, catching undefined too: a chapter served without the field at all — an
+  // older cache, a route that forgot to select it — read as "the writer has said", and
+  // the form offered to undo a declaration nobody had made.
+  const closed = chapter.endsAtScene != null && chapter.scenes.length >= chapter.endsAtScene;
 
-  if (chapter.endsAtScene !== null) {
+  if (chapter.endsAtScene != null) {
     return (
       <Form
         path={`/api/episodes/${episodeId}/chapters/${chapter.id}/ends`}
@@ -1471,15 +1476,33 @@ function ChapterEnd({ episodeId, chapter }: { episodeId: string; chapter: Chapte
     );
   }
 
+  const now = chapter.scenes.length || 1;
   return (
     <Form
       path={`/api/episodes/${episodeId}/chapters/${chapter.id}/ends`}
       method="PUT"
-      submit="end it here"
+      submit="ends here"
+      className="flex items-baseline gap-2"
     >
-      {/* The scene that exists now: "this chapter is done" is the common case, and
-          saying a later number is how you leave room for one or two more. */}
-      <input type="hidden" name="endsAtScene" value={String(chapter.scenes.length || 1)} />
+      {/* A FIELD, not a hidden value.
+          
+          It was hidden and pinned to the scene count, which made this button mean only
+          "stop the chapter now" — while the whole reason the column exists is to say
+          the length BEFORE the scenes are written, so the ones before the last are told
+          not to resolve. `scenePosition` has always had the two messages and the route
+          has always taken any number at or above what exists; the form was the one
+          place that could not say it, and the comment here described the ability it was
+          removing. */}
+      <label className="text-xs text-neutral-500">
+        ends on scene{" "}
+        <input
+          type="number"
+          name="endsAtScene"
+          defaultValue={now}
+          min={now}
+          className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5 text-xs tabular-nums outline-none focus:border-neutral-500"
+        />
+      </label>
     </Form>
   );
 }
