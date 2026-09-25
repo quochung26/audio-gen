@@ -1595,4 +1595,38 @@ describe("a one-click action says what it did, and what went wrong later", () =>
       ep.renderJobs = [];
     }
   });
+
+  it("another job's turn dims the review's button rather than naming the job beside it", async () => {
+    // It used to say "REFOLD_SUMMARY is running — nothing can be read until it
+    // finishes." in a column next to the summary: an enum, at length, repeating the
+    // banner at the top of the page.
+    const ep = FIXTURES["/api/episodes/e1"] as { renderJobs: unknown[]; reviews?: unknown[] };
+    const reviews = ep.reviews;
+    ep.reviews = [
+      {
+        id: "r1",
+        verdict: "polish",
+        summary: "Đọc được.",
+        scores: { prose: 70 },
+        issues: [],
+        contractBreaks: [],
+        scenes: [],
+        correction: null,
+        createdAt: "2026-09-21T11:00:00Z",
+      },
+    ];
+    ep.renderJobs = [
+      { id: "j9", type: "REFOLD_SUMMARY", status: "RUNNING", progress: 10, error: null, payload: null },
+    ];
+    try {
+      const { container } = renderAt("/episode/e1", "/episode/:id", <Episode />);
+      await waitFor(() => expect(screen.getByText(/Đọc được/)).toBeDefined());
+      const button = screen.getByRole("button", { name: "read it again" }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(container.textContent).not.toContain("nothing can be read");
+    } finally {
+      ep.renderJobs = [];
+      ep.reviews = reviews;
+    }
+  });
 });

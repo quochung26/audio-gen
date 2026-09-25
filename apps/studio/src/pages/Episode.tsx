@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "@/lib/api";
-import { Badge, Section, STATUS_TONE } from "@/components/ui";
+import { Badge, Button, Section, STATUS_TONE } from "@/components/ui";
 import { Field, TextInput } from "@/components/Field";
 import { PassageReviser } from "@/components/PassageReviser";
 import { ReadingModal } from "@/components/ReadingModal";
@@ -1513,13 +1513,18 @@ function ReviewPanel({
   // Every other action on this page is hidden while a job runs, and this one was not:
   // the button stayed live through its own review and queued a second read of the same
   // draft — a model call to produce the answer the first one was already producing.
-  const busy = active ? (
-    <span className="text-xs text-neutral-500">
-      {active.type === "REVIEW"
-        ? `Reading the draft… ${active.progress}%`
-        : `${active.type} is running — nothing can be read until it finishes.`}
-    </span>
-  ) : null;
+  //
+  // Another job's turn is the button, dimmed, not a sentence. The sentence named the job
+  // by its enum ("REFOLD_SUMMARY is running — …") in a column beside the summary, which
+  // the banner at the top of the page already says in a place meant for it.
+  const busy = (label: string) =>
+    !active ? null : active.type === "REVIEW" ? (
+      <span className="text-xs text-neutral-500">Reading the draft… {active.progress}%</span>
+    ) : (
+      <Button variant="ghost" disabled title="Waits for the job that is running to finish">
+        {label}
+      </Button>
+    );
 
   return (
     <Section title="What a reader found">
@@ -1534,9 +1539,7 @@ function ReviewPanel({
               the scene several steps before it assembles the draft, and the page counts
               that scene as written. Offering the button through that window gave an error
               where an explanation belonged. */}
-          {busy ? (
-            busy
-          ) : ep.draftText?.trim() ? (
+          {busy("read the draft") ?? (ep.draftText?.trim() ? (
             <ActionButton path={`/api/episodes/${ep.id}/review`}>read the draft</ActionButton>
           ) : (
             <p className="text-xs text-amber-300">
@@ -1544,14 +1547,14 @@ function ReviewPanel({
                 ? "The scenes are still being written — the draft is assembled at the end of that. Nothing to read yet."
                 : "The draft has not been assembled from the scenes yet, so there is nothing to read. Writing the episode puts it together: on one whose scenes are all written it does nothing else."}
             </p>
-          )}
+          ))}
         </div>
       ) : (
         <div className="space-y-4 rounded border border-neutral-800 p-4">
           <div className="flex flex-wrap items-start gap-3">
             <Badge tone={VERDICT_TONE[review.verdict] ?? "neutral"}>{review.verdict}</Badge>
             <p className="min-w-48 flex-1 text-sm text-neutral-300">{review.summary}</p>
-            {busy ?? (
+            {busy("read it again") ?? (
               <ActionButton path={`/api/episodes/${ep.id}/review`}>read it again</ActionButton>
             )}
           </div>
