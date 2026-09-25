@@ -348,13 +348,20 @@ export interface PassageFix {
  * The hint only decides between two identical passages, and two identical passages in
  * one scene is the case this drops as overlapping anyway.
  */
-export function passageFixes(review: Review, sceneNumber: number, sceneText: string): PassageFix[] {
+export function passageFixes(
+  review: Review,
+  sceneNumber: number,
+  sceneText: string,
+  /** Evidence already revised since the review — see `revisedFindings`. Skipped. */
+  revised: string[] = [],
+): PassageFix[] {
   if (sceneNumber < 1 || !sceneText.trim()) return [];
+  const skip = new Set(revised.map(quoteKey));
 
   const groups = new Map<string, { items: ReviewIssue[]; breaks: string[] }>();
   const add = (evidence: string, issue?: ReviewIssue, broke?: string) => {
     const key = evidence.trim();
-    if (!key) return;
+    if (!key || skip.has(quoteKey(key))) return;
     const g = groups.get(key) ?? { items: [], breaks: [] };
     if (issue) g.items.push(issue);
     if (broke) g.breaks.push(broke);
@@ -402,4 +409,51 @@ export function passageFixes(review: Review, sceneNumber: number, sceneText: str
   // In the order they appear in the scene, so a person reading the confirmation reads
   // down the prose rather than down the review.
   return out.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * A quote reduced to what makes it the same passage: outer quote marks off, whitespace
+ * collapsed.
+ *
+ * The passage a revision was run on is not always the finding's `evidence` string. The
+ * page strips a pair of quote marks the model wrapped around narration before it can
+ * find it, and `passageFixes` reads the passage back out of the scene, whose whitespace
+ * may differ from the quote's. Both are the same passage, and compared raw neither
+ * would match the finding it came from.
+ */
+export function quoteKey(s: string): string {
+  return s
+    .trim()
+    .replace(/^["“”']\s*/, "")
+    .replace(/\s*["“”']$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The findings whose passage has been revised since, as their `evidence`
+ * strings trimmed.
+ *
+ * A review is a snapshot, and revising a passage does not touch it. The page used to
+ * tell a handled finding by its quote having left the prose — which fails exactly when
+ * the revision keeps the sentence and builds onto it, as an instruction like "link the
+ * paper to what Chloe does next" invites. On the episode this came from, two passages
+ * had been revised four and five times each, every revision keeping the quote, so they
+ * went on looking untouched and "fix every passage" went on queueing them. Each press
+ * grew the prose around a sentence the writer had already dealt with.
+ *
+ * So what counts is that a revision RAN on the passage, not what the prose looks like
+ * after. Whether it fixed the fault is still for another read to say.
+ */
+export function revisedFindings(
+  findings: ReadonlyArray<{ evidence: string }>,
+  revisedPassages: string[],
+): string[] {
+  const done = new Set(revisedPassages.map(quoteKey).filter(Boolean));
+  if (done.size === 0) return [];
+  const out = new Set<string>();
+  for (const f of findings) {
+    if (typeof f?.evidence === "string" && done.has(quoteKey(f.evidence))) out.add(f.evidence.trim());
+  }
+  return [...out];
 }

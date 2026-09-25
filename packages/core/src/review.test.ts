@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_DIMENSIONS, passageFixes, renderReviewLessons, renderSceneFindings, reviewLessons, reviewSchema, sceneFindings, settleReview, type Review, type ReviewIssue, weakestDimensions } from "./review";
+import { REVIEW_DIMENSIONS, passageFixes, quoteKey, revisedFindings, renderReviewLessons, renderSceneFindings, reviewLessons, reviewSchema, sceneFindings, settleReview, type Review, type ReviewIssue, weakestDimensions } from "./review";
 
 const base: Review = {
   scores: { consistency: 80, character: 72, pacing: 45, continuity: 88, threads: 30, hook: 61, prose: 55 },
@@ -373,5 +373,57 @@ describe("passageFixes and a passage that occurs more than once", () => {
 
   it("still refuses a passage that is not there at all", () => {
     expect(passageFixes(twice("x"), 1, "không có câu nào như thế")).toEqual([]);
+  });
+});
+
+describe("findings whose passage has been revised", () => {
+  // The bug this came from: a revision told to "link the paper to what Chloe does next"
+  // kept the quoted sentence and wrote onto it. The quote never left the prose, so the
+  // finding looked untouched and "fix every passage" revised it again — five times.
+  const scene =
+    "Nơi có một mẩu giấy cháy dở. Chloe nhìn nó rất lâu.\n\nDiana không trả lời.";
+  const review: Review = {
+    ...base,
+    contractBreaks: [{ scene: 1, broke: "Diana tự lộ mình", evidence: "Diana không trả lời." }],
+    issues: [
+      {
+        dimension: "threads",
+        severity: "warning",
+        scene: 1,
+        what: "mẩu giấy treo lơ lửng",
+        evidence: "Nơi có một mẩu giấy cháy dở.",
+        suggestion: "Nối nó với việc Chloe làm sau",
+        requiresChange: false,
+      },
+    ],
+  };
+
+  it("names the finding a revision ran on", () => {
+    expect(
+      revisedFindings([...review.contractBreaks, ...review.issues], ["Diana không trả lời."]),
+    ).toEqual(["Diana không trả lời."]);
+  });
+
+  it("matches the passage the page actually sent, quote marks and whitespace aside", () => {
+    // The page strips a pair of quote marks the model wrapped around narration, and
+    // `passageFixes` reads the passage back out of the prose with the prose's spacing.
+    expect(revisedFindings([{ evidence: "“Diana  không\ntrả lời.”" }], ["Diana không trả lời."]))
+      .toHaveLength(1);
+    expect(quoteKey("  “a\n\n b”  ")).toBe("a b");
+  });
+
+  it("is not fooled by a passage that merely contains the quote", () => {
+    expect(
+      revisedFindings(review.issues, ["Diana không trả lời. Cô ấy quay đi."]),
+    ).toEqual([]);
+  });
+
+  it("fix every passage skips them, though their quote is still in the scene", () => {
+    const all = passageFixes(review, 1, scene);
+    expect(all).toHaveLength(2);
+    const left = passageFixes(review, 1, scene, ["Nơi có một mẩu giấy cháy dở."]);
+    expect(left.map((f) => f.passage)).toEqual(["Diana không trả lời."]);
+    expect(passageFixes(review, 1, scene, ["Nơi có một mẩu giấy cháy dở.", "Diana không trả lời."]))
+      .toEqual([]);
   });
 });

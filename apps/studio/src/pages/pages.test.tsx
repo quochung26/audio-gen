@@ -1178,6 +1178,27 @@ describe("a review's findings are shown against the scene they are about", () =>
     expect(text).toContain("reading again would say");
   });
 
+  it("hides a finding whose passage has been revised, even though the quote is still there", async () => {
+    // The episode this came from: two passages revised four and five times each, every
+    // revision keeping the quoted sentence and building onto it. Judged by whether the
+    // quote was still in the prose they looked untouched, so "fix every passage" kept
+    // offering itself and kept growing the same paragraph.
+    const body = episodeWithReview([
+      { ...issue(1, "đã sửa, câu vẫn còn"), evidence: "một" },
+      { ...issue(1, "chưa sửa"), evidence: "một" },
+    ]);
+    const chapters = (body.chapters as Array<{ scenes: Array<Record<string, unknown>> }>);
+    chapters[0]!.scenes[0]!.revisedFindings = ["một"];
+    const { container } = renderEpisode(body);
+    await waitFor(() => expect(screen.getByText(/hidden — the passage/)).toBeDefined());
+    const text = card(container, "Scene 1.1").textContent!;
+    expect(text).not.toContain("đã sửa, câu vẫn còn");
+    expect(text).not.toContain("to fix");
+    expect(text).toContain("2 findings hidden");
+    // Says it was revised, not that it is fixed.
+    expect(text).toContain("Read again to check");
+  });
+
   it("findings that quote the same passage are shown together, under one copy of it", async () => {
     // One passage usually breaks several things at once. A copy of it under each
     // finding read as several separate faults to go and look for.

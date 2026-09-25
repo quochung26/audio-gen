@@ -83,6 +83,12 @@ interface Scene {
    * setups, the scene before it, or the WRITE_SCENE prompt. See Scene.inputDigest.
    */
   stale: boolean;
+  /**
+   * The latest review's findings on this scene whose passage has been revised since
+   * the read, as their `evidence` trimmed. Worked out by the API from the revisions
+   * that ran — the quote staying in the prose does not mean nobody touched it.
+   */
+  revisedFindings?: string[];
   /** What this scene must NOT do — written by the planner, editable. */
   forbidden: string[];
   /** What to check the scene against before writing it. */
@@ -532,6 +538,7 @@ export function Episode() {
                         Longest of the three bands, so it sits closest to it. */}
                     <SceneFindings
                       list={found.byScene.get(scene.id) ?? []}
+                      revised={found.revised.get(scene.id) ?? 0}
                       text={scene.text}
                       revisePath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise`}
                       allPath={`/api/episodes/${ep.id}/scenes/${scene.id}/revise-all`}
@@ -1171,11 +1178,18 @@ type Finding = (
 function findingsByScene(
   review: EpisodeReview | undefined,
   chapters: Chapter[],
-): { byScene: Map<string, Finding[]>; episode: Finding[]; orphans: Finding[] } {
+): {
+  byScene: Map<string, Finding[]>;
+  /** Per scene, how many findings were left out because their passage was revised. */
+  revised: Map<string, number>;
+  episode: Finding[];
+  orphans: Finding[];
+} {
   const byScene = new Map<string, Finding[]>();
+  const revised = new Map<string, number>();
   const episode: Finding[] = [];
   const orphans: Finding[] = [];
-  if (!review) return { byScene, episode, orphans };
+  if (!review) return { byScene, revised, episode, orphans };
 
   const inOrder = chapters.flatMap((ch) => ch.scenes);
 
@@ -1213,6 +1227,18 @@ function findingsByScene(
       orphans.push(f);
       return;
     }
+    // A revision ran on its passage since the read: dealt with, as far as anything short
+    // of another read can tell. Listed, it looked untouched whenever the revision kept
+    // the quoted sentence and built onto it, and "fix every passage" was pressed at it
+    // five times.
+    //
+    // A quote that is merely not in the prose is NOT hidden. That is also what a quote
+    // the model got wrong in the first place looks like, and the finding still says
+    // something about the scene — FindingList marks it instead.
+    if (scene.revisedFindings?.includes(f.evidence.trim())) {
+      revised.set(scene.id, (revised.get(scene.id) ?? 0) + 1);
+      return;
+    }
     const list = byScene.get(scene.id) ?? [];
     list.push(scene === stated ? f : { ...f, movedFrom: n });
     byScene.set(scene.id, list);
@@ -1227,7 +1253,7 @@ function findingsByScene(
   const rank = (f: Finding) => (f.kind === "break" ? 0 : f.requiresChange ? 1 : 2);
   for (const list of byScene.values()) list.sort((a, b) => rank(a) - rank(b));
 
-  return { byScene, episode, orphans };
+  return { byScene, revised, episode, orphans };
 }
 
 const SEVERITY_TONE: Record<string, string> = {
@@ -1254,12 +1280,15 @@ const VERDICT_TONE: Record<string, string> = {
  */
 function SceneFindings({
   list,
+  revised,
   text,
   revisePath,
   allPath,
   busy,
 }: {
   list: Finding[];
+  /** Findings hidden because their passage has been revised since the read. */
+  revised: number;
   /** The scene as stored, so a quote can be located in it. */
   text: string | null;
   /** POST target for revising one passage of this scene. */
@@ -1269,7 +1298,7 @@ function SceneFindings({
   /** A job is already running on this episode. */
   busy: boolean;
 }) {
-  if (list.length === 0) return null;
+  if (list.length === 0 && revised === 0) return null;
 
   // How many passages could actually be handed to a revision. Counted here only to
   // decide whether offering "all of them" means anything — the route derives its own
@@ -1309,6 +1338,16 @@ function SceneFindings({
           because it lives in here rather than in the row above, so it stayed pressable
           through its own job and queued a second one against the same passage. */}
       <FindingList list={list} text={text} revisePath={busy ? undefined : revisePath} />
+      {/* Said, not just done: a finding that vanishes without a word reads as the
+          review having lost it. Whether the revision fixed the fault is what reading
+          again would say, and this does not claim it did. */}
+      {revised > 0 && (
+        <p className={`text-xs text-neutral-600 ${list.length > 0 ? "mt-2" : ""}`}>
+          {revised} finding{revised === 1 ? "" : "s"} hidden — the passage
+          {revised === 1 ? " has" : "s have"} been revised since this read. Read again to
+          check.
+        </p>
+      )}
     </div>
   );
 }

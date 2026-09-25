@@ -15,6 +15,7 @@ import {
   estimateDurationMs,
   passageFixes,
   reviewSchema,
+  revisedFindings,
   sceneSetupSchema,
   syncState,
   parseOverrideLines,
@@ -23,6 +24,7 @@ import {
 import { DEFAULT_BGM_VOLUME } from "@audio/config";
 import { cleanupAudio, filesRemovedNote } from "../lib/cleanup";
 import { staleScenes } from "../lib/scene-staleness";
+import { revisedPassages } from "../lib/revised-passages";
 import { connection, enqueue } from "../lib/queue";
 import { field, splitLines, UserError } from "../lib/http";
 
@@ -76,14 +78,33 @@ episodes.get("/:id", async (c) => {
   // Marked per scene rather than returned as a list: the page shows it on the scene it
   // belongs to, and a list would have to be matched back up there anyway.
   const stale = await staleScenes(ep);
+
+  // Which of the latest review's findings have had their passage revised since, per
+  // scene. The page hides those: a revision that kept the quoted sentence and built
+  // onto it left the finding looking untouched, and it was revised five times over.
+  const review = ep.reviews[0];
+  const revised = review ? await revisedPassages(ep.id, review.createdAt) : new Map();
+  const findings = review
+    ? [...asArray(review.contractBreaks), ...asArray(review.issues)]
+    : [];
+
   return c.json({
     ...ep,
     chapters: ep.chapters.map((ch) => ({
       ...ch,
-      scenes: ch.scenes.map((s) => ({ ...s, stale: stale.has(s.id) })),
+      scenes: ch.scenes.map((s) => ({
+        ...s,
+        stale: stale.has(s.id),
+        revisedFindings: revisedFindings(findings, revised.get(s.id) ?? []),
+      })),
     })),
   });
 });
+
+/** A JSON column that should hold an array of findings, or anything else. */
+function asArray(v: unknown): Array<{ evidence: string }> {
+  return Array.isArray(v) ? (v as Array<{ evidence: string }>) : [];
+}
 
 /** Data for the audio page: blocks, exports, the music library. */
 episodes.get("/:id/audio", async (c) => {
@@ -774,11 +795,15 @@ episodes.post("/:id/scenes/:sceneId/revise-all", async (c) => {
   });
   const sceneNumber = ordered.findIndex((s) => s.id === sceneId) + 1;
 
-  const fixes = passageFixes(parsed.data, sceneNumber, scene.text);
+  // Not the ones already revised since the read. Their quote can still be in the prose
+  // — a revision that builds onto a sentence keeps it — and queueing them again grows
+  // the same paragraph a second time around a fault already dealt with.
+  const revised = (await revisedPassages(episodeId, row.createdAt)).get(sceneId) ?? [];
+  const fixes = passageFixes(parsed.data, sceneNumber, scene.text, revised);
   if (fixes.length === 0) {
     throw new UserError(
-      "Nothing in that review can be pinned to a passage of this scene — the quotes are " +
-        "not in the prose any more, or the scene has been rewritten since.",
+      "Nothing in that review is left to fix in this scene — every passage it quoted has " +
+        "been revised since, or is not in the prose any more. Read the draft again.",
     );
   }
 
